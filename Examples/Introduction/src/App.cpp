@@ -74,7 +74,7 @@ void main()
         LinaGX::Config.infoCallback  = LogInfo;
 
         LinaGX::InitInfo initInfo;
-        initInfo.api = BackendAPI::DX12;
+        initInfo.api = BackendAPI::Vulkan;
 
         m_wm.CreateWindow(initInfo.api, 800, 600, "LinaGX Examples - Introduction");
 

@@ -86,7 +86,7 @@ namespace LinaGX
 
         virtual bool Initialize(const InitInfo& initInfo) override;
         virtual void Shutdown();
-        virtual bool CompileSPVBlob(ShaderStage stage, const CompiledShaderBlob& blob, CompiledShaderBlob& outBlob);
+        virtual bool CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob);
 
     private:
         void DX12Exception(HrException e);

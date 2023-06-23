@@ -27,8 +27,12 @@ SOFTWARE.
 */
 
 #include "Utility/SPIRVUtility.hpp"
-#include "glslang/SPIRV/GlslangToSpv.h"
-
+#include "spirv_cross/spirv_glsl.hpp"
+#include "spirv_cross/spirv_msl.hpp"
+#include "spirv_cross/spirv_hlsl.hpp"
+#include "glslang/Include/glslang_c_interface.h"
+#include "glslang/SPIRV/spirv.hpp"
+#include "glslang/Public/ShaderLang.h"
 namespace LinaGX
 {
     void SPIRVUtility::Initialize()
@@ -163,48 +167,281 @@ namespace LinaGX
         }
     }
 
+    glslang_stage_t GetStage(ShaderStage stg)
+    {
+        switch (stg)
+        {
+        case ShaderStage::Vertex:
+            return glslang_stage_t::GLSLANG_STAGE_VERTEX;
+        case ShaderStage::Geometry:
+            return glslang_stage_t::GLSLANG_STAGE_GEOMETRY;
+        case ShaderStage::Pixel:
+            return glslang_stage_t::GLSLANG_STAGE_FRAGMENT;
+        case ShaderStage::Compute:
+            return glslang_stage_t::GLSLANG_STAGE_COMPUTE;
+        default:
+            return glslang_stage_t::GLSLANG_STAGE_VERTEX;
+        }
+    }
+
+    const glslang_resource_t DefaultTBuiltInResource = {
+        /* .MaxLights = */ 32,
+        /* .MaxClipPlanes = */ 6,
+        /* .MaxTextureUnits = */ 32,
+        /* .MaxTextureCoords = */ 32,
+        /* .MaxVertexAttribs = */ 64,
+        /* .MaxVertexUniformComponents = */ 4096,
+        /* .MaxVaryingFloats = */ 64,
+        /* .MaxVertexTextureImageUnits = */ 32,
+        /* .MaxCombinedTextureImageUnits = */ 80,
+        /* .MaxTextureImageUnits = */ 32,
+        /* .MaxFragmentUniformComponents = */ 4096,
+        /* .MaxDrawBuffers = */ 32,
+        /* .MaxVertexUniformVectors = */ 128,
+        /* .MaxVaryingVectors = */ 8,
+        /* .MaxFragmentUniformVectors = */ 16,
+        /* .MaxVertexOutputVectors = */ 16,
+        /* .MaxFragmentInputVectors = */ 15,
+        /* .MinProgramTexelOffset = */ -8,
+        /* .MaxProgramTexelOffset = */ 7,
+        /* .MaxClipDistances = */ 8,
+        /* .MaxComputeWorkGroupCountX = */ 65535,
+        /* .MaxComputeWorkGroupCountY = */ 65535,
+        /* .MaxComputeWorkGroupCountZ = */ 65535,
+        /* .MaxComputeWorkGroupSizeX = */ 1024,
+        /* .MaxComputeWorkGroupSizeY = */ 1024,
+        /* .MaxComputeWorkGroupSizeZ = */ 64,
+        /* .MaxComputeUniformComponents = */ 1024,
+        /* .MaxComputeTextureImageUnits = */ 16,
+        /* .MaxComputeImageUniforms = */ 8,
+        /* .MaxComputeAtomicCounters = */ 8,
+        /* .MaxComputeAtomicCounterBuffers = */ 1,
+        /* .MaxVaryingComponents = */ 60,
+        /* .MaxVertexOutputComponents = */ 64,
+        /* .MaxGeometryInputComponents = */ 64,
+        /* .MaxGeometryOutputComponents = */ 128,
+        /* .MaxFragmentInputComponents = */ 128,
+        /* .MaxImageUnits = */ 8,
+        /* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
+        /* .MaxCombinedShaderOutputResources = */ 8,
+        /* .MaxImageSamples = */ 0,
+        /* .MaxVertexImageUniforms = */ 0,
+        /* .MaxTessControlImageUniforms = */ 0,
+        /* .MaxTessEvaluationImageUniforms = */ 0,
+        /* .MaxGeometryImageUniforms = */ 0,
+        /* .MaxFragmentImageUniforms = */ 8,
+        /* .MaxCombinedImageUniforms = */ 8,
+        /* .MaxGeometryTextureImageUnits = */ 16,
+        /* .MaxGeometryOutputVertices = */ 256,
+        /* .MaxGeometryTotalOutputComponents = */ 1024,
+        /* .MaxGeometryUniformComponents = */ 1024,
+        /* .MaxGeometryVaryingComponents = */ 64,
+        /* .MaxTessControlInputComponents = */ 128,
+        /* .MaxTessControlOutputComponents = */ 128,
+        /* .MaxTessControlTextureImageUnits = */ 16,
+        /* .MaxTessControlUniformComponents = */ 1024,
+        /* .MaxTessControlTotalOutputComponents = */ 4096,
+        /* .MaxTessEvaluationInputComponents = */ 128,
+        /* .MaxTessEvaluationOutputComponents = */ 128,
+        /* .MaxTessEvaluationTextureImageUnits = */ 16,
+        /* .MaxTessEvaluationUniformComponents = */ 1024,
+        /* .MaxTessPatchComponents = */ 120,
+        /* .MaxPatchVertices = */ 32,
+        /* .MaxTessGenLevel = */ 64,
+        /* .MaxViewports = */ 16,
+        /* .MaxVertexAtomicCounters = */ 0,
+        /* .MaxTessControlAtomicCounters = */ 0,
+        /* .MaxTessEvaluationAtomicCounters = */ 0,
+        /* .MaxGeometryAtomicCounters = */ 0,
+        /* .MaxFragmentAtomicCounters = */ 8,
+        /* .MaxCombinedAtomicCounters = */ 8,
+        /* .MaxAtomicCounterBindings = */ 1,
+        /* .MaxVertexAtomicCounterBuffers = */ 0,
+        /* .MaxTessControlAtomicCounterBuffers = */ 0,
+        /* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
+        /* .MaxGeometryAtomicCounterBuffers = */ 0,
+        /* .MaxFragmentAtomicCounterBuffers = */ 1,
+        /* .MaxCombinedAtomicCounterBuffers = */ 1,
+        /* .MaxAtomicCounterBufferSize = */ 16384,
+        /* .MaxTransformFeedbackBuffers = */ 4,
+        /* .MaxTransformFeedbackInterleavedComponents = */ 64,
+        /* .MaxCullDistances = */ 8,
+        /* .MaxCombinedClipAndCullDistances = */ 8,
+        /* .MaxSamples = */ 4,
+        /* .maxMeshOutputVerticesNV = */ 256,
+        /* .maxMeshOutputPrimitivesNV = */ 512,
+        /* .maxMeshWorkGroupSizeX_NV = */ 32,
+        /* .maxMeshWorkGroupSizeY_NV = */ 1,
+        /* .maxMeshWorkGroupSizeZ_NV = */ 1,
+        /* .maxTaskWorkGroupSizeX_NV = */ 32,
+        /* .maxTaskWorkGroupSizeY_NV = */ 1,
+        /* .maxTaskWorkGroupSizeZ_NV = */ 1,
+        /* .maxMeshViewCountNV = */ 4,
+        /* .maxMeshOutputVerticesEXT = */ 256,
+        /* .maxMeshOutputPrimitivesEXT = */ 256,
+        /* .maxMeshWorkGroupSizeX_EXT = */ 128,
+        /* .maxMeshWorkGroupSizeY_EXT = */ 128,
+        /* .maxMeshWorkGroupSizeZ_EXT = */ 128,
+        /* .maxTaskWorkGroupSizeX_EXT = */ 128,
+        /* .maxTaskWorkGroupSizeY_EXT = */ 128,
+        /* .maxTaskWorkGroupSizeZ_EXT = */ 128,
+        /* .maxMeshViewCountEXT = */ 4,
+        /* .maxDualSourceDrawBuffersEXT = */ 1,
+
+        /* .limits = */ {
+            /* .nonInductiveForLoops = */ 1,
+            /* .whileLoops = */ 1,
+            /* .doWhileLoops = */ 1,
+            /* .generalUniformIndexing = */ 1,
+            /* .generalAttributeMatrixVectorIndexing = */ 1,
+            /* .generalVaryingIndexing = */ 1,
+            /* .generalSamplerIndexing = */ 1,
+            /* .generalVariableIndexing = */ 1,
+            /* .generalConstantMatrixVectorIndexing = */ 1,
+        }};
+
     bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, CompiledShaderBlob& compiledBlob)
     {
-        EShLanguage       stage = FindLanguage(stg);
-        glslang::TShader  shader(stage);
-        glslang::TProgram program;
-        const char*       shaderStrings[1];
-        TBuiltInResource  Resources = {};
-        InitResources(Resources);
+        glslang_initialize_process();
 
-        EShMessages messages = (EShMessages)(0);
-        shaderStrings[0]     = pShader;
-        shader.setStrings(shaderStrings, 1);
+        glslang_stage_t stage = GetStage(stg);
 
-        if (!shader.parse(&Resources, 100, false, messages))
+        glslang_input_t input                   = {};
+        input.language                          = GLSLANG_SOURCE_GLSL;
+        input.stage                             = stage;
+        input.client                            = GLSLANG_CLIENT_NONE;
+        input.target_language                   = GLSLANG_TARGET_SPV;
+        input.target_language_version           = GLSLANG_TARGET_SPV_1_0;
+        input.code                              = pShader;
+        input.default_version                   = 100;
+        input.default_profile                   = GLSLANG_NO_PROFILE;
+        input.force_default_version_and_profile = false;
+        input.forward_compatible                = false;
+        input.messages                          = GLSLANG_MSG_DEFAULT_BIT;
+        input.resource                          = &DefaultTBuiltInResource;
+        // input.include_path                      = includePath,
+
+        glslang_shader_t* shader = glslang_shader_create(&input);
+
+        if (!glslang_shader_preprocess(shader, &input))
         {
-            puts(shader.getInfoLog());
-            puts(shader.getInfoDebugLog());
-            LOGE("GLSToSPV -> Failed parsing shader!");
+            LOGE("GLSL2SPV -> Preprocess failed %s, %s", glslang_shader_get_info_log(shader), glslang_shader_get_info_debug_log(shader));
             return false;
         }
 
-        program.addShader(&shader);
-
-        if (!program.link(messages))
+        if (!glslang_shader_parse(shader, &input))
         {
-            puts(shader.getInfoLog());
-            puts(shader.getInfoDebugLog());
-            fflush(stdout);
+            LOGE("GLSL2SPV -> Parsing failed %s, %s", glslang_shader_get_info_log(shader), glslang_shader_get_info_debug_log(shader));
             return false;
         }
 
-        std::vector<unsigned int> arr;
-        auto&                     inter = *program.getIntermediate(stage);
-        glslang::GlslangToSpv(inter, arr);
+        glslang_program_t* program = glslang_program_create();
+        glslang_program_add_shader(program, shader);
 
-        const size_t size = sizeof(unsigned int) * arr.size();
-        compiledBlob.ptr  = (uint8*)LINAGX_MALLOC(size);
-
-        if (compiledBlob.ptr != 0)
+        if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT))
         {
-            LINAGX_MEMCPY(compiledBlob.ptr, arr.data(), size);
-            compiledBlob.size = size;
+            LOGE("GLSL2SPV -> Linking failed %s, %s", glslang_shader_get_info_log(shader), glslang_shader_get_info_debug_log(shader));
+            return false;
+        }
+
+        glslang_program_SPIRV_generate(program, stage);
+
+        const size_t programSize = glslang_program_SPIRV_get_size(program) * sizeof(uint32);
+        compiledBlob.ptr         = new uint8[programSize];
+        compiledBlob.size        = programSize;
+        glslang_program_SPIRV_get(program, reinterpret_cast<uint32*>(compiledBlob.ptr));
+
+        const char* spirv_messages =
+            glslang_program_SPIRV_get_messages(program);
+
+        if (spirv_messages)
+            fprintf(stderr, "%s", spirv_messages);
+
+        glslang_program_delete(program);
+        glslang_shader_delete(shader);
+
+        glslang_finalize_process();
+
+        // EShLanguage       stage = FindLanguage(stg);
+        // glslang::TShader  shader(stage);
+        // glslang::TProgram program;
+        // const char*       shaderStrings[1];
+        // TBuiltInResource  Resources = {};
+        // InitResources(Resources);
+        //
+        //
+        // EShMessages messages = (EShMessages)(0);
+        // shaderStrings[0]     = pShader;
+        // shader.setStrings(shaderStrings, 1);
+        //
+        // if (!shader.parse(&Resources, 100, true, messages))
+        // {
+        //     puts(shader.getInfoLog());
+        //     puts(shader.getInfoDebugLog());
+        //     LOGE("GLSToSPV -> Failed parsing shader!");
+        //     return false;
+        // }
+        //
+        // program.addShader(&shader);
+        //
+        // if (!program.link(messages))
+        // {
+        //     puts(shader.getInfoLog());
+        //     puts(shader.getInfoDebugLog());
+        //     fflush(stdout);
+        //     return false;
+        // }
+        //
+        // std::vector<unsigned int> arr;
+        // auto&                     inter = *program.getIntermediate(stage);
+        // glslang::GlslangToSpv(inter, arr);
+        //
+        // compiledBlob.blob = arr;
+
+        return true;
+    }
+
+    bool SPIRVUtility::SPV2HLSL(ShaderStage stg, const CompiledShaderBlob& spv, LINAGX_STRING& out)
+    {
+        try
+        {
+            spirv_cross::CompilerHLSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
+
+            spirv_cross::CompilerHLSL::Options options;
+            options.shader_model = 60; // SM6_0
+            compiler.set_hlsl_options(options);
+
+            // Perform the conversion
+            out = compiler.compile();
+        }
+        catch (spirv_cross::CompilerError& e)
+        {
+            const LINAGX_STRING err = e.what();
+            const LINAGX_STRING log = "SPV2HLSL -> " + err;
+            LOGE(log.c_str());
+            return false;
+        }
+
+        return true;
+    }
+
+    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const CompiledShaderBlob& spv, LINAGX_STRING& out)
+    {
+        try
+        {
+            spirv_cross::CompilerMSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
+
+            spirv_cross::CompilerMSL::Options options;
+
+            // Perform the conversion
+            out = compiler.compile();
+        }
+        catch (spirv_cross::CompilerError& e)
+        {
+            const LINAGX_STRING err = e.what();
+            const LINAGX_STRING log = "SPV2MSL -> " + err;
+            LOGE(log.c_str());
+            return false;
         }
 
         return true;

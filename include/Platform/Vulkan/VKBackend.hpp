@@ -32,9 +32,19 @@ SOFTWARE.
 #define LINAGX_VKBackend_HPP
 
 #include "Core/Backend.hpp"
+#ifdef LINAGX_PLATFORM_WINDOWS
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+#include "vulkan/vulkan.h"
+
+struct VkDebugUtilsMessengerEXT_T;
+struct VmaAllocator_T;
 
 namespace LinaGX
 {
+    struct QueueFamily
+    {
+    };
     class VKBackend : public Backend
     {
     public:
@@ -45,6 +55,24 @@ namespace LinaGX
         virtual void Shutdown();
 
     private:
+        VkInstance               m_vkInstance     = nullptr;
+        VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
+        VkAllocationCallbacks*   m_allocator      = nullptr;
+        VkDevice                 m_device         = nullptr;
+        VkPhysicalDevice         m_gpu            = nullptr;
+        VmaAllocator_T*          m_vmaAllocator   = nullptr;
+        VkQueue                  m_graphicsQueue  = nullptr;
+        VkQueue                  m_transferQueue  = nullptr;
+        VkQueue                  m_computeQueue   = nullptr;
+
+        std::pair<uint32, uint32> m_graphicsQueueIndices;
+        std::pair<uint32, uint32> m_transferQueueIndices;
+        std::pair<uint32, uint32> m_computeQueueIndices;
+        uint64                    m_minUniformBufferOffsetAlignment = 0;
+        bool                      m_supportsAsyncTransferQueue      = false;
+        bool                      m_supportsAsyncComputeQueue       = false;
+
+        LINAGX_VEC<VkQueueFamilyProperties> m_queueFamilies;
     };
 } // namespace LinaGX
 

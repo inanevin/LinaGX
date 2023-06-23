@@ -74,27 +74,48 @@ namespace LinaGX
 
     bool Renderer::CompileShader(ShaderStage stage, const char* text, CompiledShaderBlob& outCompiledBlob)
     {
+        CompiledShaderBlob spv = {};
+        if (!SPIRVUtility::GLSL2SPV(stage, text, spv))
+            return false;
+
         if (m_initInfo.api == BackendAPI::DX12)
         {
-            CompiledShaderBlob spirvBlob;
-            if (SPIRVUtility::GLSL2SPV(stage, text, spirvBlob))
-            {
-                //SPIRVUtility::SPV2HLSL(stage, spirvBlob);
+            LINAGX_STRING outHLSL = "";
 
-                return m_backend->CompileSPVBlob(stage, spirvBlob, outCompiledBlob);
-            }
-            else
+            const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL);
+
+            LINAGX_FREE(spv.ptr);
+
+            if (!res)
                 return false;
+
+            return m_backend->CompileShader(stage, outHLSL, outCompiledBlob);
         }
         else if (m_initInfo.api == BackendAPI::Metal)
         {
+            LINAGX_STRING outMSL = "";
+
+            const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL);
+
+            LINAGX_FREE(spv.ptr);
+
+            if (!res)
+                return false;
+
+            return m_backend->CompileShader(stage, outMSL, outCompiledBlob);
         }
         else if (m_initInfo.api == BackendAPI::Vulkan)
         {
-            return SPIRVUtility::GLSL2SPV(stage, text, outCompiledBlob);
+            // Already SPV, assign & return.
+            outCompiledBlob = spv;
+            return true;
         }
 
         return false;
+    }
+
+    void Renderer::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages)
+    {
     }
 
 } // namespace LinaGX

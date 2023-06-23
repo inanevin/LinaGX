@@ -82,7 +82,7 @@ namespace LinaGX
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
                 {
                     char* buf = Internal::WCharToChar(desc.Description);
-                    LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %d mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                    LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
                     delete[] buf;
                     break;
                 }
@@ -104,7 +104,7 @@ namespace LinaGX
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
                 {
                     char* buf = Internal::WCharToChar(desc.Description);
-                    LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %d mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                    LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
                     delete[] buf;
                     break;
                 }
@@ -212,13 +212,114 @@ namespace LinaGX
     {
     }
 
-    bool DX12Backend::CompileSPVBlob(ShaderStage stage, const CompiledShaderBlob& blob, CompiledShaderBlob& outBlob)
+    bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob)
     {
+        try
+        {
+            Microsoft::WRL::ComPtr<IDxcCompiler3> idxcCompiler;
+
+            HRESULT hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&idxcCompiler));
+            if (FAILED(hr))
+            {
+                LOGE("DX12Backend -> Failed to create DXC compiler");
+                return false;
+            }
+
+            ComPtr<IDxcUtils> utils;
+            hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(utils.GetAddressOf()));
+
+            if (FAILED(hr))
+            {
+                LOGE("DX12Backend -> Failed to create DXC utils.");
+                return false;
+            }
+
+            UINT32                   codePage = CP_UTF8;
+            ComPtr<IDxcBlobEncoding> sourceBlob;
+            const char*              shaderSource = source.c_str();
+            m_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, source.size(), codePage, &sourceBlob);
+
+            const wchar_t* targetProfile = L"vs_6_0";
+            if (stage == ShaderStage::Pixel)
+                targetProfile = L"ps_6_0";
+            else if (stage == ShaderStage::Compute)
+                targetProfile = L"cs_6_0";
+            else if (stage == ShaderStage::Geometry)
+                targetProfile = L"gs_6_0";
+            else if (stage == ShaderStage::Tesellation)
+                targetProfile = L"hs_6_0";
+
+            DxcBuffer sourceBuffer;
+            sourceBuffer.Ptr      = sourceBlob->GetBufferPointer();
+            sourceBuffer.Size     = sourceBlob->GetBufferSize();
+            sourceBuffer.Encoding = 0;
+
+            LINAGX_VEC<LPCWSTR> arguments;
+
+            arguments.push_back(L"-T");
+            arguments.push_back(targetProfile);
+            arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
+            arguments.push_back(L"-HV 2021");                 //-WX
+
+            // We will still get reflection info, just with a smaller binary.
+            arguments.push_back(L"-Qstrip_debug");
+            arguments.push_back(L"-Qstrip_reflect");
+
+#ifndef NDEBUG
+            arguments.push_back(DXC_ARG_DEBUG); //-Zi
+#else
+            arguments.push_back(DXC_ARG_OPTIMIZATION_LEVEL3);
+#endif
+
+            ComPtr<IDxcResult> result;
+            ThrowIfFailed(idxcCompiler->Compile(&sourceBuffer, arguments.data(), static_cast<uint32>(arguments.size()), NULL, IID_PPV_ARGS(result.GetAddressOf())));
+
+            ComPtr<IDxcBlobUtf8> errors;
+            ComPtr<IDxcBlobWide> outputName;
+            result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(errors.GetAddressOf()), nullptr);
+
+            if (errors && errors->GetStringLength() > 0)
+            {
+                LOGE("DX12Backend -> %s", (char*)errors->GetStringPointer());
+            }
+
+            result->GetStatus(&hr);
+
+            if (FAILED(hr))
+            {
+                if (result)
+                {
+                    ComPtr<IDxcBlobEncoding> errorsBlob;
+                    hr = result->GetErrorBuffer(&errorsBlob);
+                    if (SUCCEEDED(hr) && errorsBlob)
+                    {
+                        LOGE("DX12Backend -> Shader compilation failed: %s", (const char*)errorsBlob->GetBufferPointer());
+                        return false;
+                    }
+                }
+            }
+
+            ComPtr<IDxcBlob> code;
+            result->GetResult(&code);
+
+            const SIZE_T sz = code->GetBufferSize();
+            outBlob.size    = code->GetBufferSize();
+            outBlob.ptr     = new uint8[sz];
+            LINAGX_MEMCPY(outBlob.ptr, code->GetBufferPointer(), outBlob.size);
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend -> Exception when compiling shader! %s", e.what());
+            DX12Exception(e);
+            return false;
+        }
+
         return true;
     }
 
     void DX12Backend::DX12Exception(HrException e)
     {
+        LOGE("DX12Backend -> Exception: %s", e.what());
     }
 
 } // namespace LinaGX

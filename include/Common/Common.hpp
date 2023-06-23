@@ -33,7 +33,8 @@ SOFTWARE.
 
 #include "LinaGXExports.hpp"
 #include <vector>
-#include <string.h>
+#include <string>
+#include <unordered_map>
 
 namespace LinaGX
 {
@@ -79,6 +80,7 @@ namespace LinaGX
 
 #define LINAGX_VEC         std::vector
 #define LINAGX_STRING      std::string
+#define LINAGX_MAP         std::unordered_map
 #define LINAGX_MALLOC(...) malloc(__VA_ARGS__)
 #define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
 #define LINAGX_FREE(...)   free(__VA_ARGS__)
@@ -114,6 +116,27 @@ namespace LinaGX
         Verbose,
     };
 
+    enum class Format
+    {
+        UNDEFINED = 0,
+        B8G8R8A8_SRGB,
+        B8G8R8A8_UNORM,
+        R32G32B32_SFLOAT,
+        R32G32B32A32_SFLOAT,
+        R32G32_SFLOAT,
+        D32_SFLOAT,
+        R8G8B8A8_UNORM,
+        R8G8B8A8_SRGB,
+        R8G8_UNORM,
+        R8_UNORM,
+        R8_UINT,
+        R16_SFLOAT,
+        R16_SINT,
+        R32_SFLOAT,
+        R32_SINT,
+        FORMAT_MAX,
+    };
+
     typedef void (*LogCallback)(const char*, ...);
 
     struct Configuration
@@ -136,8 +159,9 @@ namespace LinaGX
 
     struct InitInfo
     {
-        BackendAPI       api = BackendAPI::Vulkan;
-        PreferredGPUType gpu = PreferredGPUType::Discrete;
+        BackendAPI       api     = BackendAPI::Vulkan;
+        PreferredGPUType gpu     = PreferredGPUType::Discrete;
+        const char*      appName = "LinaGX Application";
     };
 
     struct CompiledShaderBlob

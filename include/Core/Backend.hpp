@@ -45,7 +45,7 @@ namespace LinaGX
 
         virtual bool Initialize(const InitInfo& initInfo) = 0;
         virtual void Shutdown()                           = 0;
-        virtual bool CompileSPVBlob(ShaderStage stage, const CompiledShaderBlob& blob, CompiledShaderBlob& outBlob)
+        virtual bool CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob)
         {
             return false;
         };

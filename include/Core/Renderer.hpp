@@ -47,12 +47,18 @@ namespace LinaGX
         void Shutdown();
 
         /// <summary>
-        /// Compiles given shader into a blob.
+        /// Compiles given GLSL text file into a blob. This blob is used to generate shader programs in the gpu. You can save the blob to file and pass it without compiling next time.
         /// </summary>
         /// <param name="stage">Target shader stage.</param>
         /// <param name="text">A valid raw GLSL for the shader stage.</param>
         /// <param name="outCompiledBlob">Out blob, SPIRV blob in Vulkan, IDXC blob in DirectX & metal blob in Metal.</param>
         bool CompileShader(ShaderStage stage, const char* text, CompiledShaderBlob& outCompiledBlob);
+
+        /// <summary>
+        /// Generates a shader program in the gpu.
+        /// </summary>
+        /// <param name="stages">Hashmap containing all compiled blobs per shader stage.</param>
+        void GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages);
 
     private:
         InitInfo m_initInfo = {};
