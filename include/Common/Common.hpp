@@ -32,9 +32,57 @@ SOFTWARE.
 #define Common_HPP
 
 #include "LinaGXExports.hpp"
+#include <vector>
+#include <string.h>
 
 namespace LinaGX
 {
+#if defined(__GNUC__) || defined(__clang__) || (defined(_MSC_VER) && _MSC_VER >= 1600)
+#include <stdint.h>
+#elif defined(_MSC_VER)
+    typedef signed __int8    int8_t;
+    typedef unsigned __int8  uint8_t;
+    typedef signed __int16   int16_t;
+    typedef unsigned __int16 uint16_t;
+    typedef signed __int32   int32_t;
+    typedef unsigned __int32 uint32_t;
+    typedef signed __int64   int64_t;
+    typedef unsigned __int64 uint64_t;
+    typedef uint64_t         uintptr_t;
+    typedef int64_t          intptr_t;
+    typedef int16_t          wchar_t;
+#else
+    typedef signed char        int8_t;
+    typedef unsigned char      uint8_t;
+    typedef signed short int   int16_t;
+    typedef unsigned short int uint16_t;
+    typedef signed int         int32_t;
+    typedef unsigned int       uint32_t;
+    typedef long long          int64_t;
+    typedef unsigned long long uint64_t;
+    typedef uint64_t           uintptr_t;
+    typedef int64_t            intptr_t;
+    typedef int16_t            wchar_t;
+#endif
+
+    typedef uint8_t   CHART;
+    typedef int8_t    int8;
+    typedef int16_t   int16;
+    typedef int32_t   int32;
+    typedef int64_t   int64;
+    typedef uint8_t   uint8;
+    typedef uint16_t  uint16;
+    typedef uint32_t  uint32;
+    typedef uint64_t  uint64;
+    typedef intptr_t  intptr;
+    typedef uintptr_t uintptr;
+
+#define LINAGX_VEC         std::vector
+#define LINAGX_STRING      std::string
+#define LINAGX_MALLOC(...) malloc(__VA_ARGS__)
+#define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
+#define LINAGX_FREE(...)   free(__VA_ARGS__)
+
     enum class BackendAPI
     {
         Vulkan,
@@ -42,9 +90,89 @@ namespace LinaGX
         Metal
     };
 
+    enum class ShaderStage
+    {
+        Vertex,
+        Pixel,
+        Compute,
+        Geometry,
+        Tesellation
+    };
+
+    enum class PreferredGPUType
+    {
+        CPU,
+        Integrated,
+        Discrete,
+    };
+
+    enum class LogLevel
+    {
+        None,
+        OnlyErrors,
+        Normal,
+        Verbose,
+    };
+
+    typedef void (*LogCallback)(const char*, ...);
+
+    struct Configuration
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        LogCallback errorCallback = nullptr;
+
+        /// <summary>
+        ///
+        /// </summary>
+        LogCallback infoCallback = nullptr;
+
+        /// <summary>
+        ///
+        /// </summary>
+        LogLevel logLevel = LogLevel::Normal;
+    };
+
     struct InitInfo
     {
+        BackendAPI       api = BackendAPI::Vulkan;
+        PreferredGPUType gpu = PreferredGPUType::Discrete;
     };
+
+    struct CompiledShaderBlob
+    {
+        uint8* ptr  = nullptr;
+        size_t size = 0;
+
+        void Free()
+        {
+            if (ptr == nullptr)
+                return;
+
+            LINAGX_FREE(ptr);
+            size = 0;
+        }
+    };
+
+    extern LINAGX_API Configuration Config;
+
+#define LOGT(...)                                                                                            \
+    if (Config.infoCallback && Config.logLevel != LogLevel::None && Config.logLevel != LogLevel::OnlyErrors) \
+        Config.infoCallback(__VA_ARGS__);
+#define LOGE(...)                                                  \
+    if (Config.errorCallback && Config.logLevel != LogLevel::None) \
+        Config.errorCallback(__VA_ARGS__);
+
+#define LOGV(...)                                                    \
+    if (Config.infoCallback && Config.logLevel == LogLevel::Verbose) \
+        Config.infoCallback(__VA_ARGS__);
+
+    namespace Internal
+    {
+        extern LINAGX_API char* WCharToChar(const wchar_t* wch);
+    }
+
 } // namespace LinaGX
 
 #endif

@@ -27,12 +27,37 @@ SOFTWARE.
 */
 
 #pragma once
-#include "LinaGX.hpp"
+
+#include "Core/Backend.hpp"
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+#include "Platform/DX12/DX12Backend.hpp"
+#include "Platform/Vulkan/VKBackend.hpp"
+#endif
+
+#ifdef LINAGX_PLATFORM_APPLE
+#include "Platform/Metal/MTLBackend.hpp"
+#endif
 
 namespace LinaGX
 {
-    void Initialize(const InitInfo& initInfo)
+    Backend* LinaGX::Backend::CreateBackend(BackendAPI api)
     {
-       
+        switch (api)
+        {
+        case BackendAPI::Vulkan:
+            return new VKBackend();
+        case BackendAPI::DX12:
+            return new DX12Backend();
+
+#ifdef LINAGX_PLATFORM_APPLE
+        case BackendAPI::Metal:
+            return new MTLBackend();
+#endif
+        default:
+            return nullptr;
+        }
+
+        return nullptr;
     }
-} // namespace LinaVG
+} // namespace LinaGX

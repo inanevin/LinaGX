@@ -29,6 +29,7 @@ SOFTWARE.
 
 #pragma once
 
+#define GLAD_GL_IMPLEMENTATION
 #include "GLFW/glfw3.h"
 #include <iostream>
 
@@ -42,22 +43,16 @@ namespace LinaGX
             std::cerr << "LinaGX Examples: GLFW Error: " << error << " Description: " << desc << std::endl;
         }
 
-        void* WindowManager::CreateWindow(int width, int height, const char* title)
+        void* WindowManager::CreateWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title)
         {
-
             // Initialize GLFW
             if (!glfwInit())
             {
                 return nullptr;
             }
 
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+                glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-            // Build window
-            //  auto*              primaryMonitor = glfwGetPrimaryMonitor();
-            //  const GLFWvidmode* mode           = glfwGetVideoMode(primaryMonitor);
-
-            // Set error callback
             glfwSetErrorCallback(GLFWErrorCallback);
 
             m_windowHandle = (void*)(glfwCreateWindow(width, height, title, NULL, NULL));
@@ -65,7 +60,7 @@ namespace LinaGX
             if (!m_windowHandle)
             {
                 // Assert window creation.
-                std::cerr << "LinaVG: GLFW window failed to initialize!" << std::endl;
+                GLFWErrorCallback(0, "LinaGX: GLFW window failed to initialize!");
                 glfwTerminate();
                 return nullptr;
             }
@@ -82,9 +77,7 @@ namespace LinaGX
             };
 
             auto windowKeyFunc = [](GLFWwindow* w, int key, int scancode, int action, int modes) {
-                if (action == GLFW_PRESS)
-                {
-                }
+
             };
 
             auto windowButtonFunc = [](GLFWwindow* w, int button, int action, int modes) {
@@ -103,7 +96,6 @@ namespace LinaGX
             };
 
             std::cout << "LinaGX Examples: Window initialized successfully." << std::endl;
-
             return m_windowHandle;
         }
 
@@ -111,5 +103,11 @@ namespace LinaGX
         {
             glfwPollEvents();
         }
+
+        void WindowManager::Shutdown()
+        {
+            glfwTerminate();
+        }
+
     } // namespace Examples
 } // namespace LinaGX

@@ -29,6 +29,8 @@ SOFTWARE.
 #ifndef WINDOW_MANAGER_HPP
 #define WINDOW_MANAGER_HPP
 
+#include "LinaGX.hpp"
+
 namespace LinaGX
 {
     namespace Examples
@@ -36,8 +38,9 @@ namespace LinaGX
         class WindowManager
         {
         public:
-            void* CreateWindow(int width, int height, const char* title);
-            void Poll();
+            void* CreateWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title);
+            void  Poll();
+            void  Shutdown();
 
         private:
             void* m_windowHandle = nullptr;

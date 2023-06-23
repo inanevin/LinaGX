@@ -21,10 +21,12 @@ project(Introduction)
 
 set(INTRODUCTION_SOURCES 
 src/Main.cpp
+src/App.cpp
 )
 
 set(INTRODUCTION_HEADERS
 include/Main.hpp
+include/App.hpp
 )
 
 #--------------------------------------------------------------------

@@ -1,0 +1,3 @@
+0e2880a 
+Version used for MoltenVK 1.1.5 release
+https://github.com/KhronosGroup/SPIRV-Cross/releases/tag/MoltenVK-1.1.5

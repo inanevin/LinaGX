@@ -31,11 +31,11 @@ SOFTWARE.
 #ifndef LinaGX_HPP
 #define LinaGX_HPP
 
-#include "Common/Common.hpp"
+#include "Core/Renderer.hpp"
 
 namespace LinaGX
 {
-       LINAGX_API void Initialize(const InitInfo& initInfo);
+
 } // namespace LinaGX
 
 #endif

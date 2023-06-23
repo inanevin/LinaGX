@@ -27,19 +27,14 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "LinaGX.hpp"
-#include "WindowManager.hpp"
+#include "App.hpp"
 
 using namespace LinaGX::Examples;
 
 int main(int argc, char* argv[])
 {
-    WindowManager wm;
-    wm.CreateWindow(800, 600, "LinaGX Examples - Introduction");
-
-    while (true)
-    {
-        wm.Poll();
-    }
+    App app;
+    app.Initialize();
+    app.Run();
     return 0;
 }

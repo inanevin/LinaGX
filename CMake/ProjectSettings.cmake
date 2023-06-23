@@ -23,6 +23,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT UNIX)
     target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_PLATFORM_UNKNOWN=1)
 endif()
 
+add_definitions(-DLINAGX_CONFIGURATION="$<CONFIGURATION>")
+
 #--------------------------------------------------------------------
 # Properties
 #--------------------------------------------------------------------
