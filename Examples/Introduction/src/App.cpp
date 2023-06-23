@@ -75,6 +75,7 @@ void main()
 
         LinaGX::InitInfo initInfo;
         initInfo.api = BackendAPI::Vulkan;
+        initInfo.gpu = PreferredGPUType::Integrated;
 
         m_wm.CreateWindow(initInfo.api, 800, 600, "LinaGX Examples - Introduction");
 

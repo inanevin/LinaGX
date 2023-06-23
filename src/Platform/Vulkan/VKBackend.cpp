@@ -125,7 +125,7 @@ namespace LinaGX
 
         vkb::PhysicalDeviceSelector selector{inst};
         vkb::PhysicalDevice         physicalDevice = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
-                                                 .add_required_extensions(deviceExtensions)
+                                                 .defer_surface_initialization()
                                                  .prefer_gpu_device_type(targetDeviceType)
                                                  .allow_any_gpu_device_type(false)
                                                  .set_required_features(features)
@@ -140,15 +140,15 @@ namespace LinaGX
         shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
 
         // For using UPDATE_AFTER_BIND_BIT on material bindings
-        VkPhysicalDeviceDescriptorIndexingFeatures descFeatures;
+        VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
         descFeatures.sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
         descFeatures.pNext                                         = nullptr;
         descFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
         descFeatures.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
 
-        VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature;
-        dynamic_rendering_feature.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
-        dynamic_rendering_feature.dynamicRendering = VK_TRUE;
+        VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = VkPhysicalDeviceDynamicRenderingFeaturesKHR{};
+        dynamic_rendering_feature.sType                                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+        dynamic_rendering_feature.dynamicRendering                            = VK_TRUE;
 
         deviceBuilder.add_pNext(&shaderDrawParamsFeature);
         deviceBuilder.add_pNext(&descFeatures);
