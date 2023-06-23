@@ -78,26 +78,37 @@ namespace LinaGX
         }
     }
 
+    struct DX12Swapchain
+    {
+        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr;
+        bool                                    isValid = false;
+    };
+
     class DX12Backend : public Backend
     {
     public:
         DX12Backend(){};
         virtual ~DX12Backend(){};
 
-        virtual bool Initialize(const InitInfo& initInfo) override;
-        virtual void Shutdown();
-        virtual bool CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob);
+        virtual bool  Initialize(const InitInfo& initInfo) override;
+        virtual void  Shutdown() override;
+        virtual bool  CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob) override;
+        virtual uint8 CreateSwapchain(const SwapchainDesc& desc) override;
+        virtual void  DestroySwapchain(uint8 handle) override;
 
     private:
         void DX12Exception(HrException e);
 
     private:
-        D3D12MA::Allocator*                   m_dx12Allocator = nullptr;
-        Microsoft::WRL::ComPtr<IDxcLibrary>   m_idxcLib;
-        Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter      = nullptr;
-        Microsoft::WRL::ComPtr<ID3D12Device>  m_device       = nullptr;
-        Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory      = nullptr;
-        bool                                  m_allowTearing = false;
+        D3D12MA::Allocator*                        m_dx12Allocator = nullptr;
+        Microsoft::WRL::ComPtr<IDxcLibrary>        m_idxcLib;
+        Microsoft::WRL::ComPtr<IDXGIAdapter1>      m_adapter = nullptr;
+        Microsoft::WRL::ComPtr<ID3D12Device>       m_device  = nullptr;
+        Microsoft::WRL::ComPtr<IDXGIFactory4>      m_factory = nullptr;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_queueDirect;
+        bool                                       m_allowTearing = false;
+
+        IDList<uint8, DX12Swapchain> m_swapchains = {10};
     };
 } // namespace LinaGX
 

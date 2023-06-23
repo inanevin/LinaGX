@@ -29,21 +29,27 @@ SOFTWARE.
 
 #pragma once
 
-#define GLAD_GL_IMPLEMENTATION
 #include "GLFW/glfw3.h"
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif
+
 #include <iostream>
 
 namespace LinaGX
 {
     namespace Examples
     {
+        std::function<void()> WindowManager::CloseCallback;
 
         static void GLFWErrorCallback(int error, const char* desc)
         {
             std::cerr << "LinaGX Examples: GLFW Error: " << error << " Description: " << desc << std::endl;
         }
 
-        void* WindowManager::CreateWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title)
+        void* WindowManager::CreateAppWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title)
         {
             // Initialize GLFW
             if (!glfwInit())
@@ -51,11 +57,16 @@ namespace LinaGX
                 return nullptr;
             }
 
-                glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
             glfwSetErrorCallback(GLFWErrorCallback);
 
             m_windowHandle = (void*)(glfwCreateWindow(width, height, title, NULL, NULL));
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+            m_osHandle1 = glfwGetWin32Window((GLFWwindow*)m_windowHandle);
+            m_osHandle2 = (void*)GetWindowLongPtr((HWND)m_osHandle1, GWLP_HINSTANCE);
+#endif
 
             if (!m_windowHandle)
             {
@@ -73,7 +84,8 @@ namespace LinaGX
             };
 
             auto windowCloseFunc = [](GLFWwindow* w) {
-
+                if (CloseCallback)
+                    CloseCallback();
             };
 
             auto windowKeyFunc = [](GLFWwindow* w, int key, int scancode, int action, int modes) {
@@ -94,6 +106,15 @@ namespace LinaGX
             auto windowFocusFunc = [](GLFWwindow* w, int f) {
 
             };
+
+            // Register window callbacks.
+            glfwSetFramebufferSizeCallback((GLFWwindow*)m_windowHandle, windowResizeFunc);
+            glfwSetWindowCloseCallback((GLFWwindow*)m_windowHandle, windowCloseFunc);
+            glfwSetKeyCallback((GLFWwindow*)m_windowHandle, windowKeyFunc);
+            glfwSetMouseButtonCallback((GLFWwindow*)m_windowHandle, windowButtonFunc);
+            glfwSetScrollCallback((GLFWwindow*)m_windowHandle, windowMouseScrollFunc);
+            glfwSetCursorPosCallback((GLFWwindow*)m_windowHandle, windowCursorPosFunc);
+            glfwSetWindowFocusCallback((GLFWwindow*)m_windowHandle, windowFocusFunc);
 
             std::cout << "LinaGX Examples: Window initialized successfully." << std::endl;
             return m_windowHandle;

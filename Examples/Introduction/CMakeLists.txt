@@ -36,6 +36,14 @@ add_executable(${PROJECT_NAME} ${INTRODUCTION_SOURCES} ${INTRODUCTION_HEADERS})
 
 include(${CMAKE_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
+set_target_properties(
+    ${PROJECT_NAME}
+      PROPERTIES 
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED YES 
+        CXX_EXTENSIONS NO
+)
+
 #--------------------------------------------------------------------
 # Options & Definitions
 #--------------------------------------------------------------------

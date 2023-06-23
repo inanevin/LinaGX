@@ -70,6 +70,17 @@ namespace LinaGX
     void Renderer::Shutdown()
     {
         SPIRVUtility::Shutdown();
+        m_backend->Shutdown();
+    }
+
+    uint8 Renderer::CreateSwapchain(const SwapchainDesc& desc)
+    {
+        return m_backend->CreateSwapchain(desc);
+    }
+
+    void Renderer::DestroySwapchain(uint8 handle)
+    {
+        m_backend->DestroySwapchain(handle);
     }
 
     bool Renderer::CompileShader(ShaderStage stage, const char* text, CompiledShaderBlob& outCompiledBlob)

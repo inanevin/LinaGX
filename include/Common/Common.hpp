@@ -35,6 +35,7 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <queue>
 
 namespace LinaGX
 {
@@ -79,11 +80,125 @@ namespace LinaGX
     typedef uintptr_t uintptr;
 
 #define LINAGX_VEC         std::vector
+#define LINAGX_QUEUE       std::queue
 #define LINAGX_STRING      std::string
 #define LINAGX_MAP         std::unordered_map
 #define LINAGX_MALLOC(...) malloc(__VA_ARGS__)
 #define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
 #define LINAGX_FREE(...)   free(__VA_ARGS__)
+
+    template <typename T>
+    struct Handle
+    {
+        Handle(T it)
+        {
+            item = it;
+        }
+
+        T    item    = T();
+        bool isValid = true;
+    };
+
+    template <typename U, typename T>
+    class IDList
+    {
+    public:
+        IDList(uint32 step)
+        {
+            m_defaultStep = step;
+            m_items.resize(step, T());
+        }
+
+        ~IDList() = default;
+
+        typename LINAGX_VEC<T>::iterator begin()
+        {
+            return m_items.begin();
+        }
+
+        typename LINAGX_VEC<T>::iterator end()
+        {
+            return m_items.end();
+        }
+
+        inline U AddItem(T item)
+        {
+            U id = 0;
+
+            if (!m_availableIDs.empty())
+            {
+                id = m_availableIDs.front();
+                m_availableIDs.pop();
+            }
+            else
+                id = m_nextFreeID++;
+
+            const U currentSize = static_cast<U>(m_items.size());
+            if (id >= currentSize)
+                m_items.resize(m_defaultStep + currentSize);
+
+            m_items[id] = item;
+            return id;
+        }
+
+        inline void AddItem(T item, U index)
+        {
+            m_items[index] = item;
+        }
+
+        inline void RemoveItem(U id)
+        {
+            m_items[id] = T();
+            m_availableIDs.push(id);
+        }
+
+        inline const LINAGX_VEC<T>& GetItems() const
+        {
+            return m_items;
+        }
+
+        inline LINAGX_VEC<T>& GetItems()
+        {
+            return m_items;
+        }
+
+        inline T GetItem(int index)
+        {
+            return m_items[index];
+        }
+
+        inline T& GetItemR(int index)
+        {
+            return m_items[index];
+        }
+
+        inline U GetNextFreeID()
+        {
+            return m_nextFreeID;
+        }
+
+        inline void Clear()
+        {
+            m_items.clear();
+        }
+
+        inline void Reset()
+        {
+            Clear();
+            m_items.resize(m_defaultStep, T());
+        }
+
+        inline T* GetRaw()
+        {
+            return m_items.data();
+        }
+
+    private:
+        LINAGX_VEC<T>   m_items;
+        LINAGX_QUEUE<U> m_availableIDs;
+        U               m_nextFreeID  = 0;
+        uint32          m_defaultStep = 50;
+    };
 
     enum class BackendAPI
     {
@@ -179,6 +294,18 @@ namespace LinaGX
         }
     };
 
+    struct SwapchainDesc
+    {
+        uint32 x               = 0;
+        uint32 y               = 0;
+        uint32 width           = 0;
+        uint32 height          = 0;
+        void*  window          = nullptr;
+        void*  osHandle        = nullptr;
+        Format format          = Format::R8G8B8A8_UNORM;
+        uint32 backBufferCount = 1;
+    };
+
     extern LINAGX_API Configuration Config;
 
 #define LOGT(...)                                                                                            \
@@ -191,6 +318,11 @@ namespace LinaGX
 #define LOGV(...)                                                    \
     if (Config.infoCallback && Config.logLevel == LogLevel::Verbose) \
         Config.infoCallback(__VA_ARGS__);
+
+#define LOGA(condition, ...)                \
+    if (!condition && Config.errorCallback) \
+        Config.errorCallback(__VA_ARGS__);   \
+    _ASSERT(condition);
 
     namespace Internal
     {

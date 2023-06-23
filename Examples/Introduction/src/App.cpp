@@ -62,7 +62,7 @@ void main()
     {
         va_list args;
         va_start(args, info);
-        std::cout << "LinaGX: ";
+        std::cout << "\033[32mLinaGX: ";
         vprintf(info, args);
         std::cout << std::endl;
         va_end(args);
@@ -70,6 +70,7 @@ void main()
 
     void App::Initialize()
     {
+        LinaGX::Config.logLevel      = LogLevel::Verbose;
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
@@ -77,21 +78,41 @@ void main()
         initInfo.api = BackendAPI::Vulkan;
         initInfo.gpu = PreferredGPUType::Integrated;
 
-        m_wm.CreateWindow(initInfo.api, 800, 600, "LinaGX Examples - Introduction");
+        m_wm.CreateAppWindow(initInfo.api, 800, 600, "LinaGX Examples - Introduction");
+        WindowManager::CloseCallback = [&]() {
+            m_isRunning = false;
+        };
 
         renderer = new LinaGX::Renderer();
         renderer->Initialize(initInfo);
 
         CompiledShaderBlob outBlob;
         renderer->CompileShader(ShaderStage::Vertex, vtxShader, outBlob);
+
+        auto swp = renderer->CreateSwapchain({
+            .x               = 0,
+            .y               = 0,
+            .width           = 500,
+            .height          = 500,
+            .window          = m_wm.GetOSWindow(),
+            .osHandle        = m_wm.GetOSHandle(),
+            .format          = Format::R8G8B8A8_UNORM,
+            .backBufferCount = 3,
+        });
+
+         renderer->DestroySwapchain(swp);
     }
 
     void App::Run()
     {
-        while (true)
+        m_isRunning = true;
+
+        while (m_isRunning)
         {
             m_wm.Poll();
         }
+
+        Shutdown();
     }
 
     void App::Shutdown()

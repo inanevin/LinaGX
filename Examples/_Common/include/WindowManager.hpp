@@ -30,6 +30,7 @@ SOFTWARE.
 #define WINDOW_MANAGER_HPP
 
 #include "LinaGX.hpp"
+#include <functional>
 
 namespace LinaGX
 {
@@ -38,12 +39,26 @@ namespace LinaGX
         class WindowManager
         {
         public:
-            void* CreateWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title);
+            void* CreateAppWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title);
             void  Poll();
             void  Shutdown();
 
+            inline void* GetOSWindow()
+            {
+                return m_osHandle1;
+            }
+
+            inline void* GetOSHandle()
+            {
+                return m_osHandle2;
+            }
+
+            static std::function<void()> CloseCallback;
+
         private:
             void* m_windowHandle = nullptr;
+            void* m_osHandle1    = nullptr;
+            void* m_osHandle2    = nullptr;
         };
     } // namespace Examples
 } // namespace LinaGX

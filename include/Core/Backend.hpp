@@ -45,14 +45,22 @@ namespace LinaGX
 
         virtual bool Initialize(const InitInfo& initInfo) = 0;
         virtual void Shutdown()                           = 0;
+
         virtual bool CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob)
         {
             return false;
         };
 
+        virtual uint8 CreateSwapchain(const SwapchainDesc& desc)
+        {
+            return 0;
+        }
+
+        virtual void DestroySwapchain(uint8 handle){};
+
         static Backend* CreateBackend(BackendAPI api);
 
-    private:
+    protected:
     };
 } // namespace LinaGX
 

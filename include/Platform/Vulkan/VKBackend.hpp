@@ -42,17 +42,26 @@ struct VmaAllocator_T;
 
 namespace LinaGX
 {
-    struct QueueFamily
+    struct VKSwapchain
     {
+        bool                    isValid = false;
+        VkFormat                format  = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+        VkSwapchainKHR          ptr     = nullptr;
+        VkSurfaceKHR            surface = nullptr;
+        LINAGX_VEC<VkImage>     imgs;
+        LINAGX_VEC<VkImageView> views;
     };
+
     class VKBackend : public Backend
     {
     public:
         VKBackend(){};
         virtual ~VKBackend(){};
 
-        virtual bool Initialize(const InitInfo& initInfo) override;
-        virtual void Shutdown();
+        virtual bool  Initialize(const InitInfo& initInfo) override;
+        virtual void  Shutdown();
+        virtual uint8 CreateSwapchain(const SwapchainDesc& desc) override;
+        virtual void  DestroySwapchain(uint8 handle) override;
 
     private:
         VkInstance               m_vkInstance     = nullptr;
@@ -73,6 +82,7 @@ namespace LinaGX
         bool                      m_supportsAsyncComputeQueue       = false;
 
         LINAGX_VEC<VkQueueFamilyProperties> m_queueFamilies;
+        IDList<uint8, VKSwapchain>          m_swapchains = {10};
     };
 } // namespace LinaGX
 

@@ -39,6 +39,14 @@ add_library(LinaGX::ExamplesCommon ALIAS ${PROJECT_NAME})
 
 include(${CMAKE_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
+set_target_properties(
+    ${PROJECT_NAME}
+      PROPERTIES 
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED YES 
+        CXX_EXTENSIONS NO
+)
+
 #--------------------------------------------------------------------
 # Options & Definitions
 #--------------------------------------------------------------------

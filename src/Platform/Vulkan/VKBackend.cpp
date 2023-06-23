@@ -39,6 +39,47 @@ namespace LinaGX
 #define LGX_VK_MAJOR 1
 #define LGX_VK_MINOR 2
 
+    VkFormat GetVKFormat(Format f)
+    {
+        switch (f)
+        {
+        case Format::UNDEFINED:
+            return VK_FORMAT_UNDEFINED;
+        case Format::B8G8R8A8_SRGB:
+            return VK_FORMAT_B8G8R8A8_SRGB;
+        case Format::B8G8R8A8_UNORM:
+            return VK_FORMAT_B8G8R8A8_UNORM;
+        case Format::R32G32B32_SFLOAT:
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        case Format::R32G32B32A32_SFLOAT:
+            return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case Format::R32G32_SFLOAT:
+            return VK_FORMAT_R32G32_SFLOAT;
+        case Format::D32_SFLOAT:
+            return VK_FORMAT_D32_SFLOAT;
+        case Format::R8G8B8A8_UNORM:
+            return VK_FORMAT_R8G8B8A8_UNORM;
+        case Format::R8G8B8A8_SRGB:
+            return VK_FORMAT_R8G8B8A8_SRGB;
+        case Format::R16_SFLOAT:
+            return VK_FORMAT_R16_SFLOAT;
+        case Format::R16_SINT:
+            return VK_FORMAT_R16_SINT;
+        case Format::R32_SFLOAT:
+            return VK_FORMAT_R32_SFLOAT;
+        case Format::R32_SINT:
+            return VK_FORMAT_R32_SINT;
+        case Format::R8_UNORM:
+            return VK_FORMAT_R8_UNORM;
+        case Format::R8_UINT:
+            return VK_FORMAT_R8_UINT;
+        case Format::R8G8_UNORM:
+            return VK_FORMAT_R8G8_UNORM;
+        default:
+            return VK_FORMAT_B8G8R8A8_SRGB;
+        }
+    }
+
     PFN_vkCmdBeginRenderingKHR g_vkCmdBeginRenderingKHR = nullptr;
     PFN_vkCmdEndRenderingKHR   g_vkCmdEndRenderingKHR   = nullptr;
 
@@ -83,8 +124,7 @@ namespace LinaGX
         builder.set_debug_callback(VkDebugCallback);
 
 #ifndef NDEBUG
-        // VkDebugUtilsMessageSeverityFlagsEXT severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
-        VkDebugUtilsMessageSeverityFlagsEXT severity = 0;
+        VkDebugUtilsMessageSeverityFlagsEXT severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 #else
         VkDebugUtilsMessageSeverityFlagsEXT severity = 0;
 #endif
@@ -200,19 +240,11 @@ namespace LinaGX
 
         deviceBuilder.custom_queue_setup(queue_descriptions);
 
-        // deviceBuilder.custom_queue_setup(desc);
         vkb::Device vkbDevice    = deviceBuilder.build().value();
         m_device                 = vkbDevice.device;
         m_gpu                    = physicalDevice.physical_device;
         g_vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(m_device, "vkCmdBeginRenderingKHR"));
         g_vkCmdEndRenderingKHR   = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(m_device, "vkCmdEndRenderingKHR"));
-
-        // if (hasDedicatedTransferQueue)
-        // {
-        //     auto res            = vkbDevice.get_dedicated_queue_index(vkb::QueueType::transfer);
-        //     transferQueueFamily = res.value();
-        //     transferQueueIndex  = 0;
-        // }
 
         if (hasDedicatedComputeQueue)
         {
@@ -224,9 +256,6 @@ namespace LinaGX
         m_graphicsQueueIndices = std::make_pair(graphicsQueueFamily, graphicsQueueIndex);
         m_transferQueueIndices = std::make_pair(transferQueueFamily, transferQueueIndex);
         m_computeQueueIndices  = std::make_pair(computeQueueFamily, computeQueueIndex);
-
-        // VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        // vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_gpu, mainSurface, &surfaceCapabilities);
 
         VkPhysicalDeviceProperties gpuProps;
         vkGetPhysicalDeviceProperties(m_gpu, &gpuProps);
@@ -326,7 +355,77 @@ namespace LinaGX
 
         return true;
     }
+
     void VKBackend::Shutdown()
     {
+        for (auto& swp : m_swapchains)
+        {
+            LOGA(!swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
+        }
+
+        vmaDestroyAllocator(m_vmaAllocator);
+        vkDestroyDevice(m_device, m_allocator);
+        vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+        vkDestroyInstance(m_vkInstance, m_allocator);
+    }
+
+    uint8 VKBackend::CreateSwapchain(const SwapchainDesc& desc)
+    {
+        VKSwapchain swp;
+
+        VkSurfaceKHR surface;
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = VkWin32SurfaceCreateInfoKHR{};
+        surfaceCreateInfo.sType                       = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.pNext                       = nullptr;
+        surfaceCreateInfo.hinstance                   = static_cast<HINSTANCE>(desc.osHandle);
+        surfaceCreateInfo.hwnd                        = static_cast<HWND>(desc.window);
+        vkCreateWin32SurfaceKHR(m_vkInstance, &surfaceCreateInfo, nullptr, &surface);
+#else
+        LOGA(false, "DX12Backend -> Vulkan backend is only supported for Windows at the moment!");
+#endif
+
+        vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
+        swapchainBuilder = swapchainBuilder
+                               //.use_default_format_selection()
+                               .set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
+                               .set_desired_extent(desc.width, desc.height);
+
+        VkFormat vkformat = GetVKFormat(desc.format);
+        swapchainBuilder  = swapchainBuilder.set_desired_format({vkformat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR});
+
+        vkb::Swapchain vkbSwapchain = swapchainBuilder.build().value();
+        swp.ptr                     = vkbSwapchain.swapchain;
+        swp.format                  = vkbSwapchain.image_format;
+        swp.imgs                    = vkbSwapchain.get_images().value();
+        swp.views                   = vkbSwapchain.get_image_views().value();
+        swp.surface                 = surface;
+        swp.isValid                 = true;
+
+        LOGT("VKBackend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
+
+        return m_swapchains.AddItem(swp);
+    }
+
+    void VKBackend::DestroySwapchain(uint8 handle)
+    {
+        auto& swp = m_swapchains.GetItemR(handle);
+        if (!swp.isValid)
+        {
+            LOGE("VKBackend -> Swapchain to be destroyed is not valid!");
+            return;
+        }
+
+        vkDestroySwapchainKHR(m_device, swp.ptr, m_allocator);
+
+        for (auto view : swp.views)
+            vkDestroyImageView(m_device, view, m_allocator);
+
+        vkDestroySurfaceKHR(m_vkInstance, swp.surface, m_allocator);
+
+        m_swapchains.RemoveItem(handle);
+
+        LOGT("VKBackend -> Destroyed swapchain.");
     }
 } // namespace LinaGX

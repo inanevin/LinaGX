@@ -47,6 +47,18 @@ namespace LinaGX
         void Shutdown();
 
         /// <summary>
+        /// Creates a swapchain for a window given necessary handles per-platform. e.g HWND and hInstance on windows.
+        /// </summary>
+        /// <returns>Handle to the created swapchain.</returns>
+        uint8 CreateSwapchain(const SwapchainDesc& desc);
+
+        /// <summary>
+        /// Destroys the swapchain with given handle.
+        /// </summary>
+        /// <param name="handle"></param>
+        void DestroySwapchain(uint8 handle);
+
+        /// <summary>
         /// Compiles given GLSL text file into a blob. This blob is used to generate shader programs in the gpu. You can save the blob to file and pass it without compiling next time.
         /// </summary>
         /// <param name="stage">Target shader stage.</param>

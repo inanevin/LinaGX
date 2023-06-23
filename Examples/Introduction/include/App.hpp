@@ -43,6 +43,7 @@ namespace LinaGX
 
         private:
             WindowManager m_wm;
+            bool          m_isRunning = false;
         };
 
     } // namespace Examples

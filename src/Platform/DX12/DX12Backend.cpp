@@ -45,6 +45,49 @@ namespace LinaGX
 
     DWORD msgCallback = 0;
 
+    DXGI_FORMAT GetDXGIFormat(Format format)
+    {
+        switch (format)
+        {
+        case Format::UNDEFINED:
+            return DXGI_FORMAT_UNKNOWN;
+        case Format::B8G8R8A8_SRGB:
+            return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        case Format::B8G8R8A8_UNORM:
+            return DXGI_FORMAT_B8G8R8A8_UNORM;
+        case Format::R32G32B32_SFLOAT:
+            return DXGI_FORMAT_R32G32B32_FLOAT;
+        case Format::R32G32B32A32_SFLOAT:
+            return DXGI_FORMAT_R32G32B32A32_FLOAT;
+        case Format::R32G32_SFLOAT:
+            return DXGI_FORMAT_R32G32_FLOAT;
+        case Format::D32_SFLOAT:
+            return DXGI_FORMAT_D32_FLOAT;
+        case Format::R8G8B8A8_UNORM:
+            return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case Format::R8G8B8A8_SRGB:
+            return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        case Format::R8G8_UNORM:
+            return DXGI_FORMAT_R8G8_UNORM;
+        case Format::R8_UNORM:
+            return DXGI_FORMAT_R8_UNORM;
+        case Format::R8_UINT:
+            return DXGI_FORMAT_R8_UINT;
+        case Format::R16_SFLOAT:
+            return DXGI_FORMAT_R16_FLOAT;
+        case Format::R16_SINT:
+            return DXGI_FORMAT_R16_SINT;
+        case Format::R32_SFLOAT:
+            return DXGI_FORMAT_R32_FLOAT;
+        case Format::R32_SINT:
+            return DXGI_FORMAT_R32_SINT;
+        default:
+            return DXGI_FORMAT_UNKNOWN;
+        }
+
+        return DXGI_FORMAT_UNKNOWN;
+    }
+
     void MessageCallback(D3D12_MESSAGE_CATEGORY messageType, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID messageId, LPCSTR pDesc, void* pContext)
     {
         if (pDesc != NULL)
@@ -52,6 +95,10 @@ namespace LinaGX
             if (severity == D3D12_MESSAGE_SEVERITY_MESSAGE)
             {
                 LOGT("DX12Backend -> %s", pDesc);
+            }
+            else if (severity == D3D12_MESSAGE_SEVERITY_INFO)
+            {
+                // LOGV("DX12Backend -> %s", pDesc);
             }
             else
             {
@@ -198,6 +245,16 @@ namespace LinaGX
                     LOGE("DX12Backend -> Failed to create DXC library!");
                 }
             }
+
+            // Queue
+            {
+                D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+                queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
+                queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
+                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_queueDirect)));
+
+                NAME_DX12_OBJECT(m_queueDirect, L"Direct Queue");
+            }
         }
         catch (HrException e)
         {
@@ -210,6 +267,20 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
+        for (auto& swp : m_swapchains)
+        {
+            LOGA(swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
+        }
+
+        ID3D12InfoQueue1* infoQueue = nullptr;
+        if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+        {
+            infoQueue->UnregisterMessageCallback(msgCallback);
+        }
+
+        m_dx12Allocator->Release();
+        m_idxcLib.Reset();
+        m_device.Reset();
     }
 
     bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob)
@@ -237,7 +308,7 @@ namespace LinaGX
             UINT32                   codePage = CP_UTF8;
             ComPtr<IDxcBlobEncoding> sourceBlob;
             const char*              shaderSource = source.c_str();
-            m_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, source.size(), codePage, &sourceBlob);
+            m_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, static_cast<UINT>(source.size()), codePage, &sourceBlob);
 
             const wchar_t* targetProfile = L"vs_6_0";
             if (stage == ShaderStage::Pixel)
@@ -317,9 +388,65 @@ namespace LinaGX
         return true;
     }
 
+    uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
+    {
+        DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
+        swapchainDesc.BufferCount           = desc.backBufferCount;
+        swapchainDesc.Width                 = static_cast<UINT>(desc.width);
+        swapchainDesc.Height                = static_cast<UINT>(desc.height);
+        swapchainDesc.Format                = GetDXGIFormat(desc.format);
+        swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        swapchainDesc.SampleDesc.Count      = 1;
+
+        ComPtr<IDXGISwapChain1> swapchain;
+        swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+        if (m_allowTearing)
+            swapchainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+        try
+        {
+            ThrowIfFailed(m_factory->CreateSwapChainForHwnd(m_queueDirect.Get(), // Swap chain needs the queue so that it can force a flush on it.
+                                                            (HWND)desc.window,
+                                                            &swapchainDesc,
+                                                            nullptr,
+                                                            nullptr,
+                                                            &swapchain));
+
+            DX12Swapchain swp = {};
+            ThrowIfFailed(swapchain.As(&swp.ptr));
+
+            LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
+
+            swp.isValid = true;
+            return m_swapchains.AddItem(swp);
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend -> Exception when creating a swapchain! %s", e.what());
+            DX12Exception(e);
+        }
+
+        return 0;
+    }
+
+    void DX12Backend::DestroySwapchain(uint8 handle)
+    {
+        auto& swp = m_swapchains.GetItemR(handle);
+        if (!swp.isValid)
+        {
+            LOGE("VKBackend -> Swapchain to be destroyed is not valid!");
+            return;
+        }
+
+		swp.ptr.Reset();
+    }
+
     void DX12Backend::DX12Exception(HrException e)
     {
         LOGE("DX12Backend -> Exception: %s", e.what());
+        _ASSERT(false);
     }
 
 } // namespace LinaGX
