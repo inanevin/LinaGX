@@ -255,6 +255,10 @@ namespace LinaGX
         FORMAT_MAX,
     };
 
+#define DEFAULT_DEPTH_FORMAT     Format::D32_SFLOAT
+#define DEFAULT_SWAPCHAIN_FORMAT Format::R8G8B8A8_UNORM
+#define DEFAULT_RT_FORMAT        Format::R8G8B8A8_SRGB
+
     enum class PolygonMode
     {
         Fill,
@@ -498,10 +502,10 @@ namespace LinaGX
     {
         LINAGX_VEC<StageInput>    vertexInputs;
         LINAGX_VEC<UBO>           ubos;
-        LINAGX_VEC<ConstantBlock> constantBuffers;
         LINAGX_VEC<SSBO>          ssbos;
-        LINAGX_VEC<SRVTexture2D>  texture2ds;
+        LINAGX_VEC<SRVTexture2D>  combinedImageSamplers;
         LINAGX_VEC<Sampler>       samplers;
+        ConstantBlock             constantBlock;
     };
 
     struct ShaderDesc

@@ -795,7 +795,7 @@ namespace LinaGX
             bindingMap[ssbo.set].push_back(binding);
         }
 
-        for (const auto& t2d : shaderDesc.layout.texture2ds)
+        for (const auto& t2d : shaderDesc.layout.combinedImageSamplers)
         {
             VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
             binding.binding                      = t2d.binding;
@@ -839,8 +839,10 @@ namespace LinaGX
 
         // Push constants
         LINAGX_VEC<VkPushConstantRange> constants;
-        for (auto& pc : shaderDesc.layout.constantBuffers)
+
+        if (shaderDesc.layout.constantBlock.size != 0)
         {
+            const auto&         pc    = shaderDesc.layout.constantBlock;
             VkPushConstantRange range = VkPushConstantRange{};
             range.size                = static_cast<uint32>(pc.size);
             range.offset              = 0;

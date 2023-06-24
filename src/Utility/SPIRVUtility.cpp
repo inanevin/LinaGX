@@ -561,26 +561,22 @@ namespace LinaGX
                 outLayout.ubos.push_back(ubo);
             }
 
-            for (auto& resource : resources.push_constant_buffers)
+            if (!resources.push_constant_buffers.empty())
             {
-                // Get the SPIR-V ID of the uniform buffer
-                auto id = resource.id;
+                const auto& resource = resources.push_constant_buffers[0];
+                auto        id       = resource.id;
 
                 ConstantBlock block = {};
-
-                auto it = std::find_if(outLayout.constantBuffers.begin(), outLayout.constantBuffers.end(), [block](const ConstantBlock& existing) { return existing.name.compare(block.name) == 0; });
-                if (it != outLayout.constantBuffers.end())
-                {
-                    it->stages.push_back(stg);
-                    continue;
-                }
-                block.stages.push_back(stg);
 
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 block.size                        = compiler.get_declared_struct_size(type);
                 block.name                        = compiler.get_name(resource.id);
+
+                if (outLayout.constantBlock.size != 0)
+                    outLayout.constantBlock.stages.push_back(stg);
+
                 FillStructMembers(compiler, type, block.members);
-                outLayout.constantBuffers.push_back(block);
+                outLayout.constantBlock = block;
             }
 
             for (const auto& resource : resources.sampled_images)
@@ -592,8 +588,8 @@ namespace LinaGX
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
 
-                auto it = std::find_if(outLayout.texture2ds.begin(), outLayout.texture2ds.end(), [txt](const SRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
-                if (it != outLayout.texture2ds.end())
+                auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const SRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
+                if (it != outLayout.combinedImageSamplers.end())
                 {
                     it->stages.push_back(stg);
                     continue;
@@ -603,7 +599,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 txt.name                          = compiler.get_name(resource.id);
-                outLayout.texture2ds.push_back(txt);
+                outLayout.combinedImageSamplers.push_back(txt);
             }
 
             for (const auto& resource : resources.separate_samplers)
@@ -661,9 +657,12 @@ namespace LinaGX
         {
             spirv_cross::CompilerHLSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
 
-            spirv_cross::CompilerHLSL::Options options;
+            spirv_cross::CompilerHLSL::Options    options;
+            spirv_cross::HLSLVertexAttributeRemap attribs;
+
             options.shader_model = 60; // SM6_0
             compiler.set_hlsl_options(options);
+            compiler.add_vertex_attribute_remap(attribs);
 
             // Perform the conversion
             out = compiler.compile();

@@ -45,7 +45,7 @@ namespace LinaGX
 
     DWORD msgCallback = 0;
 
-    DXGI_FORMAT GetDXGIFormat(Format format)
+    DXGI_FORMAT GetDXFormat(Format format)
     {
         switch (format)
         {
@@ -57,10 +57,16 @@ namespace LinaGX
             return DXGI_FORMAT_B8G8R8A8_UNORM;
         case Format::R32G32B32_SFLOAT:
             return DXGI_FORMAT_R32G32B32_FLOAT;
+        case Format::R32G32B32_SINT:
+            return DXGI_FORMAT_R32G32B32_SINT;
         case Format::R32G32B32A32_SFLOAT:
             return DXGI_FORMAT_R32G32B32A32_FLOAT;
+        case Format::R32G32B32A32_SINT:
+            return DXGI_FORMAT_R32G32B32A32_SINT;
         case Format::R32G32_SFLOAT:
             return DXGI_FORMAT_R32G32_FLOAT;
+        case Format::R32G32_SINT:
+            return DXGI_FORMAT_R32G32_SINT;
         case Format::D32_SFLOAT:
             return DXGI_FORMAT_D32_FLOAT;
         case Format::R8G8B8A8_UNORM:
@@ -88,6 +94,166 @@ namespace LinaGX
         return DXGI_FORMAT_UNKNOWN;
     }
 
+    D3D12_BLEND GetDXBlend(BlendFactor factor)
+    {
+        switch (factor)
+        {
+        case BlendFactor::Zero:
+            return D3D12_BLEND_ZERO;
+        case BlendFactor::One:
+            return D3D12_BLEND_ONE;
+        case BlendFactor::SrcColor:
+            return D3D12_BLEND_SRC_COLOR;
+        case BlendFactor::OneMinusSrcColor:
+            return D3D12_BLEND_INV_SRC_COLOR;
+        case BlendFactor::DstColor:
+            return D3D12_BLEND_DEST_COLOR;
+        case BlendFactor::OneMinusDstColor:
+            return D3D12_BLEND_INV_DEST_COLOR;
+        case BlendFactor::SrcAlpha:
+            return D3D12_BLEND_INV_SRC_ALPHA;
+        case BlendFactor::OneMinusSrcAlpha:
+            return D3D12_BLEND_INV_SRC_ALPHA;
+        case BlendFactor::DstAlpha:
+            return D3D12_BLEND_INV_DEST_ALPHA;
+        case BlendFactor::OneMinusDstAlpha:
+            return D3D12_BLEND_INV_DEST_ALPHA;
+        default:
+            return D3D12_BLEND_ZERO;
+        }
+    }
+
+    D3D12_BLEND_OP GetDXBlendOp(BlendOp op)
+    {
+        switch (op)
+        {
+        case BlendOp::Add:
+            return D3D12_BLEND_OP_ADD;
+        case BlendOp::Subtract:
+            return D3D12_BLEND_OP_SUBTRACT;
+        case BlendOp::ReverseSubtract:
+            return D3D12_BLEND_OP_REV_SUBTRACT;
+        case BlendOp::Min:
+            return D3D12_BLEND_OP_MIN;
+        case BlendOp::Max:
+            return D3D12_BLEND_OP_MAX;
+        default:
+            return D3D12_BLEND_OP_ADD;
+        }
+    }
+
+    D3D12_LOGIC_OP GetDXLogicOp(LogicOp op)
+    {
+        switch (op)
+        {
+        case LogicOp::Clear:
+            return D3D12_LOGIC_OP_CLEAR;
+        case LogicOp::And:
+            return D3D12_LOGIC_OP_AND;
+        case LogicOp::AndReverse:
+            return D3D12_LOGIC_OP_AND_REVERSE;
+        case LogicOp::Copy:
+            return D3D12_LOGIC_OP_COPY;
+        case LogicOp::AndInverted:
+            return D3D12_LOGIC_OP_AND_INVERTED;
+        case LogicOp::NoOp:
+            return D3D12_LOGIC_OP_NOOP;
+        case LogicOp::XOR:
+            return D3D12_LOGIC_OP_XOR;
+        case LogicOp::OR:
+            return D3D12_LOGIC_OP_OR;
+        case LogicOp::NOR:
+            return D3D12_LOGIC_OP_NOR;
+        case LogicOp::Equivalent:
+            return D3D12_LOGIC_OP_EQUIV;
+        default:
+            return D3D12_LOGIC_OP_CLEAR;
+        }
+    }
+
+    D3D12_CULL_MODE GetDXCullMode(CullMode cm)
+    {
+        switch (cm)
+        {
+        case CullMode::None:
+            return D3D12_CULL_MODE_NONE;
+        case CullMode::Front:
+            return D3D12_CULL_MODE_FRONT;
+        case CullMode::Back:
+            return D3D12_CULL_MODE_BACK;
+        case CullMode::FrontAndBack:
+            return D3D12_CULL_MODE_BACK;
+        default:
+            return D3D12_CULL_MODE_NONE;
+        }
+    }
+
+    D3D12_COMPARISON_FUNC GetDXCompareOp(CompareOp op)
+    {
+        switch (op)
+        {
+        case CompareOp::Never:
+            return D3D12_COMPARISON_FUNC_NEVER;
+        case CompareOp::Less:
+            return D3D12_COMPARISON_FUNC_LESS;
+        case CompareOp::Equal:
+            return D3D12_COMPARISON_FUNC_EQUAL;
+        case CompareOp::LEqual:
+            return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        case CompareOp::Greater:
+            return D3D12_COMPARISON_FUNC_GREATER;
+        case CompareOp::NotEqual:
+            return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        case CompareOp::GEqual:
+            return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        case CompareOp::Always:
+            return D3D12_COMPARISON_FUNC_ALWAYS;
+        default:
+            return D3D12_COMPARISON_FUNC_ALWAYS;
+        }
+    }
+
+    D3D12_PRIMITIVE_TOPOLOGY_TYPE GetDXTopology(Topology tp)
+    {
+        switch (tp)
+        {
+        case Topology::PointList:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+        case Topology::LineList:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+        case Topology::LineStrip:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+        case Topology::TriangleList:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        case Topology::TriangleStrip:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        case Topology::TriangleFan:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        case Topology::TriangleListAdjacency:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        case Topology::TriangleStripAdjacency:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        default:
+            return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        }
+    }
+
+    D3D12_SHADER_VISIBILITY GetDXVisibility(ShaderStage stg)
+    {
+        switch (stg)
+        {
+        case ShaderStage::Vertex:
+            return D3D12_SHADER_VISIBILITY_VERTEX;
+        case ShaderStage::Pixel:
+            return D3D12_SHADER_VISIBILITY_PIXEL;
+        case ShaderStage::Geometry:
+            return D3D12_SHADER_VISIBILITY_GEOMETRY;
+        case ShaderStage::Tesellation:
+            return D3D12_SHADER_VISIBILITY_HULL;
+        default:
+            return D3D12_SHADER_VISIBILITY_ALL;
+        }
+    }
     void MessageCallback(D3D12_MESSAGE_CATEGORY messageType, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID messageId, LPCSTR pDesc, void* pContext)
     {
         if (pDesc != NULL)
@@ -272,6 +438,11 @@ namespace LinaGX
             LOGA(!swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
         }
 
+        for (auto& shader : m_shaders)
+        {
+            LOGA(!shader.isValid, "DX12Backend -> Some shaders were not destroyed!");
+        }
+
         ID3D12InfoQueue1* infoQueue = nullptr;
         if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
         {
@@ -394,7 +565,7 @@ namespace LinaGX
         swapchainDesc.BufferCount           = desc.backBufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
-        swapchainDesc.Format                = GetDXGIFormat(desc.format);
+        swapchainDesc.Format                = GetDXFormat(desc.format);
         swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchainDesc.SampleDesc.Count      = 1;
@@ -446,32 +617,123 @@ namespace LinaGX
 
     uint16 DX12Backend::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
     {
+        DX12Shader shader = {};
+        // Root signature.
+        {
+            CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
+
+            // Textures & Samplers & Materials
+            descRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+            descRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+            descRange[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+
+            LINAGX_VEC<CD3DX12_ROOT_PARAMETER1> rootParameters;
+
+            for (const auto& ubo : shaderDesc.layout.ubos)
+            {
+                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (ubo.stages.size() == 1)
+                    visibility = GetDXVisibility(ubo.stages[0]);
+
+                CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+                ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, ubo.binding, ubo.set);
+                param.InitAsDescriptorTable(1, ranges, visibility);
+                rootParameters.push_back(param);
+            }
+
+            for (const auto& t2d : shaderDesc.layout.combinedImageSamplers)
+            {
+                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (t2d.stages.size() == 1)
+                    visibility = GetDXVisibility(t2d.stages[0]);
+
+                CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+                ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                param.InitAsDescriptorTable(1, ranges, visibility);
+                rootParameters.push_back(param);
+            }
+
+            // for (const auto& sampler : shaderDesc.layout.samplers)
+            //{
+            //     CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+            //
+            //     D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+            //     if (sampler.stages.size() == 1)
+            //         visibility = GetDXVisibility(sampler.stages[0]);
+            //
+            //     CD3DX12_DESCRIPTOR_RANGE1 range[1];
+            //     range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+            //     param.InitAsDescriptorTable(1, range, visibility);
+            //     rootParameters.push_back(param);
+            // }
+
+            for (const auto& ssbo : shaderDesc.layout.ssbos)
+            {
+                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (ssbo.stages.size() == 1)
+                    visibility = GetDXVisibility(ssbo.stages[0]);
+
+                CD3DX12_DESCRIPTOR_RANGE1 range[1];
+                range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                param.InitAsDescriptorTable(1, range, visibility);
+                rootParameters.push_back(param);
+            }
+
+            if (shaderDesc.layout.constantBlock.size != 0)
+            {
+                const auto&             ct         = shaderDesc.layout.constantBlock;
+                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (ct.stages.size() == 1)
+                    visibility = GetDXVisibility(ct.stages[0]);
+
+                param.InitAsConstants(static_cast<uint32>(ct.members.size()), 0, 0, visibility);
+                rootParameters.push_back(param);
+            }
+
+            CD3DX12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+            samplerDesc[0].Init(0, D3D12_FILTER_ANISOTROPIC);
+
+            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 1, samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            ComPtr<ID3DBlob>                      signatureBlob = nullptr;
+            ComPtr<ID3DBlob>                      errorBlob     = nullptr;
+
+            HRESULT hr = D3D12SerializeVersionedRootSignature(&rootSig, &signatureBlob, &errorBlob);
+
+            if (FAILED(hr))
+            {
+                LOGA(false, "DX12Backend -> Failed serializing root signature! %s", (char*)errorBlob->GetBufferPointer());
+                return 0;
+            }
+
+            hr = m_device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&shader.rootSig));
+
+            if (FAILED(hr))
+            {
+                LOGA(false, "DX12Backend -> Failed creating root signature!");
+                return 0;
+            }
+        }
+
         LINAGX_VEC<D3D12_INPUT_ELEMENT_DESC> inputLayout;
-        /*
+
+        uint32 i = 0;
         for (const auto& input : shaderDesc.layout.vertexInputs)
         {
             D3D12_INPUT_ELEMENT_DESC desc = D3D12_INPUT_ELEMENT_DESC{};
-            desc.SemanticName =
-        }
-        // Define the vertex input layout.
-        {
-            if (ppType == PipelineType::Standard)
-            {
-                inputLayout.push_back({"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-                inputLayout.push_back({"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-                inputLayout.push_back({"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-                inputLayout.push_back({"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-            }
-            else if (ppType == PipelineType::GUI)
-            {
-                inputLayout.push_back({"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-                inputLayout.push_back({"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-                inputLayout.push_back({"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0});
-            }
-            else if (ppType == PipelineType::NoVertex)
-            {
-                // no input.
-            }
+            desc.SemanticName             = "TEXCOORD";
+            desc.SemanticIndex            = i++;
+            desc.Format                   = GetDXFormat(input.format);
+            desc.InputSlot                = 0;
+            desc.AlignedByteOffset        = static_cast<uint32>(input.offset);
+            desc.InputSlotClass           = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+            desc.InstanceDataStepRate     = 0;
+            inputLayout.push_back(desc);
         }
 
         // Describe and create the graphics pipeline state object (PSO).
@@ -483,66 +745,50 @@ namespace LinaGX
         D3D12_BLEND_DESC blendDesc                      = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         blendDesc.AlphaToCoverageEnable                 = false;
         blendDesc.IndependentBlendEnable                = false;
-        blendDesc.RenderTarget[0].BlendEnable           = true;
-        blendDesc.RenderTarget[0].SrcBlend              = D3D12_BLEND_SRC_ALPHA;
-        blendDesc.RenderTarget[0].DestBlend             = D3D12_BLEND_INV_SRC_ALPHA;
-        blendDesc.RenderTarget[0].SrcBlendAlpha         = D3D12_BLEND_ONE;
-        blendDesc.RenderTarget[0].DestBlendAlpha        = D3D12_BLEND_INV_SRC_ALPHA;
-        blendDesc.RenderTarget[0].BlendOp               = D3D12_BLEND_OP_ADD;
-        blendDesc.RenderTarget[0].BlendOpAlpha          = D3D12_BLEND_OP_ADD;
+        blendDesc.RenderTarget[0].BlendEnable           = shaderDesc.blendAttachment.blendEnabled;
+        blendDesc.RenderTarget[0].SrcBlend              = GetDXBlend(shaderDesc.blendAttachment.srcColorBlendFactor);
+        blendDesc.RenderTarget[0].DestBlend             = GetDXBlend(shaderDesc.blendAttachment.dstColorBlendFactor);
+        blendDesc.RenderTarget[0].SrcBlendAlpha         = GetDXBlend(shaderDesc.blendAttachment.srcAlphaBlendFactor);
+        blendDesc.RenderTarget[0].DestBlendAlpha        = GetDXBlend(shaderDesc.blendAttachment.dstAlphaBlendFactor);
+        blendDesc.RenderTarget[0].BlendOp               = GetDXBlendOp(shaderDesc.blendAttachment.colorBlendOp);
+        blendDesc.RenderTarget[0].BlendOpAlpha          = GetDXBlendOp(shaderDesc.blendAttachment.alphaBlendOp);
         blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-        blendDesc.RenderTarget[0].LogicOpEnable         = false;
-        blendDesc.RenderTarget[0].LogicOp               = D3D12_LOGIC_OP_COPY;
+        blendDesc.RenderTarget[0].LogicOpEnable         = shaderDesc.blendLogicOpEnabled;
+        blendDesc.RenderTarget[0].LogicOp               = GetDXLogicOp(shaderDesc.blendLogicOp);
 
         const D3D12_DEPTH_STENCILOP_DESC defaultStencilOp = {D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS};
-        psoDesc.pRootSignature                            = root;
+        psoDesc.pRootSignature                            = shader.rootSig.Get();
         psoDesc.RasterizerState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState                                = blendDesc;
-        psoDesc.DepthStencilState.DepthEnable             = TRUE;
-        psoDesc.DepthStencilState.DepthWriteMask          = D3D12_DEPTH_WRITE_MASK_ALL;
-        psoDesc.DepthStencilState.DepthFunc               = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        psoDesc.DepthStencilState.DepthEnable             = shaderDesc.depthTest;
+        psoDesc.DepthStencilState.DepthWriteMask          = shaderDesc.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+        psoDesc.DepthStencilState.DepthFunc               = GetDXCompareOp(shaderDesc.depthCompare);
         psoDesc.DepthStencilState.StencilEnable           = FALSE;
         psoDesc.DepthStencilState.StencilReadMask         = D3D12_DEFAULT_STENCIL_READ_MASK;
         psoDesc.DepthStencilState.StencilWriteMask        = D3D12_DEFAULT_STENCIL_WRITE_MASK;
         psoDesc.DepthStencilState.FrontFace               = defaultStencilOp;
         psoDesc.DepthStencilState.BackFace                = defaultStencilOp;
         psoDesc.SampleMask                                = UINT_MAX;
-        psoDesc.PrimitiveTopologyType                     = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.PrimitiveTopologyType                     = GetDXTopology(shaderDesc.topology);
         psoDesc.NumRenderTargets                          = 1;
-        psoDesc.RTVFormats[0]                             = GetFormat(DEFAULT_RT_FORMAT);
-        psoDesc.DSVFormat                                 = GetFormat(DEFAULT_DEPTH_FORMAT);
+        psoDesc.RTVFormats[0]                             = GetDXFormat(DEFAULT_RT_FORMAT);
+        psoDesc.DSVFormat                                 = GetDXFormat(DEFAULT_DEPTH_FORMAT);
         psoDesc.SampleDesc.Count                          = 1;
         psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
+        psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
+        psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
 
-        if (ppType == PipelineType::Standard)
+        for (const auto& [stg, blob] : stages)
         {
-            psoDesc.RasterizerState.CullMode              = D3D12_CULL_MODE_BACK;
-            psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
-        }
-        else if (ppType == PipelineType::NoVertex)
-        {
-            psoDesc.RasterizerState.CullMode              = D3D12_CULL_MODE_NONE;
-            psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
-        }
-        else if (ppType == PipelineType::GUI)
-        {
-            psoDesc.RasterizerState.CullMode              = D3D12_CULL_MODE_NONE;
-            psoDesc.RasterizerState.FrontCounterClockwise = FALSE;
-            psoDesc.DepthStencilState.DepthEnable         = FALSE;
-        }
-
-        for (const auto& [stg, title] : stages)
-        {
-            const auto&  bc       = shader->GetCompiledCode(stg);
-            const void*  byteCode = (void*)bc.data;
-            const SIZE_T length   = static_cast<SIZE_T>(bc.dataSize);
+            const void*  byteCode = (void*)blob.ptr;
+            const SIZE_T length   = static_cast<SIZE_T>(blob.size);
 
             if (stg == ShaderStage::Vertex)
             {
                 psoDesc.VS.pShaderBytecode = byteCode;
                 psoDesc.VS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::Fragment)
+            else if (stg == ShaderStage::Pixel)
             {
                 psoDesc.PS.pShaderBytecode = byteCode;
                 psoDesc.PS.BytecodeLength  = length;
@@ -552,24 +798,43 @@ namespace LinaGX
                 psoDesc.GS.pShaderBytecode = byteCode;
                 psoDesc.GS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::TesellationControl || stg == ShaderStage::TesellationEval)
+            else if (stg == ShaderStage::Tesellation)
             {
                 psoDesc.HS.pShaderBytecode = byteCode;
                 psoDesc.HS.BytecodeLength  = length;
+            }
+            else if (stg == ShaderStage::Compute)
+            {
+                LOGA(false, "!!");
             }
         }
 
         try
         {
-            ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pso)));
+            ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&shader.pso)));
         }
         catch (HrException e)
         {
-            LINA_CRITICAL("[Renderer] -> Exception when creating PSO! {0}", e.what());
-            renderer->DX12Exception(e);
+            LOGE("DX12Backend -> Exception when creating PSO! %s", e.what());
+            DX12Exception(e);
+            return 0;
         }
-        */
-        return 0;
+
+        shader.isValid = true;
+        return m_shaders.AddItem(shader);
+    }
+
+    void DX12Backend::DestroyShader(uint16 handle)
+    {
+        auto& shader = m_shaders.GetItemR(handle);
+        if (!shader.isValid)
+        {
+            LOGE("DX12Backend -> Shader to be destroyed is not valid!");
+            return;
+        }
+
+        shader.isValid = false;
+        shader.pso.Reset();
     }
 
     void DX12Backend::DX12Exception(HrException e)

@@ -84,6 +84,13 @@ namespace LinaGX
         bool                                    isValid = false;
     };
 
+    struct DX12Shader
+    {
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig;
+        bool                                        isValid = false;
+    };
+
     class DX12Backend : public Backend
     {
     public:
@@ -96,6 +103,7 @@ namespace LinaGX
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc) override;
+        virtual void   DestroyShader(uint16 handle) override;
 
     private:
         void DX12Exception(HrException e);
@@ -110,6 +118,7 @@ namespace LinaGX
         bool                                       m_allowTearing = false;
 
         IDList<uint8, DX12Swapchain> m_swapchains = {10};
+        IDList<uint16, DX12Shader>   m_shaders    = {20};
     };
 } // namespace LinaGX
 
