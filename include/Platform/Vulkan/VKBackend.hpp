@@ -42,7 +42,7 @@ struct VmaAllocator_T;
 
 namespace LinaGX
 {
-    struct VKSwapchain
+    struct VKBSwapchain
     {
         bool                    isValid = false;
         VkFormat                format  = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
@@ -52,16 +52,28 @@ namespace LinaGX
         LINAGX_VEC<VkImageView> views;
     };
 
+    struct VKBShader
+    {
+        bool                                    isValid     = false;
+        VkPipeline                              ptrPipeline = nullptr;
+        VkPipelineLayout                        ptrLayout   = nullptr;
+        LINAGX_MAP<ShaderStage, VkShaderModule> modules;
+
+        LINAGX_VEC<VkDescriptorSetLayout> layouts;
+    };
+
     class VKBackend : public Backend
     {
     public:
         VKBackend(){};
         virtual ~VKBackend(){};
 
-        virtual bool  Initialize(const InitInfo& initInfo) override;
-        virtual void  Shutdown();
-        virtual uint8 CreateSwapchain(const SwapchainDesc& desc) override;
-        virtual void  DestroySwapchain(uint8 handle) override;
+        virtual bool   Initialize(const InitInfo& initInfo) override;
+        virtual void   Shutdown();
+        virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
+        virtual void   DestroySwapchain(uint8 handle) override;
+        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc) override;
+        virtual void   DestroyShader(uint16 handle) override;
 
     private:
         VkInstance               m_vkInstance     = nullptr;
@@ -82,7 +94,8 @@ namespace LinaGX
         bool                      m_supportsAsyncComputeQueue       = false;
 
         LINAGX_VEC<VkQueueFamilyProperties> m_queueFamilies;
-        IDList<uint8, VKSwapchain>          m_swapchains = {10};
+        IDList<uint8, VKBSwapchain>         m_swapchains = {10};
+        IDList<uint16, VKBShader>           m_shaders    = {10};
     };
 } // namespace LinaGX
 

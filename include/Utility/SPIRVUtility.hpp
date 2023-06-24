@@ -41,12 +41,13 @@ namespace LinaGX
     public:
         static void Initialize();
         static void Shutdown();
-        static bool GLSL2SPV(ShaderStage stg, const char* pShader, CompiledShaderBlob& spirv);
+        static bool GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, CompiledShaderBlob& spirv, ShaderLayout& outLayout);
         static bool SPV2HLSL(ShaderStage stg, const CompiledShaderBlob& spv, LINAGX_STRING& out);
         static bool SPV2MSL(ShaderStage stg, const CompiledShaderBlob& spv, LINAGX_STRING& out);
 
     private:
         static void InitResources(TBuiltInResource& resources);
+        static void GetShaderTextWithIncludes(LINAGX_STRING& outStr, const char* shader, const char* includePath);
     };
 } // namespace LinaGX
 

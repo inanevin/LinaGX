@@ -64,13 +64,19 @@ namespace LinaGX
         /// <param name="stage">Target shader stage.</param>
         /// <param name="text">A valid raw GLSL for the shader stage.</param>
         /// <param name="outCompiledBlob">Out blob, SPIRV blob in Vulkan, IDXC blob in DirectX & metal blob in Metal.</param>
-        bool CompileShader(ShaderStage stage, const char* text, CompiledShaderBlob& outCompiledBlob);
+        bool CompileShader(ShaderStage stage, const char* text, const char* includePath, CompiledShaderBlob& outCompiledBlob, ShaderLayout& outLayout);
 
         /// <summary>
-        /// Generates a shader program in the gpu.
+        /// Generates a shader pipeline.
         /// </summary>
         /// <param name="stages">Hashmap containing all compiled blobs per shader stage.</param>
-        void GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages);
+        uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc);
+
+        /// <summary>
+        /// Destroys the shader pipeline with given handle.
+        /// </summary>
+        /// <param name="handle"></param>
+        void DestroyShader(uint16 handle);
 
     private:
         InitInfo m_initInfo = {};

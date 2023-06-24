@@ -83,10 +83,10 @@ namespace LinaGX
         m_backend->DestroySwapchain(handle);
     }
 
-    bool Renderer::CompileShader(ShaderStage stage, const char* text, CompiledShaderBlob& outCompiledBlob)
+    bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, CompiledShaderBlob& outCompiledBlob, ShaderLayout& outLayout)
     {
         CompiledShaderBlob spv = {};
-        if (!SPIRVUtility::GLSL2SPV(stage, text, spv))
+        if (!SPIRVUtility::GLSL2SPV(stage, text, includePath, spv, outLayout))
             return false;
 
         if (m_initInfo.api == BackendAPI::DX12)
@@ -125,8 +125,14 @@ namespace LinaGX
         return false;
     }
 
-    void Renderer::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages)
+    uint16 Renderer::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
     {
+        return m_backend->GenerateShader(stages, shaderDesc);
+    }
+
+    void Renderer::DestroyShader(uint16 handle)
+    {
+        m_backend->DestroyShader(handle);
     }
 
 } // namespace LinaGX

@@ -29,6 +29,8 @@ SOFTWARE.
 #pragma once
 
 #include "Common/Common.hpp"
+#include <sstream>
+#include <fstream>
 
 namespace LinaGX
 {
@@ -49,6 +51,15 @@ namespace LinaGX
         std::wcstombs(buffer, wch, size);
 #endif
         return buffer;
+    }
+
+    LINAGX_STRING Internal::ReadFileContentsAsString(const char* filePath)
+    {
+        std::ifstream ifs(filePath);
+		auto		  a = std::istreambuf_iterator<char>(ifs);
+		auto		  b = (std::istreambuf_iterator<char>());
+		std::string	  content(a, b);
+		return content.c_str();
     }
 
 } // namespace LinaGX

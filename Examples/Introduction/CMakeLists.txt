@@ -58,26 +58,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/Examples/
 target_link_libraries(${PROJECT_NAME} 
 PUBLIC LinaGX::ExamplesCommon
 )
+include(${CMAKE_SOURCE_DIR}/CMake/CopyResources.cmake)
 
-add_custom_command(
-TARGET ${PROJECT_NAME}
-POST_BUILD
-COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/Examples/Introduction/_Resources" "${CMAKE_BINARY_DIR}/${PROJECT_NAME}/")
-
-add_custom_command(
-TARGET ${PROJECT_NAME}
-POST_BUILD
-COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/Examples/Introduction/_Resources" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>/")
-
-## Copy windows dlls
-if(WIN32)
-
-add_custom_command(
-TARGET ${PROJECT_NAME}
-POST_BUILD
-COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/_Vendor/bin/" "${CMAKE_BINARY_DIR}/bin/$<CONFIGURATION>")
-
-endif()
 
 #--------------------------------------------------------------------
 # Folder structuring in visual studio

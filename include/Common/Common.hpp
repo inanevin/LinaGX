@@ -237,8 +237,11 @@ namespace LinaGX
         B8G8R8A8_SRGB,
         B8G8R8A8_UNORM,
         R32G32B32_SFLOAT,
+        R32G32B32_SINT,
         R32G32B32A32_SFLOAT,
+        R32G32B32A32_SINT,
         R32G32_SFLOAT,
+        R32G32_SINT,
         D32_SFLOAT,
         R8G8B8A8_UNORM,
         R8G8B8A8_SRGB,
@@ -250,6 +253,65 @@ namespace LinaGX
         R32_SFLOAT,
         R32_SINT,
         FORMAT_MAX,
+    };
+
+    enum class PolygonMode
+    {
+        Fill,
+        Line,
+        Point
+    };
+
+    enum class CullMode
+    {
+        None,
+        Front,
+        Back,
+        FrontAndBack,
+    };
+
+    enum class FrontFace
+    {
+        CCW,
+        CW,
+    };
+
+    enum class CompareOp
+    {
+        Never,
+        Less,
+        Equal,
+        LEqual,
+        Greater,
+        NotEqual,
+        GEqual,
+        Always
+    };
+
+    enum class Topology
+    {
+        PointList,
+        LineList,
+        LineStrip,
+        TriangleList,
+        TriangleStrip,
+        TriangleFan,
+        TriangleListAdjacency,
+        TriangleStripAdjacency,
+    };
+
+    enum class LogicOp
+    {
+        Clear,
+        And,
+        AndReverse,
+        Copy,
+        AndInverted,
+        NoOp,
+        XOR,
+        OR,
+        NOR,
+        Equivalent
     };
 
     typedef void (*LogCallback)(const char*, ...);
@@ -306,6 +368,160 @@ namespace LinaGX
         uint32 backBufferCount = 1;
     };
 
+    enum class BlendOp
+    {
+        Add,
+        Subtract,
+        ReverseSubtract,
+        Min,
+        Max
+    };
+
+    enum class BlendFactor
+    {
+        Zero,
+        One,
+        SrcColor,
+        OneMinusSrcColor,
+        DstColor,
+        OneMinusDstColor,
+        SrcAlpha,
+        OneMinusSrcAlpha,
+        DstAlpha,
+        OneMinusDstAlpha,
+    };
+
+    enum class ColorComponentFlags
+    {
+        R,
+        G,
+        B,
+        A,
+        RG,
+        RGB,
+        RGBA
+    };
+
+    enum class ShaderMemberType
+    {
+        Float,
+        Int,
+        Float4,
+        Int4,
+        Float2,
+        Int2,
+        Float3,
+        Int3,
+        MatUnknown,
+        Mat2x2,
+        Mat4x4,
+        Mat3x3,
+    };
+
+    struct ColorBlendAttachment
+    {
+        bool                blendEnabled        = false;
+        BlendFactor         srcColorBlendFactor = BlendFactor::Zero;
+        BlendFactor         dstColorBlendFactor = BlendFactor::Zero;
+        BlendOp             colorBlendOp        = BlendOp::Add;
+        BlendFactor         srcAlphaBlendFactor = BlendFactor::Zero;
+        BlendFactor         dstAlphaBlendFactor = BlendFactor::Zero;
+        BlendOp             alphaBlendOp        = BlendOp::Add;
+        ColorComponentFlags componentFlags      = ColorComponentFlags::RGBA;
+    };
+
+    struct StageInput
+    {
+        uint32 location = 0;
+        uint32 elements = 0;
+        size_t size     = 0;
+        Format format   = Format::R32G32B32_SFLOAT;
+        size_t offset   = 0;
+    };
+
+    struct UBOMember
+    {
+        ShaderMemberType type         = ShaderMemberType::Float;
+        size_t           size         = 0;
+        size_t           offset       = 0;
+        LINAGX_STRING    name         = "";
+        bool             isArray      = false;
+        uint32           arraySize    = 0;
+        size_t           arrayStride  = 0;
+        size_t           matrixStride = 0;
+    };
+
+    struct ConstantBlock
+    {
+        size_t                  size = 0;
+        LINAGX_VEC<UBOMember>   members;
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_STRING           name = "";
+    };
+
+    struct UBO
+    {
+        uint32                  set     = 0;
+        uint32                  binding = 0;
+        size_t                  size    = 0;
+        LINAGX_VEC<UBOMember>   members;
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_STRING           name = "";
+    };
+
+    struct SSBO
+    {
+        uint32                  set     = 0;
+        uint32                  binding = 0;
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_STRING           name = "";
+    };
+
+    struct SRVTexture2D
+    {
+        uint32                  set     = 0;
+        uint32                  binding = 0;
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_STRING           name = "";
+    };
+
+    struct Sampler
+    {
+        uint32                  set     = 0;
+        uint32                  binding = 0;
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_STRING           name = "";
+    };
+
+    struct ShaderLayout
+    {
+        LINAGX_VEC<StageInput>    vertexInputs;
+        LINAGX_VEC<UBO>           ubos;
+        LINAGX_VEC<ConstantBlock> constantBuffers;
+        LINAGX_VEC<SSBO>          ssbos;
+        LINAGX_VEC<SRVTexture2D>  texture2ds;
+        LINAGX_VEC<Sampler>       samplers;
+    };
+
+    struct ShaderDesc
+    {
+        ShaderLayout layout = {};
+
+        PolygonMode polgyonMode = PolygonMode::Fill;
+        CullMode    cullMode    = CullMode::None;
+        FrontFace   frontFace   = FrontFace::CW;
+
+        bool      depthTest    = false;
+        bool      depthWrite   = false;
+        CompareOp depthCompare = CompareOp::Always;
+
+        Topology topology = Topology::TriangleList;
+
+        ColorBlendAttachment blendAttachment     = {};
+        bool                 blendLogicOpEnabled = false;
+        LogicOp              blendLogicOp        = LogicOp::And;
+    };
+
     extern LINAGX_API Configuration Config;
 
 #define LOGT(...)                                                                                            \
@@ -321,13 +537,15 @@ namespace LinaGX
 
 #define LOGA(condition, ...)                \
     if (!condition && Config.errorCallback) \
-        Config.errorCallback(__VA_ARGS__);   \
+        Config.errorCallback(__VA_ARGS__);  \
     _ASSERT(condition);
 
     namespace Internal
     {
-        extern LINAGX_API char* WCharToChar(const wchar_t* wch);
-    }
+        extern LINAGX_API char*         WCharToChar(const wchar_t* wch);
+        extern LINAGX_API LINAGX_STRING ReadFileContentsAsString(const char* filePath);
+
+    } // namespace Internal
 
 } // namespace LinaGX
 

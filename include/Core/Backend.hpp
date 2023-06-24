@@ -58,6 +58,12 @@ namespace LinaGX
 
         virtual void DestroySwapchain(uint8 handle){};
 
+        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
+        {
+            return 0;
+        };
+        virtual void DestroyShader(uint16 handle){};
+
         static Backend* CreateBackend(BackendAPI api);
 
     protected:

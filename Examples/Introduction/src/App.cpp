@@ -35,17 +35,6 @@ namespace LinaGX::Examples
 {
     LinaGX::Renderer* renderer = nullptr;
 
-    const char* vtxShader = R"GLSL(
-#version 330 core
-
-layout (location = 0) in vec3 position;
-
-void main()
-{
-    gl_Position = vec4(position, 1.0);
-}
-)GLSL";
-
     void LogError(const char* err, ...)
     {
         va_list args;
@@ -78,16 +67,29 @@ void main()
         initInfo.api = BackendAPI::Vulkan;
         initInfo.gpu = PreferredGPUType::Integrated;
 
+        renderer = new LinaGX::Renderer();
+        renderer->Initialize(initInfo);
+
         m_wm.CreateAppWindow(initInfo.api, 800, 600, "LinaGX Examples - Introduction");
         WindowManager::CloseCallback = [&]() {
             m_isRunning = false;
         };
 
-        renderer = new LinaGX::Renderer();
-        renderer->Initialize(initInfo);
+        const LINAGX_STRING vtxShader  = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_vert.glsl");
+        const LINAGX_STRING fragShader = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_frag.glsl");
 
-        CompiledShaderBlob outBlob;
-        renderer->CompileShader(ShaderStage::Vertex, vtxShader, outBlob);
+        ShaderLayout       outLayout  = {};
+        CompiledShaderBlob vertexBlob = {};
+        CompiledShaderBlob fragBlob   = {};
+        renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
+        renderer->CompileShader(ShaderStage::Pixel, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+
+        ShaderDesc shaderDesc = {
+            .layout = outLayout,
+        };
+
+        LINAGX_MAP<ShaderStage, CompiledShaderBlob> stages        = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};
+        uint16                                      shaderProgram = renderer->GenerateShader(stages, shaderDesc);
 
         auto swp = renderer->CreateSwapchain({
             .x               = 0,
@@ -100,7 +102,8 @@ void main()
             .backBufferCount = 3,
         });
 
-         renderer->DestroySwapchain(swp);
+        renderer->DestroySwapchain(swp);
+        renderer->DestroyShader(shaderProgram);
     }
 
     void App::Run()

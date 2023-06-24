@@ -90,11 +90,12 @@ namespace LinaGX
         DX12Backend(){};
         virtual ~DX12Backend(){};
 
-        virtual bool  Initialize(const InitInfo& initInfo) override;
-        virtual void  Shutdown() override;
-        virtual bool  CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob) override;
-        virtual uint8 CreateSwapchain(const SwapchainDesc& desc) override;
-        virtual void  DestroySwapchain(uint8 handle) override;
+        virtual bool   Initialize(const InitInfo& initInfo) override;
+        virtual void   Shutdown() override;
+        virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob) override;
+        virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
+        virtual void   DestroySwapchain(uint8 handle) override;
+        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc) override;
 
     private:
         void DX12Exception(HrException e);
