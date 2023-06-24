@@ -432,11 +432,12 @@ namespace LinaGX
 
     struct StageInput
     {
-        uint32 location = 0;
-        uint32 elements = 0;
-        size_t size     = 0;
-        Format format   = Format::R32G32B32_SFLOAT;
-        size_t offset   = 0;
+        LINAGX_STRING name     = "";
+        uint32        location = 0;
+        uint32        elements = 0;
+        size_t        size     = 0;
+        Format        format   = Format::R32G32B32_SFLOAT;
+        size_t        offset   = 0;
     };
 
     struct UBOMember

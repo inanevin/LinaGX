@@ -509,6 +509,8 @@ namespace LinaGX
                     input.location     = location;
                     input.elements     = type.vecsize;
                     input.size         = type.vecsize * type.columns * (isFloat ? sizeof(float) : sizeof(int));
+                    input.name         = compiler.get_name(resource.id);
+
                     if (type.vecsize == 1)
                         input.format = isFloat ? Format::R32_SFLOAT : Format::R32_SINT;
                     else if (type.vecsize == 2)

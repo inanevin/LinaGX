@@ -64,7 +64,7 @@ namespace LinaGX::Examples
         LinaGX::Config.infoCallback  = LogInfo;
 
         LinaGX::InitInfo initInfo;
-        initInfo.api = BackendAPI::Vulkan;
+        initInfo.api = BackendAPI::DX12;
         initInfo.gpu = PreferredGPUType::Integrated;
 
         renderer = new LinaGX::Renderer();
