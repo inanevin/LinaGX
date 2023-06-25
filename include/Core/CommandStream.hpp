@@ -28,18 +28,63 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_Renderer_HPP
-#define LINAGX_Renderer_HPP
+#ifndef LINAGX_COMMAND_STREAM_HPP
+#define LINAGX_COMMAND_STREAM_HPP
 
 #include "Common/Common.hpp"
 
 namespace LinaGX
 {
+    class Backend;
+    class Renderer;
+    class DX12Backend;
+    class MTLBackend;
+    class VKBackend;
+
+    struct CommandLinearAllocator
+    {
+        void*  ptr   = nullptr;
+        size_t size  = 0;
+        uint32 index = 0;
+    };
+
     class CommandStream
     {
     public:
-        
+        CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle);
+        ~CommandStream();
+
+        template <typename T>
+        T* AddCommand()
+        {
+            TypeID tid   = GetTypeID<T>();
+            auto&  alloc = m_linearAllocators[tid];
+            T*     start = static_cast<T*>(alloc.ptr);
+            T*     ptr   = start + alloc.index;
+            alloc.index++;
+
+            m_commands[m_commandCount] = static_cast<uint64*>(alloc.ptr);
+            m_types[m_commandCount]    = tid;
+            m_commandCount++;
+            return ptr;
+        }
+
     private:
+        friend class Renderer;
+        friend class VKBackend;
+        friend class MTLBackend;
+        friend class DX12Backend;
+
+        void Reset();
+
+    private:
+        LINAGX_MAP<TypeID, CommandLinearAllocator> m_linearAllocators;
+        uint64**                                   m_commands     = nullptr;
+        TypeID*                                    m_types        = nullptr;
+        uint32                                     m_commandCount = 0;
+        uint32                                     m_gpuHandle    = 0;
+        Backend*                                   m_backend      = nullptr;
+        CommandType                                m_type         = CommandType::Graphics;
     };
 } // namespace LinaGX
 

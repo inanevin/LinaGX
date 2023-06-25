@@ -37,6 +37,7 @@ SOFTWARE.
 #include <unordered_map>
 #include <queue>
 #include <deque>
+#include <typeinfo>
 
 namespace LinaGX
 {
@@ -202,6 +203,61 @@ namespace LinaGX
         uint32          m_defaultStep = 50;
     };
 
+    typedef uint32 StringID;
+    typedef uint32 TypeID;
+
+    // https://gist.github.com/hwei/1950649d523afd03285c
+    class FnvHash
+    {
+    public:
+        static const unsigned int FNV_PRIME    = 16777619u;
+        static const unsigned int OFFSET_BASIS = 2166136261u;
+        template <unsigned int N>
+        static constexpr unsigned int fnvHashConst(const char (&str)[N], unsigned int I = N)
+        {
+            return I == 1 ? (OFFSET_BASIS ^ str[0]) * FNV_PRIME : (fnvHashConst(str, I - 1) ^ str[I - 1]) * FNV_PRIME;
+        }
+        static uint32 fnvHash(const char* str);
+        struct Wrapper
+        {
+            Wrapper(const char* str)
+                : str(str)
+            {
+            }
+            const char* str;
+        };
+        unsigned int hash_value;
+
+    public:
+        // calulate in run-time
+        FnvHash(Wrapper wrapper)
+            : hash_value(fnvHash(wrapper.str))
+        {
+        }
+        // calulate in compile-time
+        template <unsigned int N>
+        constexpr FnvHash(const char (&str)[N])
+            : hash_value(fnvHashConst(str))
+        {
+        }
+        // output result
+        constexpr operator unsigned int() const
+        {
+            return this->hash_value;
+        }
+    };
+
+    template <typename T>
+    TypeID GetTypeID()
+    {
+        return FnvHash(typeid(T).name());
+    }
+
+    constexpr StringID operator"" _hs(const char* str, std::size_t) noexcept
+    {
+        return FnvHash(str);
+    }
+
     enum class BackendAPI
     {
         Vulkan,
@@ -316,26 +372,6 @@ namespace LinaGX
         Equivalent
     };
 
-    typedef void (*LogCallback)(const char*, ...);
-
-    struct DataBlob
-    {
-        uint8* ptr  = nullptr;
-        size_t size = 0;
-    };
-
-    struct SwapchainDesc
-    {
-        uint32 x           = 0;
-        uint32 y           = 0;
-        uint32 width       = 0;
-        uint32 height      = 0;
-        void*  window      = nullptr;
-        void*  osHandle    = nullptr;
-        Format format      = Format::R8G8B8A8_UNORM;
-        Format depthFormat = Format::D32_SFLOAT;
-    };
-
     enum class BlendOp
     {
         Add,
@@ -392,6 +428,38 @@ namespace LinaGX
         ColorTextureDynamic,
         ColorTextureRenderTarget,
         DepthStencilTexture
+    };
+
+    enum class CommandType
+    {
+        Graphics,
+        Transfer,
+        Compute
+    };
+
+    enum class VsyncMode
+    {
+        None,
+        EveryVBlank,
+        EverySecondVBlank,
+    };
+
+    struct DataBlob
+    {
+        uint8* ptr  = nullptr;
+        size_t size = 0;
+    };
+
+    struct SwapchainDesc
+    {
+        uint32 x           = 0;
+        uint32 y           = 0;
+        uint32 width       = 0;
+        uint32 height      = 0;
+        void*  window      = nullptr;
+        void*  osHandle    = nullptr;
+        Format format      = Format::R8G8B8A8_UNORM;
+        Format depthFormat = Format::D32_SFLOAT;
     };
 
     struct ColorBlendAttachment
@@ -483,17 +551,17 @@ namespace LinaGX
 
     struct ShaderDesc
     {
-        ShaderLayout         layout;
-        PolygonMode          polgyonMode;
-        CullMode             cullMode;
-        FrontFace            frontFace;
-        bool                 depthTest;
-        bool                 depthWrite;
-        CompareOp            depthCompare;
-        Topology             topology;
-        ColorBlendAttachment blendAttachment;
-        bool                 blendLogicOpEnabled;
-        LogicOp              blendLogicOp;
+        ShaderLayout         layout              = {};
+        PolygonMode          polygonMode         = PolygonMode::Fill;
+        CullMode             cullMode            = CullMode::None;
+        FrontFace            frontFace           = FrontFace::CCW;
+        bool                 depthTest           = false;
+        bool                 depthWrite          = false;
+        CompareOp            depthCompare        = CompareOp::Less;
+        Topology             topology            = Topology::TriangleList;
+        ColorBlendAttachment blendAttachment     = {};
+        bool                 blendLogicOpEnabled = false;
+        LogicOp              blendLogicOp        = LogicOp::Copy;
     };
 
     struct Texture2DDesc
@@ -552,6 +620,8 @@ namespace LinaGX
         uint32 bufferLimit = 1024;
     };
 
+    typedef void (*LogCallback)(const char*, ...);
+
     struct Configuration
     {
         /// <summary>
@@ -573,16 +643,6 @@ namespace LinaGX
         ///
         /// </summary>
         Format defaultRTFormat = Format::R8G8B8A8_SRGB;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 backBufferCount = 2;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 framesInFlight = 2;
     };
 
     struct InitInfo
@@ -606,6 +666,29 @@ namespace LinaGX
         ///
         /// </summary>
         GPULimits gpuLimits = {};
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 framesInFlight = 2;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 backbufferCount = 2;
+    };
+
+    struct PresentDesc
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        uint8 swapchain = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        VsyncMode vsync = VsyncMode::None;
     };
 
     extern LINAGX_API Configuration Config;

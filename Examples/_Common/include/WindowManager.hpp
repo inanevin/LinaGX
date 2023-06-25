@@ -39,7 +39,7 @@ namespace LinaGX
         class WindowManager
         {
         public:
-            void* CreateAppWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title);
+            void* CreateAppWindow(int width, int height, const char* title);
             void  Poll();
             void  Shutdown();
 
@@ -52,8 +52,6 @@ namespace LinaGX
             {
                 return m_osHandle2;
             }
-
-            static std::function<void()> CloseCallback;
 
         private:
             void* m_windowHandle = nullptr;

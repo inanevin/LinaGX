@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,18 +26,36 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include "App.hpp"
+#include "LinaGX.hpp"
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
-
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-
-namespace LinaGX
+namespace LinaGX::Examples
 {
+    App* App::Application = nullptr;
 
-} // namespace LinaGX
+    void App::Initialize()
+    {
+        App::Application = this;
+        m_wm.CreateAppWindow(800, 600, "LinaGX Examples - Introduction");
+    }
 
-#endif
+    void App::Run()
+    {
+        IsRunning = true;
+
+        while (IsRunning)
+        {
+            // Poll for inputs etc.
+            m_wm.Poll();
+            OnTick();
+        }
+
+        Shutdown();
+    }
+
+    void App::Shutdown()
+    {
+        m_wm.Shutdown();
+    }
+
+} // namespace LinaGX::Examples

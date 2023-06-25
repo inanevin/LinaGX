@@ -36,20 +36,19 @@ SOFTWARE.
 #include <GLFW/glfw3native.h>
 #endif
 
+#include "App.hpp"
 #include <iostream>
 
 namespace LinaGX
 {
     namespace Examples
     {
-        std::function<void()> WindowManager::CloseCallback;
-
         static void GLFWErrorCallback(int error, const char* desc)
         {
             std::cerr << "LinaGX Examples: GLFW Error: " << error << " Description: " << desc << std::endl;
         }
 
-        void* WindowManager::CreateAppWindow(LinaGX::BackendAPI backendAPI, int width, int height, const char* title)
+        void* WindowManager::CreateAppWindow(int width, int height, const char* title)
         {
             // Initialize GLFW
             if (!glfwInit())
@@ -84,16 +83,15 @@ namespace LinaGX
             };
 
             auto windowCloseFunc = [](GLFWwindow* w) {
-                if (CloseCallback)
-                    CloseCallback();
+                App::Application->IsRunning = false;
             };
 
             auto windowKeyFunc = [](GLFWwindow* w, int key, int scancode, int action, int modes) {
-
+                App::Application->OnKeyPress(key);
             };
 
             auto windowButtonFunc = [](GLFWwindow* w, int button, int action, int modes) {
-
+                App::Application->OnMousePress(button);
             };
 
             auto windowMouseScrollFunc = [](GLFWwindow* w, double xOff, double yOff) {

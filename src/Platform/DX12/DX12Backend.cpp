@@ -32,6 +32,9 @@ SOFTWARE.
 #include "Platform/DX12/SDK/D3D12MemAlloc.h"
 #include "Platform/DX12/DX12HeapGPU.hpp"
 #include "Platform/DX12/DX12HeapStaging.hpp"
+#include "Core/Commands.hpp"
+#include "Core/Renderer.hpp"
+#include "Core/CommandStream.hpp"
 
 using Microsoft::WRL::ComPtr;
 
@@ -256,6 +259,21 @@ namespace LinaGX
             return D3D12_SHADER_VISIBILITY_ALL;
         }
     }
+
+    D3D12_COMMAND_LIST_TYPE GetDXCommandType(CommandType type)
+    {
+        switch (type)
+        {
+        case CommandType::Graphics:
+            return D3D12_COMMAND_LIST_TYPE_DIRECT;
+        case CommandType::Transfer:
+            return D3D12_COMMAND_LIST_TYPE_COPY;
+        case CommandType::Compute:
+            return D3D12_COMMAND_LIST_TYPE_COMPUTE;
+        default:
+            return D3D12_COMMAND_LIST_TYPE_DIRECT;
+        }
+    }
     void MessageCallback(D3D12_MESSAGE_CATEGORY messageType, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID messageId, LPCSTR pDesc, void* pContext)
     {
         if (pDesc != NULL)
@@ -331,6 +349,8 @@ namespace LinaGX
 
     bool DX12Backend::Initialize(const InitInfo& initInfo)
     {
+        m_initInfo = initInfo;
+
         try
         {
             {
@@ -432,6 +452,28 @@ namespace LinaGX
                 m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initInfo.gpuLimits.textureLimit);
                 m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, initInfo.gpuLimits.samplerLimit);
             }
+
+            // Command functions
+            {
+                m_cmdFunctions[GetTypeID<CMDBeginRenderPassSwapchain>()] = &DX12Backend::CMD_BeginRenderPassSwapchain;
+                m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]            = &DX12Backend::CMD_EndRenderPass;
+            }
+
+            // Per frame
+            {
+                for (uint32 i = 0; i < initInfo.framesInFlight; i++)
+                {
+                    DX12PerFrameData pfd = {};
+                    m_perFrameData.push_back(pfd);
+                }
+            }
+
+            // Syncs
+            {
+                m_fenceControlGraphics.fence      = CreateFence();
+                m_fenceControlTransfer.fence      = CreateFence();
+                m_fenceControlGraphics.fenceValue = m_fenceControlTransfer.fenceValue = 1;
+            }
         }
         catch (HrException e)
         {
@@ -444,6 +486,9 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
+        DestroyFence(m_fenceControlGraphics.fence);
+        DestroyFence(m_fenceControlTransfer.fence);
+
         for (auto& swp : m_swapchains)
         {
             LOGA(!swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
@@ -457,6 +502,11 @@ namespace LinaGX
         for (auto& txt : m_texture2Ds)
         {
             LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+        }
+
+        for (auto& str : m_cmdStreams)
+        {
+            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
         }
 
         ID3D12InfoQueue1* infoQueue = nullptr;
@@ -474,6 +524,150 @@ namespace LinaGX
         delete m_dsvHeap;
         delete m_rtvHeap;
         delete m_samplerHeap;
+    }
+
+    uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
+    {
+        DX12CommandStream item = {};
+        item.isValid           = true;
+
+        try
+        {
+            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocator.GetAddressOf())));
+            ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocator.Get(), nullptr, IID_PPV_ARGS(item.list.GetAddressOf())));
+            ThrowIfFailed(item.list->Close());
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend -> Exception when creating a command allocator! %s", e.what());
+            DX12Exception(e);
+        }
+
+        return m_cmdStreams.AddItem(item);
+    }
+
+    void DX12Backend::StartFrame(uint32 frameIndex)
+    {
+        m_currentFrameIndex = frameIndex;
+        auto& frame         = m_perFrameData[m_currentFrameIndex];
+        WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
+
+        // Reset streams.
+        for (auto stream : m_renderer->m_commandStreams)
+        {
+            auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            try
+            {
+                ThrowIfFailed(sr.allocator->Reset());
+                ThrowIfFailed(sr.list->Reset(sr.allocator.Get(), nullptr));
+            }
+            catch (HrException e)
+            {
+                LOGE("DX12Backend-> Exception when resetting a command list! %s", e.what());
+                DX12Exception(e);
+            }
+        }
+    }
+
+    void DX12Backend::FlushCommandStreams()
+    {
+
+        for (auto stream : m_renderer->m_commandStreams)
+        {
+            auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+
+            for (uint32 i = 0; i < stream->m_commandCount; i++)
+            {
+                uint64* cmd = stream->m_commands[i];
+                TypeID  tid = stream->m_types[i];
+                (this->*m_cmdFunctions[tid])(cmd, sr);
+            }
+
+            try
+            {
+                LINAGX_VEC<ID3D12CommandList*> _lists;
+                ThrowIfFailed(sr.list->Close());
+                _lists.push_back(sr.list.Get());
+
+                ID3D12CommandList* const* data = _lists.data();
+                m_queueDirect->ExecuteCommandLists(1, data);
+            }
+            catch (HrException e)
+            {
+                LOGE("DX12Backend -> Exception when resetting a command list! %s", e.what());
+                DX12Exception(e);
+            }
+        }
+    }
+
+    void DX12Backend::EndFrame()
+    {
+        auto& frame = m_perFrameData[m_currentFrameIndex];
+        auto& fence = m_fences.GetItemR(m_fenceControlGraphics.fence);
+
+        // Increase & signal, we'll wait for this value next time we are starting this frame index.
+        m_fenceControlGraphics.fenceValue++;
+        frame.storedFenceGraphics = m_fenceControlGraphics.fenceValue;
+        m_queueDirect->Signal(fence.Get(), m_fenceControlGraphics.fenceValue);
+    }
+
+    void DX12Backend::Present(const PresentDesc& present)
+    {
+        auto& swp = m_swapchains.GetItemR(present.swapchain);
+
+        try
+        {
+            UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+            uint32 interval = 0;
+
+            if (present.vsync == VsyncMode::EveryVBlank)
+            {
+                interval = 1;
+                flags    = 0;
+            }
+            else if (present.vsync == VsyncMode::EverySecondVBlank)
+            {
+                interval = 2;
+                flags    = 0;
+            }
+
+            ThrowIfFailed(swp.ptr->Present(interval, flags));
+            swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
+
+            DXGI_FRAME_STATISTICS FrameStatistics;
+            swp.ptr->GetFrameStatistics(&FrameStatistics);
+
+            if (FrameStatistics.PresentCount > m_previousPresentCount)
+            {
+                if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
+                {
+                    ++m_glitchCount;
+                    interval = 0;
+                }
+            }
+
+            m_previousPresentCount = FrameStatistics.PresentCount;
+            m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
+        }
+        catch (HrException& e)
+        {
+            LOGE("DX12Backend -> Present engine error! {0}", e.what());
+            DX12Exception(e);
+        }
+    }
+
+    void DX12Backend::DestroyCommandStream(uint32 handle)
+    {
+        auto& stream = m_cmdStreams.GetItemR(handle);
+        if (!stream.isValid)
+        {
+            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            return;
+        }
+        stream.isValid = false;
+        stream.list.Reset();
+        stream.allocator.Reset();
+        m_cmdStreams.RemoveItem(handle);
     }
 
     bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
@@ -584,7 +778,7 @@ namespace LinaGX
     uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
     {
         DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-        swapchainDesc.BufferCount           = Config.backBufferCount;
+        swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
         swapchainDesc.Format                = GetDXFormat(desc.format);
@@ -608,18 +802,20 @@ namespace LinaGX
                                                             &swapchain));
 
             DX12Swapchain swp = {};
+            swp.isValid       = true;
+            swp.format        = desc.format;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
             LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
 
             // Create RT and depth textures for swapchain.
             {
-                for (uint32 i = 0; i < Config.backBufferCount; i++)
+                for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
                 {
-                    DX12Texture2D color = {};
-
+                    DX12Texture2D color      = {};
                     color.isSwapchainTexture = true;
                     color.descriptor         = m_rtvHeap->GetNewHeapHandle();
+                    color.isValid            = true;
 
                     try
                     {
@@ -635,7 +831,6 @@ namespace LinaGX
                     rtvDesc.Format                        = GetDXFormat(desc.format);
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                     m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
-
                     swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
 
                     Texture2DDesc depthDesc = {};
@@ -648,7 +843,6 @@ namespace LinaGX
                 }
             }
 
-            swp.isValid = true;
             return m_swapchains.AddItem(swp);
         }
         catch (HrException e)
@@ -669,11 +863,18 @@ namespace LinaGX
             return;
         }
 
+        for (auto t : swp.colorTextures)
+            DestroyTexture2D(t);
+
+        for (auto t : swp.depthTextures)
+            DestroyTexture2D(t);
+
         swp.isValid = false;
         swp.ptr.Reset();
+        m_swapchains.RemoveItem(handle);
     }
 
-    uint16 DX12Backend::GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 DX12Backend::CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
     {
         DX12Shader shader = {};
         // Root signature.
@@ -833,8 +1034,8 @@ namespace LinaGX
         psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
-        // psoDesc.RTVFormats[0]                          = GetDXFormat(Config.defaultRTFormat);
-        // psoDesc.DSVFormat                              = GetDXFormat(Config.defaultDepthFormat);
+        psoDesc.RTVFormats[0]                             = GetDXFormat(Format::R8G8B8A8_UNORM);
+        psoDesc.DSVFormat                                 = GetDXFormat(Format::D32_SFLOAT);
 
         for (const auto& [stg, blob] : stages)
         {
@@ -900,6 +1101,7 @@ namespace LinaGX
     {
         DX12Texture2D item = {};
         item.usage         = txtDesc.usage;
+        item.isValid       = true;
 
         D3D12_RESOURCE_DESC resourceDesc = {};
         resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -1041,6 +1243,89 @@ namespace LinaGX
     {
         LOGE("DX12Backend -> Exception: %s", e.what());
         _ASSERT(false);
+    }
+
+    uint16 DX12Backend::CreateFence()
+    {
+        const uint16 handle = m_fences.AddItem(ComPtr<ID3D12Fence>());
+        auto&        fence  = m_fences.GetItemR(handle);
+
+        try
+        {
+            ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend-> Exception when creating a fence! {0}", e.what());
+            DX12Exception(e);
+        }
+
+        return handle;
+    }
+
+    void DX12Backend::DestroyFence(uint16 handle)
+    {
+        auto& fence = m_fences.GetItemR(handle);
+        fence.Reset();
+        m_fences.RemoveItem(handle);
+    }
+
+    void DX12Backend::WaitForFences(uint16 fenceHandle, uint64 frameFenceValue)
+    {
+        auto&        fence     = m_fences.GetItemR(fenceHandle);
+        const UINT64 lastFence = fence->GetCompletedValue();
+
+        if (lastFence < frameFenceValue)
+        {
+            try
+            {
+                HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+                if (eventHandle == nullptr)
+                {
+                    ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+                }
+                else
+                {
+                    ThrowIfFailed(fence->SetEventOnCompletion(frameFenceValue, eventHandle));
+                    WaitForSingleObject(eventHandle, INFINITE);
+                    CloseHandle(eventHandle);
+                }
+            }
+            catch (HrException e)
+            {
+                LOGE("DX12Backend -> Exception when waiting for a fence! {0}", e.what());
+            }
+        }
+    }
+
+    void DX12Backend::CMD_BeginRenderPassSwapchain(void* data, const DX12CommandStream& stream)
+    {
+        CMDBeginRenderPassSwapchain* begin = static_cast<CMDBeginRenderPassSwapchain*>(data);
+        const auto&                  swp   = m_swapchains.GetItemR(begin->swapchain);
+        const auto&                  txt   = m_texture2Ds.GetItemR(swp.colorTextures[swp._imageIndex]);
+
+        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        stream.list->ResourceBarrier(1, &transition);
+
+        CD3DX12_CLEAR_VALUE                  clearValue{GetDXFormat(swp.format), begin->clearColor};
+        D3D12_RENDER_PASS_BEGINNING_ACCESS   renderPassBeginningAccessClear{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
+        D3D12_RENDER_PASS_ENDING_ACCESS      renderPassEndingAccessPreserve{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
+        D3D12_RENDER_PASS_RENDER_TARGET_DESC renderPassRenderTargetDesc{txt.descriptor.GetCPUHandle(), renderPassBeginningAccessClear, renderPassEndingAccessPreserve};
+        stream.list->BeginRenderPass(1, &renderPassRenderTargetDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+    }
+
+    void DX12Backend::CMD_EndRenderPass(void* data, const DX12CommandStream& stream)
+    {
+        CMDEndRenderPass* end = static_cast<CMDEndRenderPass*>(data);
+        stream.list->EndRenderPass();
+
+        if (end->isSwapchain)
+        {
+            const auto& swp        = m_swapchains.GetItemR(end->swapchain);
+            const auto& txt        = m_texture2Ds.GetItemR(swp.colorTextures[swp._imageIndex]);
+            auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+            stream.list->ResourceBarrier(1, &transition);
+        }
     }
 
 } // namespace LinaGX

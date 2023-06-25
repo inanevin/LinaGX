@@ -47,7 +47,7 @@ namespace LinaGX
         }
 #endif
 
-        m_backend = Backend::CreateBackend(info.api);
+        m_backend = Backend::CreateBackend(info.api, this);
 
         if (m_backend == nullptr)
         {
@@ -72,6 +72,32 @@ namespace LinaGX
     {
         SPIRVUtility::Shutdown();
         m_backend->Shutdown();
+    }
+
+    void Renderer::StartFrame(uint32 frameIndex)
+    {
+        for (auto stream : m_commandStreams)
+            stream->Reset();
+
+        m_backend->StartFrame(frameIndex);
+    }
+
+    void Renderer::Flush()
+    {
+        m_backend->FlushCommandStreams();
+
+        for (auto stream : m_commandStreams)
+            stream->Reset();
+    }
+
+    void Renderer::EndFrame()
+    {
+        m_backend->EndFrame();
+    }
+
+    void Renderer::Present(const PresentDesc& present)
+    {
+        m_backend->Present(present);
     }
 
     uint8 Renderer::CreateSwapchain(const SwapchainDesc& desc)
@@ -126,9 +152,9 @@ namespace LinaGX
         return false;
     }
 
-    uint16 Renderer::GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 Renderer::CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
     {
-        return m_backend->GenerateShader(stages, shaderDesc);
+        return m_backend->CreateShader(stages, shaderDesc);
     }
 
     void Renderer::DestroyShader(uint16 handle)
@@ -136,9 +162,11 @@ namespace LinaGX
         m_backend->DestroyShader(handle);
     }
 
-    CommandStream* Renderer::CreateCommandStream(uint32 commandCount)
+    CommandStream* Renderer::CreateCommandStream(uint32 commandCount, CommandType type)
     {
-        return nullptr;
+        CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type));
+        m_commandStreams.push_back(stream);
+        return stream;
     }
 
     uint32 Renderer::CreateTexture2D(const Texture2DDesc& desc)

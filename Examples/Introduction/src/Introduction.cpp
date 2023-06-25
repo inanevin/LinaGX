@@ -30,50 +30,30 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
+#include "Introduction.hpp"
 
 namespace LinaGX::Examples
 {
-    LinaGX::Renderer* renderer = nullptr;
+    LinaGX::Renderer*      renderer  = nullptr;
+    LinaGX::CommandStream* stream    = nullptr;
+    uint8                  swapchain = 0;
 
-    void LogError(const char* err, ...)
+    void Introduction::Initialize()
     {
-        va_list args;
-        va_start(args, err);
+        App::Initialize();
 
-        std::cout << "\033[1;31m";
-        std::cout << "LinaGX: ";
-        vprintf(err, args);
-        std::cout << "\033[0m" << std::endl;
-        va_end(args);
-    }
-
-    void LogInfo(const char* info, ...)
-    {
-        va_list args;
-        va_start(args, info);
-        std::cout << "\033[32mLinaGX: ";
-        vprintf(info, args);
-        std::cout << std::endl;
-        va_end(args);
-    }
-
-    void App::Initialize()
-    {
         LinaGX::Config.logLevel      = LogLevel::Verbose;
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
         LinaGX::InitInfo initInfo;
-        initInfo.api = BackendAPI::DX12;
-        initInfo.gpu = PreferredGPUType::Integrated;
+        initInfo.api             = BackendAPI::DX12;
+        initInfo.gpu             = PreferredGPUType::Integrated;
+        initInfo.framesInFlight  = 1;
+        initInfo.backbufferCount = 2;
 
         renderer = new LinaGX::Renderer();
         renderer->Initialize(initInfo);
-
-        m_wm.CreateAppWindow(initInfo.api, 800, 600, "LinaGX Examples - Introduction");
-        WindowManager::CloseCallback = [&]() {
-            m_isRunning = false;
-        };
 
         const LINAGX_STRING vtxShader  = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_vert.glsl");
         const LINAGX_STRING fragShader = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_frag.glsl");
@@ -89,9 +69,9 @@ namespace LinaGX::Examples
         };
 
         LINAGX_MAP<ShaderStage, DataBlob> stages        = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};
-        uint16                            shaderProgram = renderer->GenerateShader(stages, shaderDesc);
+        uint16                            shaderProgram = renderer->CreateShader(stages, shaderDesc);
 
-        auto swp = renderer->CreateSwapchain({
+        swapchain = renderer->CreateSwapchain({
             .x           = 0,
             .y           = 0,
             .width       = 500,
@@ -102,30 +82,42 @@ namespace LinaGX::Examples
             .depthFormat = Format::D32_SFLOAT,
         });
 
-        renderer->DestroySwapchain(swp);
         renderer->DestroyShader(shaderProgram);
 
         LINAGX_FREE(vertexBlob.ptr);
         LINAGX_FREE(fragBlob.ptr);
+
+        stream = renderer->CreateCommandStream(10, CommandType::Graphics);
     }
 
-    void App::Run()
+    void Introduction::Shutdown()
     {
-        m_isRunning = true;
+        delete stream;
 
-        while (m_isRunning)
-        {
-            m_wm.Poll();
-        }
-
-        Shutdown();
-    }
-
-    void App::Shutdown()
-    {
+        renderer->DestroySwapchain(swapchain);
         renderer->Shutdown();
         delete renderer;
-        m_wm.Shutdown();
+        App::Shutdown();
+    }
+
+    void Introduction::OnTick()
+    {
+        renderer->StartFrame();
+
+        CMDBeginRenderPassSwapchain* beginRenderPass = stream->AddCommand<CMDBeginRenderPassSwapchain>();
+        beginRenderPass->swapchain                   = swapchain;
+        beginRenderPass->clearColor[0]               = 0.5f;
+        beginRenderPass->clearColor[1]               = 0.2f;
+        beginRenderPass->clearColor[2]               = 0.2f;
+        beginRenderPass->clearColor[3]               = 1.0f;
+
+        CMDEndRenderPass* end = stream->AddCommand<CMDEndRenderPass>();
+        end->isSwapchain      = true;
+        end->swapchain        = swapchain;
+
+        renderer->Flush();
+        renderer->Present({.swapchain = swapchain});
+        renderer->EndFrame();
     }
 
 } // namespace LinaGX::Examples

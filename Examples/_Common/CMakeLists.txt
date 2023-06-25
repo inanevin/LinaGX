@@ -22,12 +22,14 @@ project(Common)
 set(COMMON_SOURCES 
 
 src/WindowManager.cpp
+src/App.cpp
 
 )
 
 set(COMMON_HEADERS
 
 include/WindowManager.hpp
+include/App.hpp
 )
 
 

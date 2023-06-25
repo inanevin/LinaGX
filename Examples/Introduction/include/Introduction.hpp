@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,18 +26,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#ifndef INTRODUCTION_HPP
+#define INTRODUCTION_HPP
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
-
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-
+#include "App.hpp"
 namespace LinaGX
 {
+    namespace Examples
+    {
+        class Introduction : public App
+        {
+        public:
+            virtual void Initialize() override;
+            virtual void Shutdown() override;
+            virtual void OnTick() override;
+        };
 
+    } // namespace Examples
 } // namespace LinaGX
 
 #endif

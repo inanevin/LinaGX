@@ -49,8 +49,10 @@ namespace LinaGX
     {
         Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr     = NULL;
         bool                                    isValid = false;
+        Format                                  format  = Format::B8G8R8A8_UNORM;
         LINAGX_VEC<uint32>                      colorTextures;
         LINAGX_VEC<uint32>                      depthTextures;
+        uint32                                  _imageIndex = 0;
     };
 
     struct DX12Shader
@@ -73,27 +75,65 @@ namespace LinaGX
         bool           isSwapchainTexture = false;
     };
 
+    struct DX12CommandStream
+    {
+        bool                                               isValid = false;
+        Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
+        Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
+    };
+
+    struct DX12PerFrameData
+    {
+        uint64 storedFenceGraphics = 0;
+        uint64 storedFenceTransfer = 0;
+    };
+
+    struct DX12FenceControl
+    {
+        uint16 fence      = 0;
+        uint64 fenceValue = 0;
+    };
+
     class DX12Backend : public Backend
     {
+    private:
     public:
-        DX12Backend(){};
+        typedef void (DX12Backend::*CommandFunction)(void*, const DX12CommandStream& stream);
+
+        DX12Backend(Renderer* renderer)
+            : Backend(renderer){};
         virtual ~DX12Backend(){};
 
         virtual bool   Initialize(const InitInfo& initInfo) override;
         virtual void   Shutdown() override;
+        virtual void   StartFrame(uint32 frameIndex) override;
+        virtual void   EndFrame() override;
+        virtual void   Present(const PresentDesc& present) override;
+        virtual void   FlushCommandStreams() override;
+        virtual uint32 CreateCommandStream(CommandType cmdType) override;
+        virtual void   DestroyCommandStream(uint32 handle) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
-        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc) override;
+        virtual uint16 CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
         virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
         virtual void   DestroyTexture2D(uint32 handle) override;
-        void           DX12Exception(HrException e);
+
+        void DX12Exception(HrException e);
 
         ID3D12Device* GetDevice()
         {
             return m_device.Get();
         }
+
+    private:
+        uint16 CreateFence();
+        void   DestroyFence(uint16 handle);
+        void   WaitForFences(uint16 fenceHandle, uint64 frameFenceValue);
+
+        void CMD_BeginRenderPassSwapchain(void* data, const DX12CommandStream& stream);
+        void CMD_EndRenderPass(void* data, const DX12CommandStream& stream);
 
     private:
         D3D12MA::Allocator*                        m_dx12Allocator = nullptr;
@@ -104,14 +144,29 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_queueDirect;
         bool                                       m_allowTearing = false;
 
-        DX12HeapStaging*              m_rtvHeap     = nullptr;
-        DX12HeapStaging*              m_bufferHeap  = nullptr;
-        DX12HeapStaging*              m_textureHeap = nullptr;
-        DX12HeapStaging*              m_dsvHeap     = nullptr;
-        DX12HeapStaging*              m_samplerHeap = nullptr;
-        IDList<uint8, DX12Swapchain>  m_swapchains  = {10};
-        IDList<uint16, DX12Shader>    m_shaders     = {20};
-        IDList<uint32, DX12Texture2D> m_texture2Ds  = {50};
+        DX12HeapStaging*                                    m_rtvHeap     = nullptr;
+        DX12HeapStaging*                                    m_bufferHeap  = nullptr;
+        DX12HeapStaging*                                    m_textureHeap = nullptr;
+        DX12HeapStaging*                                    m_dsvHeap     = nullptr;
+        DX12HeapStaging*                                    m_samplerHeap = nullptr;
+        IDList<uint8, DX12Swapchain>                        m_swapchains  = {10};
+        IDList<uint16, DX12Shader>                          m_shaders     = {20};
+        IDList<uint32, DX12Texture2D>                       m_texture2Ds  = {50};
+        IDList<uint32, DX12CommandStream>                   m_cmdStreams  = {50};
+        IDList<uint16, Microsoft::WRL::ComPtr<ID3D12Fence>> m_fences      = {20};
+
+        LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions;
+        uint32                              m_currentFrameIndex    = 0;
+        uint32                              m_currentImageIndex    = 0;
+        uint32                              m_previousRefreshCount = 0;
+        uint32                              m_previousPresentCount = 0;
+        uint32                              m_glitchCount          = 0;
+
+        LINAGX_VEC<DX12PerFrameData> m_perFrameData;
+        DX12FenceControl             m_fenceControlGraphics = {};
+        DX12FenceControl             m_fenceControlTransfer = {};
+
+        InitInfo m_initInfo = {};
     };
 } // namespace LinaGX
 

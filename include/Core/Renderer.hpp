@@ -44,8 +44,38 @@ namespace LinaGX
         Renderer(){};
         virtual ~Renderer(){};
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
         bool Initialize(const InitInfo& info);
+
+        /// <summary>
+        ///
+        /// </summary>
         void Shutdown();
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="frameIndex"></param>
+        void StartFrame(uint32 frameIndex = 0);
+
+        /// <summary>
+        ///
+        /// </summary>
+        void Flush();
+
+        /// <summary>
+        ///
+        /// </summary>
+        void EndFrame();
+
+        /// <summary>
+        ///
+        /// </summary>
+        void Present(const PresentDesc& present);
 
         /// <summary>
         /// Creates a swapchain for a window given necessary handles per-platform. e.g HWND and hInstance on windows.
@@ -71,7 +101,7 @@ namespace LinaGX
         /// Generates a shader pipeline.
         /// </summary>
         /// <param name="stages">Hashmap containing all compiled blobs per shader stage.</param>
-        uint16 GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc);
+        uint16 CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc);
 
         /// <summary>
         /// Destroys the shader pipeline with given handle.
@@ -84,18 +114,25 @@ namespace LinaGX
         /// </summary>
         /// <param name="commandCount"></param>
         /// <returns></returns>
-        CommandStream* CreateCommandStream(uint32 commandCount);
+        CommandStream* CreateCommandStream(uint32 commandCount, CommandType type);
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="desc"></param>
         /// <returns></returns>
         uint32 CreateTexture2D(const Texture2DDesc& desc);
 
     private:
+        friend class VKBackend;
+        friend class MTLBackend;
+        friend class DX12Backend;
+
+    private:
         InitInfo m_initInfo = {};
         Backend* m_backend  = nullptr;
+
+        LINAGX_VEC<CommandStream*> m_commandStreams;
     };
 } // namespace LinaGX
 

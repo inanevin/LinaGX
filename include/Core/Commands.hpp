@@ -35,7 +35,18 @@ SOFTWARE.
 
 namespace LinaGX
 {
-  
+    struct CMDBeginRenderPassSwapchain
+    {
+        uint8 swapchain;
+        float clearColor[4];
+    };
+
+    struct CMDEndRenderPass
+    {
+        uint32 texture;
+        uint8  swapchain;
+        bool   isSwapchain;
+    };
 } // namespace LinaGX
 
 #endif

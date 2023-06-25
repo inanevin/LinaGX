@@ -41,18 +41,18 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend(BackendAPI api)
+    Backend* LinaGX::Backend::CreateBackend(BackendAPI api, Renderer* renderer)
     {
         switch (api)
         {
         case BackendAPI::Vulkan:
-            return new VKBackend();
+            return new VKBackend(renderer);
         case BackendAPI::DX12:
-            return new DX12Backend();
+            return new DX12Backend(renderer);
 
 #ifdef LINAGX_PLATFORM_APPLE
         case BackendAPI::Metal:
-            return new MTLBackend();
+            return new MTLBackend(renderer);
 #endif
         default:
             return nullptr;

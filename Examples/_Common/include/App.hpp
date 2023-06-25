@@ -28,22 +28,54 @@ SOFTWARE.
 
 #ifndef APP_HPP
 #define APP_HPP
+
 #include "WindowManager.hpp"
+#include <iostream>
+#include <cstdarg>
 
 namespace LinaGX
 {
     namespace Examples
     {
+
+        inline void LogError(const char* err, ...)
+        {
+            va_list args;
+            va_start(args, err);
+
+            std::cout << "\033[1;31m";
+            std::cout << "LinaGX: ";
+            vprintf(err, args);
+            std::cout << "\033[0m" << std::endl;
+            va_end(args);
+        }
+
+        inline void LogInfo(const char* info, ...)
+        {
+            va_list args;
+            va_start(args, info);
+            std::cout << "\033[32mLinaGX: ";
+            vprintf(info, args);
+            std::cout << std::endl;
+            va_end(args);
+        }
+
         class App
         {
         public:
-            void Initialize();
-            void Run();
-            void Shutdown();
+            virtual void Initialize();
+            virtual void Run();
+            virtual void Shutdown();
 
-        private:
+            virtual void OnTick(){};
+            virtual void OnKeyPress(uint32 key){};
+            virtual void OnMousePress(uint32 mouse){};
+
+            bool        IsRunning;
+            static App* Application;
+
+        protected:
             WindowManager m_wm;
-            bool          m_isRunning = false;
         };
 
     } // namespace Examples
