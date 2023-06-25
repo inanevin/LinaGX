@@ -78,9 +78,9 @@ namespace LinaGX::Examples
         const LINAGX_STRING vtxShader  = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_vert.glsl");
         const LINAGX_STRING fragShader = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_frag.glsl");
 
-        ShaderLayout       outLayout  = {};
-        CompiledShaderBlob vertexBlob = {};
-        CompiledShaderBlob fragBlob   = {};
+        ShaderLayout outLayout  = {};
+        DataBlob     vertexBlob = {};
+        DataBlob     fragBlob   = {};
         renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
         renderer->CompileShader(ShaderStage::Pixel, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
 
@@ -88,22 +88,25 @@ namespace LinaGX::Examples
             .layout = outLayout,
         };
 
-        LINAGX_MAP<ShaderStage, CompiledShaderBlob> stages        = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};
-        uint16                                      shaderProgram = renderer->GenerateShader(stages, shaderDesc);
+        LINAGX_MAP<ShaderStage, DataBlob> stages        = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};
+        uint16                            shaderProgram = renderer->GenerateShader(stages, shaderDesc);
 
         auto swp = renderer->CreateSwapchain({
-            .x               = 0,
-            .y               = 0,
-            .width           = 500,
-            .height          = 500,
-            .window          = m_wm.GetOSWindow(),
-            .osHandle        = m_wm.GetOSHandle(),
-            .format          = Format::R8G8B8A8_UNORM,
-            .backBufferCount = 3,
+            .x           = 0,
+            .y           = 0,
+            .width       = 500,
+            .height      = 500,
+            .window      = m_wm.GetOSWindow(),
+            .osHandle    = m_wm.GetOSHandle(),
+            .format      = Format::B8G8R8A8_UNORM,
+            .depthFormat = Format::D32_SFLOAT,
         });
 
         renderer->DestroySwapchain(swp);
         renderer->DestroyShader(shaderProgram);
+
+        LINAGX_FREE(vertexBlob.ptr);
+        LINAGX_FREE(fragBlob.ptr);
     }
 
     void App::Run()

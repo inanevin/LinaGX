@@ -305,6 +305,37 @@ namespace LinaGX
         }
     }
 
+    VkImageUsageFlags GetVKImageUsage(Texture2DUsage usage)
+    {
+        switch (usage)
+        {
+        case Texture2DUsage::ColorTexture:
+        case Texture2DUsage::ColorTextureDynamic:
+            return VK_IMAGE_USAGE_SAMPLED_BIT;
+        case Texture2DUsage::ColorTextureRenderTarget:
+            return VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        case Texture2DUsage::DepthStencilTexture:
+            return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        default:
+            return VK_IMAGE_USAGE_SAMPLED_BIT;
+        }
+    }
+    VkImageLayout GetVKImageLayout(Texture2DUsage usage)
+    {
+        switch (usage)
+        {
+        case Texture2DUsage::ColorTexture:
+        case Texture2DUsage::ColorTextureDynamic:
+            return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+        case Texture2DUsage::ColorTextureRenderTarget:
+            return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case Texture2DUsage::DepthStencilTexture:
+            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        default:
+            return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+        }
+    }
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         switch (messageSeverity)
@@ -561,6 +592,11 @@ namespace LinaGX
             LOGA(!pp.isValid, "VKBackend -> Some shader pipelines were not destroyed!");
         }
 
+        for (auto& txt : m_texture2Ds)
+        {
+            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+        }
+
         vmaDestroyAllocator(m_vmaAllocator);
         vkDestroyDevice(m_device, m_allocator);
         vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
@@ -583,15 +619,15 @@ namespace LinaGX
 #else
         LOGA(false, "VKBackend -> Vulkan backend is only supported for Windows at the moment!");
 #endif
+        VkFormat vkformat = GetVKFormat(desc.format);
 
         vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
         swapchainBuilder = swapchainBuilder
                                //.use_default_format_selection()
                                .set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
-                               .set_desired_extent(desc.width, desc.height);
-
-        VkFormat vkformat = GetVKFormat(desc.format);
-        swapchainBuilder  = swapchainBuilder.set_desired_format({vkformat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR});
+                               .set_desired_extent(desc.width, desc.height)
+                               .set_desired_format({vkformat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
+                               .set_desired_min_image_count(Config.backBufferCount);
 
         vkb::Swapchain vkbSwapchain = swapchainBuilder.build().value();
         swp.ptr                     = vkbSwapchain.swapchain;
@@ -600,6 +636,17 @@ namespace LinaGX
         swp.views                   = vkbSwapchain.get_image_views().value();
         swp.surface                 = surface;
         swp.isValid                 = true;
+
+        for (const auto& img : swp.imgs)
+        {
+            Texture2DDesc depthDesc = {};
+            depthDesc.format        = desc.depthFormat;
+            depthDesc.width         = desc.width;
+            depthDesc.height        = desc.height;
+            depthDesc.mipLevels     = 1;
+            depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+            swp.depthTextures.push_back(CreateTexture2D(depthDesc));
+        }
 
         LOGT("VKBackend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
 
@@ -615,6 +662,9 @@ namespace LinaGX
             return;
         }
 
+        for (auto t : swp.depthTextures)
+            DestroyTexture2D(t);
+
         vkDestroySwapchainKHR(m_device, swp.ptr, m_allocator);
 
         for (auto view : swp.views)
@@ -627,7 +677,7 @@ namespace LinaGX
         LOGT("VKBackend -> Destroyed swapchain.");
     }
 
-    uint16 VKBackend::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 VKBackend::GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
     {
         VKBShader shader = {};
 
@@ -910,4 +960,68 @@ namespace LinaGX
         vkDestroyPipeline(m_device, shader.ptrPipeline, m_allocator);
         m_shaders.RemoveItem(handle);
     }
+
+    uint32 VKBackend::CreateTexture2D(const Texture2DDesc& txtDesc)
+    {
+        VKBTexture2D item = {};
+        item.usage        = txtDesc.usage;
+
+        VkImageCreateInfo imgCreateInfo = VkImageCreateInfo{};
+        imgCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imgCreateInfo.pNext             = nullptr;
+        imgCreateInfo.imageType         = VK_IMAGE_TYPE_2D;
+        imgCreateInfo.format            = GetVKFormat(txtDesc.format);
+        imgCreateInfo.extent            = VkExtent3D{txtDesc.width, txtDesc.height, 1};
+        imgCreateInfo.mipLevels         = txtDesc.mipLevels;
+        imgCreateInfo.arrayLayers       = 1;
+        imgCreateInfo.samples           = VK_SAMPLE_COUNT_1_BIT;
+        imgCreateInfo.tiling            = txtDesc.usage == Texture2DUsage::ColorTextureDynamic ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
+        imgCreateInfo.usage             = GetVKImageUsage(txtDesc.usage);
+        imgCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
+        imgCreateInfo.initialLayout     = GetVKImageLayout(txtDesc.usage);
+
+        VmaAllocationCreateInfo allocinfo = VmaAllocationCreateInfo{};
+        allocinfo.usage                   = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        allocinfo.requiredFlags           = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        VkResult res = vmaCreateImage(m_vmaAllocator, &imgCreateInfo, &allocinfo, &item.img, &item.allocation, nullptr);
+        LOGA(res == VK_SUCCESS, "VKBackend -> Could not create image!");
+
+        VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
+        subResRange.aspectMask              = txtDesc.usage == Texture2DUsage::DepthStencilTexture ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        subResRange.baseMipLevel            = 0;
+        subResRange.levelCount              = 1;
+        subResRange.baseArrayLayer          = 0;
+        subResRange.layerCount              = 1;
+
+        VkImageViewCreateInfo viewInfo = VkImageViewCreateInfo{};
+        viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.pNext                 = nullptr;
+        viewInfo.image                 = item.img;
+        viewInfo.viewType              = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format                = GetVKFormat(txtDesc.format);
+        viewInfo.subresourceRange      = subResRange;
+
+        res = vkCreateImageView(m_device, &viewInfo, m_allocator, &item.imgView);
+        LOGA(res == VK_SUCCESS, "VKBackend -> Could not create image view!");
+
+        return m_texture2Ds.AddItem(item);
+    }
+
+    void VKBackend::DestroyTexture2D(uint32 handle)
+    {
+        auto& txt = m_texture2Ds.GetItemR(handle);
+        if (!txt.isValid)
+        {
+            LOGE("VKBackend -> Texture to be destroyed is not valid!");
+            return;
+        }
+
+        vkDestroyImageView(m_device, txt.imgView, m_allocator);
+        vmaDestroyImage(m_vmaAllocator, txt.img, txt.allocation);
+
+        txt.isValid = false;
+        m_texture2Ds.RemoveItem(handle);
+    }
+
 } // namespace LinaGX

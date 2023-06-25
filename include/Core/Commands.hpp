@@ -27,17 +27,15 @@ SOFTWARE.
 */
 
 #pragma once
-#include "Platform/OpenGL/GLBackend.hpp"
+
+#ifndef LINAGX_COMMANDS_HPP
+#define LINAGX_COMMANDS_HPP
+
 #include "Common/Common.hpp"
 
 namespace LinaGX
 {
-    bool GLBackend::Initialize(const BackendInitInfo& initInfo)
-    {
-        return true;
-    }
-
-    void GLBackend::Terminate()
-    {
-    }
+  
 } // namespace LinaGX
+
+#endif

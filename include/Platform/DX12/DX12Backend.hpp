@@ -32,63 +32,45 @@ SOFTWARE.
 #define LINAGX_DX12Backend_HPP
 
 #include "Core/Backend.hpp"
-#include "Platform/DX12/SDK/d3dx12.h"
-#include "Platform/DX12/SDK/d3d12shader.h"
-#include <dxc/dxcapi.h>
-#include <dxgi1_6.h>
-#include <dxgi1_6.h>
-#include <wrl/client.h>
-#include <stdexcept>
+#include "Platform/DX12/DX12Common.hpp"
 
 namespace D3D12MA
 {
     class Allocator;
-}
+    class Allocation;
+} // namespace D3D12MA
 
 namespace LinaGX
 {
-    inline LINAGX_STRING HrToString(HRESULT hr)
-    {
-        char s_str[64] = {};
-        sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
-        return LINAGX_STRING(s_str);
-    }
-
-    class HrException : public std::runtime_error
-    {
-    public:
-        HrException(HRESULT hr)
-            : std::runtime_error(HrToString(hr).c_str()), m_hr(hr)
-        {
-        }
-        HRESULT Error() const
-        {
-            return m_hr;
-        }
-
-    private:
-        const HRESULT m_hr;
-    };
-
-    inline void ThrowIfFailed(HRESULT hr)
-    {
-        if (FAILED(hr))
-        {
-            throw HrException(hr);
-        }
-    }
+    class DX12HeapStaging;
+    class DX12HeapGPU;
 
     struct DX12Swapchain
     {
-        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr;
+        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr     = NULL;
         bool                                    isValid = false;
+        LINAGX_VEC<uint32>                      colorTextures;
+        LINAGX_VEC<uint32>                      depthTextures;
     };
 
     struct DX12Shader
     {
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso     = NULL;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig = NULL;
         bool                                        isValid = false;
+    };
+
+    struct DX12Texture2D
+    {
+        DescriptorHandle                       descriptor        = {};
+        DescriptorHandle                       descriptor2       = {};
+        Microsoft::WRL::ComPtr<ID3D12Resource> rawRes            = NULL;
+        uint32                                 requiredAlignment = 0;
+        D3D12MA::Allocation*                   allocation        = NULL;
+
+        Texture2DUsage usage              = Texture2DUsage::ColorTexture;
+        bool           isValid            = false;
+        bool           isSwapchainTexture = false;
     };
 
     class DX12Backend : public Backend
@@ -99,14 +81,19 @@ namespace LinaGX
 
         virtual bool   Initialize(const InitInfo& initInfo) override;
         virtual void   Shutdown() override;
-        virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob) override;
+        virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
-        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc) override;
+        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
+        virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
+        virtual void   DestroyTexture2D(uint32 handle) override;
+        void           DX12Exception(HrException e);
 
-    private:
-        void DX12Exception(HrException e);
+        ID3D12Device* GetDevice()
+        {
+            return m_device.Get();
+        }
 
     private:
         D3D12MA::Allocator*                        m_dx12Allocator = nullptr;
@@ -117,8 +104,14 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_queueDirect;
         bool                                       m_allowTearing = false;
 
-        IDList<uint8, DX12Swapchain> m_swapchains = {10};
-        IDList<uint16, DX12Shader>   m_shaders    = {20};
+        DX12HeapStaging*              m_rtvHeap     = nullptr;
+        DX12HeapStaging*              m_bufferHeap  = nullptr;
+        DX12HeapStaging*              m_textureHeap = nullptr;
+        DX12HeapStaging*              m_dsvHeap     = nullptr;
+        DX12HeapStaging*              m_samplerHeap = nullptr;
+        IDList<uint8, DX12Swapchain>  m_swapchains  = {10};
+        IDList<uint16, DX12Shader>    m_shaders     = {20};
+        IDList<uint32, DX12Texture2D> m_texture2Ds  = {50};
     };
 } // namespace LinaGX
 

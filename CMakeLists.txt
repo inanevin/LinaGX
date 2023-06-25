@@ -41,6 +41,8 @@ include/LinaGXExports.hpp
 include/Common/Common.hpp
 include/Core/Backend.hpp
 include/Core/Renderer.hpp
+include/Core/CommandStream.hpp
+include/Core/Commands.hpp
 include/Utility/SPIRVUtility.hpp
 )
 
@@ -48,6 +50,7 @@ set(LinaGX_SOURCES
 src/Common/Common.cpp
 src/Core/Backend.cpp
 src/Core/Renderer.cpp
+src/Core/CommandStream.cpp
 src/Utility/SPIRVUtility.cpp
 )
 
@@ -64,6 +67,9 @@ include/Platform/Vulkan/SDK/vk_mem_alloc.h
 
 ## DX12 
 include/Platform/DX12/DX12Backend.hpp
+include/Platform/DX12/DX12HeapStaging.hpp
+include/Platform/DX12/DX12HeapGPU.hpp
+include/Platform/DX12/DX12Common.hpp
 include/Platform/DX12/SDK/ID3DIncludeInterface.hpp
 include/Platform/DX12/SDK/d3d12.h
 include/Platform/DX12/SDK/d3d12compatibility.h
@@ -99,6 +105,8 @@ src/Platform/Vulkan/SDK/VkBootstrap.cpp
 
 # DX12
 src/Platform/DX12/DX12Backend.cpp
+src/Platform/DX12/DX12HeapStaging.cpp
+src/Platform/DX12/DX12HeapGPU.cpp
 src/Platform/DX12/SDK/D3D12MemAlloc.cpp
 src/Platform/DX12/SDK/ID3DIncludeInterface.cpp
 )

@@ -36,6 +36,7 @@ SOFTWARE.
 #include <string>
 #include <unordered_map>
 #include <queue>
+#include <deque>
 
 namespace LinaGX
 {
@@ -83,6 +84,7 @@ namespace LinaGX
 #define LINAGX_QUEUE       std::queue
 #define LINAGX_STRING      std::string
 #define LINAGX_MAP         std::unordered_map
+#define LINAGX_DEQUE       std::deque
 #define LINAGX_MALLOC(...) malloc(__VA_ARGS__)
 #define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
 #define LINAGX_FREE(...)   free(__VA_ARGS__)
@@ -255,10 +257,6 @@ namespace LinaGX
         FORMAT_MAX,
     };
 
-#define DEFAULT_DEPTH_FORMAT     Format::D32_SFLOAT
-#define DEFAULT_SWAPCHAIN_FORMAT Format::R8G8B8A8_UNORM
-#define DEFAULT_RT_FORMAT        Format::R8G8B8A8_SRGB
-
     enum class PolygonMode
     {
         Fill,
@@ -320,56 +318,22 @@ namespace LinaGX
 
     typedef void (*LogCallback)(const char*, ...);
 
-    struct Configuration
-    {
-        /// <summary>
-        ///
-        /// </summary>
-        LogCallback errorCallback = nullptr;
-
-        /// <summary>
-        ///
-        /// </summary>
-        LogCallback infoCallback = nullptr;
-
-        /// <summary>
-        ///
-        /// </summary>
-        LogLevel logLevel = LogLevel::Normal;
-    };
-
-    struct InitInfo
-    {
-        BackendAPI       api     = BackendAPI::Vulkan;
-        PreferredGPUType gpu     = PreferredGPUType::Discrete;
-        const char*      appName = "LinaGX Application";
-    };
-
-    struct CompiledShaderBlob
+    struct DataBlob
     {
         uint8* ptr  = nullptr;
         size_t size = 0;
-
-        void Free()
-        {
-            if (ptr == nullptr)
-                return;
-
-            LINAGX_FREE(ptr);
-            size = 0;
-        }
     };
 
     struct SwapchainDesc
     {
-        uint32 x               = 0;
-        uint32 y               = 0;
-        uint32 width           = 0;
-        uint32 height          = 0;
-        void*  window          = nullptr;
-        void*  osHandle        = nullptr;
-        Format format          = Format::R8G8B8A8_UNORM;
-        uint32 backBufferCount = 1;
+        uint32 x           = 0;
+        uint32 y           = 0;
+        uint32 width       = 0;
+        uint32 height      = 0;
+        void*  window      = nullptr;
+        void*  osHandle    = nullptr;
+        Format format      = Format::R8G8B8A8_UNORM;
+        Format depthFormat = Format::D32_SFLOAT;
     };
 
     enum class BlendOp
@@ -422,53 +386,62 @@ namespace LinaGX
         Mat3x3,
     };
 
+    enum class Texture2DUsage
+    {
+        ColorTexture,
+        ColorTextureDynamic,
+        ColorTextureRenderTarget,
+        DepthStencilTexture
+    };
+
     struct ColorBlendAttachment
     {
-        bool                blendEnabled        = false;
-        BlendFactor         srcColorBlendFactor = BlendFactor::Zero;
-        BlendFactor         dstColorBlendFactor = BlendFactor::Zero;
-        BlendOp             colorBlendOp        = BlendOp::Add;
-        BlendFactor         srcAlphaBlendFactor = BlendFactor::Zero;
-        BlendFactor         dstAlphaBlendFactor = BlendFactor::Zero;
-        BlendOp             alphaBlendOp        = BlendOp::Add;
-        ColorComponentFlags componentFlags      = ColorComponentFlags::RGBA;
+        bool                blendEnabled;
+        BlendFactor         srcColorBlendFactor;
+        BlendFactor         dstColorBlendFactor;
+        BlendOp             colorBlendOp;
+        BlendFactor         srcAlphaBlendFactor;
+        BlendFactor         dstAlphaBlendFactor;
+        BlendOp             alphaBlendOp;
+        ColorComponentFlags componentFlags;
     };
 
     struct StageInput
     {
-        LINAGX_STRING name     = "";
-        uint32        location = 0;
-        uint32        elements = 0;
-        size_t        size     = 0;
-        Format        format   = Format::R32G32B32_SFLOAT;
-        size_t        offset   = 0;
+        LINAGX_STRING name;
+        uint32        location;
+        uint32        elements;
+        size_t        size;
+        Format        format;
+        size_t        offset;
     };
 
     struct UBOMember
     {
-        ShaderMemberType type         = ShaderMemberType::Float;
-        size_t           size         = 0;
-        size_t           offset       = 0;
-        LINAGX_STRING    name         = "";
-        bool             isArray      = false;
-        uint32           arraySize    = 0;
-        size_t           arrayStride  = 0;
-        size_t           matrixStride = 0;
+        ;
+        ShaderMemberType type;
+        size_t           size;
+        size_t           offset;
+        LINAGX_STRING    name;
+        bool             isArray;
+        uint32           arraySize;
+        size_t           arrayStride;
+        size_t           matrixStride;
     };
 
     struct ConstantBlock
     {
-        size_t                  size = 0;
+        size_t                  size;
         LINAGX_VEC<UBOMember>   members;
         LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name = "";
+        LINAGX_STRING           name;
     };
 
     struct UBO
     {
-        uint32                  set     = 0;
-        uint32                  binding = 0;
-        size_t                  size    = 0;
+        uint32                  set;
+        uint32                  binding;
+        size_t                  size;
         LINAGX_VEC<UBOMember>   members;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name = "";
@@ -476,55 +449,163 @@ namespace LinaGX
 
     struct SSBO
     {
-        uint32                  set     = 0;
-        uint32                  binding = 0;
+        uint32                  set;
+        uint32                  binding;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name = "";
     };
 
     struct SRVTexture2D
     {
-        uint32                  set     = 0;
-        uint32                  binding = 0;
+        uint32                  set;
+        uint32                  binding;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name = "";
     };
 
     struct Sampler
     {
-        uint32                  set     = 0;
-        uint32                  binding = 0;
+        uint32                  set;
+        uint32                  binding;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name = "";
     };
 
     struct ShaderLayout
     {
-        LINAGX_VEC<StageInput>    vertexInputs;
-        LINAGX_VEC<UBO>           ubos;
-        LINAGX_VEC<SSBO>          ssbos;
-        LINAGX_VEC<SRVTexture2D>  combinedImageSamplers;
-        LINAGX_VEC<Sampler>       samplers;
-        ConstantBlock             constantBlock;
+        LINAGX_VEC<StageInput>   vertexInputs;
+        LINAGX_VEC<UBO>          ubos;
+        LINAGX_VEC<SSBO>         ssbos;
+        LINAGX_VEC<SRVTexture2D> combinedImageSamplers;
+        LINAGX_VEC<Sampler>      samplers;
+        ConstantBlock            constantBlock;
     };
 
     struct ShaderDesc
     {
-        ShaderLayout layout = {};
+        ShaderLayout         layout;
+        PolygonMode          polgyonMode;
+        CullMode             cullMode;
+        FrontFace            frontFace;
+        bool                 depthTest;
+        bool                 depthWrite;
+        CompareOp            depthCompare;
+        Topology             topology;
+        ColorBlendAttachment blendAttachment;
+        bool                 blendLogicOpEnabled;
+        LogicOp              blendLogicOp;
+    };
 
-        PolygonMode polgyonMode = PolygonMode::Fill;
-        CullMode    cullMode    = CullMode::None;
-        FrontFace   frontFace   = FrontFace::CW;
+    struct Texture2DDesc
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        Texture2DUsage usage;
 
-        bool      depthTest    = false;
-        bool      depthWrite   = false;
-        CompareOp depthCompare = CompareOp::Always;
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 width = 0;
 
-        Topology topology = Topology::TriangleList;
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 height = 0;
 
-        ColorBlendAttachment blendAttachment     = {};
-        bool                 blendLogicOpEnabled = false;
-        LogicOp              blendLogicOp        = LogicOp::And;
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 mipLevels = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 channels = 4;
+
+        /// <summary>
+        ///
+        /// </summary>
+        Format format = Format::R8G8B8A8_SRGB;
+
+        /// <summary>
+        ///
+        /// </summary>
+        const wchar_t* debugName = L"Texture";
+    };
+
+    struct GPULimits
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 textureLimit = 1024;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 samplerLimit = 1024;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 bufferLimit = 1024;
+    };
+
+    struct Configuration
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        LogCallback errorCallback = nullptr;
+
+        /// <summary>
+        ///
+        /// </summary>
+        LogCallback infoCallback = nullptr;
+
+        /// <summary>
+        ///
+        /// </summary>
+        LogLevel logLevel = LogLevel::Normal;
+
+        /// <summary>
+        ///
+        /// </summary>
+        Format defaultRTFormat = Format::R8G8B8A8_SRGB;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 backBufferCount = 2;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 framesInFlight = 2;
+    };
+
+    struct InitInfo
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        BackendAPI api = BackendAPI::Vulkan;
+
+        /// <summary>
+        ///
+        /// </summary>
+        PreferredGPUType gpu = PreferredGPUType::Discrete;
+
+        /// <summary>
+        ///
+        /// </summary>
+        const char* appName = "LinaGX App";
+
+        /// <summary>
+        ///
+        /// </summary>
+        GPULimits gpuLimits = {};
     };
 
     extern LINAGX_API Configuration Config;

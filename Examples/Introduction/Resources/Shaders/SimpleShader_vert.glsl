@@ -10,5 +10,5 @@ layout(location = 0) out vec4 outColor;
 void main() {
     // Use the UBO and texture sampler in the shader
     gl_Position = vec4(inPosition, 1.0);
-    outColor = texture(texSampler, inTexCoord);
+    outColor = vec4(0,0,0,1);
 }

@@ -36,6 +36,7 @@ SOFTWARE.
 namespace LinaGX
 {
     class Backend;
+    class CommandStream;
 
     class Renderer
     {
@@ -64,19 +65,33 @@ namespace LinaGX
         /// <param name="stage">Target shader stage.</param>
         /// <param name="text">A valid raw GLSL for the shader stage.</param>
         /// <param name="outCompiledBlob">Out blob, SPIRV blob in Vulkan, IDXC blob in DirectX & metal blob in Metal.</param>
-        bool CompileShader(ShaderStage stage, const char* text, const char* includePath, CompiledShaderBlob& outCompiledBlob, ShaderLayout& outLayout);
+        bool CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout);
 
         /// <summary>
         /// Generates a shader pipeline.
         /// </summary>
         /// <param name="stages">Hashmap containing all compiled blobs per shader stage.</param>
-        uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc);
+        uint16 GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc);
 
         /// <summary>
         /// Destroys the shader pipeline with given handle.
         /// </summary>
         /// <param name="handle"></param>
         void DestroyShader(uint16 handle);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="commandCount"></param>
+        /// <returns></returns>
+        CommandStream* CreateCommandStream(uint32 commandCount);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="desc"></param>
+        /// <returns></returns>
+        uint32 CreateTexture2D(const Texture2DDesc& desc);
 
     private:
         InitInfo m_initInfo = {};

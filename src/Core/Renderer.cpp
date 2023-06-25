@@ -31,6 +31,7 @@ SOFTWARE.
 #include "Core/Renderer.hpp"
 #include "Core/Backend.hpp"
 #include "Utility/SPIRVUtility.hpp"
+#include "Core/CommandStream.hpp"
 
 namespace LinaGX
 {
@@ -83,9 +84,9 @@ namespace LinaGX
         m_backend->DestroySwapchain(handle);
     }
 
-    bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, CompiledShaderBlob& outCompiledBlob, ShaderLayout& outLayout)
+    bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
     {
-        CompiledShaderBlob spv = {};
+        DataBlob spv = {};
         if (!SPIRVUtility::GLSL2SPV(stage, text, includePath, spv, outLayout))
             return false;
 
@@ -125,7 +126,7 @@ namespace LinaGX
         return false;
     }
 
-    uint16 Renderer::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 Renderer::GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
     {
         return m_backend->GenerateShader(stages, shaderDesc);
     }
@@ -133,6 +134,16 @@ namespace LinaGX
     void Renderer::DestroyShader(uint16 handle)
     {
         m_backend->DestroyShader(handle);
+    }
+
+    CommandStream* Renderer::CreateCommandStream(uint32 commandCount)
+    {
+        return nullptr;
+    }
+
+    uint32 Renderer::CreateTexture2D(const Texture2DDesc& desc)
+    {
+        return m_backend->CreateTexture2D(desc);
     }
 
 } // namespace LinaGX

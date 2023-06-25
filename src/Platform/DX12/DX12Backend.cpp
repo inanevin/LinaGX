@@ -30,6 +30,8 @@ SOFTWARE.
 
 #include "Platform/DX12/DX12Backend.hpp"
 #include "Platform/DX12/SDK/D3D12MemAlloc.h"
+#include "Platform/DX12/DX12HeapGPU.hpp"
+#include "Platform/DX12/DX12HeapStaging.hpp"
 
 using Microsoft::WRL::ComPtr;
 
@@ -421,6 +423,15 @@ namespace LinaGX
 
                 NAME_DX12_OBJECT(m_queueDirect, L"Direct Queue");
             }
+
+            // Heaps
+            {
+                m_bufferHeap  = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.bufferLimit);
+                m_textureHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.textureLimit);
+                m_dsvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initInfo.gpuLimits.textureLimit);
+                m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initInfo.gpuLimits.textureLimit);
+                m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, initInfo.gpuLimits.samplerLimit);
+            }
         }
         catch (HrException e)
         {
@@ -443,6 +454,11 @@ namespace LinaGX
             LOGA(!shader.isValid, "DX12Backend -> Some shaders were not destroyed!");
         }
 
+        for (auto& txt : m_texture2Ds)
+        {
+            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+        }
+
         ID3D12InfoQueue1* infoQueue = nullptr;
         if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
         {
@@ -452,9 +468,15 @@ namespace LinaGX
         m_dx12Allocator->Release();
         m_idxcLib.Reset();
         m_device.Reset();
+
+        delete m_bufferHeap;
+        delete m_textureHeap;
+        delete m_dsvHeap;
+        delete m_rtvHeap;
+        delete m_samplerHeap;
     }
 
-    bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob)
+    bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
     {
         try
         {
@@ -562,7 +584,7 @@ namespace LinaGX
     uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
     {
         DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-        swapchainDesc.BufferCount           = desc.backBufferCount;
+        swapchainDesc.BufferCount           = Config.backBufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
         swapchainDesc.Format                = GetDXFormat(desc.format);
@@ -590,6 +612,42 @@ namespace LinaGX
 
             LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
 
+            // Create RT and depth textures for swapchain.
+            {
+                for (uint32 i = 0; i < Config.backBufferCount; i++)
+                {
+                    DX12Texture2D color = {};
+
+                    color.isSwapchainTexture = true;
+                    color.descriptor         = m_rtvHeap->GetNewHeapHandle();
+
+                    try
+                    {
+                        ThrowIfFailed(swp.ptr->GetBuffer(i, IID_PPV_ARGS(&color.rawRes)));
+                    }
+                    catch (HrException e)
+                    {
+                        LOGE("DX12Backend -> Exception while creating render target for swapchain! %s", e.what());
+                        DX12Exception(e);
+                    }
+
+                    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+                    rtvDesc.Format                        = GetDXFormat(desc.format);
+                    rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
+                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
+
+                    swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
+
+                    Texture2DDesc depthDesc = {};
+                    depthDesc.format        = Format::D32_SFLOAT;
+                    depthDesc.width         = desc.width;
+                    depthDesc.height        = desc.height;
+                    depthDesc.mipLevels     = 1;
+                    depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+                    swp.depthTextures.push_back(CreateTexture2D(depthDesc));
+                }
+            }
+
             swp.isValid = true;
             return m_swapchains.AddItem(swp);
         }
@@ -615,7 +673,7 @@ namespace LinaGX
         swp.ptr.Reset();
     }
 
-    uint16 DX12Backend::GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 DX12Backend::GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
     {
         DX12Shader shader = {};
         // Root signature.
@@ -657,19 +715,19 @@ namespace LinaGX
                 rootParameters.push_back(param);
             }
 
-            // for (const auto& sampler : shaderDesc.layout.samplers)
-            //{
-            //     CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
-            //
-            //     D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-            //     if (sampler.stages.size() == 1)
-            //         visibility = GetDXVisibility(sampler.stages[0]);
-            //
-            //     CD3DX12_DESCRIPTOR_RANGE1 range[1];
-            //     range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-            //     param.InitAsDescriptorTable(1, range, visibility);
-            //     rootParameters.push_back(param);
-            // }
+            for (const auto& sampler : shaderDesc.layout.samplers)
+            {
+                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (sampler.stages.size() == 1)
+                    visibility = GetDXVisibility(sampler.stages[0]);
+
+                CD3DX12_DESCRIPTOR_RANGE1 range[1];
+                range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                param.InitAsDescriptorTable(1, range, visibility);
+                rootParameters.push_back(param);
+            }
 
             for (const auto& ssbo : shaderDesc.layout.ssbos)
             {
@@ -771,12 +829,12 @@ namespace LinaGX
         psoDesc.SampleMask                                = UINT_MAX;
         psoDesc.PrimitiveTopologyType                     = GetDXTopology(shaderDesc.topology);
         psoDesc.NumRenderTargets                          = 1;
-        psoDesc.RTVFormats[0]                             = GetDXFormat(DEFAULT_RT_FORMAT);
-        psoDesc.DSVFormat                                 = GetDXFormat(DEFAULT_DEPTH_FORMAT);
         psoDesc.SampleDesc.Count                          = 1;
         psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
+        // psoDesc.RTVFormats[0]                          = GetDXFormat(Config.defaultRTFormat);
+        // psoDesc.DSVFormat                              = GetDXFormat(Config.defaultDepthFormat);
 
         for (const auto& [stg, blob] : stages)
         {
@@ -835,6 +893,148 @@ namespace LinaGX
 
         shader.isValid = false;
         shader.pso.Reset();
+        m_shaders.RemoveItem(handle);
+    }
+
+    uint32 DX12Backend::CreateTexture2D(const Texture2DDesc& txtDesc)
+    {
+        DX12Texture2D item = {};
+        item.usage         = txtDesc.usage;
+
+        D3D12_RESOURCE_DESC resourceDesc = {};
+        resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resourceDesc.Alignment           = 0;
+        resourceDesc.Width               = txtDesc.width;
+        resourceDesc.Height              = txtDesc.height;
+        resourceDesc.DepthOrArraySize    = 1;
+        resourceDesc.MipLevels           = txtDesc.mipLevels;
+        resourceDesc.SampleDesc.Count    = 1;
+        resourceDesc.SampleDesc.Quality  = 0;
+        resourceDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
+        resourceDesc.Format              = GetDXFormat(txtDesc.format);
+
+        uint32 mostDetailedSize = txtDesc.width * txtDesc.height * txtDesc.channels;
+        item.requiredAlignment  = txtDesc.usage == Texture2DUsage::ColorTexture ? (mostDetailedSize < D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+
+        D3D12MA::ALLOCATION_DESC allocationDesc = {};
+        allocationDesc.HeapType                 = D3D12_HEAP_TYPE_DEFAULT;
+
+        D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
+        D3D12_CLEAR_VALUE*    clear = NULL;
+        const float           cc[]{0, 0, 0, 1};
+        auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), 1.0f, 0);
+        auto                  colorClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), cc);
+
+        if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
+        {
+            resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+            state              = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+            clear              = &depthClear;
+        }
+        else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
+        {
+            resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+            state              = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            clear              = &colorClear;
+        }
+        else if (txtDesc.usage == Texture2DUsage::ColorTexture)
+        {
+            state = D3D12_RESOURCE_STATE_COMMON;
+        }
+
+        try
+        {
+            ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, clear, &item.allocation, IID_NULL, NULL));
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend -> Exception when creating a texture resource! %s", e.what());
+            DX12Exception(e);
+        }
+
+#ifndef NDEBUG
+        item.allocation->GetResource()->SetName(txtDesc.debugName);
+#endif
+
+        if (txtDesc.usage == Texture2DUsage::ColorTexture || txtDesc.usage == Texture2DUsage::ColorTextureDynamic)
+        {
+            // Texture descriptor + SRV
+            item.descriptor                         = m_textureHeap->GetNewHeapHandle();
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.Format                          = GetDXFormat(txtDesc.format);
+            srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MipLevels             = txtDesc.mipLevels;
+            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor.GetCPUHandle()});
+        }
+        else if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
+        {
+            // DS descriptor + DSV
+            item.descriptor                                = m_dsvHeap->GetNewHeapHandle();
+            D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+            depthStencilDesc.Format                        = GetDXFormat(txtDesc.format);
+            depthStencilDesc.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
+            depthStencilDesc.Flags                         = D3D12_DSV_FLAG_NONE;
+            m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {item.descriptor.GetCPUHandle()});
+        }
+        else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
+        {
+            // Texture descriptor + RT descriptor + SRV + RTV
+            item.descriptor                    = m_rtvHeap->GetNewHeapHandle();
+            D3D12_RENDER_TARGET_VIEW_DESC desc = {};
+            desc.Format                        = GetDXFormat(txtDesc.format);
+            desc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
+            desc.Texture2D.MipSlice            = 0;
+            m_device->CreateRenderTargetView(item.allocation->GetResource(), &desc, {item.descriptor.GetCPUHandle()});
+
+            item.descriptor2                        = m_textureHeap->GetNewHeapHandle();
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.Format                          = GetDXFormat(txtDesc.format);
+            srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MipLevels             = 1;
+            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor2.GetCPUHandle()});
+        }
+
+        return m_texture2Ds.AddItem(item);
+    }
+
+    void DX12Backend::DestroyTexture2D(uint32 handle)
+    {
+        auto& txt = m_texture2Ds.GetItemR(handle);
+        if (!txt.isValid)
+        {
+            LOGE("DX12Backend -> Texture to be destroyed is not valid!");
+            return;
+        }
+
+        if (txt.isSwapchainTexture)
+        {
+            m_rtvHeap->FreeHeapHandle(txt.descriptor);
+            txt.rawRes.Reset();
+        }
+        else
+        {
+            if (txt.usage == Texture2DUsage::DepthStencilTexture)
+                m_dsvHeap->FreeHeapHandle(txt.descriptor);
+            else if (txt.usage == Texture2DUsage::ColorTexture || txt.usage == Texture2DUsage::ColorTextureDynamic)
+                m_textureHeap->FreeHeapHandle(txt.descriptor);
+            else if (txt.usage == Texture2DUsage::ColorTextureRenderTarget)
+            {
+                m_rtvHeap->FreeHeapHandle(txt.descriptor);
+                m_textureHeap->FreeHeapHandle(txt.descriptor2);
+            }
+        }
+
+        if (txt.allocation != NULL)
+        {
+            txt.allocation->Release();
+            txt.allocation = NULL;
+        }
+
+        txt.isValid = false;
+        m_texture2Ds.RemoveItem(handle);
     }
 
     void DX12Backend::DX12Exception(HrException e)

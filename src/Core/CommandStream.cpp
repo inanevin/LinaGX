@@ -28,27 +28,9 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_SPIRVUtility_HPP
-#define LINAGX_SPIRVUtility_HPP
-
-#include "Common/Common.hpp"
-#include "glslang/SPIRV/GlslangToSpv.h"
+#include "Core/CommandStream.hpp"
 
 namespace LinaGX
 {
-    class SPIRVUtility
-    {
-    public:
-        static void Initialize();
-        static void Shutdown();
-        static bool GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& spirv, ShaderLayout& outLayout);
-        static bool SPV2HLSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out);
-        static bool SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out);
-
-    private:
-        static void InitResources(TBuiltInResource& resources);
-        static void GetShaderTextWithIncludes(LINAGX_STRING& outStr, const char* shader, const char* includePath);
-    };
+   
 } // namespace LinaGX
-
-#endif

@@ -39,18 +39,10 @@ SOFTWARE.
 
 struct VkDebugUtilsMessengerEXT_T;
 struct VmaAllocator_T;
+struct VmaAllocation_T;
 
 namespace LinaGX
 {
-    struct VKBSwapchain
-    {
-        bool                    isValid = false;
-        VkFormat                format  = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
-        VkSwapchainKHR          ptr     = nullptr;
-        VkSurfaceKHR            surface = nullptr;
-        LINAGX_VEC<VkImage>     imgs;
-        LINAGX_VEC<VkImageView> views;
-    };
 
     struct VKBShader
     {
@@ -58,8 +50,27 @@ namespace LinaGX
         VkPipeline                              ptrPipeline = nullptr;
         VkPipelineLayout                        ptrLayout   = nullptr;
         LINAGX_MAP<ShaderStage, VkShaderModule> modules;
+        LINAGX_VEC<VkDescriptorSetLayout>       layouts;
+    };
 
-        LINAGX_VEC<VkDescriptorSetLayout> layouts;
+    struct VKBTexture2D
+    {
+        Texture2DUsage   usage      = Texture2DUsage::ColorTexture;
+        VkImage          img        = nullptr;
+        VkImageView      imgView    = nullptr;
+        VmaAllocation_T* allocation = nullptr;
+        bool             isValid    = false;
+    };
+
+    struct VKBSwapchain
+    {
+        bool                     isValid = false;
+        VkFormat                 format  = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+        VkSwapchainKHR           ptr     = nullptr;
+        VkSurfaceKHR             surface = nullptr;
+        LINAGX_VEC<VkImage>      imgs;
+        LINAGX_VEC<VkImageView>  views;
+        LINAGX_VEC<uint32> depthTextures;
     };
 
     class VKBackend : public Backend
@@ -72,9 +83,12 @@ namespace LinaGX
         virtual void   Shutdown();
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
-        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc) override;
+        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
+        virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
+        virtual void   DestroyTexture2D(uint32 handle) override;
 
+    private:
     private:
         VkInstance               m_vkInstance     = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
@@ -96,6 +110,7 @@ namespace LinaGX
         LINAGX_VEC<VkQueueFamilyProperties> m_queueFamilies;
         IDList<uint8, VKBSwapchain>         m_swapchains = {10};
         IDList<uint16, VKBShader>           m_shaders    = {10};
+        IDList<uint32, VKBTexture2D>        m_texture2Ds = {100};
     };
 } // namespace LinaGX
 

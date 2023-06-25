@@ -46,7 +46,7 @@ namespace LinaGX
         virtual bool Initialize(const InitInfo& initInfo) = 0;
         virtual void Shutdown()                           = 0;
 
-        virtual bool CompileShader(ShaderStage stage, const LINAGX_STRING& source, CompiledShaderBlob& outBlob)
+        virtual bool CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
         {
             return false;
         };
@@ -58,11 +58,17 @@ namespace LinaGX
 
         virtual void DestroySwapchain(uint8 handle){};
 
-        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, CompiledShaderBlob>& stages, const ShaderDesc& shaderDesc)
+        virtual uint16 GenerateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
         {
             return 0;
         };
         virtual void DestroyShader(uint16 handle){};
+
+        virtual uint32 CreateTexture2D(const Texture2DDesc& desc)
+        {
+            return 0;
+        };
+        virtual void DestroyTexture2D(uint32 handle){};
 
         static Backend* CreateBackend(BackendAPI api);
 

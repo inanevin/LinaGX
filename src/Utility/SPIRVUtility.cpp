@@ -414,7 +414,7 @@ namespace LinaGX
         }
     };
 
-    bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, CompiledShaderBlob& compiledBlob, ShaderLayout& outLayout)
+    bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& compiledBlob, ShaderLayout& outLayout)
     {
         glslang_initialize_process();
 
@@ -651,7 +651,7 @@ namespace LinaGX
         return true;
     }
 
-    bool SPIRVUtility::SPV2HLSL(ShaderStage stg, const CompiledShaderBlob& spv, LINAGX_STRING& out)
+    bool SPIRVUtility::SPV2HLSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out)
     {
         try
         {
@@ -678,7 +678,7 @@ namespace LinaGX
         return true;
     }
 
-    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const CompiledShaderBlob& spv, LINAGX_STRING& out)
+    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out)
     {
         try
         {
