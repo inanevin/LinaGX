@@ -30,6 +30,9 @@ SOFTWARE.
 
 #include "Platform/Vulkan/VKBackend.hpp"
 #include "Platform/Vulkan/SDK/VkBootstrap.h"
+#include "Core/Commands.hpp"
+#include "Core/Renderer.hpp"
+#include "Core/CommandStream.hpp"
 
 #define VMA_IMPLEMENTATION
 #include "Platform/Vulkan/SDK/vk_mem_alloc.h"
@@ -41,6 +44,8 @@ namespace LinaGX
 
     PFN_vkCmdBeginRenderingKHR g_vkCmdBeginRenderingKHR = nullptr;
     PFN_vkCmdEndRenderingKHR   g_vkCmdEndRenderingKHR   = nullptr;
+#define pfn_vkCmdBeginRenderingKHR g_vkCmdBeginRenderingKHR
+#define pfn_vkCmdEndRenderingKHR   g_vkCmdEndRenderingKHR
 
     VkFormat GetVKFormat(Format f)
     {
@@ -114,8 +119,6 @@ namespace LinaGX
             return VK_CULL_MODE_FRONT_BIT;
         case CullMode::Back:
             return VK_CULL_MODE_BACK_BIT;
-        case CullMode::FrontAndBack:
-            return VK_CULL_MODE_FRONT_AND_BACK;
         default:
             return VK_CULL_MODE_NONE;
         }
@@ -336,6 +339,70 @@ namespace LinaGX
         }
     }
 
+    VkAttachmentLoadOp GetLoadOp(LoadOp p)
+    {
+        switch (p)
+        {
+        case LoadOp::Load:
+            return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case LoadOp::Clear:
+            return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case LoadOp::DontCare:
+            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        case LoadOp::None:
+            return VK_ATTACHMENT_LOAD_OP_NONE_EXT;
+        default:
+            return VK_ATTACHMENT_LOAD_OP_LOAD;
+        }
+    }
+
+    VkAttachmentStoreOp GetStoreOp(StoreOp op)
+    {
+        switch (op)
+        {
+        case StoreOp::Store:
+            return VK_ATTACHMENT_STORE_OP_STORE;
+        case StoreOp::DontCare:
+            return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        case StoreOp::None:
+            return VK_ATTACHMENT_STORE_OP_NONE;
+        default:
+            return VK_ATTACHMENT_STORE_OP_STORE;
+        }
+    }
+
+    VkFilter GetFilter(Filter f)
+    {
+        switch (f)
+        {
+        case Filter::Linear:
+            return VK_FILTER_LINEAR;
+        case Filter::Nearest:
+            return VK_FILTER_NEAREST;
+        default:
+            return VK_FILTER_LINEAR;
+        }
+    }
+
+    VkSamplerAddressMode GetSamplerAddressMode(SamplerAddressMode m)
+    {
+        switch (m)
+        {
+        case SamplerAddressMode::Repeat:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case SamplerAddressMode::MirroredRepeat:
+            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case SamplerAddressMode::ClampToEdge:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case SamplerAddressMode::ClampToBorder:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case SamplerAddressMode::MirrorClampToEdge:
+            return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        default:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    }
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         switch (messageSeverity)
@@ -423,13 +490,13 @@ namespace LinaGX
                                                  .defer_surface_initialization()
                                                  .prefer_gpu_device_type(targetDeviceType)
                                                  .allow_any_gpu_device_type(false)
+                                                 .add_required_extensions(deviceExtensions)
                                                  .set_required_features(features)
                                                  .select(vkb::DeviceSelectionMode::partially_and_fully_suitable)
                                                  .value();
         // create the final Vulkan device
         vkb::DeviceBuilder                           deviceBuilder{physicalDevice};
         VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeature;
-
         shaderDrawParamsFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
         shaderDrawParamsFeature.pNext                = nullptr;
         shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
@@ -526,9 +593,7 @@ namespace LinaGX
             const VkFormat format    = static_cast<VkFormat>(i);
             VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
             if (supported == VK_SUCCESS)
-            {
                 formats.push_back(format);
-            }
         }
 
         LINAGX_VEC<VkFormat> requiredFormats;
@@ -589,6 +654,17 @@ namespace LinaGX
                 m_perFrameData.push_back(pfd);
             }
         }
+
+        // Command functions
+        {
+            m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &VKBackend::CMD_BeginRenderPass;
+            m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &VKBackend::CMD_EndRenderPass;
+            m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &VKBackend::CMD_SetViewport;
+            m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &VKBackend::CMD_SetScissors;
+            m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &VKBackend::CMD_BindPipeline;
+            m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &VKBackend::CMD_DrawInstanced;
+            m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &VKBackend::CMD_DrawIndexedInstanced;
+        }
         return true;
     }
 
@@ -627,14 +703,26 @@ namespace LinaGX
         vkDestroyInstance(m_vkInstance, m_allocator);
     }
 
+    void VKBackend::Join()
+    {
+        LINAGX_VEC<VkFence> fences;
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            fences.push_back(m_fences.GetItemR(m_perFrameData[i].graphicsFence));
+
+        vkDeviceWaitIdle(m_device);
+        vkWaitForFences(m_device, static_cast<uint32>(fences.size()), fences.data(), true, 50000000);
+    }
+
     void VKBackend::StartFrame(uint32 frameIndex)
     {
-        m_currentFrameIndex = frameIndex;
-        const auto& frame   = m_perFrameData[frameIndex];
+        m_currentFrameIndex         = frameIndex;
+        const auto& frame           = m_perFrameData[frameIndex];
+        auto        vkGraphicsFence = m_fences.GetItemR(frame.graphicsFence);
 
         // Wait for graphics present operations.
-        const uint64 timeout = static_cast<uint64>(1000000000);
-        vkWaitForFences(m_device, 1, &m_fences.GetItemR(frame.graphicsFence), true, timeout);
+        uint64   timeout = static_cast<uint64>(10000000000);
+        VkResult result  = vkWaitForFences(m_device, 1, &vkGraphicsFence, true, timeout);
 
         // Acquire images for each swapchain
         for (auto& swp : m_swapchains)
@@ -642,25 +730,50 @@ namespace LinaGX
             if (!swp.isValid)
                 continue;
 
-            uint64   timeout   = static_cast<uint64>(5000000000);
-            auto     semaphore = m_semaphores.GetItemR(swp.submitSemaphores[frameIndex]);
-            VkResult result    = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, semaphore, nullptr, &swp._imageIndex);
+            auto semaphore = m_semaphores.GetItemR(swp.submitSemaphores[frameIndex]);
+            result         = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, semaphore, nullptr, &swp._imageIndex);
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
+                LOGA(false, "!!");
                 // TODO: CHECK FOR SWAPCHAIN RECREATION
             }
         }
+
+        // reset
+        result = vkResetFences(m_device, 1, &vkGraphicsFence);
+        LOGA(result == VK_SUCCESS, "VKBackend -> Failed resetting graphics fence");
     }
 
     void VKBackend::FlushCommandStreams()
     {
         LINAGX_VEC<VkCommandBuffer> cmds;
 
-
-        if (cmds.empty())
+        for (auto stream : m_renderer->m_commandStreams)
         {
+            auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
 
+            VkResult res = vkResetCommandPool(m_device, sr.pool, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+            LOGA(res == VK_SUCCESS, "VKBackend -> Failed resetting command pool!");
+
+            VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo{};
+            beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.pNext                    = nullptr;
+            beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            beginInfo.pInheritanceInfo         = nullptr;
+            res                                = vkBeginCommandBuffer(sr.buffer, &beginInfo);
+
+            for (uint32 i = 0; i < stream->m_commandCount; i++)
+            {
+                uint64* cmd = stream->m_commands[i];
+                TypeID  tid = stream->m_types[i];
+                (this->*m_cmdFunctions[tid])(cmd, sr);
+            }
+
+            VkResult result = vkEndCommandBuffer(sr.buffer);
+            LOGA(result == VK_SUCCESS, "VKBackend-> Failed ending command buffer!");
+
+            cmds.push_back(sr.buffer);
         }
 
         auto&                            frame     = m_perFrameData[m_currentFrameIndex];
@@ -695,7 +808,7 @@ namespace LinaGX
         info.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
         info.pSignalSemaphores    = signalSemaphores.empty() ? nullptr : &signalSemaphores[0];
         VkResult result           = vkQueueSubmit(m_graphicsQueue, 1, &info, m_fences.GetItemR(frame.graphicsFence));
-        LOGA(result == VK_SUCCESS, "[Render Queue] -> Failed submitting to queue!");
+        LOGA(result == VK_SUCCESS, "VKBackend -> Failed submitting to queue!");
     }
 
     void VKBackend::Present(const PresentDesc& present)
@@ -708,11 +821,8 @@ namespace LinaGX
         LINAGX_VEC<VkSemaphore> waitSemaphores;
 
         swp._presentSemaphoresActive = false;
-        for (auto handle : swp.presentSemaphores)
-        {
-            auto semaphore = m_semaphores.GetItemR(handle);
-            waitSemaphores.push_back(semaphore);
-        }
+
+        waitSemaphores.push_back(m_semaphores.GetItemR(swp.presentSemaphores[m_currentFrameIndex]));
 
         VkPresentInfoKHR info   = VkPresentInfoKHR{};
         info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -725,6 +835,8 @@ namespace LinaGX
 
         VkResult result = vkQueuePresentKHR(m_graphicsQueue, &info);
         // LOGA(result == VK_SUCCESS, "VKBackend -> Failed presenting image from queue!");
+
+        // TODO: check for swapchain recreation.
     }
 
     void VKBackend::EndFrame()
@@ -797,12 +909,12 @@ namespace LinaGX
 #else
         LOGA(false, "VKBackend -> Vulkan backend is only supported for Windows at the moment!");
 #endif
-        VkFormat vkformat = GetVKFormat(desc.format);
+        VkFormat vkformat = GetVKFormat(Config.rtSwapchainFormat);
 
         vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
         swapchainBuilder = swapchainBuilder
                                //.use_default_format_selection()
-                               .set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
+                               .set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR)
                                .set_desired_extent(desc.width, desc.height)
                                .set_desired_format({vkformat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
                                .set_desired_min_image_count(m_initInfo.backbufferCount);
@@ -818,7 +930,7 @@ namespace LinaGX
         for (const auto& img : swp.imgs)
         {
             Texture2DDesc depthDesc = {};
-            depthDesc.format        = desc.depthFormat;
+            depthDesc.format        = Config.rtDepthFormat;
             depthDesc.width         = desc.width;
             depthDesc.height        = desc.height;
             depthDesc.mipLevels     = 1;
@@ -910,6 +1022,7 @@ namespace LinaGX
 
         // Modules & stages
         LINAGX_VEC<VkPipelineShaderStageCreateInfo> shaderStages;
+
         for (auto& [stage, blob] : stages)
         {
             auto& ptr = shader.modules[stage];
@@ -923,12 +1036,11 @@ namespace LinaGX
             VkResult res = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
 
             VkPipelineShaderStageCreateInfo info = VkPipelineShaderStageCreateInfo{};
-
-            info.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            info.pNext  = nullptr;
-            info.stage  = static_cast<VkShaderStageFlagBits>(GetVKShaderStage(stage));
-            info.module = ptr;
-            info.pName  = "main";
+            info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            info.pNext                           = nullptr;
+            info.stage                           = static_cast<VkShaderStageFlagBits>(GetVKShaderStage(stage));
+            info.module                          = ptr;
+            info.pName                           = "main";
 
             if (res != VK_SUCCESS)
             {
@@ -1255,7 +1367,7 @@ namespace LinaGX
         VkFenceCreateInfo info  = VkFenceCreateInfo{};
         info.sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         info.pNext              = nullptr;
-        info.flags              = 0;
+        info.flags              = VK_FENCE_CREATE_SIGNALED_BIT;
 
         VkResult result = vkCreateFence(m_device, &info, m_allocator, &fence);
         LOGA(result == VK_SUCCESS, "VKBackend -> Could not create fence!");
@@ -1275,6 +1387,187 @@ namespace LinaGX
 
         fence = nullptr;
         m_fences.RemoveItem(handle);
+    }
+
+    void VKBackend::CMD_BeginRenderPass(void* data, const VKBCommandStream& stream)
+    {
+        CMDBeginRenderPass* begin = static_cast<CMDBeginRenderPass*>(data);
+
+        VkImageView colorImageView = nullptr;
+        VkImage     colorImage     = nullptr;
+
+        if (begin->isSwapchain)
+        {
+            const auto& swp = m_swapchains.GetItemR(begin->swapchain);
+            colorImageView  = swp.views[swp._imageIndex];
+            colorImage      = swp.imgs[swp._imageIndex];
+        }
+        else
+        {
+            const auto& txt = m_texture2Ds.GetItemR(begin->texture);
+            colorImageView  = txt.imgView;
+            colorImage      = txt.img;
+        }
+
+        VkClearValue cvColor     = {};
+        cvColor.color.float32[0] = begin->clearColor[0];
+        cvColor.color.float32[1] = begin->clearColor[1];
+        cvColor.color.float32[2] = begin->clearColor[2];
+        cvColor.color.float32[3] = begin->clearColor[3];
+
+        VkRenderingAttachmentInfo colorAttachment = VkRenderingAttachmentInfo{};
+        colorAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        colorAttachment.pNext                     = nullptr;
+        colorAttachment.imageView                 = colorImageView;
+        colorAttachment.imageLayout               = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        colorAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
+        colorAttachment.resolveImageView          = nullptr;
+        colorAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.loadOp                    = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.clearValue                = cvColor;
+
+        CMDSetViewport interVP = {};
+        CMDSetScissors interSC = {};
+        interVP.x              = begin->viewport.x;
+        interVP.y              = begin->viewport.x;
+        interVP.width          = begin->viewport.width;
+        interVP.height         = begin->viewport.height;
+        interVP.minDepth       = begin->viewport.minDepth;
+        interVP.maxDepth       = begin->viewport.maxDepth;
+        interSC.x              = begin->scissors.x;
+        interSC.y              = begin->scissors.y;
+        interSC.width          = begin->scissors.width;
+        interSC.height         = begin->scissors.height;
+
+        VkRect2D area      = {};
+        area.extent.width  = interVP.width;
+        area.extent.height = interVP.height;
+        area.offset.x      = interVP.x;
+        area.offset.y      = interVP.y;
+
+     
+        VkRenderingInfo renderingInfo      = VkRenderingInfo{};
+        renderingInfo.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+        renderingInfo.pNext                = nullptr;
+        renderingInfo.flags                = 0;
+        renderingInfo.renderArea           = area;
+        renderingInfo.layerCount           = 1;
+        renderingInfo.viewMask             = 0;
+        renderingInfo.pDepthAttachment     = nullptr;
+        renderingInfo.pStencilAttachment   = nullptr;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments    = &colorAttachment;
+
+        ImageTransition(ImageTransitionType::Present2RT, stream.buffer, colorImage, true);
+        pfn_vkCmdBeginRenderingKHR(stream.buffer, &renderingInfo);
+
+        CMD_SetViewport(&interVP, stream);
+        CMD_SetScissors(&interSC, stream);
+    }
+
+    void VKBackend::CMD_EndRenderPass(void* data, const VKBCommandStream& stream)
+    {
+        CMDEndRenderPass* end = static_cast<CMDEndRenderPass*>(data);
+        pfn_vkCmdEndRenderingKHR(stream.buffer);
+
+        if (end->isSwapchain)
+        {
+            const auto& swp = m_swapchains.GetItemR(end->swapchain);
+            ImageTransition(ImageTransitionType::RT2Present, stream.buffer, swp.imgs[swp._imageIndex], true);
+        }
+    }
+
+    void VKBackend::CMD_SetViewport(void* data, const VKBCommandStream& stream)
+    {
+        CMDSetViewport* cmd = static_cast<CMDSetViewport*>(data);
+        VkViewport      vp  = VkViewport{};
+        vp.x                = static_cast<float>(cmd->x);
+        vp.y                = Config.vulkanFlipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
+        vp.width            = static_cast<float>(cmd->width);
+        vp.height           = Config.vulkanFlipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
+        vp.minDepth         = cmd->minDepth;
+        vp.maxDepth         = cmd->maxDepth;
+
+        vkCmdSetViewport(stream.buffer, 0, 1, &vp);
+    }
+
+    void VKBackend::CMD_SetScissors(void* data, const VKBCommandStream& stream)
+    {
+        CMDSetViewport* cmd  = static_cast<CMDSetViewport*>(data);
+        VkRect2D        rect = VkRect2D{};
+        rect.offset.x        = static_cast<int32>(cmd->x);
+        rect.offset.y        = static_cast<int32>(cmd->y);
+        rect.extent.width    = cmd->width;
+        rect.extent.height   = cmd->height;
+        vkCmdSetScissor(stream.buffer, 0, 1, &rect);
+    }
+
+    void VKBackend::CMD_BindPipeline(void* data, const VKBCommandStream& stream)
+    {
+        CMDBindPipeline* cmd    = static_cast<CMDBindPipeline*>(data);
+        const auto&      shader = m_shaders.GetItemR(cmd->shader);
+        vkCmdBindPipeline(stream.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrPipeline);
+    }
+
+    void VKBackend::CMD_DrawInstanced(void* data, const VKBCommandStream& stream)
+    {
+        CMDDrawInstanced* cmd = static_cast<CMDDrawInstanced*>(data);
+        vkCmdDraw(stream.buffer, cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void VKBackend::CMD_DrawIndexedInstanced(void* data, const VKBCommandStream& stream)
+    {
+        CMDDrawIndexedInstanced* cmd = static_cast<CMDDrawIndexedInstanced*>(data);
+        vkCmdDrawIndexed(stream.buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void VKBackend::ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor)
+    {
+        VkImageSubresourceRange subresRange = VkImageSubresourceRange{};
+        subresRange.aspectMask              = isColor ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
+        subresRange.baseMipLevel            = 0;
+        subresRange.levelCount              = 1;
+        subresRange.baseArrayLayer          = 0;
+        subresRange.layerCount              = 1;
+
+        VkImageMemoryBarrier imgBarrier = VkImageMemoryBarrier{};
+        imgBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imgBarrier.pNext                = nullptr;
+        imgBarrier.srcQueueFamilyIndex  = m_graphicsQueueIndices.first;
+        imgBarrier.dstQueueFamilyIndex  = m_graphicsQueueIndices.first;
+        imgBarrier.image                = img;
+        imgBarrier.subresourceRange     = subresRange;
+
+        VkPipelineStageFlags srcStageMask;
+        VkPipelineStageFlags dstStageMask;
+
+        if (type == ImageTransitionType::Present2RT)
+        {
+            imgBarrier.srcAccessMask = VK_ACCESS_NONE;
+            imgBarrier.dstAccessMask = isColor ? VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT : VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            imgBarrier.oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            imgBarrier.newLayout     = isColor ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+            srcStageMask = isColor ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            dstStageMask = isColor ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT : VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        }
+        else if (type == ImageTransitionType::RT2Present)
+        {
+            imgBarrier.srcAccessMask = isColor ? VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT : VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            imgBarrier.dstAccessMask = VK_ACCESS_NONE;
+            imgBarrier.oldLayout     = isColor ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            imgBarrier.newLayout     = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+            srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        }
+        else
+        {
+            LOGA(false, "!!");
+        }
+
+        vkCmdPipelineBarrier(buffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imgBarrier);
     }
 
 } // namespace LinaGX

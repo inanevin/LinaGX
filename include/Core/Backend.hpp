@@ -47,6 +47,7 @@ namespace LinaGX
 
         virtual bool   Initialize(const InitInfo& initInfo)                                                        = 0;
         virtual void   Shutdown()                                                                                  = 0;
+        virtual void   Join()                                                                                      = 0;
         virtual void   StartFrame(uint32 frameIndex)                                                               = 0;
         virtual void   EndFrame()                                                                                  = 0;
         virtual void   Present(const PresentDesc& present)                                                         = 0;

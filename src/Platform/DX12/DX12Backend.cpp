@@ -186,8 +186,6 @@ namespace LinaGX
             return D3D12_CULL_MODE_FRONT;
         case CullMode::Back:
             return D3D12_CULL_MODE_BACK;
-        case CullMode::FrontAndBack:
-            return D3D12_CULL_MODE_BACK;
         default:
             return D3D12_CULL_MODE_NONE;
         }
@@ -218,7 +216,7 @@ namespace LinaGX
         }
     }
 
-    D3D12_PRIMITIVE_TOPOLOGY_TYPE GetDXTopology(Topology tp)
+    D3D12_PRIMITIVE_TOPOLOGY_TYPE GetDXTopologyType(Topology tp)
     {
         switch (tp)
         {
@@ -240,6 +238,31 @@ namespace LinaGX
             return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         default:
             return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        }
+    }
+
+    D3D12_PRIMITIVE_TOPOLOGY GetDXTopology(Topology topology)
+    {
+        switch (topology)
+        {
+        case Topology::PointList:
+            return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+        case Topology::LineList:
+            return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+        case Topology::LineStrip:
+            return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+        case Topology::TriangleFan:
+            return D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN;
+        case Topology::TriangleStrip:
+            return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+        case Topology::TriangleList:
+            return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        case Topology::TriangleListAdjacency:
+            return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+        case Topology::TriangleStripAdjacency:
+            return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+        default:
+            return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
         }
     }
 
@@ -274,6 +297,43 @@ namespace LinaGX
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
         }
     }
+
+    D3D12_TEXTURE_ADDRESS_MODE GetAddressMode(SamplerAddressMode mode)
+    {
+        switch (mode)
+        {
+        case SamplerAddressMode::Repeat:
+            return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        case SamplerAddressMode::MirroredRepeat:
+            return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+        case SamplerAddressMode::MirrorClampToEdge:
+            return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
+        case SamplerAddressMode::ClampToBorder:
+            return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        case SamplerAddressMode::ClampToEdge:
+            return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        default:
+            return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        }
+    }
+
+    D3D12_FILTER GetFilter(Filter minFilter, Filter magFilter)
+    {
+        if (minFilter == Filter::Anisotropic || magFilter == Filter::Anisotropic)
+            return D3D12_FILTER_ANISOTROPIC;
+
+        if (minFilter == Filter::Linear && magFilter == Filter::Linear)
+            return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        else if (minFilter == Filter::Linear && magFilter == Filter::Nearest)
+            return D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+        else if (minFilter == Filter::Nearest && magFilter == Filter::Nearest)
+            return D3D12_FILTER_MIN_MAG_MIP_POINT;
+        else if (minFilter == Filter::Nearest && magFilter == Filter::Linear)
+            return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+
+        return D3D12_FILTER_ANISOTROPIC;
+    }
+
     void MessageCallback(D3D12_MESSAGE_CATEGORY messageType, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID messageId, LPCSTR pDesc, void* pContext)
     {
         if (pDesc != NULL)
@@ -455,8 +515,13 @@ namespace LinaGX
 
             // Command functions
             {
-                m_cmdFunctions[GetTypeID<CMDBeginRenderPassSwapchain>()] = &DX12Backend::CMD_BeginRenderPassSwapchain;
-                m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]            = &DX12Backend::CMD_EndRenderPass;
+                m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &DX12Backend::CMD_BeginRenderPass;
+                m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &DX12Backend::CMD_EndRenderPass;
+                m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &DX12Backend::CMD_SetViewport;
+                m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &DX12Backend::CMD_SetScissors;
+                m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &DX12Backend::CMD_BindPipeline;
+                m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &DX12Backend::CMD_DrawInstanced;
+                m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &DX12Backend::CMD_DrawIndexedInstanced;
             }
 
             // Per frame
@@ -526,10 +591,21 @@ namespace LinaGX
         delete m_samplerHeap;
     }
 
+    void DX12Backend::Join()
+    {
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            const auto& frame = m_perFrameData[i];
+            WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
+            WaitForFences(m_fenceControlTransfer.fence, frame.storedFenceTransfer);
+        }
+    }
+
     uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
     {
         DX12CommandStream item = {};
         item.isValid           = true;
+        item.type              = cmdType;
 
         try
         {
@@ -551,11 +627,14 @@ namespace LinaGX
         m_currentFrameIndex = frameIndex;
         auto& frame         = m_perFrameData[m_currentFrameIndex];
         WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
+    }
 
-        // Reset streams.
+    void DX12Backend::FlushCommandStreams()
+    {
         for (auto stream : m_renderer->m_commandStreams)
         {
             auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+
             try
             {
                 ThrowIfFailed(sr.allocator->Reset());
@@ -566,21 +645,14 @@ namespace LinaGX
                 LOGE("DX12Backend-> Exception when resetting a command list! %s", e.what());
                 DX12Exception(e);
             }
-        }
-    }
-
-    void DX12Backend::FlushCommandStreams()
-    {
-
-        for (auto stream : m_renderer->m_commandStreams)
-        {
-            auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
 
             for (uint32 i = 0; i < stream->m_commandCount; i++)
             {
                 uint64* cmd = stream->m_commands[i];
                 TypeID  tid = stream->m_types[i];
                 (this->*m_cmdFunctions[tid])(cmd, sr);
+
+                // TODO: tids -> consecutive into arr
             }
 
             try
@@ -589,8 +661,11 @@ namespace LinaGX
                 ThrowIfFailed(sr.list->Close());
                 _lists.push_back(sr.list.Get());
 
-                ID3D12CommandList* const* data = _lists.data();
-                m_queueDirect->ExecuteCommandLists(1, data);
+                if (stream->m_type == CommandType::Graphics)
+                {
+                    ID3D12CommandList* const* data = _lists.data();
+                    m_queueDirect->ExecuteCommandLists(1, data);
+                }
             }
             catch (HrException e)
             {
@@ -781,7 +856,7 @@ namespace LinaGX
         swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
-        swapchainDesc.Format                = GetDXFormat(desc.format);
+        swapchainDesc.Format                = GetDXFormat(Config.rtSwapchainFormat);
         swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchainDesc.SampleDesc.Count      = 1;
@@ -803,7 +878,6 @@ namespace LinaGX
 
             DX12Swapchain swp = {};
             swp.isValid       = true;
-            swp.format        = desc.format;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
             LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
@@ -828,13 +902,14 @@ namespace LinaGX
                     }
 
                     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-                    rtvDesc.Format                        = GetDXFormat(desc.format);
+                    rtvDesc.Format                        = GetDXFormat(Config.rtSwapchainFormat);
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                     m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
+
                     swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
 
                     Texture2DDesc depthDesc = {};
-                    depthDesc.format        = Format::D32_SFLOAT;
+                    depthDesc.format        = Config.rtDepthFormat;
                     depthDesc.width         = desc.width;
                     depthDesc.height        = desc.height;
                     depthDesc.mipLevels     = 1;
@@ -877,6 +952,9 @@ namespace LinaGX
     uint16 DX12Backend::CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
     {
         DX12Shader shader = {};
+        shader.isValid    = true;
+        shader.topology   = shaderDesc.topology;
+
         // Root signature.
         {
             CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
@@ -1028,14 +1106,14 @@ namespace LinaGX
         psoDesc.DepthStencilState.FrontFace               = defaultStencilOp;
         psoDesc.DepthStencilState.BackFace                = defaultStencilOp;
         psoDesc.SampleMask                                = UINT_MAX;
-        psoDesc.PrimitiveTopologyType                     = GetDXTopology(shaderDesc.topology);
+        psoDesc.PrimitiveTopologyType                     = GetDXTopologyType(shaderDesc.topology);
         psoDesc.NumRenderTargets                          = 1;
         psoDesc.SampleDesc.Count                          = 1;
         psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
-        psoDesc.RTVFormats[0]                             = GetDXFormat(Format::R8G8B8A8_UNORM);
-        psoDesc.DSVFormat                                 = GetDXFormat(Format::D32_SFLOAT);
+        psoDesc.RTVFormats[0]                             = GetDXFormat(Config.rtSwapchainFormat);
+        psoDesc.DSVFormat                                 = GetDXFormat(Config.rtDepthFormat);
 
         for (const auto& [stg, blob] : stages)
         {
@@ -1079,7 +1157,6 @@ namespace LinaGX
             return 0;
         }
 
-        shader.isValid = true;
         return m_shaders.AddItem(shader);
     }
 
@@ -1298,20 +1375,45 @@ namespace LinaGX
         }
     }
 
-    void DX12Backend::CMD_BeginRenderPassSwapchain(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BeginRenderPass(void* data, const DX12CommandStream& stream)
     {
-        CMDBeginRenderPassSwapchain* begin = static_cast<CMDBeginRenderPassSwapchain*>(data);
-        const auto&                  swp   = m_swapchains.GetItemR(begin->swapchain);
-        const auto&                  txt   = m_texture2Ds.GetItemR(swp.colorTextures[swp._imageIndex]);
+        CMDBeginRenderPass* begin = static_cast<CMDBeginRenderPass*>(data);
 
-        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        uint32 txtIndex = 0;
+
+        if (begin->isSwapchain)
+        {
+            const auto& swp = m_swapchains.GetItemR(begin->swapchain);
+            txtIndex        = swp.colorTextures[swp._imageIndex];
+        }
+        else
+        {
+            txtIndex = begin->texture;
+        }
+
+        const auto& txt = m_texture2Ds.GetItemR(txtIndex);
+
+        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? txt.rawRes.Get() : txt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         stream.list->ResourceBarrier(1, &transition);
 
-        CD3DX12_CLEAR_VALUE                  clearValue{GetDXFormat(swp.format), begin->clearColor};
+        CD3DX12_CLEAR_VALUE                  clearValue{GetDXFormat(begin->isSwapchain ? Config.rtSwapchainFormat : Config.rtColorFormat), begin->clearColor};
         D3D12_RENDER_PASS_BEGINNING_ACCESS   renderPassBeginningAccessClear{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
         D3D12_RENDER_PASS_ENDING_ACCESS      renderPassEndingAccessPreserve{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
         D3D12_RENDER_PASS_RENDER_TARGET_DESC renderPassRenderTargetDesc{txt.descriptor.GetCPUHandle(), renderPassBeginningAccessClear, renderPassEndingAccessPreserve};
         stream.list->BeginRenderPass(1, &renderPassRenderTargetDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+
+        CMDSetViewport interVP = {};
+        CMDSetScissors interSC = {};
+        interVP.x              = begin->viewport.x;
+        interVP.y              = begin->viewport.x;
+        interVP.width          = begin->viewport.width;
+        interVP.height         = begin->viewport.height;
+        interSC.x              = begin->scissors.x;
+        interSC.y              = begin->scissors.y;
+        interSC.width          = begin->scissors.width;
+        interSC.height         = begin->scissors.height;
+        CMD_SetViewport(&interVP, stream);
+        CMD_SetScissors(&interSC, stream);
     }
 
     void DX12Backend::CMD_EndRenderPass(void* data, const DX12CommandStream& stream)
@@ -1326,6 +1428,51 @@ namespace LinaGX
             auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
             stream.list->ResourceBarrier(1, &transition);
         }
+    }
+
+    void DX12Backend::CMD_SetViewport(void* data, const DX12CommandStream& stream)
+    {
+        CMDSetViewport* cmd = static_cast<CMDSetViewport*>(data);
+        D3D12_VIEWPORT  vp;
+        vp.MinDepth = cmd->minDepth;
+        vp.MaxDepth = cmd->maxDepth;
+        vp.Height   = static_cast<float>(cmd->height);
+        vp.Width    = static_cast<float>(cmd->width);
+        vp.TopLeftX = static_cast<float>(cmd->x);
+        vp.TopLeftY = static_cast<float>(cmd->y);
+        stream.list->RSSetViewports(1, &vp);
+    }
+
+    void DX12Backend::CMD_SetScissors(void* data, const DX12CommandStream& stream)
+    {
+        CMDSetScissors* cmd = static_cast<CMDSetScissors*>(data);
+        D3D12_RECT      sc;
+        sc.left   = static_cast<LONG>(cmd->x);
+        sc.top    = static_cast<LONG>(cmd->y);
+        sc.right  = static_cast<LONG>(cmd->x + cmd->width);
+        sc.bottom = static_cast<LONG>(cmd->y + cmd->height);
+        stream.list->RSSetScissorRects(1, &sc);
+    }
+
+    void DX12Backend::CMD_BindPipeline(void* data, const DX12CommandStream& stream)
+    {
+        CMDBindPipeline* cmd    = static_cast<CMDBindPipeline*>(data);
+        const auto&      shader = m_shaders.GetItemR(cmd->shader);
+        stream.list->SetGraphicsRootSignature(shader.rootSig.Get());
+        stream.list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
+        stream.list->SetPipelineState(shader.pso.Get());
+    }
+
+    void DX12Backend::CMD_DrawInstanced(void* data, const DX12CommandStream& stream)
+    {
+        CMDDrawInstanced* cmd = static_cast<CMDDrawInstanced*>(data);
+        stream.list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void DX12Backend::CMD_DrawIndexedInstanced(void* data, const DX12CommandStream& stream)
+    {
+        CMDDrawIndexedInstanced* cmd = static_cast<CMDDrawIndexedInstanced*>(data);
+        stream.list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
 } // namespace LinaGX

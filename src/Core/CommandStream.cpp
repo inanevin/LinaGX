@@ -47,8 +47,13 @@ namespace LinaGX
     {
         m_backend = backend;
 
-        LinaGX_AllocCommand<CMDBeginRenderPassSwapchain>(m_linearAllocators, 20);
+        LinaGX_AllocCommand<CMDBeginRenderPass>(m_linearAllocators, 20);
         LinaGX_AllocCommand<CMDEndRenderPass>(m_linearAllocators, 20);
+        LinaGX_AllocCommand<CMDBindPipeline>(m_linearAllocators, 20);
+        LinaGX_AllocCommand<CMDSetViewport>(m_linearAllocators, 20);
+        LinaGX_AllocCommand<CMDSetScissors>(m_linearAllocators, 20);
+        LinaGX_AllocCommand<CMDDrawInstanced>(m_linearAllocators, 20);
+        LinaGX_AllocCommand<CMDDrawIndexedInstanced>(m_linearAllocators, 20);
 
         m_commands = static_cast<uint64**>(malloc(sizeof(uint64*) * commandCount));
         m_types    = static_cast<TypeID*>(malloc(sizeof(TypeID) * commandCount));

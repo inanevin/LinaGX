@@ -68,8 +68,14 @@ namespace LinaGX
         return true;
     }
 
+    void Renderer::Join()
+    {
+        m_backend->Join();
+    }
+
     void Renderer::Shutdown()
     {
+        m_backend->Join();
         SPIRVUtility::Shutdown();
         m_backend->Shutdown();
     }

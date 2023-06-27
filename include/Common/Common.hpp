@@ -325,7 +325,6 @@ namespace LinaGX
         None,
         Front,
         Back,
-        FrontAndBack,
     };
 
     enum class FrontFace
@@ -444,6 +443,43 @@ namespace LinaGX
         EverySecondVBlank,
     };
 
+    enum class LoadOp
+    {
+        Load,
+        Clear,
+        DontCare,
+        None,
+    };
+
+    enum class StoreOp
+    {
+        Store,
+        DontCare,
+        None,
+    };
+
+    enum class Filter
+    {
+        Anisotropic,
+        Nearest,
+        Linear,
+    };
+
+    enum class SamplerAddressMode
+    {
+        Repeat,
+        MirroredRepeat,
+        ClampToEdge,
+        ClampToBorder,
+        MirrorClampToEdge
+    };
+
+    enum class ImageTransitionType
+    {
+        Present2RT,
+        RT2Present,
+    };
+
     struct DataBlob
     {
         uint8* ptr  = nullptr;
@@ -452,19 +488,17 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
-        uint32 x           = 0;
-        uint32 y           = 0;
-        uint32 width       = 0;
-        uint32 height      = 0;
-        void*  window      = nullptr;
-        void*  osHandle    = nullptr;
-        Format format      = Format::R8G8B8A8_UNORM;
-        Format depthFormat = Format::D32_SFLOAT;
+        uint32 x        = 0;
+        uint32 y        = 0;
+        uint32 width    = 0;
+        uint32 height   = 0;
+        void*  window   = nullptr;
+        void*  osHandle = nullptr;
     };
 
     struct ColorBlendAttachment
     {
-        bool                blendEnabled;
+        bool                blendEnabled = false;
         BlendFactor         srcColorBlendFactor;
         BlendFactor         dstColorBlendFactor;
         BlendOp             colorBlendOp;
@@ -554,7 +588,7 @@ namespace LinaGX
         ShaderLayout         layout              = {};
         PolygonMode          polygonMode         = PolygonMode::Fill;
         CullMode             cullMode            = CullMode::None;
-        FrontFace            frontFace           = FrontFace::CCW;
+        FrontFace            frontFace           = FrontFace::CW;
         bool                 depthTest           = false;
         bool                 depthWrite          = false;
         CompareOp            depthCompare        = CompareOp::Less;
@@ -564,6 +598,23 @@ namespace LinaGX
         LogicOp              blendLogicOp        = LogicOp::Copy;
     };
 
+    struct Viewport
+    {
+        uint32 x;
+        uint32 y;
+        uint32 width;
+        uint32 height;
+        float  minDepth;
+        float  maxDepth;
+    };
+
+    struct ScissorsRect
+    {
+        uint32 x;
+        uint32 y;
+        uint32 width;
+        uint32 height;
+    };
     struct Texture2DDesc
     {
         /// <summary>
@@ -642,7 +693,22 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        Format defaultRTFormat = Format::R8G8B8A8_SRGB;
+        Format rtSwapchainFormat = Format::B8G8R8A8_UNORM;
+
+        /// <summary>
+        ///
+        /// </summary>
+        Format rtColorFormat = Format::R8G8B8A8_SRGB;
+
+        /// <summary>
+        ///
+        /// </summary>
+        Format rtDepthFormat = Format::D32_SFLOAT;
+
+        /// <summary>
+        ///
+        /// </summary>
+        bool vulkanFlipViewport = true;
     };
 
     struct InitInfo

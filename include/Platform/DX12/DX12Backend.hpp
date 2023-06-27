@@ -49,7 +49,6 @@ namespace LinaGX
     {
         Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr     = NULL;
         bool                                    isValid = false;
-        Format                                  format  = Format::B8G8R8A8_UNORM;
         LINAGX_VEC<uint32>                      colorTextures;
         LINAGX_VEC<uint32>                      depthTextures;
         uint32                                  _imageIndex = 0;
@@ -57,9 +56,10 @@ namespace LinaGX
 
     struct DX12Shader
     {
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso     = NULL;
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig = NULL;
-        bool                                        isValid = false;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso      = NULL;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig  = NULL;
+        Topology                                    topology = Topology::TriangleList;
+        bool                                        isValid  = false;
     };
 
     struct DX12Texture2D
@@ -78,6 +78,7 @@ namespace LinaGX
     struct DX12CommandStream
     {
         bool                                               isValid = false;
+        CommandType                                        type    = CommandType::Graphics;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
     };
@@ -97,15 +98,16 @@ namespace LinaGX
     class DX12Backend : public Backend
     {
     private:
-    public:
         typedef void (DX12Backend::*CommandFunction)(void*, const DX12CommandStream& stream);
 
+    public:
         DX12Backend(Renderer* renderer)
             : Backend(renderer){};
         virtual ~DX12Backend(){};
 
         virtual bool   Initialize(const InitInfo& initInfo) override;
         virtual void   Shutdown() override;
+        virtual void   Join() override;
         virtual void   StartFrame(uint32 frameIndex) override;
         virtual void   EndFrame() override;
         virtual void   Present(const PresentDesc& present) override;
@@ -132,8 +134,13 @@ namespace LinaGX
         void   DestroyFence(uint16 handle);
         void   WaitForFences(uint16 fenceHandle, uint64 frameFenceValue);
 
-        void CMD_BeginRenderPassSwapchain(void* data, const DX12CommandStream& stream);
+        void CMD_BeginRenderPass(void* data, const DX12CommandStream& stream);
         void CMD_EndRenderPass(void* data, const DX12CommandStream& stream);
+        void CMD_SetViewport(void* data, const DX12CommandStream& stream);
+        void CMD_SetScissors(void* data, const DX12CommandStream& stream);
+        void CMD_BindPipeline(void* data, const DX12CommandStream& stream);
+        void CMD_DrawInstanced(void* data, const DX12CommandStream& stream);
+        void CMD_DrawIndexedInstanced(void* data, const DX12CommandStream& stream);
 
     private:
         D3D12MA::Allocator*                        m_dx12Allocator = nullptr;

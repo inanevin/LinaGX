@@ -1,6 +1,6 @@
 ﻿/*
-This file is a part of: LinaVG
-https://github.com/inanevin/LinaVG
+This file is a part of: LinaGX
+https://github.com/inanevin/LinaGX
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -34,22 +34,32 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
-    LinaGX::Renderer*      renderer  = nullptr;
-    LinaGX::CommandStream* stream    = nullptr;
-    uint8                  swapchain = 0;
+    LinaGX::Renderer*      renderer      = nullptr;
+    LinaGX::CommandStream* stream        = nullptr;
+    uint8                  swapchain     = 0;
+    uint16                 shaderProgram = 0;
+
+    struct Vertex
+    {
+        float position[3];
+        float color[4];
+    };
 
     void Introduction::Initialize()
     {
         App::Initialize();
 
-        LinaGX::Config.logLevel      = LogLevel::Verbose;
-        LinaGX::Config.errorCallback = LogError;
-        LinaGX::Config.infoCallback  = LogInfo;
+        LinaGX::Config.logLevel          = LogLevel::Verbose;
+        LinaGX::Config.errorCallback     = LogError;
+        LinaGX::Config.infoCallback      = LogInfo;
+        LinaGX::Config.rtSwapchainFormat = Format::B8G8R8A8_UNORM;
+        LinaGX::Config.rtColorFormat     = Format::R8G8B8A8_SRGB;
+        LinaGX::Config.rtDepthFormat     = Format::D32_SFLOAT;
 
         LinaGX::InitInfo initInfo;
-        initInfo.api             = BackendAPI::DX12;
+        initInfo.api             = BackendAPI::Vulkan;
         initInfo.gpu             = PreferredGPUType::Integrated;
-        initInfo.framesInFlight  = 1;
+        initInfo.framesInFlight  = 2;
         initInfo.backbufferCount = 2;
 
         renderer = new LinaGX::Renderer();
@@ -65,36 +75,38 @@ namespace LinaGX::Examples
         renderer->CompileShader(ShaderStage::Pixel, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
 
         ShaderDesc shaderDesc = {
-            .layout = outLayout,
+            .layout      = outLayout,
+            .polygonMode = PolygonMode::Fill,
+            .cullMode    = CullMode::None,
+            .frontFace   = FrontFace::CW,
+            .topology    = Topology::TriangleList,
         };
 
-        LINAGX_MAP<ShaderStage, DataBlob> stages        = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};
-        uint16                            shaderProgram = renderer->CreateShader(stages, shaderDesc);
-
-        swapchain = renderer->CreateSwapchain({
-            .x           = 0,
-            .y           = 0,
-            .width       = 500,
-            .height      = 500,
-            .window      = m_wm.GetOSWindow(),
-            .osHandle    = m_wm.GetOSHandle(),
-            .format      = Format::B8G8R8A8_UNORM,
-            .depthFormat = Format::D32_SFLOAT,
-        });
-
-        renderer->DestroyShader(shaderProgram);
-
+        LINAGX_MAP<ShaderStage, DataBlob> stages = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};
+        shaderProgram                            = renderer->CreateShader(stages, shaderDesc);
         LINAGX_FREE(vertexBlob.ptr);
         LINAGX_FREE(fragBlob.ptr);
+
+        swapchain = renderer->CreateSwapchain({
+            .x        = 0,
+            .y        = 0,
+            .width    = 800,
+            .height   = 600,
+            .window   = m_wm.GetOSWindow(),
+            .osHandle = m_wm.GetOSHandle(),
+        });
 
         stream = renderer->CreateCommandStream(10, CommandType::Graphics);
     }
 
     void Introduction::Shutdown()
     {
-        delete stream;
+        renderer->Join();
 
+        delete stream;
         renderer->DestroySwapchain(swapchain);
+        renderer->DestroyShader(shaderProgram);
+
         renderer->Shutdown();
         delete renderer;
         App::Shutdown();
@@ -104,16 +116,42 @@ namespace LinaGX::Examples
     {
         renderer->StartFrame();
 
-        CMDBeginRenderPassSwapchain* beginRenderPass = stream->AddCommand<CMDBeginRenderPassSwapchain>();
-        beginRenderPass->swapchain                   = swapchain;
-        beginRenderPass->clearColor[0]               = 0.5f;
-        beginRenderPass->clearColor[1]               = 0.2f;
-        beginRenderPass->clearColor[2]               = 0.2f;
-        beginRenderPass->clearColor[3]               = 1.0f;
+        // Render pass begin
+        {
+            Viewport            viewport        = {.x = 0, .y = 0, .width = 800, .height = 600, .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect        sc              = {.x = 0, .y = 0, .width = 800, .height = 600};
+            CMDBeginRenderPass* beginRenderPass = stream->AddCommand<CMDBeginRenderPass>();
+            beginRenderPass->swapchain          = swapchain;
+            beginRenderPass->clearColor[0]      = 0.5f;
+            beginRenderPass->clearColor[1]      = 0.2f;
+            beginRenderPass->clearColor[2]      = 0.4f;
+            beginRenderPass->clearColor[3]      = 1.0f;
+            beginRenderPass->viewport           = viewport;
+            beginRenderPass->scissors           = sc;
+        }
 
-        CMDEndRenderPass* end = stream->AddCommand<CMDEndRenderPass>();
-        end->isSwapchain      = true;
-        end->swapchain        = swapchain;
+        // Set shader
+        {
+            CMDBindPipeline* bindPipeline = stream->AddCommand<CMDBindPipeline>();
+            bindPipeline->shader          = shaderProgram;
+        }
+
+        // Draw the triangle
+        {
+            CMDDrawInstanced* drawInstanced       = stream->AddCommand<CMDDrawInstanced>();
+            drawInstanced->vertexCountPerInstance = 3;
+            drawInstanced->instanceCount          = 1;
+            drawInstanced->startInstanceLocation  = 0;
+            drawInstanced->startVertexLocation    = 0;
+        }
+
+
+        // End render pass
+        {
+            CMDEndRenderPass* end = stream->AddCommand<CMDEndRenderPass>();
+            end->isSwapchain      = true;
+            end->swapchain        = swapchain;
+        }
 
         renderer->Flush();
         renderer->Present({.swapchain = swapchain});

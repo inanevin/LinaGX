@@ -35,10 +35,15 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    struct CMDBeginRenderPassSwapchain
+
+    struct CMDBeginRenderPass
     {
-        uint8 swapchain;
-        float clearColor[4];
+        bool         isSwapchain;
+        uint8        swapchain;
+        uint32       texture;
+        float        clearColor[4];
+        Viewport     viewport;
+        ScissorsRect scissors;
     };
 
     struct CMDEndRenderPass
@@ -47,6 +52,47 @@ namespace LinaGX
         uint8  swapchain;
         bool   isSwapchain;
     };
+
+    struct CMDSetViewport
+    {
+        uint32 x;
+        uint32 y;
+        uint32 width;
+        uint32 height;
+        float  minDepth;
+        float  maxDepth;
+    };
+
+    struct CMDSetScissors
+    {
+        uint32 x;
+        uint32 y;
+        uint32 width;
+        uint32 height;
+    };
+
+    struct CMDBindPipeline
+    {
+        uint16 shader;
+    };
+
+    struct CMDDrawInstanced
+    {
+        uint32 vertexCountPerInstance;
+        uint32 instanceCount;
+        uint32 startVertexLocation;
+        uint32 startInstanceLocation;
+    };
+
+    struct CMDDrawIndexedInstanced
+    {
+        uint32 indexCountPerInstance;
+        uint32 instanceCount;
+        uint32 startIndexLocation;
+        uint32 baseVertexLocation;
+        uint32 startInstanceLocation;
+    };
+
 } // namespace LinaGX
 
 #endif

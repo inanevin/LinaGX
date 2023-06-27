@@ -65,7 +65,7 @@ namespace LinaGX
     struct VKBSwapchain
     {
         bool                    isValid = false;
-        VkFormat                format  = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+        VkFormat                format  = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
         VkSwapchainKHR          ptr     = nullptr;
         VkSurfaceKHR            surface = nullptr;
         LINAGX_VEC<VkImage>     imgs;
@@ -88,16 +88,22 @@ namespace LinaGX
         bool            isValid = false;
         VkCommandPool   pool    = nullptr;
         VkCommandBuffer buffer  = nullptr;
+        CommandType     type    = CommandType::Graphics;
     };
 
     class VKBackend : public Backend
     {
+    private:
+        typedef void (VKBackend::*CommandFunction)(void*, const VKBCommandStream& stream);
+
     public:
-        VKBackend(Renderer* renderer) : Backend(renderer){};
+        VKBackend(Renderer* renderer)
+            : Backend(renderer){};
         virtual ~VKBackend(){};
 
         virtual bool   Initialize(const InitInfo& initInfo) override;
         virtual void   Shutdown();
+        virtual void   Join();
         virtual void   StartFrame(uint32 frameIndex) override;
         virtual void   EndFrame() override;
         virtual void   Present(const PresentDesc& present) override;
@@ -117,6 +123,18 @@ namespace LinaGX
         void   DestroySyncSemaphore(uint16 handle);
         uint16 CreateFence();
         void   DestroyFence(uint16 handle);
+
+    private:
+        void CMD_BeginRenderPass(void* data, const VKBCommandStream& stream);
+        void CMD_EndRenderPass(void* data, const VKBCommandStream& stream);
+        void CMD_SetViewport(void* data, const VKBCommandStream& stream);
+        void CMD_SetScissors(void* data, const VKBCommandStream& stream);
+        void CMD_BindPipeline(void* data, const VKBCommandStream& stream);
+        void CMD_DrawInstanced(void* data, const VKBCommandStream& stream);
+        void CMD_DrawIndexedInstanced(void* data, const VKBCommandStream& stream);
+
+    private:
+        void ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor);
 
     private:
         VkInstance               m_vkInstance     = nullptr;
@@ -147,8 +165,9 @@ namespace LinaGX
         IDList<uint16, VkSemaphore>         m_semaphores = {20};
         IDList<uint16, VkFence>             m_fences     = {20};
 
-        InitInfo                    m_initInfo     = {};
-        LINAGX_VEC<VKBPerFrameData> m_perFrameData = {};
+        InitInfo                            m_initInfo     = {};
+        LINAGX_VEC<VKBPerFrameData>         m_perFrameData = {};
+        LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions;
     };
 } // namespace LinaGX
 

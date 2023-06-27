@@ -54,6 +54,11 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
+        void Join();
+
+        /// <summary>
+        ///
+        /// </summary>
         void Shutdown();
 
         /// <summary>
