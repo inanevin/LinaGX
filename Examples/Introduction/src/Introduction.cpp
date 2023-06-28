@@ -78,11 +78,12 @@ namespace LinaGX::Examples
         renderer->CompileShader(ShaderStage::Pixel, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
 
         ShaderDesc shaderDesc = {
-            .layout      = outLayout,
-            .polygonMode = PolygonMode::Fill,
-            .cullMode    = CullMode::None,
-            .frontFace   = FrontFace::CW,
-            .topology    = Topology::TriangleList,
+            .layout          = outLayout,
+            .polygonMode     = PolygonMode::Fill,
+            .cullMode        = CullMode::None,
+            .frontFace       = FrontFace::CW,
+            .topology        = Topology::TriangleList,
+            .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
         };
 
         LINAGX_MAP<ShaderStage, DataBlob> stages = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}};

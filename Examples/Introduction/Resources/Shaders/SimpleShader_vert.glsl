@@ -14,15 +14,6 @@ vec3 colors[3] = vec3[](
 );
  
 void main() {
-    int idx = gl_VertexIndex;
- 
-    if (idx == 0) {
-        gl_Position = vec4(positions[0], 0.0, 1.0);
-    } else if (idx == 1) {
-        gl_Position = vec4(positions[1], 0.0, 1.0);
-    } else {
-        gl_Position = vec4(positions[2], 0.0, 1.0);
-    }
- 
+    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
     fragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }

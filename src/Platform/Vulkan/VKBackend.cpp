@@ -218,7 +218,6 @@ namespace LinaGX
 
     VkBlendFactor GetVKBlendFactor(BlendFactor factor)
     {
-        VK_BLEND_FACTOR_CONSTANT_ALPHA;
         switch (factor)
         {
 
@@ -718,7 +717,7 @@ namespace LinaGX
     {
         m_currentFrameIndex         = frameIndex;
         const auto& frame           = m_perFrameData[frameIndex];
-        auto        vkGraphicsFence = m_fences.GetItemR(frame.graphicsFence);
+        auto        vkGraphicsFence = m_fences.GetItem(frame.graphicsFence);
 
         // Wait for graphics present operations.
         uint64   timeout = static_cast<uint64>(10000000000);
@@ -730,7 +729,7 @@ namespace LinaGX
             if (!swp.isValid)
                 continue;
 
-            auto semaphore = m_semaphores.GetItemR(swp.submitSemaphores[frameIndex]);
+            auto semaphore = m_semaphores.GetItem(swp.submitSemaphores[frameIndex]);
             result         = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, semaphore, nullptr, &swp._imageIndex);
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -788,8 +787,8 @@ namespace LinaGX
             if (!swp.isValid)
                 continue;
 
-            auto submitSemaphore  = m_semaphores.GetItemR(swp.submitSemaphores[m_currentFrameIndex]);
-            auto presentSemaphore = m_semaphores.GetItemR(swp.presentSemaphores[m_currentFrameIndex]);
+            auto submitSemaphore  = m_semaphores.GetItem(swp.submitSemaphores[m_currentFrameIndex]);
+            auto presentSemaphore = m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]);
             waitStages.push_back(waitStage);
             waitSemaphores.push_back(submitSemaphore);
             signalSemaphores.push_back(presentSemaphore);
@@ -822,7 +821,7 @@ namespace LinaGX
 
         swp._presentSemaphoresActive = false;
 
-        waitSemaphores.push_back(m_semaphores.GetItemR(swp.presentSemaphores[m_currentFrameIndex]));
+        waitSemaphores.push_back(m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]));
 
         VkPresentInfoKHR info   = VkPresentInfoKHR{};
         info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1209,6 +1208,7 @@ namespace LinaGX
 
             constants.push_back(range);
         }
+
 
         // pipeline layout
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = VkPipelineLayoutCreateInfo{};
