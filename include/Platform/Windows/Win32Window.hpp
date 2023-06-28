@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaVG
-https://github.com/inanevin/LinaVG
+This file is a part of: LinaGX
+https://github.com/inanevin/LinaGX
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,56 +26,54 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef APP_HPP
-#define APP_HPP
+#pragma once
+
+#ifndef LINAGX_WIN32WINDOW_HPP
+#define LINAGX_WIN32WINDOW_HPP
 
 #include "Common/Common.hpp"
-#include <iostream>
-#include <cstdarg>
+
+struct HWND__;
+struct HINSTANCE__;
 
 namespace LinaGX
 {
-    namespace Examples
+    class WindowManager;
+
+    class Win32Window
     {
+    public:
+        static __int64 __stdcall WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam);
 
-        inline void LogError(const char* err, ...)
+        inline void* GetWindowHandle()
         {
-            va_list args;
-            va_start(args, err);
-
-            std::cout << "\033[1;31m";
-            std::cout << "LinaGX: ";
-            vprintf(err, args);
-            std::cout << "\033[0m" << std::endl;
-            va_end(args);
+            return static_cast<void*>(m_window);
         }
 
-        inline void LogInfo(const char* info, ...)
+        inline void* GetOSHandle()
         {
-            va_list args;
-            va_start(args, info);
-            std::cout << "\033[32mLinaGX: ";
-            vprintf(info, args);
-            std::cout << std::endl;
-            va_end(args);
+            return static_cast<void*>(m_hinst);
         }
 
-        class App
-        {
-        public:
-            virtual void Initialize();
-            virtual void Run();
-            virtual void Shutdown();
+    private:
+        friend class WindowManager;
+        Win32Window()  = default;
+        ~Win32Window() = default;
 
-            virtual void OnTick(){};
-            virtual void OnKeyPress(uint32 key){};
-            virtual void OnMousePress(uint32 mouse){};
+        bool Create(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style);
+        void Destroy();
 
-            bool        IsRunning;
-            static App* Application;
-        };
-
-    } // namespace Examples
+    private:
+        LINAGX_STRING m_title    = "";
+        uint32        m_posX     = 0;
+        uint32        m_posY     = 0;
+        uint32        m_width    = 0;
+        uint32        m_height   = 0;
+        uint32        m_dpi      = 0;
+        float         m_dpiScale = 0.0f;
+        HWND__*       m_window   = nullptr;
+        HINSTANCE__*  m_hinst    = nullptr;
+    };
 } // namespace LinaGX
 
 #endif

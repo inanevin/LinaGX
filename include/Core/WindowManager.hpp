@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaVG
-https://github.com/inanevin/LinaVG
+This file is a part of: LinaGX
+https://github.com/inanevin/LinaGX
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,39 +26,40 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef WINDOW_MANAGER_HPP
-#define WINDOW_MANAGER_HPP
+#pragma once
 
-#include "LinaGX.hpp"
-#include <functional>
+#ifndef LINAGX_WINDOW_MANAGER_HPP
+#define LINAGX_WINDOW_MANAGER_HPP
+
+#include "Common/Common.hpp"
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+#include "Platform/Windows/Win32Window.hpp"
+typedef LinaGX::Win32Window LinaGXWindow;
+#elif LINAGX_PLATFORM_APPLE
+#include "Platform/MacOS/MacOSWindow.hpp"
+typedef LinaGX::MacOSWindow LinaGXWindow;
+#endif
 
 namespace LinaGX
 {
-    namespace Examples
+    class Renderer;
+
+    class WindowManager
     {
-        class WindowManager
-        {
-        public:
-            void* CreateAppWindow(int width, int height, const char* title);
-            void  Poll();
-            void  Shutdown();
+    public:
+        LinaGXWindow* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
+        void          DestroyApplicationWindow(StringID stringID);
+        void          PollWindow();
 
-            inline void* GetOSWindow()
-            {
-                return m_osHandle1;
-            }
+    private:
+        friend class Renderer;
+        void Initialize();
+        void Shutdown();
 
-            inline void* GetOSHandle()
-            {
-                return m_osHandle2;
-            }
-
-        private:
-            void* m_windowHandle = nullptr;
-            void* m_osHandle1    = nullptr;
-            void* m_osHandle2    = nullptr;
-        };
-    } // namespace Examples
+    private:
+        LINAGX_MAP<StringID, LinaGXWindow*> m_windows;
+    };
 } // namespace LinaGX
 
 #endif

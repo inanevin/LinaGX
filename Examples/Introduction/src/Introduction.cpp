@@ -39,6 +39,8 @@ namespace LinaGX::Examples
     uint8                  swapchain     = 0;
     uint16                 shaderProgram = 0;
 
+#define MAIN_WINDOW_ID 0
+
     struct Vertex
     {
         float position[3];
@@ -64,6 +66,7 @@ namespace LinaGX::Examples
 
         renderer = new LinaGX::Renderer();
         renderer->Initialize(initInfo);
+        auto window = renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 600, WindowStyle::Windowed);
 
         const LINAGX_STRING vtxShader  = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_vert.glsl");
         const LINAGX_STRING fragShader = Internal::ReadFileContentsAsString("Resources/Shaders/SimpleShader_frag.glsl");
@@ -92,8 +95,8 @@ namespace LinaGX::Examples
             .y        = 0,
             .width    = 800,
             .height   = 600,
-            .window   = m_wm.GetOSWindow(),
-            .osHandle = m_wm.GetOSHandle(),
+            .window   = window->GetWindowHandle(),
+            .osHandle = window->GetOSHandle(),
         });
 
         stream = renderer->CreateCommandStream(10, CommandType::Graphics);
@@ -101,6 +104,8 @@ namespace LinaGX::Examples
 
     void Introduction::Shutdown()
     {
+        renderer->DestroyApplicationWindow(MAIN_WINDOW_ID);
+
         renderer->Join();
 
         delete stream;
@@ -114,6 +119,7 @@ namespace LinaGX::Examples
 
     void Introduction::OnTick()
     {
+        renderer->PollWindow();
         renderer->StartFrame();
 
         // Render pass begin
@@ -144,7 +150,6 @@ namespace LinaGX::Examples
             drawInstanced->startInstanceLocation  = 0;
             drawInstanced->startVertexLocation    = 0;
         }
-
 
         // End render pass
         {

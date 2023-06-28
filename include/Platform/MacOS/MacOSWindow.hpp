@@ -32,7 +32,6 @@ SOFTWARE.
 #define LINAGX_Renderer_HPP
 
 #include "Common/Common.hpp"
-#include "WindowManager.hpp"
 
 namespace LinaGX
 {
@@ -129,48 +128,14 @@ namespace LinaGX
         /// <returns></returns>
         uint32 CreateTexture2D(const Texture2DDesc& desc);
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="stringID"></param>
-        /// <param name="title"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        /// <param name="style"></param>
-        /// <returns></returns>
-        LinaGXWindow* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed)
-        {
-            return m_windowManager.CreateApplicationWindow(stringID, title, x, y, width, height, style);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="sid"></param>
-        void DestroyApplicationWindow(StringID sid)
-        {
-            m_windowManager.DestroyApplicationWindow(sid);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        void PollWindow()
-        {
-            m_windowManager.PollWindow();
-        }
-
     private:
         friend class VKBackend;
         friend class MTLBackend;
         friend class DX12Backend;
 
     private:
-        InitInfo      m_initInfo = {};
-        Backend*      m_backend  = nullptr;
-        WindowManager m_windowManager;
+        InitInfo m_initInfo = {};
+        Backend* m_backend  = nullptr;
 
         LINAGX_VEC<CommandStream*> m_commandStreams;
     };

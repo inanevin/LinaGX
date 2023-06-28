@@ -43,6 +43,7 @@ include/Core/Backend.hpp
 include/Core/Renderer.hpp
 include/Core/CommandStream.hpp
 include/Core/Commands.hpp
+include/Core/WindowManager.hpp
 include/Utility/SPIRVUtility.hpp
 )
 
@@ -51,13 +52,17 @@ src/Common/Common.cpp
 src/Core/Backend.cpp
 src/Core/Renderer.cpp
 src/Core/CommandStream.cpp
+src/Core/WindowManager.cpp
 src/Utility/SPIRVUtility.cpp
 )
 
 
 if(WIN32)
 
-set(LinaGX_BACKEND_HEADERS
+set(LinaGX_PLATFORM_HEADERS
+
+# Windows
+include/Platform/Windows/Win32Window.hpp
 
 # Vulkan
 include/Platform/Vulkan/VKBackend.hpp
@@ -97,7 +102,10 @@ include/Platform/DX12/SDK/D3D12MemAlloc.h
 
 )
 
-set(LinaGX_BACKEND_SOURCES
+set(LinaGX_PLATFORM_SOURCES
+
+# Windows
+src/Platform/Windows/Win32Window.cpp
 
 # Vulkan
 src/Platform/Vulkan/VKBackend.cpp
@@ -115,12 +123,14 @@ endif()
 
 if(APPLE)
 
-set(LinaGX_BACKEND_HEADERS
+set(LinaGX_PLATFORM_HEADERS
 include/Platform/Metal/MTLBackend.hpp
+include/Platform/MacOS/MacOSWindow.hpp
 )
 
-set(LinaGX_BACKEND_SOURCES
+set(LinaGX_PLATFORM_SOURCES
 src/Platform/Metal/MTLBackend.cpp
+src/Platform/MacOS/MacOSWindow.cpp
 )
 
 endif()
@@ -128,7 +138,7 @@ endif()
 #--------------------------------------------------------------------
 # Create project
 #--------------------------------------------------------------------
-add_library(${PROJECT_NAME} ${LinaGX_SOURCES} ${LinaGX_HEADERS} ${LinaGX_BACKEND_SOURCES} ${LinaGX_BACKEND_HEADERS})
+add_library(${PROJECT_NAME} ${LinaGX_SOURCES} ${LinaGX_HEADERS} ${LinaGX_PLATFORM_SOURCES} ${LinaGX_PLATFORM_HEADERS})
 add_library(Lina::GX ALIAS ${PROJECT_NAME})
 include(${CMAKE_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
@@ -177,7 +187,7 @@ endif()
 # Folder structuring in visual studio
 #--------------------------------------------------------------------
 if(MSVC_IDE)
-	foreach(source IN LISTS LinaGX_HEADERS LinaGX_SOURCES LinaGX_BACKEND_HEADERS LinaGX_BACKEND_SOURCES)
+	foreach(source IN LISTS LinaGX_HEADERS LinaGX_SOURCES LinaGX_PLATFORM_HEADERS LinaGX_PLATFORM_SOURCES)
 		get_filename_component(source_path "${source}" PATH)
 		string(REPLACE "${LinaVG_SOURCE_DIR}" "" relative_source_path "${source_path}")
 		string(REPLACE "/" "\\" source_path_msvc "${relative_source_path}")

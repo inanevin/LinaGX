@@ -480,6 +480,14 @@ namespace LinaGX
         RT2Present,
     };
 
+    enum class WindowStyle
+    {
+        Windowed,
+        Borderless,
+        Fullscreen,
+        WorkArea
+    };
+
     struct DataBlob
     {
         uint8* ptr  = nullptr;

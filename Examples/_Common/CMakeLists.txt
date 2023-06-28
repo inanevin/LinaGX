@@ -21,14 +21,12 @@ project(Common)
 
 set(COMMON_SOURCES 
 
-src/WindowManager.cpp
 src/App.cpp
 
 )
 
 set(COMMON_HEADERS
 
-include/WindowManager.hpp
 include/App.hpp
 )
 
@@ -55,7 +53,6 @@ set_target_properties(
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/LinaGX/include)
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/Examples/_Vendor/glfw/include)
 
 #--------------------------------------------------------------------
 # Links
@@ -63,13 +60,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/Examples/_
 target_link_libraries(${PROJECT_NAME} 
 PUBLIC Lina::GX
 )
-
-if (WIN32)
-	target_link_libraries(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/Examples/_Vendor/glfw/lib/Win64/$<CONFIGURATION>/glfw3.lib)
-endif()
-if(APPLE)
-	#target_link_libraries(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/_Dependencies/${DIRNAME}/Win64/$<CONFIGURATION>/${LIBNAME}.lib)
-endif()
 
 
 #--------------------------------------------------------------------

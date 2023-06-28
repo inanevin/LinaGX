@@ -36,7 +36,6 @@ namespace LinaGX::Examples
     void App::Initialize()
     {
         App::Application = this;
-        m_wm.CreateAppWindow(800, 600, "LinaGX Examples - Introduction");
     }
 
     void App::Run()
@@ -46,7 +45,6 @@ namespace LinaGX::Examples
         while (IsRunning)
         {
             // Poll for inputs etc.
-            m_wm.Poll();
             OnTick();
         }
 
@@ -55,7 +53,7 @@ namespace LinaGX::Examples
 
     void App::Shutdown()
     {
-        m_wm.Shutdown();
+        
     }
 
 } // namespace LinaGX::Examples

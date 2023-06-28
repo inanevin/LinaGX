@@ -1034,7 +1034,6 @@ namespace LinaGX
             shaderModule.pCode                    = reinterpret_cast<uint32*>(blob.ptr);
 
             VkResult res = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
-
             VkPipelineShaderStageCreateInfo info = VkPipelineShaderStageCreateInfo{};
             info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             info.pNext                           = nullptr;
@@ -1389,6 +1388,51 @@ namespace LinaGX
         m_fences.RemoveItem(handle);
     }
 
+    void TransitionImageLayout(VkCommandBuffer buf, VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+    {
+
+        VkImageMemoryBarrier barrier            = {};
+        barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout                       = oldLayout;
+        barrier.newLayout                       = newLayout;
+        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image                           = image;
+        barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel   = 0;
+        barrier.subresourceRange.levelCount     = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount     = 1;
+
+        VkPipelineStageFlags sourceStage;
+        VkPipelineStageFlags destinationStage;
+
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+            sourceStage      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+        {
+            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            barrier.dstAccessMask = 0;
+
+            sourceStage      = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        }
+
+        vkCmdPipelineBarrier(
+            buf,
+            sourceStage, destinationStage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+    }
+
     void VKBackend::CMD_BeginRenderPass(void* data, const VKBCommandStream& stream)
     {
         CMDBeginRenderPass* begin = static_cast<CMDBeginRenderPass*>(data);
@@ -1446,7 +1490,6 @@ namespace LinaGX
         area.offset.x      = interVP.x;
         area.offset.y      = interVP.y;
 
-     
         VkRenderingInfo renderingInfo      = VkRenderingInfo{};
         renderingInfo.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
         renderingInfo.pNext                = nullptr;
@@ -1460,6 +1503,7 @@ namespace LinaGX
         renderingInfo.pColorAttachments    = &colorAttachment;
 
         ImageTransition(ImageTransitionType::Present2RT, stream.buffer, colorImage, true);
+
         pfn_vkCmdBeginRenderingKHR(stream.buffer, &renderingInfo);
 
         CMD_SetViewport(&interVP, stream);
@@ -1534,8 +1578,8 @@ namespace LinaGX
         VkImageMemoryBarrier imgBarrier = VkImageMemoryBarrier{};
         imgBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         imgBarrier.pNext                = nullptr;
-        imgBarrier.srcQueueFamilyIndex  = m_graphicsQueueIndices.first;
-        imgBarrier.dstQueueFamilyIndex  = m_graphicsQueueIndices.first;
+        imgBarrier.srcQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
+        imgBarrier.dstQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
         imgBarrier.image                = img;
         imgBarrier.subresourceRange     = subresRange;
 

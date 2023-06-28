@@ -64,6 +64,7 @@ namespace LinaGX
         LOGT("Renderer -> Successfuly initialized.");
 
         m_initInfo = info;
+        m_windowManager.Initialize();
         SPIRVUtility::Initialize();
         return true;
     }
@@ -76,6 +77,7 @@ namespace LinaGX
     void Renderer::Shutdown()
     {
         m_backend->Join();
+        m_windowManager.Shutdown();
         SPIRVUtility::Shutdown();
         m_backend->Shutdown();
     }
