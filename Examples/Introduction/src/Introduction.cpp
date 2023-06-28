@@ -81,7 +81,7 @@ namespace LinaGX::Examples
             .layout          = outLayout,
             .polygonMode     = PolygonMode::Fill,
             .cullMode        = CullMode::None,
-            .frontFace       = FrontFace::CW,
+            .frontFace       = FrontFace::CCW,
             .topology        = Topology::TriangleList,
             .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
         };
@@ -122,7 +122,7 @@ namespace LinaGX::Examples
     {
         renderer->PollWindow();
         renderer->StartFrame();
-
+        return;
         // Render pass begin
         {
             Viewport            viewport        = {.x = 0, .y = 0, .width = 800, .height = 600, .minDepth = 0.0f, .maxDepth = 1.0f};

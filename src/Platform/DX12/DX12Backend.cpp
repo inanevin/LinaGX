@@ -362,7 +362,7 @@ namespace LinaGX
         ComPtr<IDXGIFactory6> factory6;
         if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
         {
-            for (UINT adapterIndex = 0; SUCCEEDED(factory6->EnumAdapterByGpuPreference(adapterIndex, gpuType == PreferredGPUType::Discrete ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED, IID_PPV_ARGS(&adapter))); ++adapterIndex)
+            for (UINT adapterIndex = 0; SUCCEEDED(factory6->EnumAdapterByGpuPreference(adapterIndex, gpuType == PreferredGPUType::Discrete ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_MINIMUM_POWER, IID_PPV_ARGS(&adapter))); ++adapterIndex)
             {
                 DXGI_ADAPTER_DESC1 desc;
                 adapter->GetDesc1(&desc);
@@ -407,330 +407,6 @@ namespace LinaGX
         *ppAdapter = adapter.Detach();
     }
 
-    bool DX12Backend::Initialize(const InitInfo& initInfo)
-    {
-        m_initInfo = initInfo;
-
-        try
-        {
-            {
-                UINT dxgiFactoryFlags = 0;
-
-                // Enable the debug layer (requires the Graphics Tools "optional feature").
-                // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-
-#ifndef NDEBUG
-                ComPtr<ID3D12Debug> debugController;
-                if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-                {
-                    debugController->EnableDebugLayer();
-
-                    // Enable additional debug layers.
-                    dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-                }
-                else
-                {
-                    LOGE("DX12Backend -> Failed enabling debug layers!");
-                }
-#endif
-
-                ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
-
-                ComPtr<IDXGIFactory5> factory5;
-                HRESULT               facres       = m_factory.As(&factory5);
-                BOOL                  allowTearing = FALSE;
-                if (SUCCEEDED(facres))
-                {
-                    facres = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
-                }
-
-                m_allowTearing = SUCCEEDED(facres) && allowTearing;
-            }
-
-            // Choose gpu & create device
-            {
-                if (initInfo.gpu == PreferredGPUType::CPU)
-                {
-                    ComPtr<IDXGIAdapter> warpAdapter;
-                    ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-                    ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
-                }
-                else
-                {
-                    GetHardwareAdapter(m_factory.Get(), &m_adapter, initInfo.gpu);
-
-                    ThrowIfFailed(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
-                }
-            }
-
-#ifndef NDEBUG
-            // Dbg callback
-            {
-                ID3D12InfoQueue1* infoQueue = nullptr;
-                if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
-                {
-                    infoQueue->RegisterMessageCallback(&MessageCallback, D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, nullptr, &msgCallback);
-                }
-            }
-#endif
-
-            // Allocator
-            {
-                D3D12MA::ALLOCATOR_DESC allocatorDesc;
-                allocatorDesc.pDevice              = m_device.Get();
-                allocatorDesc.PreferredBlockSize   = 0;
-                allocatorDesc.Flags                = D3D12MA::ALLOCATOR_FLAG_NONE;
-                allocatorDesc.pAdapter             = m_adapter.Get();
-                allocatorDesc.pAllocationCallbacks = NULL;
-                ThrowIfFailed(D3D12MA::CreateAllocator(&allocatorDesc, &m_dx12Allocator));
-            }
-
-            // DXC
-            {
-                HRESULT hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&m_idxcLib));
-                if (FAILED(hr))
-                {
-                    LOGE("DX12Backend -> Failed to create DXC library!");
-                }
-            }
-
-            // Queue
-            {
-                D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-                queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
-                queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
-                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_queueDirect)));
-
-                NAME_DX12_OBJECT(m_queueDirect, L"Direct Queue");
-            }
-
-            // Heaps
-            {
-                m_bufferHeap  = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.bufferLimit);
-                m_textureHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.textureLimit);
-                m_dsvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initInfo.gpuLimits.textureLimit);
-                m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initInfo.gpuLimits.textureLimit);
-                m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, initInfo.gpuLimits.samplerLimit);
-            }
-
-            // Command functions
-            {
-                m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &DX12Backend::CMD_BeginRenderPass;
-                m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &DX12Backend::CMD_EndRenderPass;
-                m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &DX12Backend::CMD_SetViewport;
-                m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &DX12Backend::CMD_SetScissors;
-                m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &DX12Backend::CMD_BindPipeline;
-                m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &DX12Backend::CMD_DrawInstanced;
-                m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &DX12Backend::CMD_DrawIndexedInstanced;
-            }
-
-            // Per frame
-            {
-                for (uint32 i = 0; i < initInfo.framesInFlight; i++)
-                {
-                    DX12PerFrameData pfd = {};
-                    m_perFrameData.push_back(pfd);
-                }
-            }
-
-            // Syncs
-            {
-                m_fenceControlGraphics.fence      = CreateFence();
-                m_fenceControlTransfer.fence      = CreateFence();
-                m_fenceControlGraphics.fenceValue = m_fenceControlTransfer.fenceValue = 1;
-            }
-        }
-        catch (HrException e)
-        {
-            LOGE("DX12Backend -> Exception when pre-initializating renderer! %s", e.what());
-            DX12Exception(e);
-        }
-
-        return true;
-    }
-
-    void DX12Backend::Shutdown()
-    {
-        DestroyFence(m_fenceControlGraphics.fence);
-        DestroyFence(m_fenceControlTransfer.fence);
-
-        for (auto& swp : m_swapchains)
-        {
-            LOGA(!swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
-        }
-
-        for (auto& shader : m_shaders)
-        {
-            LOGA(!shader.isValid, "DX12Backend -> Some shaders were not destroyed!");
-        }
-
-        for (auto& txt : m_texture2Ds)
-        {
-            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
-        }
-
-        for (auto& str : m_cmdStreams)
-        {
-            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
-        }
-
-        ID3D12InfoQueue1* infoQueue = nullptr;
-        if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
-        {
-            infoQueue->UnregisterMessageCallback(msgCallback);
-        }
-
-        m_dx12Allocator->Release();
-        m_idxcLib.Reset();
-        m_device.Reset();
-
-        delete m_bufferHeap;
-        delete m_textureHeap;
-        delete m_dsvHeap;
-        delete m_rtvHeap;
-        delete m_samplerHeap;
-    }
-
-    void DX12Backend::Join()
-    {
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            const auto& frame = m_perFrameData[i];
-            WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
-            WaitForFences(m_fenceControlTransfer.fence, frame.storedFenceTransfer);
-        }
-    }
-
-    uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
-    {
-        DX12CommandStream item = {};
-        item.isValid           = true;
-        item.type              = cmdType;
-
-        try
-        {
-            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocator.GetAddressOf())));
-            ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocator.Get(), nullptr, IID_PPV_ARGS(item.list.GetAddressOf())));
-            ThrowIfFailed(item.list->Close());
-        }
-        catch (HrException e)
-        {
-            LOGE("DX12Backend -> Exception when creating a command allocator! %s", e.what());
-            DX12Exception(e);
-        }
-
-        return m_cmdStreams.AddItem(item);
-    }
-
-    void DX12Backend::StartFrame(uint32 frameIndex)
-    {
-        m_currentFrameIndex = frameIndex;
-        auto& frame         = m_perFrameData[m_currentFrameIndex];
-        WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
-    }
-
-    void DX12Backend::FlushCommandStreams()
-    {
-        for (auto stream : m_renderer->m_commandStreams)
-        {
-            auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-
-            try
-            {
-                ThrowIfFailed(sr.allocator->Reset());
-                ThrowIfFailed(sr.list->Reset(sr.allocator.Get(), nullptr));
-            }
-            catch (HrException e)
-            {
-                LOGE("DX12Backend-> Exception when resetting a command list! %s", e.what());
-                DX12Exception(e);
-            }
-
-            for (uint32 i = 0; i < stream->m_commandCount; i++)
-            {
-                uint64* cmd = stream->m_commands[i];
-                TypeID  tid = stream->m_types[i];
-                (this->*m_cmdFunctions[tid])(cmd, sr);
-
-                // TODO: tids -> consecutive into arr
-            }
-
-            try
-            {
-                LINAGX_VEC<ID3D12CommandList*> _lists;
-                ThrowIfFailed(sr.list->Close());
-                _lists.push_back(sr.list.Get());
-
-                if (stream->m_type == CommandType::Graphics)
-                {
-                    ID3D12CommandList* const* data = _lists.data();
-                    m_queueDirect->ExecuteCommandLists(1, data);
-                }
-            }
-            catch (HrException e)
-            {
-                LOGE("DX12Backend -> Exception when resetting a command list! %s", e.what());
-                DX12Exception(e);
-            }
-        }
-    }
-
-    void DX12Backend::EndFrame()
-    {
-        auto& frame = m_perFrameData[m_currentFrameIndex];
-        auto& fence = m_fences.GetItemR(m_fenceControlGraphics.fence);
-
-        // Increase & signal, we'll wait for this value next time we are starting this frame index.
-        m_fenceControlGraphics.fenceValue++;
-        frame.storedFenceGraphics = m_fenceControlGraphics.fenceValue;
-        m_queueDirect->Signal(fence.Get(), m_fenceControlGraphics.fenceValue);
-    }
-
-    void DX12Backend::Present(const PresentDesc& present)
-    {
-        auto& swp = m_swapchains.GetItemR(present.swapchain);
-
-        try
-        {
-            UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
-            uint32 interval = 0;
-
-            if (present.vsync == VsyncMode::EveryVBlank)
-            {
-                interval = 1;
-                flags    = 0;
-            }
-            else if (present.vsync == VsyncMode::EverySecondVBlank)
-            {
-                interval = 2;
-                flags    = 0;
-            }
-
-            ThrowIfFailed(swp.ptr->Present(interval, flags));
-            swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
-
-            DXGI_FRAME_STATISTICS FrameStatistics;
-            swp.ptr->GetFrameStatistics(&FrameStatistics);
-
-            if (FrameStatistics.PresentCount > m_previousPresentCount)
-            {
-                if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
-                {
-                    ++m_glitchCount;
-                    interval = 0;
-                }
-            }
-
-            m_previousPresentCount = FrameStatistics.PresentCount;
-            m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
-        }
-        catch (HrException& e)
-        {
-            LOGE("DX12Backend -> Present engine error! {0}", e.what());
-            DX12Exception(e);
-        }
-    }
-
     void DX12Backend::DestroyCommandStream(uint32 handle)
     {
         auto& stream = m_cmdStreams.GetItemR(handle);
@@ -740,7 +416,10 @@ namespace LinaGX
             return;
         }
         stream.isValid = false;
-        stream.list.Reset();
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            stream.lists[i].Reset();
+
         stream.allocator.Reset();
         m_cmdStreams.RemoveItem(handle);
     }
@@ -1375,9 +1054,341 @@ namespace LinaGX
         }
     }
 
+    bool DX12Backend::Initialize(const InitInfo& initInfo)
+    {
+        m_initInfo = initInfo;
+
+        try
+        {
+            {
+                UINT dxgiFactoryFlags = 0;
+
+                // Enable the debug layer (requires the Graphics Tools "optional feature").
+                // NOTE: Enabling the debug layer after device creation will invalidate the active device.
+
+#ifndef NDEBUG
+                ComPtr<ID3D12Debug> debugController;
+                if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+                {
+                    debugController->EnableDebugLayer();
+
+                    // Enable additional debug layers.
+                    dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+                }
+                else
+                {
+                    LOGE("DX12Backend -> Failed enabling debug layers!");
+                }
+#endif
+
+                ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
+
+                ComPtr<IDXGIFactory5> factory5;
+                HRESULT               facres       = m_factory.As(&factory5);
+                BOOL                  allowTearing = FALSE;
+                if (SUCCEEDED(facres))
+                {
+                    facres = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
+                }
+
+                m_allowTearing = SUCCEEDED(facres) && allowTearing;
+            }
+
+            // Choose gpu & create device
+            {
+                if (initInfo.gpu == PreferredGPUType::CPU)
+                {
+                    ComPtr<IDXGIAdapter> warpAdapter;
+                    ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+                    ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
+                }
+                else
+                {
+                    GetHardwareAdapter(m_factory.Get(), &m_adapter, initInfo.gpu);
+
+                    ThrowIfFailed(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
+                }
+            }
+
+#ifndef NDEBUG
+            // Dbg callback
+            {
+                ID3D12InfoQueue1* infoQueue = nullptr;
+                if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+                {
+                    infoQueue->RegisterMessageCallback(&MessageCallback, D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, nullptr, &msgCallback);
+                }
+            }
+#endif
+
+            // Allocator
+            {
+                D3D12MA::ALLOCATOR_DESC allocatorDesc;
+                allocatorDesc.pDevice              = m_device.Get();
+                allocatorDesc.PreferredBlockSize   = 0;
+                allocatorDesc.Flags                = D3D12MA::ALLOCATOR_FLAG_NONE;
+                allocatorDesc.pAdapter             = m_adapter.Get();
+                allocatorDesc.pAllocationCallbacks = NULL;
+                ThrowIfFailed(D3D12MA::CreateAllocator(&allocatorDesc, &m_dx12Allocator));
+            }
+
+            // DXC
+            {
+                HRESULT hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&m_idxcLib));
+                if (FAILED(hr))
+                {
+                    LOGE("DX12Backend -> Failed to create DXC library!");
+                }
+            }
+
+            // Queue
+            {
+                D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+                queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
+                queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
+                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_queueDirect)));
+
+                NAME_DX12_OBJECT(m_queueDirect, L"Direct Queue");
+            }
+
+            // Heaps
+            {
+                m_bufferHeap  = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.bufferLimit);
+                m_textureHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.textureLimit);
+                m_dsvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initInfo.gpuLimits.textureLimit);
+                m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initInfo.gpuLimits.textureLimit);
+                m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, initInfo.gpuLimits.samplerLimit);
+            }
+
+            // Command functions
+            {
+                m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &DX12Backend::CMD_BeginRenderPass;
+                m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &DX12Backend::CMD_EndRenderPass;
+                m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &DX12Backend::CMD_SetViewport;
+                m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &DX12Backend::CMD_SetScissors;
+                m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &DX12Backend::CMD_BindPipeline;
+                m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &DX12Backend::CMD_DrawInstanced;
+                m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &DX12Backend::CMD_DrawIndexedInstanced;
+            }
+
+            // Per frame
+            {
+                for (uint32 i = 0; i < initInfo.framesInFlight; i++)
+                {
+                    DX12PerFrameData pfd = {};
+                    m_perFrameData.push_back(pfd);
+                }
+            }
+
+            // Syncs
+            {
+                m_fenceControlGraphics.fence      = CreateFence();
+                m_fenceControlTransfer.fence      = CreateFence();
+                m_fenceControlGraphics.fenceValue = m_fenceControlTransfer.fenceValue = 1;
+            }
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend -> Exception when pre-initializating renderer! %s", e.what());
+            DX12Exception(e);
+        }
+
+        return true;
+    }
+
+    void DX12Backend::Shutdown()
+    {
+        DestroyFence(m_fenceControlGraphics.fence);
+        DestroyFence(m_fenceControlTransfer.fence);
+
+        for (auto& swp : m_swapchains)
+        {
+            LOGA(!swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
+        }
+
+        for (auto& shader : m_shaders)
+        {
+            LOGA(!shader.isValid, "DX12Backend -> Some shaders were not destroyed!");
+        }
+
+        for (auto& txt : m_texture2Ds)
+        {
+            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+        }
+
+        for (auto& str : m_cmdStreams)
+        {
+            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
+        }
+
+        ID3D12InfoQueue1* infoQueue = nullptr;
+        if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+        {
+            infoQueue->UnregisterMessageCallback(msgCallback);
+        }
+
+        m_dx12Allocator->Release();
+        m_idxcLib.Reset();
+        m_device.Reset();
+
+        delete m_bufferHeap;
+        delete m_textureHeap;
+        delete m_dsvHeap;
+        delete m_rtvHeap;
+        delete m_samplerHeap;
+    }
+
+    void DX12Backend::Join()
+    {
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            const auto& frame = m_perFrameData[i];
+            WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
+            WaitForFences(m_fenceControlTransfer.fence, frame.storedFenceTransfer);
+        }
+    }
+
+    uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
+    {
+        DX12CommandStream item = {};
+        item.isValid           = true;
+        item.type              = cmdType;
+
+        try
+        {
+            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocator.GetAddressOf())));
+
+            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            {
+                Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
+                ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocator.Get(), nullptr, IID_PPV_ARGS(list.GetAddressOf())));
+                ThrowIfFailed(list->Close());
+                item.lists.push_back(list);
+            }
+        }
+        catch (HrException e)
+        {
+            LOGE("DX12Backend -> Exception when creating a command allocator! %s", e.what());
+            DX12Exception(e);
+        }
+
+        return m_cmdStreams.AddItem(item);
+    }
+
+    void DX12Backend::StartFrame(uint32 frameIndex)
+    {
+        m_currentFrameIndex = frameIndex;
+        auto& frame         = m_perFrameData[m_currentFrameIndex];
+        WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
+    }
+
+    void DX12Backend::FlushCommandStreams()
+    {
+        for (auto stream : m_renderer->m_commandStreams)
+        {
+            auto& sr   = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto  list = sr.lists[m_currentFrameIndex];
+
+            try
+            {
+                // ThrowIfFailed(sr.allocator->Reset());
+                ThrowIfFailed(list->Reset(sr.allocator.Get(), nullptr));
+            }
+            catch (HrException e)
+            {
+                LOGE("DX12Backend-> Exception when resetting a command list! %s", e.what());
+                DX12Exception(e);
+            }
+
+            for (uint32 i = 0; i < stream->m_commandCount; i++)
+            {
+                uint64* cmd = stream->m_commands[i];
+                TypeID  tid = stream->m_types[i];
+                (this->*m_cmdFunctions[tid])(cmd, sr);
+
+                // TODO: tids -> consecutive into arr
+            }
+
+            try
+            {
+                LINAGX_VEC<ID3D12CommandList*> _lists;
+                ThrowIfFailed(list->Close());
+                _lists.push_back(list.Get());
+
+                if (stream->m_type == CommandType::Graphics)
+                {
+                    ID3D12CommandList* const* data = _lists.data();
+                    m_queueDirect->ExecuteCommandLists(1, data);
+                }
+            }
+            catch (HrException e)
+            {
+                LOGE("DX12Backend -> Exception when resetting a command list! %s", e.what());
+                DX12Exception(e);
+            }
+        }
+    }
+
+    void DX12Backend::Present(const PresentDesc& present)
+    {
+        auto& swp = m_swapchains.GetItemR(present.swapchain);
+
+        try
+        {
+            UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+            uint32 interval = 0;
+
+            if (present.vsync == VsyncMode::EveryVBlank)
+            {
+                interval = 1;
+                flags    = 0;
+            }
+            else if (present.vsync == VsyncMode::EverySecondVBlank)
+            {
+                interval = 2;
+                flags    = 0;
+            }
+
+            ThrowIfFailed(swp.ptr->Present(interval, flags));
+            swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
+
+            DXGI_FRAME_STATISTICS FrameStatistics;
+            swp.ptr->GetFrameStatistics(&FrameStatistics);
+
+            if (FrameStatistics.PresentCount > m_previousPresentCount)
+            {
+                if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
+                {
+                    ++m_glitchCount;
+                    interval = 0;
+                }
+            }
+
+            m_previousPresentCount = FrameStatistics.PresentCount;
+            m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
+        }
+        catch (HrException& e)
+        {
+            LOGE("DX12Backend -> Present engine error! {0}", e.what());
+            DX12Exception(e);
+        }
+    }
+
+    void DX12Backend::EndFrame()
+    {
+        auto& frame = m_perFrameData[m_currentFrameIndex];
+        auto& fence = m_fences.GetItemR(m_fenceControlGraphics.fence);
+
+        // Increase & signal, we'll wait for this value next time we are starting this frame index.
+        m_fenceControlGraphics.fenceValue++;
+        frame.storedFenceGraphics = m_fenceControlGraphics.fenceValue;
+        m_queueDirect->Signal(fence.Get(), m_fenceControlGraphics.fenceValue);
+    }
+
     void DX12Backend::CMD_BeginRenderPass(void* data, const DX12CommandStream& stream)
     {
         CMDBeginRenderPass* begin = static_cast<CMDBeginRenderPass*>(data);
+        auto                list  = stream.lists[m_currentFrameIndex];
 
         uint32 txtIndex = 0;
 
@@ -1394,13 +1405,13 @@ namespace LinaGX
         const auto& txt = m_texture2Ds.GetItemR(txtIndex);
 
         auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? txt.rawRes.Get() : txt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        stream.list->ResourceBarrier(1, &transition);
+        list->ResourceBarrier(1, &transition);
 
         CD3DX12_CLEAR_VALUE                  clearValue{GetDXFormat(begin->isSwapchain ? Config.rtSwapchainFormat : Config.rtColorFormat), begin->clearColor};
         D3D12_RENDER_PASS_BEGINNING_ACCESS   renderPassBeginningAccessClear{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
         D3D12_RENDER_PASS_ENDING_ACCESS      renderPassEndingAccessPreserve{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
         D3D12_RENDER_PASS_RENDER_TARGET_DESC renderPassRenderTargetDesc{txt.descriptor.GetCPUHandle(), renderPassBeginningAccessClear, renderPassEndingAccessPreserve};
-        stream.list->BeginRenderPass(1, &renderPassRenderTargetDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+        list->BeginRenderPass(1, &renderPassRenderTargetDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
 
         CMDSetViewport interVP = {};
         CMDSetScissors interSC = {};
@@ -1418,21 +1429,23 @@ namespace LinaGX
 
     void DX12Backend::CMD_EndRenderPass(void* data, const DX12CommandStream& stream)
     {
-        CMDEndRenderPass* end = static_cast<CMDEndRenderPass*>(data);
-        stream.list->EndRenderPass();
+        CMDEndRenderPass* end  = static_cast<CMDEndRenderPass*>(data);
+        auto              list = stream.lists[m_currentFrameIndex];
+        list->EndRenderPass();
 
         if (end->isSwapchain)
         {
             const auto& swp        = m_swapchains.GetItemR(end->swapchain);
             const auto& txt        = m_texture2Ds.GetItemR(swp.colorTextures[swp._imageIndex]);
             auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-            stream.list->ResourceBarrier(1, &transition);
+            list->ResourceBarrier(1, &transition);
         }
     }
 
     void DX12Backend::CMD_SetViewport(void* data, const DX12CommandStream& stream)
     {
-        CMDSetViewport* cmd = static_cast<CMDSetViewport*>(data);
+        CMDSetViewport* cmd  = static_cast<CMDSetViewport*>(data);
+        auto            list = stream.lists[m_currentFrameIndex];
         D3D12_VIEWPORT  vp;
         vp.MinDepth = cmd->minDepth;
         vp.MaxDepth = cmd->maxDepth;
@@ -1440,39 +1453,43 @@ namespace LinaGX
         vp.Width    = static_cast<float>(cmd->width);
         vp.TopLeftX = static_cast<float>(cmd->x);
         vp.TopLeftY = static_cast<float>(cmd->y);
-        stream.list->RSSetViewports(1, &vp);
+        list->RSSetViewports(1, &vp);
     }
 
     void DX12Backend::CMD_SetScissors(void* data, const DX12CommandStream& stream)
     {
-        CMDSetScissors* cmd = static_cast<CMDSetScissors*>(data);
+        CMDSetScissors* cmd  = static_cast<CMDSetScissors*>(data);
+        auto            list = stream.lists[m_currentFrameIndex];
         D3D12_RECT      sc;
         sc.left   = static_cast<LONG>(cmd->x);
         sc.top    = static_cast<LONG>(cmd->y);
         sc.right  = static_cast<LONG>(cmd->x + cmd->width);
         sc.bottom = static_cast<LONG>(cmd->y + cmd->height);
-        stream.list->RSSetScissorRects(1, &sc);
+        list->RSSetScissorRects(1, &sc);
     }
 
     void DX12Backend::CMD_BindPipeline(void* data, const DX12CommandStream& stream)
     {
         CMDBindPipeline* cmd    = static_cast<CMDBindPipeline*>(data);
+        auto             list   = stream.lists[m_currentFrameIndex];
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
-        stream.list->SetGraphicsRootSignature(shader.rootSig.Get());
-        stream.list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
-        stream.list->SetPipelineState(shader.pso.Get());
+        list->SetGraphicsRootSignature(shader.rootSig.Get());
+        list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
+        list->SetPipelineState(shader.pso.Get());
     }
 
     void DX12Backend::CMD_DrawInstanced(void* data, const DX12CommandStream& stream)
     {
-        CMDDrawInstanced* cmd = static_cast<CMDDrawInstanced*>(data);
-        stream.list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
+        CMDDrawInstanced* cmd  = static_cast<CMDDrawInstanced*>(data);
+        auto              list = stream.lists[m_currentFrameIndex];
+        list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
     void DX12Backend::CMD_DrawIndexedInstanced(void* data, const DX12CommandStream& stream)
     {
-        CMDDrawIndexedInstanced* cmd = static_cast<CMDDrawIndexedInstanced*>(data);
-        stream.list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+        CMDDrawIndexedInstanced* cmd  = static_cast<CMDDrawIndexedInstanced*>(data);
+        auto                     list = stream.lists[m_currentFrameIndex];
+        list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
 } // namespace LinaGX

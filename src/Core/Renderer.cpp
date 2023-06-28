@@ -82,12 +82,12 @@ namespace LinaGX
         m_backend->Shutdown();
     }
 
-    void Renderer::StartFrame(uint32 frameIndex)
+    void Renderer::StartFrame()
     {
         for (auto stream : m_commandStreams)
             stream->Reset();
 
-        m_backend->StartFrame(frameIndex);
+        m_backend->StartFrame(m_currentFrameIndex);
     }
 
     void Renderer::Flush()
@@ -101,6 +101,7 @@ namespace LinaGX
     void Renderer::EndFrame()
     {
         m_backend->EndFrame();
+        m_currentFrameIndex = (m_currentFrameIndex + 1) % m_initInfo.framesInFlight;
     }
 
     void Renderer::Present(const PresentDesc& present)

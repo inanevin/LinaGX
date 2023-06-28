@@ -77,10 +77,10 @@ namespace LinaGX
 
     struct DX12CommandStream
     {
-        bool                                               isValid = false;
-        CommandType                                        type    = CommandType::Graphics;
-        Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
-        Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
+        bool                                                           isValid = false;
+        CommandType                                                    type    = CommandType::Graphics;
+        Microsoft::WRL::ComPtr<ID3D12CommandAllocator>                 allocator;
+        LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4>> lists;
     };
 
     struct DX12PerFrameData
@@ -105,13 +105,6 @@ namespace LinaGX
             : Backend(renderer){};
         virtual ~DX12Backend(){};
 
-        virtual bool   Initialize(const InitInfo& initInfo) override;
-        virtual void   Shutdown() override;
-        virtual void   Join() override;
-        virtual void   StartFrame(uint32 frameIndex) override;
-        virtual void   EndFrame() override;
-        virtual void   Present(const PresentDesc& present) override;
-        virtual void   FlushCommandStreams() override;
         virtual uint32 CreateCommandStream(CommandType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
@@ -121,8 +114,7 @@ namespace LinaGX
         virtual void   DestroyShader(uint16 handle) override;
         virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
         virtual void   DestroyTexture2D(uint32 handle) override;
-
-        void DX12Exception(HrException e);
+        void           DX12Exception(HrException e);
 
         ID3D12Device* GetDevice()
         {
@@ -134,6 +126,16 @@ namespace LinaGX
         void   DestroyFence(uint16 handle);
         void   WaitForFences(uint16 fenceHandle, uint64 frameFenceValue);
 
+    public:
+        virtual bool Initialize(const InitInfo& initInfo) override;
+        virtual void Shutdown() override;
+        virtual void Join() override;
+        virtual void StartFrame(uint32 frameIndex) override;
+        virtual void FlushCommandStreams() override;
+        virtual void Present(const PresentDesc& present) override;
+        virtual void EndFrame() override;
+
+    private:
         void CMD_BeginRenderPass(void* data, const DX12CommandStream& stream);
         void CMD_EndRenderPass(void* data, const DX12CommandStream& stream);
         void CMD_SetViewport(void* data, const DX12CommandStream& stream);

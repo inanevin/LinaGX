@@ -599,7 +599,7 @@ namespace LinaGX
         FrontFace            frontFace           = FrontFace::CW;
         bool                 depthTest           = false;
         bool                 depthWrite          = false;
-        CompareOp            depthCompare        = CompareOp::Less;
+        CompareOp            depthCompare        = CompareOp::LEqual;
         Topology             topology            = Topology::TriangleList;
         ColorBlendAttachment blendAttachment     = {};
         bool                 blendLogicOpEnabled = false;

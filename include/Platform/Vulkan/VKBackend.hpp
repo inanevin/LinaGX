@@ -85,10 +85,10 @@ namespace LinaGX
 
     struct VKBCommandStream
     {
-        bool            isValid = false;
-        VkCommandPool   pool    = nullptr;
-        VkCommandBuffer buffer  = nullptr;
-        CommandType     type    = CommandType::Graphics;
+        bool                        isValid = false;
+        VkCommandPool               pool    = nullptr;
+        CommandType                 type    = CommandType::Graphics;
+        LINAGX_VEC<VkCommandBuffer> buffers;
     };
 
     class VKBackend : public Backend
@@ -101,13 +101,6 @@ namespace LinaGX
             : Backend(renderer){};
         virtual ~VKBackend(){};
 
-        virtual bool   Initialize(const InitInfo& initInfo) override;
-        virtual void   Shutdown();
-        virtual void   Join();
-        virtual void   StartFrame(uint32 frameIndex) override;
-        virtual void   EndFrame() override;
-        virtual void   Present(const PresentDesc& present) override;
-        virtual void   FlushCommandStreams() override;
         virtual uint32 CreateCommandStream(CommandType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
@@ -123,6 +116,15 @@ namespace LinaGX
         void   DestroySyncSemaphore(uint16 handle);
         uint16 CreateFence();
         void   DestroyFence(uint16 handle);
+
+    public:
+        virtual bool Initialize(const InitInfo& initInfo) override;
+        virtual void Shutdown();
+        virtual void Join();
+        virtual void StartFrame(uint32 frameIndex) override;
+        virtual void FlushCommandStreams() override;
+        virtual void Present(const PresentDesc& present) override;
+        virtual void EndFrame() override;
 
     private:
         void CMD_BeginRenderPass(void* data, const VKBCommandStream& stream);

@@ -66,7 +66,7 @@ namespace LinaGX
         ///
         /// </summary>
         /// <param name="frameIndex"></param>
-        void StartFrame(uint32 frameIndex = 0);
+        void StartFrame();
 
         /// <summary>
         ///
@@ -162,6 +162,11 @@ namespace LinaGX
             m_windowManager.PollWindow();
         }
 
+        inline uint32 GetCurrentFrameIndex()
+        {
+            return m_currentFrameIndex;
+        }
+
     private:
         friend class VKBackend;
         friend class MTLBackend;
@@ -171,6 +176,7 @@ namespace LinaGX
         InitInfo      m_initInfo = {};
         Backend*      m_backend  = nullptr;
         WindowManager m_windowManager;
+        uint32        m_currentFrameIndex = 0;
 
         LINAGX_VEC<CommandStream*> m_commandStreams;
     };

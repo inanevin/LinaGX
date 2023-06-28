@@ -40,12 +40,7 @@ SOFTWARE.
 namespace LinaGX
 {
 #define LGX_VK_MAJOR 1
-#define LGX_VK_MINOR 2
-
-    PFN_vkCmdBeginRenderingKHR g_vkCmdBeginRenderingKHR = nullptr;
-    PFN_vkCmdEndRenderingKHR   g_vkCmdEndRenderingKHR   = nullptr;
-#define pfn_vkCmdBeginRenderingKHR g_vkCmdBeginRenderingKHR
-#define pfn_vkCmdEndRenderingKHR   g_vkCmdEndRenderingKHR
+#define LGX_VK_MINOR 3
 
     VkFormat GetVKFormat(Format f)
     {
@@ -322,6 +317,7 @@ namespace LinaGX
             return VK_IMAGE_USAGE_SAMPLED_BIT;
         }
     }
+
     VkImageLayout GetVKImageLayout(Texture2DUsage usage)
     {
         switch (usage)
@@ -419,429 +415,6 @@ namespace LinaGX
         return VK_FALSE;
     }
 
-    bool VKBackend::Initialize(const InitInfo& initInfo)
-    {
-        m_initInfo = initInfo;
-
-        // Total extensions
-        LINAGX_VEC<const char*> requiredExtensions;
-        requiredExtensions.push_back("VK_KHR_surface");
-        requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-
-#ifndef NDEBUG
-        // Debug messenger
-        requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
-
-        // Instance builder
-        vkb::InstanceBuilder builder;
-        builder = builder.set_app_name(initInfo.appName).request_validation_layers(true).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
-
-        // Extensions
-        for (auto ext : requiredExtensions)
-            builder.enable_extension(ext);
-
-        // Messenger
-        builder.set_debug_callback(VkDebugCallback);
-
-#ifndef NDEBUG
-        VkDebugUtilsMessageSeverityFlagsEXT severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-#else
-        VkDebugUtilsMessageSeverityFlagsEXT severity = 0;
-#endif
-        builder.set_debug_messenger_severity(severity | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
-        builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
-
-        auto res = builder.build();
-        if (!res)
-        {
-            LOGE("VKBackend ->Vulkan builder failed!");
-            return false;
-        }
-
-        vkb::Instance inst = res.value();
-        m_vkInstance       = inst.instance;
-        m_debugMessenger   = inst.debug_messenger;
-
-        vkb::PreferredDeviceType targetDeviceType = vkb::PreferredDeviceType::discrete;
-
-        if (initInfo.gpu == PreferredGPUType::CPU)
-            targetDeviceType = vkb::PreferredDeviceType::cpu;
-        else if (initInfo.gpu == PreferredGPUType::Integrated)
-            targetDeviceType = vkb::PreferredDeviceType::integrated;
-
-        // Physical device
-        VkPhysicalDeviceFeatures features{};
-        features.multiDrawIndirect         = true;
-        features.drawIndirectFirstInstance = true;
-        features.samplerAnisotropy         = true;
-        features.fillModeNonSolid          = true;
-
-        std::vector<const char*> deviceExtensions;
-        deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-        // deviceExtensions.push_back(VK_KHR_MAINTENANCE2_EXTENSION_NAME);
-        // deviceExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
-        // deviceExtensions.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
-        // deviceExtensions.push_back(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
-
-        vkb::PhysicalDeviceSelector selector{inst};
-        vkb::PhysicalDevice         physicalDevice = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
-                                                 .defer_surface_initialization()
-                                                 .prefer_gpu_device_type(targetDeviceType)
-                                                 .allow_any_gpu_device_type(false)
-                                                 .add_required_extensions(deviceExtensions)
-                                                 .set_required_features(features)
-                                                 .select(vkb::DeviceSelectionMode::partially_and_fully_suitable)
-                                                 .value();
-        // create the final Vulkan device
-        vkb::DeviceBuilder                           deviceBuilder{physicalDevice};
-        VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeature;
-        shaderDrawParamsFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-        shaderDrawParamsFeature.pNext                = nullptr;
-        shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
-
-        // For using UPDATE_AFTER_BIND_BIT on material bindings
-        VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
-        descFeatures.sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-        descFeatures.pNext                                         = nullptr;
-        descFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
-        descFeatures.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
-
-        VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = VkPhysicalDeviceDynamicRenderingFeaturesKHR{};
-        dynamic_rendering_feature.sType                                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
-        dynamic_rendering_feature.dynamicRendering                            = VK_TRUE;
-
-        deviceBuilder.add_pNext(&shaderDrawParamsFeature);
-        deviceBuilder.add_pNext(&descFeatures);
-        deviceBuilder.add_pNext(&dynamic_rendering_feature);
-
-        bool hasDedicatedTransferQueue = physicalDevice.has_dedicated_transfer_queue();
-        bool hasDedicatedComputeQueue  = physicalDevice.has_dedicated_compute_queue();
-
-        auto queue_families = physicalDevice.get_queue_families();
-
-        uint32 transferQueueFamily = 0;
-        uint32 transferQueueIndex  = 0;
-        uint32 graphicsQueueFamily = 0;
-        uint32 graphicsQueueIndex  = 0;
-        uint32 computeQueueFamily  = 0;
-        uint32 computeQueueIndex   = 0;
-
-        std::vector<vkb::CustomQueueDescription> queue_descriptions;
-        for (uint32_t i = 0; i < static_cast<uint32_t>(queue_families.size()); i++)
-        {
-            uint32 count = 1;
-
-            if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            {
-                graphicsQueueFamily = i;
-
-                if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-                {
-                    transferQueueFamily = i;
-
-                    if (queue_families[i].queueCount > count + 1)
-                        count++;
-
-                    transferQueueIndex = count - 1;
-                }
-
-                if (!hasDedicatedComputeQueue && queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-                {
-                    computeQueueFamily = i;
-
-                    if (queue_families[i].queueCount > count + 1)
-                        count++;
-                    computeQueueIndex = count - 1;
-                }
-            }
-
-            queue_descriptions.push_back(vkb::CustomQueueDescription(i, count, std::vector<float>(count, 1.0f)));
-        }
-
-        deviceBuilder.custom_queue_setup(queue_descriptions);
-
-        vkb::Device vkbDevice    = deviceBuilder.build().value();
-        m_device                 = vkbDevice.device;
-        m_gpu                    = physicalDevice.physical_device;
-        g_vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(m_device, "vkCmdBeginRenderingKHR"));
-        g_vkCmdEndRenderingKHR   = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(m_device, "vkCmdEndRenderingKHR"));
-
-        if (hasDedicatedComputeQueue)
-        {
-            auto res           = vkbDevice.get_dedicated_queue_index(vkb::QueueType::compute);
-            computeQueueFamily = res.value();
-            computeQueueIndex  = 0;
-        }
-
-        m_graphicsQueueIndices = std::make_pair(graphicsQueueFamily, graphicsQueueIndex);
-        m_transferQueueIndices = std::make_pair(transferQueueFamily, transferQueueIndex);
-        m_computeQueueIndices  = std::make_pair(computeQueueFamily, computeQueueIndex);
-
-        VkPhysicalDeviceProperties gpuProps;
-        vkGetPhysicalDeviceProperties(m_gpu, &gpuProps);
-
-        VkPhysicalDeviceMemoryProperties gpuMemProps;
-        vkGetPhysicalDeviceMemoryProperties(m_gpu, &gpuMemProps);
-
-        VkImageFormatProperties p;
-
-        LINAGX_VEC<VkFormat> formats;
-        for (int i = 1; i < 130; i++)
-        {
-            const VkFormat format    = static_cast<VkFormat>(i);
-            VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
-            if (supported == VK_SUCCESS)
-                formats.push_back(format);
-        }
-
-        LINAGX_VEC<VkFormat> requiredFormats;
-        requiredFormats.push_back(VkFormat::VK_FORMAT_R8_UNORM);
-        requiredFormats.push_back(VkFormat::VK_FORMAT_R8G8_UNORM);
-        requiredFormats.push_back(VkFormat::VK_FORMAT_R8G8B8A8_SRGB);
-
-        for (auto& f : requiredFormats)
-        {
-            auto it = std::find_if(formats.begin(), formats.end(), [&](VkFormat format) { return f == format; });
-
-            if (it == formats.end())
-                LOGE("VKBackend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
-        }
-
-        m_minUniformBufferOffsetAlignment = gpuProps.limits.minUniformBufferOffsetAlignment;
-
-        LOGT("VKBackend -> Selected GPU: %s - %f mb", gpuProps.deviceName, gpuMemProps.memoryHeaps->size / 1000000.0);
-
-        // Query queue family indices.
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(m_gpu, &queueFamilyCount, nullptr);
-
-        m_queueFamilies = LINAGX_VEC<VkQueueFamilyProperties>(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(m_gpu, &queueFamilyCount, m_queueFamilies.data());
-
-        VmaAllocatorCreateInfo allocatorInfo = {};
-        allocatorInfo.physicalDevice         = m_gpu;
-        allocatorInfo.device                 = m_device;
-        allocatorInfo.instance               = m_vkInstance;
-        vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
-
-        vkGetDeviceQueue(m_device, m_graphicsQueueIndices.first, m_graphicsQueueIndices.second, &m_graphicsQueue);
-        vkGetDeviceQueue(m_device, m_transferQueueIndices.first, m_transferQueueIndices.second, &m_transferQueue);
-        vkGetDeviceQueue(m_device, m_computeQueueIndices.first, m_computeQueueIndices.second, &m_computeQueue);
-
-        if (m_transferQueueIndices.first != m_graphicsQueueIndices.first)
-            m_supportsAsyncTransferQueue = true;
-        else if (m_transferQueueIndices.second != m_graphicsQueueIndices.second)
-            m_supportsAsyncTransferQueue = true;
-        else
-            m_supportsAsyncTransferQueue = false;
-
-        if (m_computeQueueIndices.first != m_graphicsQueueIndices.first)
-            m_supportsAsyncComputeQueue = true;
-        else if (m_computeQueueIndices.second != m_graphicsQueueIndices.second)
-            m_supportsAsyncComputeQueue = true;
-        else
-            m_supportsAsyncComputeQueue = false;
-
-        // Per frame data
-        {
-            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-            {
-                VKBPerFrameData pfd = {};
-                pfd.graphicsFence   = CreateFence();
-                pfd.transferFence   = CreateFence();
-                m_perFrameData.push_back(pfd);
-            }
-        }
-
-        // Command functions
-        {
-            m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &VKBackend::CMD_BeginRenderPass;
-            m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &VKBackend::CMD_EndRenderPass;
-            m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &VKBackend::CMD_SetViewport;
-            m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &VKBackend::CMD_SetScissors;
-            m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &VKBackend::CMD_BindPipeline;
-            m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &VKBackend::CMD_DrawInstanced;
-            m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &VKBackend::CMD_DrawIndexedInstanced;
-        }
-        return true;
-    }
-
-    void VKBackend::Shutdown()
-    {
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            auto& pfd = m_perFrameData[i];
-            DestroyFence(pfd.graphicsFence);
-            DestroyFence(pfd.transferFence);
-        }
-
-        for (auto& swp : m_swapchains)
-        {
-            LOGA(!swp.isValid, "VKBackend -> Some swapchains were not destroyed!");
-        }
-
-        for (auto& pp : m_shaders)
-        {
-            LOGA(!pp.isValid, "VKBackend -> Some shader pipelines were not destroyed!");
-        }
-
-        for (auto& txt : m_texture2Ds)
-        {
-            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
-        }
-
-        for (auto& str : m_cmdStreams)
-        {
-            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
-        }
-
-        vmaDestroyAllocator(m_vmaAllocator);
-        vkDestroyDevice(m_device, m_allocator);
-        vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
-        vkDestroyInstance(m_vkInstance, m_allocator);
-    }
-
-    void VKBackend::Join()
-    {
-        LINAGX_VEC<VkFence> fences;
-
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-            fences.push_back(m_fences.GetItemR(m_perFrameData[i].graphicsFence));
-
-        vkDeviceWaitIdle(m_device);
-        vkWaitForFences(m_device, static_cast<uint32>(fences.size()), fences.data(), true, 50000000);
-    }
-
-    void VKBackend::StartFrame(uint32 frameIndex)
-    {
-        m_currentFrameIndex         = frameIndex;
-        const auto& frame           = m_perFrameData[frameIndex];
-        auto        vkGraphicsFence = m_fences.GetItem(frame.graphicsFence);
-
-        // Wait for graphics present operations.
-        uint64   timeout = static_cast<uint64>(10000000000);
-        VkResult result  = vkWaitForFences(m_device, 1, &vkGraphicsFence, true, timeout);
-
-        // Acquire images for each swapchain
-        for (auto& swp : m_swapchains)
-        {
-            if (!swp.isValid)
-                continue;
-
-            auto semaphore = m_semaphores.GetItem(swp.submitSemaphores[frameIndex]);
-            result         = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, semaphore, nullptr, &swp._imageIndex);
-
-            if (result == VK_ERROR_OUT_OF_DATE_KHR)
-            {
-                LOGA(false, "!!");
-                // TODO: CHECK FOR SWAPCHAIN RECREATION
-            }
-        }
-
-        // reset
-        result = vkResetFences(m_device, 1, &vkGraphicsFence);
-        LOGA(result == VK_SUCCESS, "VKBackend -> Failed resetting graphics fence");
-    }
-
-    void VKBackend::FlushCommandStreams()
-    {
-        LINAGX_VEC<VkCommandBuffer> cmds;
-
-        for (auto stream : m_renderer->m_commandStreams)
-        {
-            auto& sr = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-
-            VkResult res = vkResetCommandPool(m_device, sr.pool, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-            LOGA(res == VK_SUCCESS, "VKBackend -> Failed resetting command pool!");
-
-            VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo{};
-            beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            beginInfo.pNext                    = nullptr;
-            beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            beginInfo.pInheritanceInfo         = nullptr;
-            res                                = vkBeginCommandBuffer(sr.buffer, &beginInfo);
-
-            for (uint32 i = 0; i < stream->m_commandCount; i++)
-            {
-                uint64* cmd = stream->m_commands[i];
-                TypeID  tid = stream->m_types[i];
-                (this->*m_cmdFunctions[tid])(cmd, sr);
-            }
-
-            VkResult result = vkEndCommandBuffer(sr.buffer);
-            LOGA(result == VK_SUCCESS, "VKBackend-> Failed ending command buffer!");
-
-            cmds.push_back(sr.buffer);
-        }
-
-        auto&                            frame     = m_perFrameData[m_currentFrameIndex];
-        VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        LINAGX_VEC<VkSemaphore>          waitSemaphores;
-        LINAGX_VEC<VkSemaphore>          signalSemaphores;
-        LINAGX_VEC<VkPipelineStageFlags> waitStages;
-
-        // Make sure we wait for all image acquire requests before submitting the cmd buffers.
-        for (auto& swp : m_swapchains)
-        {
-            if (!swp.isValid)
-                continue;
-
-            auto submitSemaphore  = m_semaphores.GetItem(swp.submitSemaphores[m_currentFrameIndex]);
-            auto presentSemaphore = m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]);
-            waitStages.push_back(waitStage);
-            waitSemaphores.push_back(submitSemaphore);
-            signalSemaphores.push_back(presentSemaphore);
-            swp._presentSemaphoresActive = true;
-        }
-
-        VkSubmitInfo info = VkSubmitInfo{};
-
-        info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        info.pNext                = nullptr;
-        info.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
-        info.pWaitSemaphores      = waitSemaphores.empty() ? nullptr : &waitSemaphores[0];
-        info.pWaitDstStageMask    = waitStages.empty() ? nullptr : &waitStages[0];
-        info.commandBufferCount   = static_cast<uint32>(cmds.size());
-        info.pCommandBuffers      = cmds.empty() ? nullptr : &cmds[0];
-        info.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
-        info.pSignalSemaphores    = signalSemaphores.empty() ? nullptr : &signalSemaphores[0];
-        VkResult result           = vkQueueSubmit(m_graphicsQueue, 1, &info, m_fences.GetItemR(frame.graphicsFence));
-        LOGA(result == VK_SUCCESS, "VKBackend -> Failed submitting to queue!");
-    }
-
-    void VKBackend::Present(const PresentDesc& present)
-    {
-        auto& swp = m_swapchains.GetItemR(present.swapchain);
-
-        if (!swp._presentSemaphoresActive)
-            return;
-
-        LINAGX_VEC<VkSemaphore> waitSemaphores;
-
-        swp._presentSemaphoresActive = false;
-
-        waitSemaphores.push_back(m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]));
-
-        VkPresentInfoKHR info   = VkPresentInfoKHR{};
-        info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        info.pNext              = nullptr;
-        info.waitSemaphoreCount = static_cast<uint32>(waitSemaphores.size());
-        info.pWaitSemaphores    = waitSemaphores.empty() ? nullptr : &waitSemaphores[0];
-        info.swapchainCount     = 1;
-        info.pSwapchains        = &swp.ptr;
-        info.pImageIndices      = &swp._imageIndex;
-
-        VkResult result = vkQueuePresentKHR(m_graphicsQueue, &info);
-        // LOGA(result == VK_SUCCESS, "VKBackend -> Failed presenting image from queue!");
-
-        // TODO: check for swapchain recreation.
-    }
-
-    void VKBackend::EndFrame()
-    {
-    }
-
     uint32 VKBackend::CreateCommandStream(CommandType cmdType)
     {
         VKBCommandStream item = {};
@@ -871,9 +444,13 @@ namespace LinaGX
         cmdAllocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         cmdAllocInfo.commandBufferCount          = 1;
 
-        result = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &item.buffer);
-        LOGA(result == VK_SUCCESS, "VKBackend -> Could not allocate command buffers!");
-
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            VkCommandBuffer b = nullptr;
+            result            = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &b);
+            item.buffers.push_back(b);
+            LOGA(result == VK_SUCCESS, "VKBackend -> Could not allocate command buffers!");
+        }
         return m_cmdStreams.AddItem(item);
     }
 
@@ -1032,7 +609,7 @@ namespace LinaGX
             shaderModule.codeSize                 = blob.size;
             shaderModule.pCode                    = reinterpret_cast<uint32*>(blob.ptr);
 
-            VkResult res = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
+            VkResult                        res  = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
             VkPipelineShaderStageCreateInfo info = VkPipelineShaderStageCreateInfo{};
             info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             info.pNext                           = nullptr;
@@ -1089,7 +666,7 @@ namespace LinaGX
         depthStencil.pNext                                       = nullptr;
         depthStencil.depthTestEnable                             = shaderDesc.depthTest ? VK_TRUE : VK_FALSE;
         depthStencil.depthWriteEnable                            = shaderDesc.depthWrite ? VK_TRUE : VK_FALSE;
-        depthStencil.depthCompareOp                              = shaderDesc.depthTest ? GetVKCompareOp(shaderDesc.depthCompare) : VK_COMPARE_OP_ALWAYS;
+        depthStencil.depthCompareOp                              = GetVKCompareOp(shaderDesc.depthCompare);
         depthStencil.depthBoundsTestEnable                       = VK_FALSE;
         depthStencil.stencilTestEnable                           = VK_FALSE;
         depthStencil.minDepthBounds                              = 0.0f;
@@ -1208,7 +785,6 @@ namespace LinaGX
 
             constants.push_back(range);
         }
-
 
         // pipeline layout
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = VkPipelineLayoutCreateInfo{};
@@ -1388,49 +964,428 @@ namespace LinaGX
         m_fences.RemoveItem(handle);
     }
 
-    void TransitionImageLayout(VkCommandBuffer buf, VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+    bool VKBackend::Initialize(const InitInfo& initInfo)
     {
+        m_initInfo = initInfo;
 
-        VkImageMemoryBarrier barrier            = {};
-        barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout                       = oldLayout;
-        barrier.newLayout                       = newLayout;
-        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image                           = image;
-        barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        barrier.subresourceRange.baseMipLevel   = 0;
-        barrier.subresourceRange.levelCount     = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount     = 1;
+        // Total extensions
+        LINAGX_VEC<const char*> requiredExtensions;
+        requiredExtensions.push_back("VK_KHR_surface");
+        requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
-        VkPipelineStageFlags sourceStage;
-        VkPipelineStageFlags destinationStage;
+#ifndef NDEBUG
+        // Debug messenger
+        requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
 
-        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        // Instance builder
+        vkb::InstanceBuilder builder;
+        builder = builder.set_app_name(initInfo.appName).request_validation_layers(true).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
+
+        // Extensions
+        for (auto ext : requiredExtensions)
+            builder.enable_extension(ext);
+
+        // Messenger
+        builder.set_debug_callback(VkDebugCallback);
+
+        VkDebugUtilsMessageSeverityFlagsEXT severity = 0;
+
+#ifndef NDEBUG
+        severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+#endif
+        builder.set_debug_messenger_severity(severity);
+        builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+
+        auto res = builder.build();
+        if (!res)
         {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-            sourceStage      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            LOGE("VKBackend ->Vulkan builder failed!");
+            return false;
         }
-        else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+
+        vkb::Instance inst = res.value();
+        m_vkInstance       = inst.instance;
+        m_debugMessenger   = inst.debug_messenger;
+
+        vkb::PreferredDeviceType targetDeviceType = vkb::PreferredDeviceType::discrete;
+
+        if (initInfo.gpu == PreferredGPUType::CPU)
+            targetDeviceType = vkb::PreferredDeviceType::cpu;
+        else if (initInfo.gpu == PreferredGPUType::Integrated)
+            targetDeviceType = vkb::PreferredDeviceType::integrated;
+
+        // Physical device
+        VkPhysicalDeviceFeatures features{};
+        features.multiDrawIndirect         = true;
+        features.drawIndirectFirstInstance = true;
+        features.samplerAnisotropy         = true;
+        features.fillModeNonSolid          = true;
+
+        std::vector<const char*> deviceExtensions;
+        // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+        // deviceExtensions.push_back(VK_KHR_MAINTENANCE2_EXTENSION_NAME);
+        // deviceExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+        // deviceExtensions.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+        // deviceExtensions.push_back(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
+
+        vkb::PhysicalDeviceSelector selector{inst};
+        vkb::PhysicalDevice         physicalDevice = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
+                                                 .defer_surface_initialization()
+                                                 .prefer_gpu_device_type(targetDeviceType)
+                                                 .allow_any_gpu_device_type(false)
+                                                 .set_required_features(features)
+                                                 .select(vkb::DeviceSelectionMode::partially_and_fully_suitable)
+                                                 .value();
+        // create the final Vulkan device
+        vkb::DeviceBuilder                           deviceBuilder{physicalDevice};
+        VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeature;
+        shaderDrawParamsFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+        shaderDrawParamsFeature.pNext                = nullptr;
+        shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
+
+        // For using UPDATE_AFTER_BIND_BIT on material bindings
+        VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
+        descFeatures.sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+        descFeatures.pNext                                         = nullptr;
+        descFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+        descFeatures.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
+
+        VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = VkPhysicalDeviceDynamicRenderingFeaturesKHR{};
+        dynamic_rendering_feature.sType                                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+        dynamic_rendering_feature.dynamicRendering                            = VK_TRUE;
+
+        deviceBuilder.add_pNext(&shaderDrawParamsFeature);
+        deviceBuilder.add_pNext(&descFeatures);
+        deviceBuilder.add_pNext(&dynamic_rendering_feature);
+
+        bool hasDedicatedTransferQueue = physicalDevice.has_dedicated_transfer_queue();
+        bool hasDedicatedComputeQueue  = physicalDevice.has_dedicated_compute_queue();
+
+        auto queue_families = physicalDevice.get_queue_families();
+
+        uint32 transferQueueFamily = 0;
+        uint32 transferQueueIndex  = 0;
+        uint32 graphicsQueueFamily = 0;
+        uint32 graphicsQueueIndex  = 0;
+        uint32 computeQueueFamily  = 0;
+        uint32 computeQueueIndex   = 0;
+
+        std::vector<vkb::CustomQueueDescription> queue_descriptions;
+        for (uint32_t i = 0; i < static_cast<uint32_t>(queue_families.size()); i++)
         {
-            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            barrier.dstAccessMask = 0;
+            uint32 count = 1;
 
-            sourceStage      = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                graphicsQueueFamily = i;
+
+                if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+                {
+                    transferQueueFamily = i;
+
+                    if (queue_families[i].queueCount > count + 1)
+                        count++;
+
+                    transferQueueIndex = count - 1;
+                }
+
+                if (!hasDedicatedComputeQueue && queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
+                {
+                    computeQueueFamily = i;
+
+                    if (queue_families[i].queueCount > count + 1)
+                        count++;
+                    computeQueueIndex = count - 1;
+                }
+            }
+
+            queue_descriptions.push_back(vkb::CustomQueueDescription(i, count, std::vector<float>(count, 1.0f)));
         }
 
-        vkCmdPipelineBarrier(
-            buf,
-            sourceStage, destinationStage,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier);
+        deviceBuilder.custom_queue_setup(queue_descriptions);
+
+        vkb::Device vkbDevice = deviceBuilder.build().value();
+        m_device              = vkbDevice.device;
+        m_gpu                 = physicalDevice.physical_device;
+
+        if (hasDedicatedComputeQueue)
+        {
+            auto res           = vkbDevice.get_dedicated_queue_index(vkb::QueueType::compute);
+            computeQueueFamily = res.value();
+            computeQueueIndex  = 0;
+        }
+
+        m_graphicsQueueIndices = std::make_pair(graphicsQueueFamily, graphicsQueueIndex);
+        m_transferQueueIndices = std::make_pair(transferQueueFamily, transferQueueIndex);
+        m_computeQueueIndices  = std::make_pair(computeQueueFamily, computeQueueIndex);
+
+        VkPhysicalDeviceProperties gpuProps;
+        vkGetPhysicalDeviceProperties(m_gpu, &gpuProps);
+
+        VkPhysicalDeviceMemoryProperties gpuMemProps;
+        vkGetPhysicalDeviceMemoryProperties(m_gpu, &gpuMemProps);
+
+        VkImageFormatProperties p;
+        LINAGX_VEC<VkFormat>    formats;
+
+        for (int i = 1; i < 130; i++)
+        {
+            const VkFormat format    = static_cast<VkFormat>(i);
+            VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
+            if (supported == VK_SUCCESS)
+                formats.push_back(format);
+        }
+
+        LINAGX_VEC<VkFormat> requiredFormats;
+        requiredFormats.push_back(VkFormat::VK_FORMAT_R8_UNORM);
+        requiredFormats.push_back(VkFormat::VK_FORMAT_R8G8_UNORM);
+        requiredFormats.push_back(VkFormat::VK_FORMAT_R8G8B8A8_SRGB);
+
+        for (auto& f : requiredFormats)
+        {
+            auto it = std::find_if(formats.begin(), formats.end(), [&](VkFormat format) { return f == format; });
+
+            if (it == formats.end())
+                LOGE("VKBackend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+        }
+
+        m_minUniformBufferOffsetAlignment = gpuProps.limits.minUniformBufferOffsetAlignment;
+
+        LOGT("VKBackend -> Selected GPU: %s - %f mb", gpuProps.deviceName, gpuMemProps.memoryHeaps->size / 1000000.0);
+
+        // Query queue family indices.
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(m_gpu, &queueFamilyCount, nullptr);
+
+        m_queueFamilies = LINAGX_VEC<VkQueueFamilyProperties>(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(m_gpu, &queueFamilyCount, m_queueFamilies.data());
+
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.physicalDevice         = m_gpu;
+        allocatorInfo.device                 = m_device;
+        allocatorInfo.instance               = m_vkInstance;
+        vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
+
+        vkGetDeviceQueue(m_device, m_graphicsQueueIndices.first, m_graphicsQueueIndices.second, &m_graphicsQueue);
+        vkGetDeviceQueue(m_device, m_transferQueueIndices.first, m_transferQueueIndices.second, &m_transferQueue);
+        vkGetDeviceQueue(m_device, m_computeQueueIndices.first, m_computeQueueIndices.second, &m_computeQueue);
+
+        if (m_transferQueueIndices.first != m_graphicsQueueIndices.first)
+            m_supportsAsyncTransferQueue = true;
+        else if (m_transferQueueIndices.second != m_graphicsQueueIndices.second)
+            m_supportsAsyncTransferQueue = true;
+        else
+            m_supportsAsyncTransferQueue = false;
+
+        if (m_computeQueueIndices.first != m_graphicsQueueIndices.first)
+            m_supportsAsyncComputeQueue = true;
+        else if (m_computeQueueIndices.second != m_graphicsQueueIndices.second)
+            m_supportsAsyncComputeQueue = true;
+        else
+            m_supportsAsyncComputeQueue = false;
+
+        // Per frame data
+        {
+            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            {
+                VKBPerFrameData pfd = {};
+                pfd.graphicsFence   = CreateFence();
+                pfd.transferFence   = CreateFence();
+                m_perFrameData.push_back(pfd);
+            }
+        }
+
+        // Command functions
+        {
+            m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &VKBackend::CMD_BeginRenderPass;
+            m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &VKBackend::CMD_EndRenderPass;
+            m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &VKBackend::CMD_SetViewport;
+            m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &VKBackend::CMD_SetScissors;
+            m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &VKBackend::CMD_BindPipeline;
+            m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &VKBackend::CMD_DrawInstanced;
+            m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &VKBackend::CMD_DrawIndexedInstanced;
+        }
+        return true;
+    }
+
+    void VKBackend::Shutdown()
+    {
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            auto& pfd = m_perFrameData[i];
+            DestroyFence(pfd.graphicsFence);
+            DestroyFence(pfd.transferFence);
+        }
+
+        for (auto& swp : m_swapchains)
+        {
+            LOGA(!swp.isValid, "VKBackend -> Some swapchains were not destroyed!");
+        }
+
+        for (auto& pp : m_shaders)
+        {
+            LOGA(!pp.isValid, "VKBackend -> Some shader pipelines were not destroyed!");
+        }
+
+        for (auto& txt : m_texture2Ds)
+        {
+            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+        }
+
+        for (auto& str : m_cmdStreams)
+        {
+            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
+        }
+
+        vmaDestroyAllocator(m_vmaAllocator);
+        vkDestroyDevice(m_device, m_allocator);
+        vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+        vkDestroyInstance(m_vkInstance, m_allocator);
+    }
+
+    void VKBackend::Join()
+    {
+        LINAGX_VEC<VkFence> fences;
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            fences.push_back(m_fences.GetItemR(m_perFrameData[i].graphicsFence));
+
+        vkDeviceWaitIdle(m_device);
+        vkWaitForFences(m_device, static_cast<uint32>(fences.size()), fences.data(), true, 50000000);
+    }
+
+    void VKBackend::StartFrame(uint32 frameIndex)
+    {
+        m_currentFrameIndex         = frameIndex;
+        const auto& frame           = m_perFrameData[frameIndex];
+        auto        vkGraphicsFence = m_fences.GetItem(frame.graphicsFence);
+
+        // Wait for graphics present operations.
+        uint64   timeout = static_cast<uint64>(5000000000);
+        VkResult result  = vkWaitForFences(m_device, 1, &vkGraphicsFence, true, timeout);
+
+        // Acquire images for each swapchain
+        for (auto& swp : m_swapchains)
+        {
+            if (!swp.isValid)
+                continue;
+
+            auto semaphore = m_semaphores.GetItem(swp.submitSemaphores[frameIndex]);
+            result         = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, semaphore, nullptr, &swp._imageIndex);
+
+            LOGT("Acquired image for swapchain %p, image index %d, semaphore %p", (void*)swp.ptr, swp._imageIndex, (void*)semaphore);
+
+            if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                LOGA(false, "!!");
+                // TODO: CHECK FOR SWAPCHAIN RECREATION
+            }
+        }
+
+        // reset
+        result = vkResetFences(m_device, 1, &vkGraphicsFence);
+        LOGA(result == VK_SUCCESS, "VKBackend -> Failed resetting graphics fence");
+    }
+
+    void VKBackend::FlushCommandStreams()
+    {
+        LINAGX_VEC<VkCommandBuffer> cmds;
+
+        for (auto stream : m_renderer->m_commandStreams)
+        {
+            auto& sr     = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto  buffer = sr.buffers[m_currentFrameIndex];
+
+            VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo{};
+            beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.pNext                    = nullptr;
+            beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            beginInfo.pInheritanceInfo         = nullptr;
+            VkResult res                       = vkBeginCommandBuffer(buffer, &beginInfo);
+
+            for (uint32 i = 0; i < stream->m_commandCount; i++)
+            {
+                uint64* cmd = stream->m_commands[i];
+                TypeID  tid = stream->m_types[i];
+                (this->*m_cmdFunctions[tid])(cmd, sr);
+            }
+
+            VkResult result = vkEndCommandBuffer(buffer);
+            LOGA(result == VK_SUCCESS, "VKBackend-> Failed ending command buffer!");
+
+            cmds.push_back(buffer);
+        }
+
+        auto&                            frame     = m_perFrameData[m_currentFrameIndex];
+        VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        LINAGX_VEC<VkSemaphore>          waitSemaphores;
+        LINAGX_VEC<VkSemaphore>          signalSemaphores;
+        LINAGX_VEC<VkPipelineStageFlags> waitStages;
+
+        // Make sure we wait for all image acquire requests before submitting the cmd buffers.
+        for (auto& swp : m_swapchains)
+        {
+            if (!swp.isValid)
+                continue;
+
+            auto submitSemaphore  = m_semaphores.GetItem(swp.submitSemaphores[m_currentFrameIndex]);
+            auto presentSemaphore = m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]);
+            waitStages.push_back(waitStage);
+            waitSemaphores.push_back(submitSemaphore);
+            signalSemaphores.push_back(presentSemaphore);
+            swp._presentSemaphoresActive = true;
+
+            LOGT("About to submit, wait semaphore %p, signal semaphore %p", (void*)submitSemaphore, (void*)presentSemaphore);
+        }
+
+        VkSubmitInfo info = VkSubmitInfo{};
+
+        info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.pNext                = nullptr;
+        info.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
+        info.pWaitSemaphores      = waitSemaphores.empty() ? nullptr : &waitSemaphores[0];
+        info.pWaitDstStageMask    = waitStages.empty() ? nullptr : &waitStages[0];
+        info.commandBufferCount   = static_cast<uint32>(cmds.size());
+        info.pCommandBuffers      = cmds.empty() ? nullptr : &cmds[0];
+        info.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
+        info.pSignalSemaphores    = signalSemaphores.empty() ? nullptr : &signalSemaphores[0];
+        VkResult result           = vkQueueSubmit(m_graphicsQueue, 1, &info, m_fences.GetItem(frame.graphicsFence));
+        LOGA(result == VK_SUCCESS, "VKBackend -> Failed submitting to queue!");
+    }
+
+    void VKBackend::Present(const PresentDesc& present)
+    {
+        auto& swp = m_swapchains.GetItemR(present.swapchain);
+
+        if (!swp._presentSemaphoresActive)
+            return;
+
+        LINAGX_VEC<VkSemaphore> waitSemaphores;
+
+        swp._presentSemaphoresActive = false;
+
+        waitSemaphores.push_back(m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]));
+
+        VkPresentInfoKHR info   = VkPresentInfoKHR{};
+        info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        info.pNext              = nullptr;
+        info.waitSemaphoreCount = static_cast<uint32>(waitSemaphores.size());
+        info.pWaitSemaphores    = waitSemaphores.empty() ? nullptr : &waitSemaphores[0];
+        info.swapchainCount     = 1;
+        info.pSwapchains        = &swp.ptr;
+        info.pImageIndices      = &swp._imageIndex;
+        LOGT("Presenting swapchain %p, image index %d, wait semaphore %p", (void*)swp.ptr, swp._imageIndex, (void*)waitSemaphores[0]);
+
+        VkResult result = vkQueuePresentKHR(m_graphicsQueue, &info);
+
+        // LOGA(result == VK_SUCCESS, "VKBackend -> Failed presenting image from queue!");
+
+        // TODO: check for swapchain recreation.
+    }
+
+    void VKBackend::EndFrame()
+    {
     }
 
     void VKBackend::CMD_BeginRenderPass(void* data, const VKBCommandStream& stream)
@@ -1463,7 +1418,7 @@ namespace LinaGX
         colorAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
         colorAttachment.pNext                     = nullptr;
         colorAttachment.imageView                 = colorImageView;
-        colorAttachment.imageLayout               = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        colorAttachment.imageLayout               = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
         colorAttachment.resolveImageView          = nullptr;
         colorAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1502,9 +1457,12 @@ namespace LinaGX
         renderingInfo.colorAttachmentCount = 1;
         renderingInfo.pColorAttachments    = &colorAttachment;
 
-        ImageTransition(ImageTransitionType::Present2RT, stream.buffer, colorImage, true);
+        auto buffer = stream.buffers[m_currentFrameIndex];
 
-        pfn_vkCmdBeginRenderingKHR(stream.buffer, &renderingInfo);
+        ImageTransition(ImageTransitionType::Present2RT, buffer, colorImage, true);
+        LOGT("Beginning rendering, color image: %p, color image view: %p", (void*)colorImage, (void*)colorImageView);
+
+        vkCmdBeginRendering(buffer, &renderingInfo);
 
         CMD_SetViewport(&interVP, stream);
         CMD_SetScissors(&interSC, stream);
@@ -1512,58 +1470,66 @@ namespace LinaGX
 
     void VKBackend::CMD_EndRenderPass(void* data, const VKBCommandStream& stream)
     {
-        CMDEndRenderPass* end = static_cast<CMDEndRenderPass*>(data);
-        pfn_vkCmdEndRenderingKHR(stream.buffer);
+        CMDEndRenderPass* end    = static_cast<CMDEndRenderPass*>(data);
+        auto              buffer = stream.buffers[m_currentFrameIndex];
+        vkCmdEndRendering(buffer);
 
         if (end->isSwapchain)
         {
             const auto& swp = m_swapchains.GetItemR(end->swapchain);
-            ImageTransition(ImageTransitionType::RT2Present, stream.buffer, swp.imgs[swp._imageIndex], true);
+            ImageTransition(ImageTransitionType::RT2Present, buffer, swp.imgs[swp._imageIndex], true);
+            LOGT("Ending rendering, color image: %p", swp.imgs[swp._imageIndex]);
         }
     }
 
     void VKBackend::CMD_SetViewport(void* data, const VKBCommandStream& stream)
     {
-        CMDSetViewport* cmd = static_cast<CMDSetViewport*>(data);
-        VkViewport      vp  = VkViewport{};
-        vp.x                = static_cast<float>(cmd->x);
-        vp.y                = Config.vulkanFlipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
-        vp.width            = static_cast<float>(cmd->width);
-        vp.height           = Config.vulkanFlipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
-        vp.minDepth         = cmd->minDepth;
-        vp.maxDepth         = cmd->maxDepth;
+        CMDSetViewport* cmd    = static_cast<CMDSetViewport*>(data);
+        auto            buffer = stream.buffers[m_currentFrameIndex];
 
-        vkCmdSetViewport(stream.buffer, 0, 1, &vp);
+        VkViewport vp = VkViewport{};
+        vp.x          = static_cast<float>(cmd->x);
+        vp.y          = Config.vulkanFlipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
+        vp.width      = static_cast<float>(cmd->width);
+        vp.height     = Config.vulkanFlipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
+        vp.minDepth   = cmd->minDepth;
+        vp.maxDepth   = cmd->maxDepth;
+
+        vkCmdSetViewport(buffer, 0, 1, &vp);
     }
 
     void VKBackend::CMD_SetScissors(void* data, const VKBCommandStream& stream)
     {
-        CMDSetViewport* cmd  = static_cast<CMDSetViewport*>(data);
-        VkRect2D        rect = VkRect2D{};
-        rect.offset.x        = static_cast<int32>(cmd->x);
-        rect.offset.y        = static_cast<int32>(cmd->y);
-        rect.extent.width    = cmd->width;
-        rect.extent.height   = cmd->height;
-        vkCmdSetScissor(stream.buffer, 0, 1, &rect);
+        CMDSetViewport* cmd    = static_cast<CMDSetViewport*>(data);
+        auto            buffer = stream.buffers[m_currentFrameIndex];
+        VkRect2D        rect   = VkRect2D{};
+        rect.offset.x          = static_cast<int32>(cmd->x);
+        rect.offset.y          = static_cast<int32>(cmd->y);
+        rect.extent.width      = cmd->width;
+        rect.extent.height     = cmd->height;
+        vkCmdSetScissor(buffer, 0, 1, &rect);
     }
 
     void VKBackend::CMD_BindPipeline(void* data, const VKBCommandStream& stream)
     {
         CMDBindPipeline* cmd    = static_cast<CMDBindPipeline*>(data);
+        auto             buffer = stream.buffers[m_currentFrameIndex];
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
-        vkCmdBindPipeline(stream.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrPipeline);
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrPipeline);
     }
 
     void VKBackend::CMD_DrawInstanced(void* data, const VKBCommandStream& stream)
     {
-        CMDDrawInstanced* cmd = static_cast<CMDDrawInstanced*>(data);
-        vkCmdDraw(stream.buffer, cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
+        CMDDrawInstanced* cmd    = static_cast<CMDDrawInstanced*>(data);
+        auto              buffer = stream.buffers[m_currentFrameIndex];
+        vkCmdDraw(buffer, cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
     void VKBackend::CMD_DrawIndexedInstanced(void* data, const VKBCommandStream& stream)
     {
-        CMDDrawIndexedInstanced* cmd = static_cast<CMDDrawIndexedInstanced*>(data);
-        vkCmdDrawIndexed(stream.buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+        CMDDrawIndexedInstanced* cmd    = static_cast<CMDDrawIndexedInstanced*>(data);
+        auto                     buffer = stream.buffers[m_currentFrameIndex];
+        vkCmdDrawIndexed(buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
     void VKBackend::ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor)
