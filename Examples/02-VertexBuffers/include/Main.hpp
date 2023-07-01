@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,33 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Core/Backend.hpp"
+#ifndef MAIN_HPP
+#define MAIN_HPP
 
 namespace LinaGX
 {
-    CommandStream::CommandStream(Backend* backend, QueueType type, uint32 commandCount, uint32 gpuHandle)
-    {
-        m_backend       = backend;
-        m_commandBuffer = (uint8*)LINAGX_MALLOC(6400);
-        m_commands      = static_cast<uint8**>(malloc(sizeof(uint8*) * commandCount));
-        m_type          = type;
-        m_maxCommands   = commandCount;
-    }
+   namespace Examples
+   {
+    
+   }
+} // namespace LinaVG
 
-    void CommandStream::Reset()
-    {
-        m_commandIndex = 0;
-        m_commandCount = 0;
-    }
-
-    CommandStream::~CommandStream()
-    {
-        m_backend->DestroyCommandStream(m_gpuHandle);
-        LINAGX_FREE(m_commands);
-        LINAGX_FREE(m_commandBuffer);
-    }
-} // namespace LinaGX
+#endif

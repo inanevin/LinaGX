@@ -44,15 +44,21 @@ namespace LinaGX
     {
     public:
         static __int64 __stdcall WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam);
+        static LINAGX_MAP<HWND__*, Win32Window*> s_win32Windows;
 
         inline void* GetWindowHandle()
         {
-            return static_cast<void*>(m_window);
+            return static_cast<void*>(m_hwnd);
         }
 
         inline void* GetOSHandle()
         {
             return static_cast<void*>(m_hinst);
+        }
+
+        inline void SetCallbackClose(CallbackNoArg&& cb)
+        {
+            m_cbClose = cb;
         }
 
     private:
@@ -64,6 +70,9 @@ namespace LinaGX
         void Destroy();
 
     private:
+        CallbackNoArg m_cbClose = nullptr;
+
+    private:
         LINAGX_STRING m_title    = "";
         uint32        m_posX     = 0;
         uint32        m_posY     = 0;
@@ -71,7 +80,7 @@ namespace LinaGX
         uint32        m_height   = 0;
         uint32        m_dpi      = 0;
         float         m_dpiScale = 0.0f;
-        HWND__*       m_window   = nullptr;
+        HWND__*       m_hwnd     = nullptr;
         HINSTANCE__*  m_hinst    = nullptr;
     };
 } // namespace LinaGX

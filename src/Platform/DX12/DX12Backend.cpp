@@ -35,6 +35,9 @@ SOFTWARE.
 #include "Core/Commands.hpp"
 #include "Core/Renderer.hpp"
 #include "Core/CommandStream.hpp"
+#include <nvapi/nvapi.h>
+
+LINAGX_DISABLE_VC_WARNING(6387);
 
 using Microsoft::WRL::ComPtr;
 
@@ -47,6 +50,10 @@ namespace LinaGX
 #define NAME_D3D12_OBJECT(x)
 #define NAME_D3D12_OBJECT_INDEXED(x, n)
 #endif
+
+#define DX12_THROW(exception, ...) \
+    LOGE(__VA_ARGS__);             \
+    throw exception;
 
     DWORD msgCallback = 0;
 
@@ -283,15 +290,15 @@ namespace LinaGX
         }
     }
 
-    D3D12_COMMAND_LIST_TYPE GetDXCommandType(CommandType type)
+    D3D12_COMMAND_LIST_TYPE GetDXCommandType(QueueType type)
     {
         switch (type)
         {
-        case CommandType::Graphics:
+        case QueueType::Graphics:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
-        case CommandType::Transfer:
+        case QueueType::Transfer:
             return D3D12_COMMAND_LIST_TYPE_COPY;
-        case CommandType::Compute:
+        case QueueType::Compute:
             return D3D12_COMMAND_LIST_TYPE_COMPUTE;
         default:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -376,6 +383,8 @@ namespace LinaGX
                 {
                     char* buf = Internal::WCharToChar(desc.Description);
                     LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                    GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
+                    GPUInfo.deviceName           = buf;
                     delete[] buf;
                     break;
                 }
@@ -398,6 +407,8 @@ namespace LinaGX
                 {
                     char* buf = Internal::WCharToChar(desc.Description);
                     LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                    GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
+                    GPUInfo.deviceName           = buf;
                     delete[] buf;
                     break;
                 }
@@ -407,21 +418,130 @@ namespace LinaGX
         *ppAdapter = adapter.Detach();
     }
 
-    void DX12Backend::DestroyCommandStream(uint32 handle)
+    uint16 DX12Backend::CreateUserSemaphore()
     {
-        auto& stream = m_cmdStreams.GetItemR(handle);
-        if (!stream.isValid)
+        DX12UserSemaphore item = {};
+        item.isValid           = true;
+
+        try
         {
-            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&item.ptr)));
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "DX12Backend-> Exception when creating a fence! {0}", e.what());
+        }
+
+        return m_userSemaphores.AddItem(item);
+    }
+
+    void DX12Backend::DestroyUserSemaphore(uint16 handle)
+    {
+        auto& semaphore = m_userSemaphores.GetItemR(handle);
+        if (!semaphore.isValid)
+        {
+            LOGE("VKBackend -> Semaphore to be destroyed is not valid!");
             return;
         }
-        stream.isValid = false;
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-            stream.lists[i].Reset();
+        semaphore.ptr.Reset();
+        m_userSemaphores.RemoveItem(handle);
+    }
 
-        stream.allocator.Reset();
-        m_cmdStreams.RemoveItem(handle);
+    uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
+    {
+        DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
+        swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
+        swapchainDesc.Width                 = static_cast<UINT>(desc.width);
+        swapchainDesc.Height                = static_cast<UINT>(desc.height);
+        swapchainDesc.Format                = GetDXFormat(m_initInfo.rtSwapchainFormat);
+        swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        swapchainDesc.SampleDesc.Count      = 1;
+
+        ComPtr<IDXGISwapChain1> swapchain;
+        swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+        if (m_allowTearing)
+            swapchainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+        try
+        {
+            ThrowIfFailed(m_factory->CreateSwapChainForHwnd(m_queueData[QueueType::Graphics].queue.Get(), // Swap chain needs the queue so that it can force a flush on it.
+                                                            (HWND)desc.window,
+                                                            &swapchainDesc,
+                                                            nullptr,
+                                                            nullptr,
+                                                            &swapchain));
+
+            DX12Swapchain swp = {};
+            swp.isValid       = true;
+            ThrowIfFailed(swapchain.As(&swp.ptr));
+
+            LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
+
+            // Create RT and depth textures for swapchain.
+            {
+                for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
+                {
+                    DX12Texture2D color      = {};
+                    color.isSwapchainTexture = true;
+                    color.descriptor         = m_rtvHeap->GetNewHeapHandle();
+                    color.isValid            = true;
+
+                    try
+                    {
+                        ThrowIfFailed(swp.ptr->GetBuffer(i, IID_PPV_ARGS(&color.rawRes)));
+                    }
+                    catch (HrException e)
+                    {
+                        DX12_THROW(e, "DX12Backend -> Exception while creating render target for swapchain! %s", e.what());
+                    }
+
+                    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+                    rtvDesc.Format                        = GetDXFormat(m_initInfo.rtSwapchainFormat);
+                    rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
+                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
+                    swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
+
+                    Texture2DDesc depthDesc = {};
+                    depthDesc.format        = m_initInfo.rtDepthFormat;
+                    depthDesc.width         = desc.width;
+                    depthDesc.height        = desc.height;
+                    depthDesc.mipLevels     = 1;
+                    depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+                    swp.depthTextures.push_back(CreateTexture2D(depthDesc));
+                }
+            }
+
+            return m_swapchains.AddItem(swp);
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "DX12Backend -> Exception when creating a swapchain! %s", e.what());
+        }
+
+        return 0;
+    }
+
+    void DX12Backend::DestroySwapchain(uint8 handle)
+    {
+        auto& swp = m_swapchains.GetItemR(handle);
+        if (!swp.isValid)
+        {
+            LOGE("VKBackend -> Swapchain to be destroyed is not valid!");
+            return;
+        }
+
+        for (auto t : swp.colorTextures)
+            DestroyTexture2D(t);
+
+        for (auto t : swp.depthTextures)
+            DestroyTexture2D(t);
+
+        swp.isValid = false;
+        swp.ptr.Reset();
+        m_swapchains.RemoveItem(handle);
     }
 
     bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
@@ -521,114 +641,14 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            LOGE("DX12Backend -> Exception when compiling shader! %s", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend -> Exception when compiling shader! %s", e.what());
             return false;
         }
 
         return true;
     }
 
-    uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
-    {
-        DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-        swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
-        swapchainDesc.Width                 = static_cast<UINT>(desc.width);
-        swapchainDesc.Height                = static_cast<UINT>(desc.height);
-        swapchainDesc.Format                = GetDXFormat(Config.rtSwapchainFormat);
-        swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        swapchainDesc.SampleDesc.Count      = 1;
-
-        ComPtr<IDXGISwapChain1> swapchain;
-        swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-
-        if (m_allowTearing)
-            swapchainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-
-        try
-        {
-            ThrowIfFailed(m_factory->CreateSwapChainForHwnd(m_queueDirect.Get(), // Swap chain needs the queue so that it can force a flush on it.
-                                                            (HWND)desc.window,
-                                                            &swapchainDesc,
-                                                            nullptr,
-                                                            nullptr,
-                                                            &swapchain));
-
-            DX12Swapchain swp = {};
-            swp.isValid       = true;
-            ThrowIfFailed(swapchain.As(&swp.ptr));
-
-            LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
-
-            // Create RT and depth textures for swapchain.
-            {
-                for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
-                {
-                    DX12Texture2D color      = {};
-                    color.isSwapchainTexture = true;
-                    color.descriptor         = m_rtvHeap->GetNewHeapHandle();
-                    color.isValid            = true;
-
-                    try
-                    {
-                        ThrowIfFailed(swp.ptr->GetBuffer(i, IID_PPV_ARGS(&color.rawRes)));
-                    }
-                    catch (HrException e)
-                    {
-                        LOGE("DX12Backend -> Exception while creating render target for swapchain! %s", e.what());
-                        DX12Exception(e);
-                    }
-
-                    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-                    rtvDesc.Format                        = GetDXFormat(Config.rtSwapchainFormat);
-                    rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
-
-                    swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
-
-                    Texture2DDesc depthDesc = {};
-                    depthDesc.format        = Config.rtDepthFormat;
-                    depthDesc.width         = desc.width;
-                    depthDesc.height        = desc.height;
-                    depthDesc.mipLevels     = 1;
-                    depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
-                    swp.depthTextures.push_back(CreateTexture2D(depthDesc));
-                }
-            }
-
-            return m_swapchains.AddItem(swp);
-        }
-        catch (HrException e)
-        {
-            LOGE("DX12Backend -> Exception when creating a swapchain! %s", e.what());
-            DX12Exception(e);
-        }
-
-        return 0;
-    }
-
-    void DX12Backend::DestroySwapchain(uint8 handle)
-    {
-        auto& swp = m_swapchains.GetItemR(handle);
-        if (!swp.isValid)
-        {
-            LOGE("VKBackend -> Swapchain to be destroyed is not valid!");
-            return;
-        }
-
-        for (auto t : swp.colorTextures)
-            DestroyTexture2D(t);
-
-        for (auto t : swp.depthTextures)
-            DestroyTexture2D(t);
-
-        swp.isValid = false;
-        swp.ptr.Reset();
-        m_swapchains.RemoveItem(handle);
-    }
-
-    uint16 DX12Backend::CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 DX12Backend::CreateShader(const ShaderDesc& shaderDesc)
     {
         DX12Shader shader = {};
         shader.isValid    = true;
@@ -791,10 +811,10 @@ namespace LinaGX
         psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
-        psoDesc.RTVFormats[0]                             = GetDXFormat(Config.rtSwapchainFormat);
-        psoDesc.DSVFormat                                 = GetDXFormat(Config.rtDepthFormat);
+        psoDesc.RTVFormats[0]                             = GetDXFormat(m_initInfo.rtSwapchainFormat);
+        psoDesc.DSVFormat                                 = GetDXFormat(m_initInfo.rtDepthFormat);
 
-        for (const auto& [stg, blob] : stages)
+        for (const auto& [stg, blob] : shaderDesc.stages)
         {
             const void*  byteCode = (void*)blob.ptr;
             const SIZE_T length   = static_cast<SIZE_T>(blob.size);
@@ -831,8 +851,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            LOGE("DX12Backend -> Exception when creating PSO! %s", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend -> Exception when creating PSO! %s", e.what());
             return 0;
         }
 
@@ -907,8 +926,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            LOGE("DX12Backend -> Exception when creating a texture resource! %s", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend -> Exception when creating a texture resource! %s", e.what());
         }
 
 #ifndef NDEBUG
@@ -995,6 +1013,163 @@ namespace LinaGX
         m_texture2Ds.RemoveItem(handle);
     }
 
+    uint32 DX12Backend::CreateResource(const ResourceDesc& desc)
+    {
+        DX12Resource item = {};
+        item.heapType     = desc.heapType;
+        item.isValid      = true;
+
+        D3D12_RESOURCE_DESC resourceDesc = {};
+        resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resourceDesc.Alignment           = 0;
+        resourceDesc.Width               = desc.size;
+        resourceDesc.Height              = 1;
+        resourceDesc.DepthOrArraySize    = 1;
+        resourceDesc.MipLevels           = 1;
+        resourceDesc.Format              = DXGI_FORMAT_UNKNOWN;
+        resourceDesc.SampleDesc.Count    = 1;
+        resourceDesc.SampleDesc.Quality  = 0;
+        resourceDesc.Layout              = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
+
+        ResourceHeap usedHeapType = desc.heapType;
+
+        if (usedHeapType == ResourceHeap::CPUVisibleGPUMemory)
+        {
+            LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "DX12Backend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
+
+            NV_RESOURCE_PARAMS nvResourceParams = {};
+            nvResourceParams.NVResourceFlags    = NV_D3D12_RESOURCE_FLAG_CPUVISIBLE_VIDMEM;
+            auto         hp                     = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            NvAPI_Status result                 = NvAPI_D3D12_CreateCommittedResource(m_device.Get(), &hp, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COMMON, NULL, &nvResourceParams, IID_PPV_ARGS(&item.cpuVisibleResource), NULL);
+            LOGA(result == NvAPI_Status::NVAPI_OK, "DX12Backend -> Host-visible gpu resource creation failed! Maybe exceeded total size?");
+            NAME_DX12_OBJECT(item.cpuVisibleResource, desc.debugName);
+            return m_resources.AddItem(item);
+        }
+
+        D3D12_RESOURCE_STATES    state          = D3D12_RESOURCE_STATE_GENERIC_READ;
+        D3D12MA::ALLOCATION_DESC allocationDesc = {};
+
+        if (usedHeapType == ResourceHeap::StagingHeap)
+        {
+            allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+            if (desc.typeHintFlags & LGX_VertexBuffer || desc.typeHintFlags & LGX_ConstantBuffer)
+                state = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+            else if (desc.typeHintFlags & LGX_IndexBuffer)
+                state = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+            else
+                state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        }
+        else
+        {
+            allocationDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+            state                   = D3D12_RESOURCE_STATE_COPY_DEST;
+        }
+
+        try
+        {
+            ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, NULL, &item.allocation, IID_NULL, NULL));
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "DX12Backend -> Exception when creating a resource! {0}", e.what());
+        }
+
+        NAME_DX12_OBJECT(item.allocation->GetResource(), desc.debugName);
+
+        return m_resources.AddItem(item);
+    }
+
+    void DX12Backend::MapResource(uint32 handle, uint8*& ptr)
+    {
+        auto& item = m_resources.GetItemR(handle);
+
+        if (item.heapType == ResourceHeap::StagingHeap)
+        {
+            try
+            {
+                CD3DX12_RANGE readRange(0, 0);
+                ThrowIfFailed(item.cpuVisibleResource->Map(0, &readRange, reinterpret_cast<void**>(&ptr)));
+            }
+            catch (HrException e)
+            {
+                DX12_THROW(e, "DX12Backend -> Failed mapping resource! {0}", e.what());
+            }
+        }
+        else if (item.heapType == ResourceHeap::GPUOnly)
+        {
+            LOGA(false, "DX12Backend -> Can not map GPU Only resource!");
+        }
+        else if (item.heapType == ResourceHeap::StagingHeap)
+        {
+            try
+            {
+                CD3DX12_RANGE readRange(0, 0);
+                ThrowIfFailed(item.allocation->GetResource()->Map(0, &readRange, reinterpret_cast<void**>(&ptr)));
+            }
+            catch (HrException e)
+            {
+                DX12_THROW(e, "DX12Backend -> Failed mapping resource! {0}", e.what());
+            }
+        }
+
+        item.isMapped = true;
+    }
+
+    void DX12Backend::UnmapResource(uint32 handle)
+    {
+        auto& item = m_resources.GetItemR(handle);
+
+        if (!item.isMapped)
+            return;
+
+        item.isMapped = false;
+
+        if (item.heapType == ResourceHeap::StagingHeap)
+        {
+            CD3DX12_RANGE readRange(0, 0);
+            item.allocation->GetResource()->Unmap(0, &readRange);
+            item.allocation->Release();
+            item.allocation = nullptr;
+        }
+        else if (item.heapType == ResourceHeap::GPUOnly)
+        {
+            item.allocation->Release();
+            item.allocation = nullptr;
+        }
+        else if (item.heapType == ResourceHeap::CPUVisibleGPUMemory)
+        {
+            CD3DX12_RANGE readRange(0, 0);
+            item.cpuVisibleResource->Unmap(0, &readRange);
+            item.cpuVisibleResource.Reset();
+        }
+    }
+
+    void DX12Backend::DestroyResource(uint32 handle)
+    {
+        auto& res = m_resources.GetItemR(handle);
+        if (!res.isValid)
+        {
+            LOGE("VKBackend -> Resource to be destroyed is not valid!");
+            return;
+        }
+
+        UnmapResource(handle);
+
+        if (res.heapType == ResourceHeap::StagingHeap || res.heapType == ResourceHeap::GPUOnly)
+        {
+            res.allocation->Release();
+            res.allocation = nullptr;
+        }
+        else if (res.heapType == ResourceHeap::CPUVisibleGPUMemory)
+        {
+            res.cpuVisibleResource.Reset();
+        }
+
+        m_resources.RemoveItem(handle);
+    }
+
     void DX12Backend::DX12Exception(HrException e)
     {
         LOGE("DX12Backend -> Exception: %s", e.what());
@@ -1012,8 +1187,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            LOGE("DX12Backend-> Exception when creating a fence! {0}", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend-> Exception when creating a fence! {0}", e.what());
         }
 
         return handle;
@@ -1026,9 +1200,8 @@ namespace LinaGX
         m_fences.RemoveItem(handle);
     }
 
-    void DX12Backend::WaitForFences(uint16 fenceHandle, uint64 frameFenceValue)
+    void DX12Backend::WaitForFences(ID3D12Fence* fence, uint64 frameFenceValue)
     {
-        auto&        fence     = m_fences.GetItemR(fenceHandle);
         const UINT64 lastFence = fence->GetCompletedValue();
 
         if (lastFence < frameFenceValue)
@@ -1143,21 +1316,44 @@ namespace LinaGX
 
             // Queue
             {
+                auto& graphics = m_queueData[QueueType::Graphics];
+                auto& transfer = m_queueData[QueueType::Transfer];
+                auto& compute  = m_queueData[QueueType::Compute];
+
                 D3D12_COMMAND_QUEUE_DESC queueDesc = {};
                 queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
                 queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
-                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_queueDirect)));
+                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&graphics.queue)));
 
-                NAME_DX12_OBJECT(m_queueDirect, L"Direct Queue");
+                queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&transfer.queue)));
+
+                queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&compute.queue)));
+
+                NAME_DX12_OBJECT(graphics.queue, L"Direct Queue");
+                NAME_DX12_OBJECT(transfer.queue, L"Transfer Queue");
+                NAME_DX12_OBJECT(compute.queue, L"Compute Queue");
+
+                try
+                {
+                    ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&graphics.frameFence)));
+                    ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&transfer.frameFence)));
+                    ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&compute.frameFence)));
+                }
+                catch (HrException e)
+                {
+                    DX12_THROW(e, "DX12Backend-> Exception when creating a fence! {0}", e.what());
+                }
             }
 
             // Heaps
             {
-                m_bufferHeap  = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.bufferLimit);
-                m_textureHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initInfo.gpuLimits.textureLimit);
-                m_dsvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initInfo.gpuLimits.textureLimit);
-                m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initInfo.gpuLimits.textureLimit);
-                m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, initInfo.gpuLimits.samplerLimit);
+                m_bufferHeap  = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimit);
+                m_textureHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.textureLimit);
+                m_dsvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, m_initInfo.gpuLimits.textureLimit);
+                m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_initInfo.gpuLimits.textureLimit);
+                m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimit);
             }
 
             // Command functions
@@ -1180,17 +1376,19 @@ namespace LinaGX
                 }
             }
 
-            // Syncs
+            // GPU Support
             {
-                m_fenceControlGraphics.fence      = CreateFence();
-                m_fenceControlTransfer.fence      = CreateFence();
-                m_fenceControlGraphics.fenceValue = m_fenceControlTransfer.fenceValue = 1;
+                NvU64        totalBytes = 0, freeBytes = 0;
+                NvAPI_Status result = NvAPI_D3D12_QueryCpuVisibleVidmem(m_device.Get(), &totalBytes, &freeBytes);
+                if (result == NvAPI_Status::NVAPI_OK)
+                {
+                    GPUInfo.totalCPUVisibleGPUMemorySize = freeBytes;
+                }
             }
         }
         catch (HrException e)
         {
-            LOGE("DX12Backend -> Exception when pre-initializating renderer! %s", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend -> Exception when pre-initializating renderer! %s", e.what());
         }
 
         return true;
@@ -1198,8 +1396,10 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
-        DestroyFence(m_fenceControlGraphics.fence);
-        DestroyFence(m_fenceControlTransfer.fence);
+        for (auto& [queue, data] : m_queueData)
+        {
+            data.frameFence.Reset();
+        }
 
         for (auto& swp : m_swapchains)
         {
@@ -1219,6 +1419,16 @@ namespace LinaGX
         for (auto& str : m_cmdStreams)
         {
             LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
+        }
+
+        for (auto& r : m_resources)
+        {
+            LOGA(!r.isValid, "DX12Backend -> Some resources were not destroyed!");
+        }
+
+        for (auto& r : m_userSemaphores)
+        {
+            LOGA(!r.isValid, "VKBackend -> Some semaphores were not destroyed!");
         }
 
         ID3D12InfoQueue1* infoQueue = nullptr;
@@ -1243,12 +1453,12 @@ namespace LinaGX
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             const auto& frame = m_perFrameData[i];
-            WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
-            WaitForFences(m_fenceControlTransfer.fence, frame.storedFenceTransfer);
+            WaitForFences(m_queueData[QueueType::Graphics].frameFence.Get(), frame.storedFenceGraphics);
+            WaitForFences(m_queueData[QueueType::Transfer].frameFence.Get(), frame.storedFenceTransfer);
         }
     }
 
-    uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
+    uint32 DX12Backend::CreateCommandStream(QueueType cmdType)
     {
         DX12CommandStream item = {};
         item.isValid           = true;
@@ -1256,20 +1466,21 @@ namespace LinaGX
 
         try
         {
-            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocator.GetAddressOf())));
+            item.allocators.resize(m_initInfo.framesInFlight);
 
             for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             {
+                ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocators[i].GetAddressOf())));
+
                 Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
-                ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocator.Get(), nullptr, IID_PPV_ARGS(list.GetAddressOf())));
+                ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocators[i].Get(), nullptr, IID_PPV_ARGS(list.GetAddressOf())));
                 ThrowIfFailed(list->Close());
                 item.lists.push_back(list);
             }
         }
         catch (HrException e)
         {
-            LOGE("DX12Backend -> Exception when creating a command allocator! %s", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend -> Exception when creating a command allocator! %s", e.what());
         }
 
         return m_cmdStreams.AddItem(item);
@@ -1277,55 +1488,106 @@ namespace LinaGX
 
     void DX12Backend::StartFrame(uint32 frameIndex)
     {
-        m_currentFrameIndex = frameIndex;
-        auto& frame         = m_perFrameData[m_currentFrameIndex];
-        WaitForFences(m_fenceControlGraphics.fence, frame.storedFenceGraphics);
+        m_submissionPerFrame = 0;
+        m_currentFrameIndex  = frameIndex;
+        auto& frame          = m_perFrameData[m_currentFrameIndex];
+        WaitForFences(m_queueData[QueueType::Graphics].frameFence.Get(), frame.storedFenceGraphics);
+        WaitForFences(m_queueData[QueueType::Transfer].frameFence.Get(), frame.storedFenceTransfer);
     }
 
-    void DX12Backend::FlushCommandStreams()
+    void DX12Backend::DestroyCommandStream(uint32 handle)
     {
-        for (auto stream : m_renderer->m_commandStreams)
+        auto& stream = m_cmdStreams.GetItemR(handle);
+        if (!stream.isValid)
         {
-            auto& sr   = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            auto  list = sr.lists[m_currentFrameIndex];
+            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            return;
+        }
+        stream.isValid = false;
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            stream.lists[i].Reset();
+            stream.allocators[i].Reset();
+        }
+
+        m_cmdStreams.RemoveItem(handle);
+    }
+
+    void DX12Backend::CloseCommandStreams(CommandStream** streams, uint32 streamCount)
+    {
+        for (uint32 i = 0; i < streamCount; i++)
+        {
+            auto  stream    = streams[i];
+            auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto  list      = sr.lists[m_currentFrameIndex];
+            auto  allocator = sr.allocators[m_currentFrameIndex];
+
+            if (stream->m_commandCount == 0)
+                continue;
 
             try
             {
-                // ThrowIfFailed(sr.allocator->Reset());
-                ThrowIfFailed(list->Reset(sr.allocator.Get(), nullptr));
+                ThrowIfFailed(allocator->Reset());
+                ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
             }
             catch (HrException e)
             {
-                LOGE("DX12Backend-> Exception when resetting a command list! %s", e.what());
-                DX12Exception(e);
+                DX12_THROW(e, "DX12Backend-> Exception when resetting a command list! %s", e.what());
             }
 
             for (uint32 i = 0; i < stream->m_commandCount; i++)
             {
-                uint64* cmd = stream->m_commands[i];
-                TypeID  tid = stream->m_types[i];
+                uint8* data = stream->m_commands[i];
+                TypeID tid  = 0;
+                LINAGX_MEMCPY(&tid, data, sizeof(TypeID));
+                const size_t increment = sizeof(TypeID);
+                uint8*       cmd       = data + increment;
                 (this->*m_cmdFunctions[tid])(cmd, sr);
-
                 // TODO: tids -> consecutive into arr
             }
 
             try
             {
-                LINAGX_VEC<ID3D12CommandList*> _lists;
                 ThrowIfFailed(list->Close());
-                _lists.push_back(list.Get());
-
-                if (stream->m_type == CommandType::Graphics)
-                {
-                    ID3D12CommandList* const* data = _lists.data();
-                    m_queueDirect->ExecuteCommandLists(1, data);
-                }
             }
             catch (HrException e)
             {
-                LOGE("DX12Backend -> Exception when resetting a command list! %s", e.what());
-                DX12Exception(e);
+                DX12_THROW(e, "DX12Backend -> Exception when closing a command list! %s", e.what());
             }
+        }
+    }
+
+    void DX12Backend::ExecuteCommandStreams(const ExecuteDesc& desc)
+    {
+        try
+        {
+            LINAGX_VEC<ID3D12CommandList*> _lists;
+
+            for (uint32 i = 0; i < desc.streamCount; i++)
+            {
+                auto stream = desc.streams[i];
+                if (stream->m_commandCount == 0)
+                {
+                    LOGE("DX12Backend -> Can not execute stream as no commands were recorded!");
+                    continue;
+                }
+
+                const auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+                _lists.push_back(str.lists[m_currentFrameIndex].Get());
+            }
+
+            auto queue = m_queueData[desc.queue].queue;
+
+            ID3D12CommandList* const* data = _lists.data();
+            queue->ExecuteCommandStreams(desc.streamCount, data);
+
+            m_submissionPerFrame++;
+            LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "DX12Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "DX12Backend -> Exception when executing operations on the queue! %s", e.what());
         }
     }
 
@@ -1369,49 +1631,60 @@ namespace LinaGX
         }
         catch (HrException& e)
         {
-            LOGE("DX12Backend -> Present engine error! {0}", e.what());
-            DX12Exception(e);
+            DX12_THROW(e, "DX12Backend -> Present engine error! {0}", e.what());
         }
     }
 
     void DX12Backend::EndFrame()
     {
         auto& frame = m_perFrameData[m_currentFrameIndex];
-        auto& fence = m_fences.GetItemR(m_fenceControlGraphics.fence);
 
         // Increase & signal, we'll wait for this value next time we are starting this frame index.
-        m_fenceControlGraphics.fenceValue++;
-        frame.storedFenceGraphics = m_fenceControlGraphics.fenceValue;
-        m_queueDirect->Signal(fence.Get(), m_fenceControlGraphics.fenceValue);
+        auto& graphics = m_queueData[QueueType::Graphics];
+        auto& transfer = m_queueData[QueueType::Transfer];
+
+        graphics.frameFenceValue++;
+        transfer.frameFenceValue++;
+        frame.storedFenceGraphics = graphics.frameFenceValue;
+        frame.storedFenceTransfer = transfer.frameFenceValue;
+
+        graphics.queue->Signal(graphics.frameFence.Get(), graphics.frameFenceValue);
+        transfer.queue->Signal(transfer.frameFence.Get(), transfer.frameFenceValue);
     }
 
-    void DX12Backend::CMD_BeginRenderPass(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BeginRenderPass(uint8* data, const DX12CommandStream& stream)
     {
-        CMDBeginRenderPass* begin = static_cast<CMDBeginRenderPass*>(data);
+        CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
         auto                list  = stream.lists[m_currentFrameIndex];
 
-        uint32 txtIndex = 0;
+        int32 txtIndex   = begin->colorTexture;
+        int32 depthIndex = begin->depthTexture;
 
         if (begin->isSwapchain)
         {
             const auto& swp = m_swapchains.GetItemR(begin->swapchain);
             txtIndex        = swp.colorTextures[swp._imageIndex];
-        }
-        else
-        {
-            txtIndex = begin->texture;
+            depthIndex      = swp.depthTextures[swp._imageIndex];
         }
 
-        const auto& txt = m_texture2Ds.GetItemR(txtIndex);
+        const auto& colorTxt = m_texture2Ds.GetItemR(txtIndex);
+        const auto& depthTxt = m_texture2Ds.GetItemR(depthIndex);
 
-        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? txt.rawRes.Get() : txt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? colorTxt.rawRes.Get() : colorTxt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         list->ResourceBarrier(1, &transition);
 
-        CD3DX12_CLEAR_VALUE                  clearValue{GetDXFormat(begin->isSwapchain ? Config.rtSwapchainFormat : Config.rtColorFormat), begin->clearColor};
-        D3D12_RENDER_PASS_BEGINNING_ACCESS   renderPassBeginningAccessClear{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
-        D3D12_RENDER_PASS_ENDING_ACCESS      renderPassEndingAccessPreserve{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
-        D3D12_RENDER_PASS_RENDER_TARGET_DESC renderPassRenderTargetDesc{txt.descriptor.GetCPUHandle(), renderPassBeginningAccessClear, renderPassEndingAccessPreserve};
-        list->BeginRenderPass(1, &renderPassRenderTargetDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+        CD3DX12_CLEAR_VALUE clearValue{GetDXFormat(begin->isSwapchain ? m_initInfo.rtSwapchainFormat : m_initInfo.rtColorFormat), begin->clearColor};
+        CD3DX12_CLEAR_VALUE clearDepth{GetDXFormat(m_initInfo.rtDepthFormat), 1.0f, 0};
+
+        D3D12_RENDER_PASS_BEGINNING_ACCESS   colorBegin{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
+        D3D12_RENDER_PASS_ENDING_ACCESS      colorEnd{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
+        D3D12_RENDER_PASS_RENDER_TARGET_DESC colorDesc{colorTxt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
+
+        D3D12_RENDER_PASS_BEGINNING_ACCESS   depthBegin{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearDepth}};
+        D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
+        D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthDesc{depthTxt.descriptor.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
+
+        list->BeginRenderPass(1, &colorDesc, &depthDesc, D3D12_RENDER_PASS_FLAG_NONE);
 
         CMDSetViewport interVP = {};
         CMDSetScissors interSC = {};
@@ -1423,13 +1696,13 @@ namespace LinaGX
         interSC.y              = begin->scissors.y;
         interSC.width          = begin->scissors.width;
         interSC.height         = begin->scissors.height;
-        CMD_SetViewport(&interVP, stream);
-        CMD_SetScissors(&interSC, stream);
+        CMD_SetViewport((uint8*)&interVP, stream);
+        CMD_SetScissors((uint8*)&interSC, stream);
     }
 
-    void DX12Backend::CMD_EndRenderPass(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_EndRenderPass(uint8* data, const DX12CommandStream& stream)
     {
-        CMDEndRenderPass* end  = static_cast<CMDEndRenderPass*>(data);
+        CMDEndRenderPass* end  = reinterpret_cast<CMDEndRenderPass*>(data);
         auto              list = stream.lists[m_currentFrameIndex];
         list->EndRenderPass();
 
@@ -1442,9 +1715,9 @@ namespace LinaGX
         }
     }
 
-    void DX12Backend::CMD_SetViewport(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_SetViewport(uint8* data, const DX12CommandStream& stream)
     {
-        CMDSetViewport* cmd  = static_cast<CMDSetViewport*>(data);
+        CMDSetViewport* cmd  = reinterpret_cast<CMDSetViewport*>(data);
         auto            list = stream.lists[m_currentFrameIndex];
         D3D12_VIEWPORT  vp;
         vp.MinDepth = cmd->minDepth;
@@ -1456,9 +1729,9 @@ namespace LinaGX
         list->RSSetViewports(1, &vp);
     }
 
-    void DX12Backend::CMD_SetScissors(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_SetScissors(uint8* data, const DX12CommandStream& stream)
     {
-        CMDSetScissors* cmd  = static_cast<CMDSetScissors*>(data);
+        CMDSetScissors* cmd  = reinterpret_cast<CMDSetScissors*>(data);
         auto            list = stream.lists[m_currentFrameIndex];
         D3D12_RECT      sc;
         sc.left   = static_cast<LONG>(cmd->x);
@@ -1468,9 +1741,9 @@ namespace LinaGX
         list->RSSetScissorRects(1, &sc);
     }
 
-    void DX12Backend::CMD_BindPipeline(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BindPipeline(uint8* data, const DX12CommandStream& stream)
     {
-        CMDBindPipeline* cmd    = static_cast<CMDBindPipeline*>(data);
+        CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
         auto             list   = stream.lists[m_currentFrameIndex];
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
         list->SetGraphicsRootSignature(shader.rootSig.Get());
@@ -1478,18 +1751,20 @@ namespace LinaGX
         list->SetPipelineState(shader.pso.Get());
     }
 
-    void DX12Backend::CMD_DrawInstanced(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_DrawInstanced(uint8* data, const DX12CommandStream& stream)
     {
-        CMDDrawInstanced* cmd  = static_cast<CMDDrawInstanced*>(data);
+        CMDDrawInstanced* cmd  = reinterpret_cast<CMDDrawInstanced*>(data);
         auto              list = stream.lists[m_currentFrameIndex];
         list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
-    void DX12Backend::CMD_DrawIndexedInstanced(void* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_DrawIndexedInstanced(uint8* data, const DX12CommandStream& stream)
     {
-        CMDDrawIndexedInstanced* cmd  = static_cast<CMDDrawIndexedInstanced*>(data);
+        CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     list = stream.lists[m_currentFrameIndex];
         list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
 } // namespace LinaGX
+
+LINAGX_RESTORE_VC_WARNING()

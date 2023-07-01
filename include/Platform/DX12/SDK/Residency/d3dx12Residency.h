@@ -876,7 +876,7 @@ namespace D3DX12Residency
             }
 
             // One residency set per command-list
-            HRESULT ExecuteCommandLists(ID3D12CommandQueue* Queue, ID3D12CommandList** CommandLists, ResidencySet** ResidencySets, UINT32 Count)
+            HRESULT ExecuteCommandStreams(ID3D12CommandQueue* Queue, ID3D12CommandList** CommandLists, ResidencySet** ResidencySets, UINT32 Count)
             {
                 return ExecuteSubset(Queue, CommandLists, ResidencySets, Count);
             }
@@ -1067,7 +1067,7 @@ namespace D3DX12Residency
                         }
                     }
 
-                    Queue->ExecuteCommandLists(Count, CommandLists);
+                    Queue->ExecuteCommandStreams(Count, CommandLists);
 
                     if (SUCCEEDED(hr))
                     {
@@ -1592,9 +1592,9 @@ namespace D3DX12Residency
         }
 
         // One residency set per command-list
-        FORCEINLINE HRESULT ExecuteCommandLists(ID3D12CommandQueue* Queue, ID3D12CommandList** CommandLists, ResidencySet** ResidencySets, UINT32 Count)
+        FORCEINLINE HRESULT ExecuteCommandStreams(ID3D12CommandQueue* Queue, ID3D12CommandList** CommandLists, ResidencySet** ResidencySets, UINT32 Count)
         {
-            return Manager.ExecuteCommandLists(Queue, CommandLists, ResidencySets, Count);
+            return Manager.ExecuteCommandStreams(Queue, CommandLists, ResidencySets, Count);
         }
 
         FORCEINLINE ResidencySet* CreateResidencySet()

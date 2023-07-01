@@ -33,12 +33,20 @@ SOFTWARE.
 
 namespace LinaGX
 {
+    LINAGX_MAP<HWND__*, Win32Window*> Win32Window::s_win32Windows;
+
     LRESULT __stdcall Win32Window::WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
     {
+        auto* win32Window = s_win32Windows[window];
+
         switch (msg)
         {
-        case WM_CLOSE:
+        case WM_CLOSE: {
+            if (win32Window->m_cbClose != nullptr)
+                win32Window->m_cbClose();
+
             return 0;
+        }
         case WM_KILLFOCUS: {
             break;
         }
@@ -124,30 +132,33 @@ namespace LinaGX
         DWORD exStyle = WS_EX_APPWINDOW;
         DWORD stylew  = WS_OVERLAPPEDWINDOW;
 
-        RECT  windowRect  = {0, 0, width, height};
+        RECT  windowRect  = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
         DWORD windowStyle = WS_OVERLAPPEDWINDOW;
         AdjustWindowRect(&windowRect, windowStyle, FALSE);
 
         int adjustedWidth  = windowRect.right - windowRect.left;
         int adjustedHeight = windowRect.bottom - windowRect.top;
 
-        m_window = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, NULL, NULL, m_hinst, NULL);
-        ShowWindow(m_window, SW_SHOW);
+        m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, NULL, NULL, m_hinst, NULL);
+        ShowWindow(m_hwnd, SW_SHOW);
         m_title = title;
 
-        if (m_window == nullptr)
+        if (m_hwnd == nullptr)
         {
             LOGE("Window -> Failed creating window!");
             return false;
         }
 
-        m_dpi      = GetDpiForWindow(m_window);
-        m_dpiScale = m_dpi / 96.0f;
+        s_win32Windows[m_hwnd] = this;
+        m_dpi                  = GetDpiForWindow(m_hwnd);
+        m_dpiScale             = m_dpi / 96.0f;
+
+        SetCursor(LoadCursor(NULL, IDC_ARROW));
         return true;
     }
 
     void Win32Window::Destroy()
     {
-        DestroyWindow(m_window);
+        DestroyWindow(m_hwnd);
     }
 } // namespace LinaGX

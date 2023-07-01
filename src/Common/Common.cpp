@@ -42,7 +42,8 @@ Only 1 type of PushConstants are supported.
 
 namespace LinaGX
 {
-    Configuration Config = {};
+    Configuration  Config  = {};
+    GPUInformation GPUInfo = {};
 
     LINAGX_API char* Internal::WCharToChar(const wchar_t* wch)
     {

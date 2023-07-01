@@ -35,10 +35,10 @@ SOFTWARE.
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "Platform/Windows/Win32Window.hpp"
-typedef LinaGX::Win32Window LinaGXWindow;
+typedef LinaGX::Win32Window Window;
 #elif LINAGX_PLATFORM_APPLE
 #include "Platform/MacOS/MacOSWindow.hpp"
-typedef LinaGX::MacOSWindow LinaGXWindow;
+typedef LinaGX::MacOSWindow Window;
 #endif
 
 namespace LinaGX
@@ -48,9 +48,9 @@ namespace LinaGX
     class WindowManager
     {
     public:
-        LinaGXWindow* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
-        void          DestroyApplicationWindow(StringID stringID);
-        void          PollWindow();
+        Window* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
+        void    DestroyApplicationWindow(StringID stringID);
+        void    PollWindow();
 
     private:
         friend class Renderer;
@@ -58,7 +58,7 @@ namespace LinaGX
         void Shutdown();
 
     private:
-        LINAGX_MAP<StringID, LinaGXWindow*> m_windows;
+        LINAGX_MAP<StringID, Window*> m_windows;
     };
 } // namespace LinaGX
 

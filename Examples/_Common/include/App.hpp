@@ -35,9 +35,10 @@ SOFTWARE.
 
 namespace LinaGX
 {
+    struct InitInfo;
+
     namespace Examples
     {
-
         inline void LogError(const char* err, ...)
         {
             va_list args;
@@ -71,8 +72,8 @@ namespace LinaGX
             virtual void OnKeyPress(uint32 key){};
             virtual void OnMousePress(uint32 mouse){};
 
-            bool        IsRunning;
-            static App* Application;
+        protected:
+            bool m_isRunning = false;
         };
 
     } // namespace Examples

@@ -39,6 +39,7 @@ set(LinaGX_HEADERS
 include/LinaGX.hpp
 include/LinaGXExports.hpp
 include/Common/Common.hpp
+include/Core/DataStructures.hpp
 include/Core/Backend.hpp
 include/Core/Renderer.hpp
 include/Core/CommandStream.hpp
@@ -49,6 +50,7 @@ include/Utility/SPIRVUtility.hpp
 
 set(LinaGX_SOURCES
 src/Common/Common.cpp
+src/Core/DataStructures.cpp
 src/Core/Backend.cpp
 src/Core/Renderer.cpp
 src/Core/CommandStream.cpp
@@ -161,7 +163,9 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 include(_Vendor/dxc/link.cmake)
+include(_Vendor/nvapi/link.cmake)
 link_dxc()
+link_nvapi()
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
@@ -178,9 +182,10 @@ link_spirv()
 
 if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/_Common)
-	add_subdirectory(Examples/Introduction)
+	add_subdirectory(Examples/01-Triangle)
+	add_subdirectory(Examples/02-VertexBuffers)
 
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Introduction)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()
 
 #--------------------------------------------------------------------

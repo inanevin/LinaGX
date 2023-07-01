@@ -31,18 +31,16 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
-    App* App::Application = nullptr;
-
     void App::Initialize()
     {
-        App::Application = this;
+        
     }
 
     void App::Run()
     {
-        IsRunning = true;
+        m_isRunning = true;
 
-        while (IsRunning)
+        while (m_isRunning)
         {
             // Poll for inputs etc.
             OnTick();
@@ -53,7 +51,6 @@ namespace LinaGX::Examples
 
     void App::Shutdown()
     {
-        
     }
 
 } // namespace LinaGX::Examples

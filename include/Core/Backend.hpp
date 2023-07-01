@@ -45,22 +45,30 @@ namespace LinaGX
             : m_renderer(renderer){};
         virtual ~Backend(){};
 
-        virtual bool   Initialize(const InitInfo& initInfo)                                                        = 0;
-        virtual void   Shutdown()                                                                                  = 0;
-        virtual void   Join()                                                                                      = 0;
-        virtual void   StartFrame(uint32 frameIndex)                                                               = 0;
-        virtual void   EndFrame()                                                                                  = 0;
-        virtual void   Present(const PresentDesc& present)                                                         = 0;
-        virtual void   FlushCommandStreams()                                                                       = 0;
-        virtual uint32 CreateCommandStream(CommandType type)                                                       = 0;
-        virtual void   DestroyCommandStream(uint32 handle)                                                         = 0;
-        virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)            = 0;
-        virtual uint8  CreateSwapchain(const SwapchainDesc& desc)                                                  = 0;
-        virtual void   DestroySwapchain(uint8 handle)                                                              = 0;
-        virtual uint16 CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc) = 0;
-        virtual void   DestroyShader(uint16 handle)                                                                = 0;
-        virtual uint32 CreateTexture2D(const Texture2DDesc& desc)                                                  = 0;
-        virtual void   DestroyTexture2D(uint32 handle)                                                             = 0;
+        virtual bool Initialize(const InitInfo& initInfo) = 0;
+        virtual void Shutdown()                           = 0;
+        virtual void Join()                               = 0;
+        virtual void StartFrame(uint32 frameIndex)        = 0;
+        virtual void EndFrame()                           = 0;
+        virtual void Present(const PresentDesc& present)  = 0;
+
+        virtual uint16 CreateUserSemaphore()                                                            = 0;
+        virtual void   DestroyUserSemaphore(uint16 handle)                                              = 0;
+        virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) = 0;
+        virtual uint8  CreateSwapchain(const SwapchainDesc& desc)                                       = 0;
+        virtual void   DestroySwapchain(uint8 handle)                                                   = 0;
+        virtual uint16 CreateShader(const ShaderDesc& shaderDesc)                                       = 0;
+        virtual void   DestroyShader(uint16 handle)                                                     = 0;
+        virtual uint32 CreateTexture2D(const Texture2DDesc& desc)                                       = 0;
+        virtual void   DestroyTexture2D(uint32 handle)                                                  = 0;
+        virtual uint32 CreateResource(const ResourceDesc& desc)                                         = 0;
+        virtual void   DestroyResource(uint32 handle)                                                   = 0;
+        virtual void   MapResource(uint32 resource, uint8*& ptr)                                        = 0;
+        virtual void   UnmapResource(uint32 resource)                                                   = 0;
+        virtual uint32 CreateCommandStream(QueueType type)                                              = 0;
+        virtual void   DestroyCommandStream(uint32 handle)                                              = 0;
+        virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
+        virtual void   ExecuteCommandStreams(const ExecuteDesc& desc)                                   = 0;
 
         static Backend* CreateBackend(BackendAPI api, Renderer* renderer);
 

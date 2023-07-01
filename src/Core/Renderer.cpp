@@ -35,6 +35,11 @@ SOFTWARE.
 
 namespace LinaGX
 {
+    Renderer::~Renderer()
+    {
+        Shutdown();
+    }
+
     bool Renderer::Initialize(const InitInfo& info)
     {
 #ifdef LINAGX_PLATFORM_APPLE
@@ -90,12 +95,17 @@ namespace LinaGX
         m_backend->StartFrame(m_currentFrameIndex);
     }
 
-    void Renderer::Flush()
+    void Renderer::CloseCommandStreams(CommandStream** streams, uint32 streamCount)
     {
-        m_backend->FlushCommandStreams();
+        m_backend->CloseCommandStreams(streams, streamCount);
+    }
 
-        for (auto stream : m_commandStreams)
-            stream->Reset();
+    void Renderer::ExecuteCommandStreams(const ExecuteDesc& desc)
+    {
+        m_backend->ExecuteCommandStreams(desc);
+
+        for (uint32 i = 0; i < desc.streamCount; i++)
+            desc.streams[i]->Reset();
     }
 
     void Renderer::EndFrame()
@@ -107,6 +117,16 @@ namespace LinaGX
     void Renderer::Present(const PresentDesc& present)
     {
         m_backend->Present(present);
+    }
+
+    uint16 Renderer::CreateUserSemaphore()
+    {
+        return m_backend->CreateUserSemaphore();
+    }
+
+    void Renderer::DestroyUserSemaphore(uint16 handle)
+    {
+        m_backend->DestroyUserSemaphore(handle);
     }
 
     uint8 Renderer::CreateSwapchain(const SwapchainDesc& desc)
@@ -161,9 +181,9 @@ namespace LinaGX
         return false;
     }
 
-    uint16 Renderer::CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 Renderer::CreateShader(const ShaderDesc& shaderDesc)
     {
-        return m_backend->CreateShader(stages, shaderDesc);
+        return m_backend->CreateShader(shaderDesc);
     }
 
     void Renderer::DestroyShader(uint16 handle)
@@ -171,16 +191,41 @@ namespace LinaGX
         m_backend->DestroyShader(handle);
     }
 
-    CommandStream* Renderer::CreateCommandStream(uint32 commandCount, CommandType type)
+    CommandStream* Renderer::CreateCommandStream(uint32 commandCount, QueueType type)
     {
         CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type));
         m_commandStreams.push_back(stream);
         return stream;
     }
 
+    void Renderer::DestroyCommandStream(CommandStream* stream)
+    {
+        delete stream;
+    }
+
     uint32 Renderer::CreateTexture2D(const Texture2DDesc& desc)
     {
         return m_backend->CreateTexture2D(desc);
+    }
+
+    uint32 Renderer::CreateResource(const ResourceDesc& desc)
+    {
+        return m_backend->CreateResource(desc);
+    }
+
+    void Renderer::DestroyResource(uint32 handle)
+    {
+        m_backend->DestroyResource(handle);
+    }
+
+    void Renderer::MapResource(uint32 resource, uint8*& ptr)
+    {
+        m_backend->MapResource(resource, ptr);
+    }
+
+    void Renderer::UnmapResource(uint32 resource)
+    {
+        m_backend->UnmapResource(resource);
     }
 
 } // namespace LinaGX

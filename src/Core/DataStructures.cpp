@@ -28,31 +28,9 @@ SOFTWARE.
 
 #pragma once
 
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Core/Backend.hpp"
+#include "Core/DataStructures.hpp"
 
 namespace LinaGX
 {
-    CommandStream::CommandStream(Backend* backend, QueueType type, uint32 commandCount, uint32 gpuHandle)
-    {
-        m_backend       = backend;
-        m_commandBuffer = (uint8*)LINAGX_MALLOC(6400);
-        m_commands      = static_cast<uint8**>(malloc(sizeof(uint8*) * commandCount));
-        m_type          = type;
-        m_maxCommands   = commandCount;
-    }
 
-    void CommandStream::Reset()
-    {
-        m_commandIndex = 0;
-        m_commandCount = 0;
-    }
-
-    CommandStream::~CommandStream()
-    {
-        m_backend->DestroyCommandStream(m_gpuHandle);
-        LINAGX_FREE(m_commands);
-        LINAGX_FREE(m_commandBuffer);
-    }
 } // namespace LinaGX

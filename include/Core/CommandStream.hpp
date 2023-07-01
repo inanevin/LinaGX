@@ -41,32 +41,32 @@ namespace LinaGX
     class MTLBackend;
     class VKBackend;
 
-    struct CommandLinearAllocator
-    {
-        void*  ptr   = nullptr;
-        size_t size  = 0;
-        uint32 index = 0;
-    };
-
     class CommandStream
     {
     public:
-        CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle);
-        ~CommandStream();
+        CommandStream(Backend* backend, QueueType type, uint32 commandCount, uint32 gpuHandle);
 
         template <typename T>
         T* AddCommand()
         {
-            TypeID tid   = GetTypeID<T>();
-            auto&  alloc = m_linearAllocators[tid];
-            T*     start = static_cast<T*>(alloc.ptr);
-            T*     ptr   = start + alloc.index;
-            alloc.index++;
+            LOGA((m_commandCount < m_maxCommands), "Command Stream -> Max command count (%d) is exceeded (%d)!", m_maxCommands, m_commandCount);
+            const TypeID tid      = GetTypeID<T>();
+            const size_t typeSize = sizeof(TypeID);
 
-            m_commands[m_commandCount] = static_cast<uint64*>(alloc.ptr);
-            m_types[m_commandCount]    = tid;
+            uint8* currentHead = m_commandBuffer + m_commandIndex;
+
+            // Place type header.
+            LINAGX_MEMCPY(currentHead, &tid, typeSize);
+
+            // Find command start.
+            uint8* ptr = currentHead + typeSize;
+
+            // Assign command ptr
+            m_commands[m_commandCount] = currentHead;
+            m_commandIndex += sizeof(T) + typeSize;
+
             m_commandCount++;
-            return ptr;
+            return reinterpret_cast<T*>(ptr);
         }
 
     private:
@@ -74,17 +74,19 @@ namespace LinaGX
         friend class VKBackend;
         friend class MTLBackend;
         friend class DX12Backend;
-
+        ~CommandStream();
         void Reset();
 
     private:
-        LINAGX_MAP<TypeID, CommandLinearAllocator> m_linearAllocators;
-        uint64**                                   m_commands     = nullptr;
-        TypeID*                                    m_types        = nullptr;
-        uint32                                     m_commandCount = 0;
-        uint32                                     m_gpuHandle    = 0;
-        Backend*                                   m_backend      = nullptr;
-        CommandType                                m_type         = CommandType::Graphics;
+        uint8**     m_commands     = nullptr;
+        uint32      m_commandCount = 0;
+        uint32      m_gpuHandle    = 0;
+        Backend*    m_backend      = nullptr;
+        QueueType m_type         = QueueType::Graphics;
+
+        uint8* m_commandBuffer = nullptr;
+        size_t m_commandIndex  = 0;
+        uint32 m_maxCommands   = 0;
     };
 } // namespace LinaGX
 

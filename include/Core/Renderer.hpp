@@ -43,7 +43,7 @@ namespace LinaGX
     {
     public:
         Renderer(){};
-        virtual ~Renderer(){};
+        virtual ~Renderer();
 
         /// <summary>
         ///
@@ -60,18 +60,22 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        void Shutdown();
-
-        /// <summary>
-        ///
-        /// </summary>
         /// <param name="frameIndex"></param>
         void StartFrame();
 
         /// <summary>
         ///
         /// </summary>
-        void Flush();
+        /// <param name="streams"></param>
+        /// <param name="streamCount"></param>
+        void CloseCommandStreams(CommandStream** streams, uint32 streamCount);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="sterams"></param>
+        /// <param name="streamCount"></param>
+        void ExecuteCommandStreams(const ExecuteDesc& execute);
 
         /// <summary>
         ///
@@ -82,6 +86,17 @@ namespace LinaGX
         ///
         /// </summary>
         void Present(const PresentDesc& present);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        uint16 CreateUserSemaphore();
+
+        /// <summary>
+        ///
+        /// </summary>
+        void DestroyUserSemaphore(uint16 handle);
 
         /// <summary>
         /// Creates a swapchain for a window given necessary handles per-platform. e.g HWND and hInstance on windows.
@@ -107,7 +122,7 @@ namespace LinaGX
         /// Generates a shader pipeline.
         /// </summary>
         /// <param name="stages">Hashmap containing all compiled blobs per shader stage.</param>
-        uint16 CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc);
+        uint16 CreateShader(const ShaderDesc& shaderDesc);
 
         /// <summary>
         /// Destroys the shader pipeline with given handle.
@@ -120,7 +135,13 @@ namespace LinaGX
         /// </summary>
         /// <param name="commandCount"></param>
         /// <returns></returns>
-        CommandStream* CreateCommandStream(uint32 commandCount, CommandType type);
+        CommandStream* CreateCommandStream(uint32 commandCount, QueueType type);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="stream"></param>
+        void DestroyCommandStream(CommandStream* stream);
 
         /// <summary>
         ///
@@ -128,6 +149,32 @@ namespace LinaGX
         /// <param name="desc"></param>
         /// <returns></returns>
         uint32 CreateTexture2D(const Texture2DDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="desc"></param>
+        /// <returns></returns>
+        uint32 CreateResource(const ResourceDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="handle"></param>
+        void DestroyResource(uint32 handle);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="resource"></param>
+        /// <param name="ptr"></param>
+        void MapResource(uint32 resource, uint8*& ptr);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="resource"></param>
+        void UnmapResource(uint32 resource);
 
         /// <summary>
         ///
@@ -140,7 +187,7 @@ namespace LinaGX
         /// <param name="height"></param>
         /// <param name="style"></param>
         /// <returns></returns>
-        LinaGXWindow* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed)
+        Window* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed)
         {
             return m_windowManager.CreateApplicationWindow(stringID, title, x, y, width, height, style);
         }
@@ -166,6 +213,12 @@ namespace LinaGX
         {
             return m_currentFrameIndex;
         }
+
+    private:
+        /// <summary>
+        ///
+        /// </summary>
+        void Shutdown();
 
     private:
         friend class VKBackend;

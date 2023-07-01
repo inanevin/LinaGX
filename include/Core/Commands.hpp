@@ -40,7 +40,8 @@ namespace LinaGX
     {
         bool         isSwapchain;
         uint8        swapchain;
-        uint32       texture;
+        uint32       colorTexture;
+        uint32       depthTexture;
         float        clearColor[4];
         Viewport     viewport;
         ScissorsRect scissors;

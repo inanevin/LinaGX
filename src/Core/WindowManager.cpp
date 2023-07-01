@@ -38,11 +38,11 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    LinaGXWindow* WindowManager::CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
+    Window* WindowManager::CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
     {
         auto it = m_windows.find(stringID);
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same StringID already exists! %d", stringID);
-        LinaGXWindow* win = new LinaGXWindow();
+        Window* win = new Window();
 
         if (!win->Create(stringID, title, x, y, width, height, style))
         {

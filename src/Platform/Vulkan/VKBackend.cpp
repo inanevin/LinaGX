@@ -39,8 +39,52 @@ SOFTWARE.
 
 namespace LinaGX
 {
+
 #define LGX_VK_MAJOR 1
 #define LGX_VK_MINOR 3
+
+    LINAGX_STRING LinaGX_VkErr(VkResult errorCode)
+    {
+        switch (errorCode)
+        {
+#define STR(r)   \
+    case VK_##r: \
+        return #r
+            STR(NOT_READY);
+            STR(TIMEOUT);
+            STR(EVENT_SET);
+            STR(EVENT_RESET);
+            STR(INCOMPLETE);
+            STR(ERROR_OUT_OF_HOST_MEMORY);
+            STR(ERROR_OUT_OF_DEVICE_MEMORY);
+            STR(ERROR_INITIALIZATION_FAILED);
+            STR(ERROR_DEVICE_LOST);
+            STR(ERROR_MEMORY_MAP_FAILED);
+            STR(ERROR_LAYER_NOT_PRESENT);
+            STR(ERROR_EXTENSION_NOT_PRESENT);
+            STR(ERROR_FEATURE_NOT_PRESENT);
+            STR(ERROR_INCOMPATIBLE_DRIVER);
+            STR(ERROR_TOO_MANY_OBJECTS);
+            STR(ERROR_FORMAT_NOT_SUPPORTED);
+            STR(ERROR_SURFACE_LOST_KHR);
+            STR(ERROR_NATIVE_WINDOW_IN_USE_KHR);
+            STR(SUBOPTIMAL_KHR);
+            STR(ERROR_OUT_OF_DATE_KHR);
+            STR(ERROR_INCOMPATIBLE_DISPLAY_KHR);
+            STR(ERROR_VALIDATION_FAILED_EXT);
+            STR(ERROR_INVALID_SHADER_NV);
+#undef STR
+        default:
+            return "UNKNOWN_ERROR";
+        }
+    }
+
+#define VK_CHECK_RESULT(item, err)                                                                                \
+    {                                                                                                             \
+        LOGA(item == VK_SUCCESS, "VkBackend -> Fatal, operation failed! Result: %s", LinaGX_VkErr(item).c_str()); \
+        if (item != VK_SUCCESS)                                                                                   \
+            throw std::runtime_error(err);                                                                        \
+    }
 
     VkFormat GetVKFormat(Format f)
     {
@@ -415,58 +459,32 @@ namespace LinaGX
         return VK_FALSE;
     }
 
-    uint32 VKBackend::CreateCommandStream(CommandType cmdType)
+    uint16 VKBackend::CreateUserSemaphore()
     {
-        VKBCommandStream item = {};
+        VKBUserSemaphore item = {};
         item.isValid          = true;
 
-        uint32 familyIndex = 0;
-        if (cmdType == CommandType::Graphics)
-            familyIndex = m_graphicsQueueIndices.first;
-        else if (cmdType == CommandType::Compute)
-            familyIndex = m_computeQueueIndices.first;
-        else if (cmdType == CommandType::Transfer)
-            familyIndex = m_transferQueueIndices.first;
+        VkSemaphoreCreateInfo info = VkSemaphoreCreateInfo{};
+        info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        info.pNext                 = nullptr,
+        info.flags                 = 0;
 
-        VkCommandPoolCreateInfo commandPoolInfo = VkCommandPoolCreateInfo{};
-        commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        commandPoolInfo.pNext                   = nullptr;
-        commandPoolInfo.flags                   = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        commandPoolInfo.queueFamilyIndex        = familyIndex;
-
-        VkResult result = vkCreateCommandPool(m_device, &commandPoolInfo, m_allocator, &item.pool);
-        LOGA(result == VK_SUCCESS, "VKBackend -> Could not create command pool!");
-
-        VkCommandBufferAllocateInfo cmdAllocInfo = VkCommandBufferAllocateInfo{};
-        cmdAllocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cmdAllocInfo.pNext                       = nullptr;
-        cmdAllocInfo.commandPool                 = item.pool;
-        cmdAllocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        cmdAllocInfo.commandBufferCount          = 1;
-
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            VkCommandBuffer b = nullptr;
-            result            = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &b);
-            item.buffers.push_back(b);
-            LOGA(result == VK_SUCCESS, "VKBackend -> Could not allocate command buffers!");
-        }
-        return m_cmdStreams.AddItem(item);
+        VkResult result = vkCreateSemaphore(m_device, &info, m_allocator, &item.ptr);
+        VK_CHECK_RESULT(result, "Failed creating semaphore.");
+        return m_userSemaphores.AddItem(item);
     }
 
-    void VKBackend::DestroyCommandStream(uint32 handle)
+    void VKBackend::DestroyUserSemaphore(uint16 handle)
     {
-        auto& stream = m_cmdStreams.GetItemR(handle);
-        if (!stream.isValid)
+        auto& semaphore = m_userSemaphores.GetItemR(handle);
+        if (!semaphore.isValid)
         {
-            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            LOGE("VKBackend -> Semaphore to be destroyed is not valid!");
             return;
         }
 
-        stream.isValid = false;
-
-        vkDestroyCommandPool(m_device, stream.pool, m_allocator);
-        m_cmdStreams.RemoveItem(handle);
+        vkDestroySemaphore(m_device, semaphore.ptr, m_allocator);
+        m_userSemaphores.RemoveItem(handle);
     }
 
     uint8 VKBackend::CreateSwapchain(const SwapchainDesc& desc)
@@ -485,14 +503,13 @@ namespace LinaGX
 #else
         LOGA(false, "VKBackend -> Vulkan backend is only supported for Windows at the moment!");
 #endif
-        VkFormat vkformat = GetVKFormat(Config.rtSwapchainFormat);
-
+        VkFormat              swpFormat = GetVKFormat(m_initInfo.rtSwapchainFormat);
         vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
         swapchainBuilder = swapchainBuilder
                                //.use_default_format_selection()
-                               .set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR)
+                               .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
                                .set_desired_extent(desc.width, desc.height)
-                               .set_desired_format({vkformat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
+                               .set_desired_format({swpFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
                                .set_desired_min_image_count(m_initInfo.backbufferCount);
 
         vkb::Swapchain vkbSwapchain = swapchainBuilder.build().value();
@@ -503,21 +520,20 @@ namespace LinaGX
         swp.surface                 = surface;
         swp.isValid                 = true;
 
+        if (swp.format != swpFormat)
+        {
+            LOGE("VkBackend -> Desired color format for swapchain was not supported, selected a supported format!");
+        }
+
         for (const auto& img : swp.imgs)
         {
             Texture2DDesc depthDesc = {};
-            depthDesc.format        = Config.rtDepthFormat;
+            depthDesc.format        = m_initInfo.rtDepthFormat;
             depthDesc.width         = desc.width;
             depthDesc.height        = desc.height;
             depthDesc.mipLevels     = 1;
             depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
             swp.depthTextures.push_back(CreateTexture2D(depthDesc));
-        }
-
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            swp.submitSemaphores.push_back(CreateSyncSemaphore());
-            swp.presentSemaphores.push_back(CreateSyncSemaphore());
         }
 
         LOGT("VKBackend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
@@ -544,12 +560,6 @@ namespace LinaGX
 
         vkDestroySurfaceKHR(m_vkInstance, swp.surface, m_allocator);
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            DestroySyncSemaphore(swp.presentSemaphores[i]);
-            DestroySyncSemaphore(swp.submitSemaphores[i]);
-        }
-
         swp.isValid = false;
         m_swapchains.RemoveItem(handle);
         LOGT("VKBackend -> Destroyed swapchain.");
@@ -561,7 +571,7 @@ namespace LinaGX
         return false;
     }
 
-    uint16 VKBackend::CreateShader(const LINAGX_MAP<ShaderStage, DataBlob>& stages, const ShaderDesc& shaderDesc)
+    uint16 VKBackend::CreateShader(const ShaderDesc& shaderDesc)
     {
         VKBShader shader = {};
 
@@ -599,7 +609,7 @@ namespace LinaGX
         // Modules & stages
         LINAGX_VEC<VkPipelineShaderStageCreateInfo> shaderStages;
 
-        for (auto& [stage, blob] : stages)
+        for (auto& [stage, blob] : shaderDesc.stages)
         {
             auto& ptr = shader.modules[stage];
 
@@ -609,20 +619,15 @@ namespace LinaGX
             shaderModule.codeSize                 = blob.size;
             shaderModule.pCode                    = reinterpret_cast<uint32*>(blob.ptr);
 
-            VkResult                        res  = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
+            VkResult res = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
+            VK_CHECK_RESULT(res, "Failed creating shader module");
+
             VkPipelineShaderStageCreateInfo info = VkPipelineShaderStageCreateInfo{};
             info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             info.pNext                           = nullptr;
             info.stage                           = static_cast<VkShaderStageFlagBits>(GetVKShaderStage(stage));
             info.module                          = ptr;
             info.pName                           = "main";
-
-            if (res != VK_SUCCESS)
-            {
-                LOGA(false, "VKBackend -> Could not create shader module!");
-                return 0;
-            }
-
             shaderStages.push_back(info);
         }
 
@@ -766,7 +771,7 @@ namespace LinaGX
 
             VkDescriptorSetLayout layout = nullptr;
             VkResult              res    = vkCreateDescriptorSetLayout(m_device, &setInfo, m_allocator, &layout);
-            LOGA(res == VK_SUCCESS, "VKBackend -> Could not create descriptor set layout!");
+            VK_CHECK_RESULT(res, "Failed creating descriptor set layout.");
             shader.layouts.push_back(layout);
         }
 
@@ -796,12 +801,20 @@ namespace LinaGX
         pipelineLayoutInfo.pushConstantRangeCount     = static_cast<uint32>(constants.size());
         pipelineLayoutInfo.pPushConstantRanges        = constants.data();
         VkResult res                                  = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, m_allocator, &shader.ptrLayout);
-        LOGA(res == VK_SUCCESS, "VKBackend -> Could not create shader pipeline layout!");
+        VK_CHECK_RESULT(res, "Failed creating pipeline layout!");
 
+        VkFormat                         swapchainFormat             = GetVKFormat(m_initInfo.rtSwapchainFormat);
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {};
+        pipelineRenderingCreateInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+        pipelineRenderingCreateInfo.colorAttachmentCount             = 1;
+        pipelineRenderingCreateInfo.pColorAttachmentFormats          = &swapchainFormat;
+        pipelineRenderingCreateInfo.depthAttachmentFormat            = GetVKFormat(m_initInfo.rtDepthFormat);
+
+        // Actual pipeline.
         // Actual pipeline.
         VkGraphicsPipelineCreateInfo pipelineInfo = VkGraphicsPipelineCreateInfo{};
         pipelineInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.pNext                        = nullptr;
+        pipelineInfo.pNext                        = &pipelineRenderingCreateInfo;
         pipelineInfo.stageCount                   = static_cast<uint32>(shaderStages.size());
         pipelineInfo.pStages                      = shaderStages.data();
         pipelineInfo.pVertexInputState            = &vertexInput;
@@ -869,7 +882,7 @@ namespace LinaGX
         allocinfo.requiredFlags           = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
         VkResult res = vmaCreateImage(m_vmaAllocator, &imgCreateInfo, &allocinfo, &item.img, &item.allocation, nullptr);
-        LOGA(res == VK_SUCCESS, "VKBackend -> Could not create image!");
+        VK_CHECK_RESULT(res, "Failed creating image.");
 
         VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
         subResRange.aspectMask              = txtDesc.usage == Texture2DUsage::DepthStencilTexture ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
@@ -887,7 +900,7 @@ namespace LinaGX
         viewInfo.subresourceRange      = subResRange;
 
         res = vkCreateImageView(m_device, &viewInfo, m_allocator, &item.imgView);
-        LOGA(res == VK_SUCCESS, "VKBackend -> Could not create image view!");
+        VK_CHECK_RESULT(res, "Failed creating image view.");
 
         return m_texture2Ds.AddItem(item);
     }
@@ -908,32 +921,238 @@ namespace LinaGX
         m_texture2Ds.RemoveItem(handle);
     }
 
-    uint16 VKBackend::CreateSyncSemaphore()
+    uint32 VKBackend::CreateResource(const ResourceDesc& desc)
     {
-        VkSemaphore           semaphore = nullptr;
-        VkSemaphoreCreateInfo info      = VkSemaphoreCreateInfo{};
-        info.sType                      = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        info.pNext                      = nullptr,
-        info.flags                      = 0;
+        VKBResource item = {};
+        item.isValid     = true;
+        item.heapType    = desc.heapType;
 
-        VkResult result = vkCreateSemaphore(m_device, &info, m_allocator, &semaphore);
-        LOGA(result == VK_SUCCESS, "VKBackend -> Could not create emaphore!");
-        return m_semaphores.AddItem(semaphore);
+        VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bufferInfo.size               = desc.size;
+
+        if (desc.typeHintFlags & LGX_VertexBuffer)
+            bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        if (desc.typeHintFlags & LGX_ConstantBuffer)
+            bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        if (desc.typeHintFlags & LGX_IndexBuffer)
+            bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        if (desc.typeHintFlags & LGX_IndexBuffer)
+            bufferInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+        if (desc.typeHintFlags == LGX_StorageBuffer)
+            bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+        if (bufferInfo.usage == 0)
+            bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+        VmaAllocationCreateInfo allocInfo = {};
+
+        if (desc.heapType == ResourceHeap::CPUVisibleGPUMemory)
+        {
+            LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "VKBackend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
+            allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            allocInfo.usage         = VMA_MEMORY_USAGE_AUTO;
+        }
+        else if (desc.heapType == ResourceHeap::GPUOnly)
+        {
+            allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            allocInfo.usage         = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        }
+        else if (desc.heapType == ResourceHeap::StagingHeap)
+        {
+            allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            allocInfo.usage         = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        }
+
+        vmaCreateBuffer(m_vmaAllocator, &bufferInfo, &allocInfo, &item.buffer, &item.allocation, nullptr);
+        return m_resources.AddItem(item);
     }
 
-    void VKBackend::DestroySyncSemaphore(uint16 handle)
+    void VKBackend::MapResource(uint32 handle, uint8*& ptr)
     {
-        auto semaphore = m_semaphores.GetItemR(handle);
-        if (semaphore == nullptr)
+        auto& item = m_resources.GetItemR(handle);
+
+        item.isMapped = true;
+    }
+
+    void VKBackend::UnmapResource(uint32 handle)
+    {
+        auto& item = m_resources.GetItemR(handle);
+
+        if (!item.isMapped)
+            return;
+
+        item.isMapped = false;
+    }
+
+    void VKBackend::DestroyResource(uint32 handle)
+    {
+        auto& item = m_resources.GetItemR(handle);
+        if (!item.isValid)
         {
-            LOGE("VKBackend -> Semaphore to be destroyed is not valid!");
+            LOGE("VKBackend -> Shader to be destroyed is not valid!");
             return;
         }
 
-        vkDestroySemaphore(m_device, semaphore, m_allocator);
+        m_resources.RemoveItem(handle);
+    }
 
-        semaphore = nullptr;
-        m_semaphores.RemoveItem(handle);
+    uint32 VKBackend::CreateCommandStream(QueueType cmdType)
+    {
+        VKBCommandStream item = {};
+        item.isValid          = true;
+
+        uint32 familyIndex = 0;
+        if (cmdType == QueueType::Graphics)
+            familyIndex = m_graphicsQueueIndices.first;
+        else if (cmdType == QueueType::Compute)
+            familyIndex = m_computeQueueIndices.first;
+        else if (cmdType == QueueType::Transfer)
+            familyIndex = m_transferQueueIndices.first;
+
+        VkCommandPoolCreateInfo commandPoolInfo = VkCommandPoolCreateInfo{};
+        commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        commandPoolInfo.pNext                   = nullptr;
+        commandPoolInfo.flags                   = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        commandPoolInfo.queueFamilyIndex        = familyIndex;
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            VkCommandPool pool   = nullptr;
+            VkResult      result = vkCreateCommandPool(m_device, &commandPoolInfo, m_allocator, &pool);
+            VK_CHECK_RESULT(result, "Failed creating command pool");
+
+            VkCommandBufferAllocateInfo cmdAllocInfo = VkCommandBufferAllocateInfo{};
+            cmdAllocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            cmdAllocInfo.pNext                       = nullptr;
+            cmdAllocInfo.commandPool                 = pool;
+            cmdAllocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            cmdAllocInfo.commandBufferCount          = 1;
+
+            VkCommandBuffer b = nullptr;
+            result            = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &b);
+            item.buffers.push_back(b);
+            item.pools.push_back(pool);
+            VK_CHECK_RESULT(result, "Failed allocating command buffers");
+        }
+        return m_cmdStreams.AddItem(item);
+    }
+
+    void VKBackend::DestroyCommandStream(uint32 handle)
+    {
+        auto& stream = m_cmdStreams.GetItemR(handle);
+        if (!stream.isValid)
+        {
+            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            return;
+        }
+
+        stream.isValid = false;
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            vkDestroyCommandPool(m_device, stream.pools[i], m_allocator);
+        }
+        m_cmdStreams.RemoveItem(handle);
+    }
+
+    void VKBackend::CloseCommandStreams(CommandStream** streams, uint32 streamCount)
+    {
+
+        for (uint32 i = 0; i < streamCount; i++)
+        {
+            auto  stream = streams[i];
+            auto& sr     = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto  buffer = sr.buffers[m_currentFrameIndex];
+            auto  pool   = sr.pools[m_currentFrameIndex];
+
+            if (stream->m_commandCount == 0)
+                continue;
+
+            vkResetCommandPool(m_device, pool, 0);
+
+            VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo{};
+            beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.pNext                    = nullptr;
+            beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            beginInfo.pInheritanceInfo         = nullptr;
+            VkResult res                       = vkBeginCommandBuffer(buffer, &beginInfo);
+            VK_CHECK_RESULT(res, "Failed beginning command buffer.");
+
+            for (uint32 i = 0; i < stream->m_commandCount; i++)
+            {
+                uint8* data = stream->m_commands[i];
+                TypeID tid  = 0;
+                LINAGX_MEMCPY(&tid, data, sizeof(TypeID));
+                const size_t increment = sizeof(TypeID);
+                uint8*       cmd       = data + increment;
+                (this->*m_cmdFunctions[tid])(cmd, sr);
+            }
+
+            res = vkEndCommandBuffer(buffer);
+            VK_CHECK_RESULT(res, "Failed ending command buffer!");
+        }
+    }
+
+    void VKBackend::ExecuteCommandStreams(const ExecuteDesc& desc)
+    {
+        auto&                       frame = m_perFrameData[m_currentFrameIndex];
+        LINAGX_VEC<VkCommandBuffer> _buffers;
+
+        // Push all valid command buffers into a list.
+        for (uint32 i = 0; i < desc.streamCount; i++)
+        {
+            auto stream = desc.streams[i];
+            if (stream->m_commandCount == 0)
+            {
+                LOGE("VKBackend -> Can not execute stream as no commands were recorded!");
+                continue;
+            }
+
+            const auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            _buffers.push_back(str.buffers[m_currentFrameIndex]);
+        }
+
+        auto queue = m_queueData[desc.queue].queue;
+
+        // This is for waiting on user semaphores
+        VkTimelineSemaphoreSubmitInfo timelineInfo;
+        timelineInfo.sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext                     = NULL;
+        timelineInfo.waitSemaphoreValueCount   = desc.useWait ? 1 : 0;
+        timelineInfo.pWaitSemaphoreValues      = desc.useWait ? &desc.waitValue : nullptr;
+        timelineInfo.signalSemaphoreValueCount = desc.useSignal ? 1 : 0;
+        timelineInfo.pSignalSemaphoreValues    = desc.useSignal ? &desc.signalValue : nullptr;
+
+        VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        LINAGX_VEC<VkSemaphore>          waitSemaphores;
+        LINAGX_VEC<VkPipelineStageFlags> waitStages;
+        LINAGX_VEC<VkSemaphore>          signalSemaphores;
+
+        // Wait for all acquired images from all windows.
+        for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
+        {
+            waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
+            waitStages.push_back(waitStage);
+        }
+
+        signalSemaphores.push_back(frame.submitSemaphores[frame.submissionCount]);
+
+        VkSubmitInfo submitInfo;
+        submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext                = nullptr;
+        submitInfo.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
+        submitInfo.pWaitSemaphores      = &waitSemaphores[0];
+        submitInfo.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
+        submitInfo.pSignalSemaphores    = &signalSemaphores[0];
+        submitInfo.commandBufferCount   = desc.streamCount;
+        submitInfo.pCommandBuffers      = _buffers.data();
+        submitInfo.pWaitDstStageMask    = &waitStages[0];
+
+        VkResult res = vkQueueSubmit(queue, 1, &submitInfo, frame.submitFences[frame.submissionCount]);
+        frame.submissionCount++;
+
+        LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "VKBackend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        VK_CHECK_RESULT(res, "Failed submitting to queue!");
     }
 
     uint16 VKBackend::CreateFence()
@@ -945,7 +1164,7 @@ namespace LinaGX
         info.flags              = VK_FENCE_CREATE_SIGNALED_BIT;
 
         VkResult result = vkCreateFence(m_device, &info, m_allocator, &fence);
-        LOGA(result == VK_SUCCESS, "VKBackend -> Could not create fence!");
+        VK_CHECK_RESULT(result, "Failed creating fence!");
         return m_fences.AddItem(fence);
     }
 
@@ -1022,7 +1241,7 @@ namespace LinaGX
         features.samplerAnisotropy         = true;
         features.fillModeNonSolid          = true;
 
-        std::vector<const char*> deviceExtensions;
+        // std::vector<const char*> deviceExtensions;
         // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
         // deviceExtensions.push_back(VK_KHR_MAINTENANCE2_EXTENSION_NAME);
         // deviceExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
@@ -1059,139 +1278,195 @@ namespace LinaGX
         deviceBuilder.add_pNext(&descFeatures);
         deviceBuilder.add_pNext(&dynamic_rendering_feature);
 
-        bool hasDedicatedTransferQueue = physicalDevice.has_dedicated_transfer_queue();
-        bool hasDedicatedComputeQueue  = physicalDevice.has_dedicated_compute_queue();
+        bool   hasDedicatedTransferQueue = physicalDevice.has_dedicated_transfer_queue();
+        bool   hasDedicatedComputeQueue  = physicalDevice.has_dedicated_compute_queue();
+        auto   queueFamilies             = physicalDevice.get_queue_families();
+        uint32 transferQueueFamily       = 0;
+        uint32 transferQueueIndex        = 0;
+        uint32 graphicsQueueFamily       = 0;
+        uint32 graphicsQueueIndex        = 0;
+        uint32 computeQueueFamily        = 0;
+        uint32 computeQueueIndex         = 0;
 
-        auto queue_families = physicalDevice.get_queue_families();
-
-        uint32 transferQueueFamily = 0;
-        uint32 transferQueueIndex  = 0;
-        uint32 graphicsQueueFamily = 0;
-        uint32 graphicsQueueIndex  = 0;
-        uint32 computeQueueFamily  = 0;
-        uint32 computeQueueIndex   = 0;
-
-        std::vector<vkb::CustomQueueDescription> queue_descriptions;
-        for (uint32_t i = 0; i < static_cast<uint32_t>(queue_families.size()); i++)
+        std::vector<vkb::CustomQueueDescription> queueDescs;
+        for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); i++)
         {
             uint32 count = 1;
 
-            if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 graphicsQueueFamily = i;
 
-                if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+                if (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
                 {
                     transferQueueFamily = i;
 
-                    if (queue_families[i].queueCount > count + 1)
+                    if (queueFamilies[i].queueCount > count + 1)
                         count++;
 
                     transferQueueIndex = count - 1;
                 }
 
-                if (!hasDedicatedComputeQueue && queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
+                if (!hasDedicatedComputeQueue && queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
                 {
                     computeQueueFamily = i;
 
-                    if (queue_families[i].queueCount > count + 1)
+                    if (queueFamilies[i].queueCount > count + 1)
                         count++;
                     computeQueueIndex = count - 1;
                 }
             }
 
-            queue_descriptions.push_back(vkb::CustomQueueDescription(i, count, std::vector<float>(count, 1.0f)));
+            queueDescs.push_back(vkb::CustomQueueDescription(i, count, std::vector<float>(count, 1.0f)));
         }
 
-        deviceBuilder.custom_queue_setup(queue_descriptions);
+        deviceBuilder.custom_queue_setup(queueDescs);
 
         vkb::Device vkbDevice = deviceBuilder.build().value();
         m_device              = vkbDevice.device;
         m_gpu                 = physicalDevice.physical_device;
 
-        if (hasDedicatedComputeQueue)
+        // Queue support
         {
-            auto res           = vkbDevice.get_dedicated_queue_index(vkb::QueueType::compute);
-            computeQueueFamily = res.value();
-            computeQueueIndex  = 0;
+            if (hasDedicatedComputeQueue)
+            {
+                auto res           = vkbDevice.get_dedicated_queue_index(vkb::QueueType::compute);
+                computeQueueFamily = res.value();
+                computeQueueIndex  = 0;
+            }
+
+            m_graphicsQueueIndices = std::make_pair(graphicsQueueFamily, graphicsQueueIndex);
+            m_transferQueueIndices = std::make_pair(transferQueueFamily, transferQueueIndex);
+            m_computeQueueIndices  = std::make_pair(computeQueueFamily, computeQueueIndex);
+
+            auto& graphics = m_queueData[QueueType::Graphics];
+            auto& transfer = m_queueData[QueueType::Transfer];
+            auto& compute  = m_queueData[QueueType::Compute];
+
+            vkGetDeviceQueue(m_device, m_graphicsQueueIndices.first, m_graphicsQueueIndices.second, &graphics.queue);
+            vkGetDeviceQueue(m_device, m_transferQueueIndices.first, m_transferQueueIndices.second, &transfer.queue);
+            vkGetDeviceQueue(m_device, m_computeQueueIndices.first, m_computeQueueIndices.second, &compute.queue);
+
+            VkSemaphoreCreateInfo info = VkSemaphoreCreateInfo{};
+            info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            info.pNext                 = nullptr,
+            info.flags                 = 0;
+
+            if (m_transferQueueIndices.first != m_graphicsQueueIndices.first)
+                m_supportsAsyncTransferQueue = true;
+            else if (m_transferQueueIndices.second != m_graphicsQueueIndices.second)
+                m_supportsAsyncTransferQueue = true;
+            else
+                m_supportsAsyncTransferQueue = false;
+
+            if (m_computeQueueIndices.first != m_graphicsQueueIndices.first)
+                m_supportsAsyncComputeQueue = true;
+            else if (m_computeQueueIndices.second != m_graphicsQueueIndices.second)
+                m_supportsAsyncComputeQueue = true;
+            else
+                m_supportsAsyncComputeQueue = false;
         }
 
-        m_graphicsQueueIndices = std::make_pair(graphicsQueueFamily, graphicsQueueIndex);
-        m_transferQueueIndices = std::make_pair(transferQueueFamily, transferQueueIndex);
-        m_computeQueueIndices  = std::make_pair(computeQueueFamily, computeQueueIndex);
-
-        VkPhysicalDeviceProperties gpuProps;
-        vkGetPhysicalDeviceProperties(m_gpu, &gpuProps);
-
-        VkPhysicalDeviceMemoryProperties gpuMemProps;
-        vkGetPhysicalDeviceMemoryProperties(m_gpu, &gpuMemProps);
-
-        VkImageFormatProperties p;
-        LINAGX_VEC<VkFormat>    formats;
-
-        for (int i = 1; i < 130; i++)
+        // Check format support
         {
-            const VkFormat format    = static_cast<VkFormat>(i);
-            VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
-            if (supported == VK_SUCCESS)
-                formats.push_back(format);
+            VkImageFormatProperties p;
+            LINAGX_VEC<VkFormat>    formats;
+
+            for (int i = 1; i < 130; i++)
+            {
+                const VkFormat format    = static_cast<VkFormat>(i);
+                VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
+                if (supported == VK_SUCCESS)
+                    formats.push_back(format);
+            }
+
+            LINAGX_VEC<VkFormat> requiredFormats;
+            requiredFormats.push_back(GetVKFormat(m_initInfo.rtColorFormat));
+            requiredFormats.push_back(GetVKFormat(m_initInfo.rtSwapchainFormat));
+            requiredFormats.push_back(GetVKFormat(m_initInfo.rtDepthFormat));
+
+            for (auto& f : requiredFormats)
+            {
+                auto it = std::find_if(formats.begin(), formats.end(), [&](VkFormat format) { return f == format; });
+
+                if (it == formats.end())
+                    LOGE("VKBackend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+            }
         }
 
-        LINAGX_VEC<VkFormat> requiredFormats;
-        requiredFormats.push_back(VkFormat::VK_FORMAT_R8_UNORM);
-        requiredFormats.push_back(VkFormat::VK_FORMAT_R8G8_UNORM);
-        requiredFormats.push_back(VkFormat::VK_FORMAT_R8G8B8A8_SRGB);
-
-        for (auto& f : requiredFormats)
+        // GPU props
         {
-            auto it = std::find_if(formats.begin(), formats.end(), [&](VkFormat format) { return f == format; });
+            VkPhysicalDeviceProperties gpuProps;
+            vkGetPhysicalDeviceProperties(m_gpu, &gpuProps);
+            VkPhysicalDeviceMemoryProperties gpuMemProps;
+            vkGetPhysicalDeviceMemoryProperties(m_gpu, &gpuMemProps);
+            m_minUniformBufferOffsetAlignment = gpuProps.limits.minUniformBufferOffsetAlignment;
+            LOGT("VKBackend -> Selected GPU: %s - %f mb", gpuProps.deviceName, gpuMemProps.memoryHeaps->size / 1000000.0);
+            GPUInfo.dedicatedVideoMemory = gpuMemProps.memoryHeaps->size;
+            GPUInfo.deviceName           = gpuProps.deviceName;
 
-            if (it == formats.end())
-                LOGE("VKBackend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+            // Iterate over memory heaps
+            for (uint32_t typeIndex = 0; typeIndex < gpuMemProps.memoryTypeCount; ++typeIndex)
+            {
+                const auto& type = gpuMemProps.memoryTypes[typeIndex];
+
+                // Check if the heap has host-mappable memory properties
+                if (type.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT && type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+                {
+                    GPUInfo.totalCPUVisibleGPUMemorySize = gpuMemProps.memoryHeaps[type.heapIndex].size;
+                }
+            }
         }
 
-        m_minUniformBufferOffsetAlignment = gpuProps.limits.minUniformBufferOffsetAlignment;
-
-        LOGT("VKBackend -> Selected GPU: %s - %f mb", gpuProps.deviceName, gpuMemProps.memoryHeaps->size / 1000000.0);
-
-        // Query queue family indices.
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(m_gpu, &queueFamilyCount, nullptr);
-
-        m_queueFamilies = LINAGX_VEC<VkQueueFamilyProperties>(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(m_gpu, &queueFamilyCount, m_queueFamilies.data());
-
-        VmaAllocatorCreateInfo allocatorInfo = {};
-        allocatorInfo.physicalDevice         = m_gpu;
-        allocatorInfo.device                 = m_device;
-        allocatorInfo.instance               = m_vkInstance;
-        vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
-
-        vkGetDeviceQueue(m_device, m_graphicsQueueIndices.first, m_graphicsQueueIndices.second, &m_graphicsQueue);
-        vkGetDeviceQueue(m_device, m_transferQueueIndices.first, m_transferQueueIndices.second, &m_transferQueue);
-        vkGetDeviceQueue(m_device, m_computeQueueIndices.first, m_computeQueueIndices.second, &m_computeQueue);
-
-        if (m_transferQueueIndices.first != m_graphicsQueueIndices.first)
-            m_supportsAsyncTransferQueue = true;
-        else if (m_transferQueueIndices.second != m_graphicsQueueIndices.second)
-            m_supportsAsyncTransferQueue = true;
-        else
-            m_supportsAsyncTransferQueue = false;
-
-        if (m_computeQueueIndices.first != m_graphicsQueueIndices.first)
-            m_supportsAsyncComputeQueue = true;
-        else if (m_computeQueueIndices.second != m_graphicsQueueIndices.second)
-            m_supportsAsyncComputeQueue = true;
-        else
-            m_supportsAsyncComputeQueue = false;
+        // Vma
+        {
+            VmaAllocatorCreateInfo allocatorInfo = {};
+            allocatorInfo.physicalDevice         = m_gpu;
+            allocatorInfo.device                 = m_device;
+            allocatorInfo.instance               = m_vkInstance;
+            vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
+        }
 
         // Per frame data
         {
+            VkFenceCreateInfo fenceInfo = VkFenceCreateInfo{};
+            fenceInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fenceInfo.pNext             = nullptr;
+            fenceInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
+
+            VkSemaphoreCreateInfo smpInfo = VkSemaphoreCreateInfo{};
+            smpInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            smpInfo.pNext                 = nullptr;
+            smpInfo.flags                 = 0;
+
             for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             {
                 VKBPerFrameData pfd = {};
-                pfd.graphicsFence   = CreateFence();
-                pfd.transferFence   = CreateFence();
+
+                pfd.submitFences.resize(m_initInfo.gpuLimits.maxSubmitsPerFrame, nullptr);
+                pfd.imageAcquiredSemaphores.resize(m_initInfo.gpuLimits.maxSubmitsPerFrame, nullptr);
+                pfd.submitSemaphores.resize(m_initInfo.gpuLimits.maxSubmitsPerFrame, nullptr);
+
+                for (uint32 j = 0; j < m_initInfo.gpuLimits.maxSubmitsPerFrame; j++)
+                {
+                    VkFence     fence      = nullptr;
+                    VkSemaphore semaphore1 = nullptr;
+                    VkSemaphore semaphore2 = nullptr;
+                    VkResult    result     = vkCreateFence(m_device, &fenceInfo, m_allocator, &fence);
+                    VK_CHECK_RESULT(result, "Failed creating fence!");
+
+                    result = vkCreateSemaphore(m_device, &smpInfo, m_allocator, &semaphore1);
+                    VK_CHECK_RESULT(result, "Failed creating semaphore.");
+                    result = vkCreateSemaphore(m_device, &smpInfo, m_allocator, &semaphore2);
+                    VK_CHECK_RESULT(result, "Failed creating semaphore.");
+
+                    pfd.submitSemaphores[j]        = semaphore1;
+                    pfd.imageAcquiredSemaphores[j] = semaphore2;
+                    pfd.submitFences[j]            = fence;
+                }
+
+                vkResetFences(m_device, m_initInfo.gpuLimits.maxSubmitsPerFrame, &pfd.submitFences[0]);
+
                 m_perFrameData.push_back(pfd);
             }
         }
@@ -1206,6 +1481,7 @@ namespace LinaGX
             m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &VKBackend::CMD_DrawInstanced;
             m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &VKBackend::CMD_DrawIndexedInstanced;
         }
+
         return true;
     }
 
@@ -1214,8 +1490,13 @@ namespace LinaGX
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];
-            DestroyFence(pfd.graphicsFence);
-            DestroyFence(pfd.transferFence);
+
+            for (uint32 j = 0; j < m_initInfo.gpuLimits.maxSubmitsPerFrame; j++)
+            {
+                vkDestroyFence(m_device, pfd.submitFences[j], m_allocator);
+                vkDestroySemaphore(m_device, pfd.submitSemaphores[j], m_allocator);
+                vkDestroySemaphore(m_device, pfd.imageAcquiredSemaphores[j], m_allocator);
+            }
         }
 
         for (auto& swp : m_swapchains)
@@ -1230,12 +1511,22 @@ namespace LinaGX
 
         for (auto& txt : m_texture2Ds)
         {
-            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+            LOGA(!txt.isValid, "VKBackend -> Some textures were not destroyed!");
         }
 
         for (auto& str : m_cmdStreams)
         {
-            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
+            LOGA(!str.isValid, "VKBackend -> Some command streams were not destroyed!");
+        }
+
+        for (auto& r : m_resources)
+        {
+            LOGA(!r.isValid, "VKBackend -> Some resources were not destroyed!");
+        }
+
+        for (auto& r : m_userSemaphores)
+        {
+            LOGA(!r.isValid, "VKBackend -> Some semaphores were not destroyed!");
         }
 
         vmaDestroyAllocator(m_vmaAllocator);
@@ -1247,23 +1538,42 @@ namespace LinaGX
     void VKBackend::Join()
     {
         LINAGX_VEC<VkFence> fences;
+        const uint64        timeout = static_cast<uint64>(5000000000);
 
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-            fences.push_back(m_fences.GetItemR(m_perFrameData[i].graphicsFence));
+        {
+            auto& frame = m_perFrameData[i];
+            for (uint32 i = 0; i < frame.submissionCount; i++)
+                fences.push_back(frame.submitFences[i]);
+        }
 
         vkDeviceWaitIdle(m_device);
-        vkWaitForFences(m_device, static_cast<uint32>(fences.size()), fences.data(), true, 50000000);
+
+        if (!fences.empty())
+            vkWaitForFences(m_device, static_cast<uint32>(fences.size()), fences.data(), true, timeout);
     }
 
     void VKBackend::StartFrame(uint32 frameIndex)
     {
-        m_currentFrameIndex         = frameIndex;
-        const auto& frame           = m_perFrameData[frameIndex];
-        auto        vkGraphicsFence = m_fences.GetItem(frame.graphicsFence);
+        m_currentFrameIndex  = frameIndex;
+        auto&        frame   = m_perFrameData[frameIndex];
+        const uint64 timeout = static_cast<uint64>(5000000000);
 
-        // Wait for graphics present operations.
-        uint64   timeout = static_cast<uint64>(5000000000);
-        VkResult result  = vkWaitForFences(m_device, 1, &vkGraphicsFence, true, timeout);
+        // Wait for all submission fences for this frame.
+        LINAGX_VEC<VkFence> fences;
+        fences.resize(frame.submissionCount);
+
+        for (uint32 i = 0; i < frame.submissionCount; i++)
+            fences[i] = frame.submitFences[i];
+
+        if (!fences.empty())
+        {
+            VkResult result = vkWaitForFences(m_device, static_cast<uint32>(fences.size()), &fences[0], true, timeout);
+            VK_CHECK_RESULT(result, "Failed waiting for fences!");
+        }
+
+        m_imageAcqSemaphoresCount = 0;
+        frame.submissionCount     = 0;
 
         // Acquire images for each swapchain
         for (auto& swp : m_swapchains)
@@ -1271,10 +1581,8 @@ namespace LinaGX
             if (!swp.isValid)
                 continue;
 
-            auto semaphore = m_semaphores.GetItem(swp.submitSemaphores[frameIndex]);
-            result         = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, semaphore, nullptr, &swp._imageIndex);
-
-            LOGT("Acquired image for swapchain %p, image index %d, semaphore %p", (void*)swp.ptr, swp._imageIndex, (void*)semaphore);
+            VkResult result = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, frame.imageAcquiredSemaphores[m_imageAcqSemaphoresCount], nullptr, &swp._imageIndex);
+            m_imageAcqSemaphoresCount++;
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
@@ -1284,102 +1592,33 @@ namespace LinaGX
         }
 
         // reset
-        result = vkResetFences(m_device, 1, &vkGraphicsFence);
-        LOGA(result == VK_SUCCESS, "VKBackend -> Failed resetting graphics fence");
-    }
-
-    void VKBackend::FlushCommandStreams()
-    {
-        LINAGX_VEC<VkCommandBuffer> cmds;
-
-        for (auto stream : m_renderer->m_commandStreams)
+        if (!fences.empty())
         {
-            auto& sr     = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            auto  buffer = sr.buffers[m_currentFrameIndex];
-
-            VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo{};
-            beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            beginInfo.pNext                    = nullptr;
-            beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            beginInfo.pInheritanceInfo         = nullptr;
-            VkResult res                       = vkBeginCommandBuffer(buffer, &beginInfo);
-
-            for (uint32 i = 0; i < stream->m_commandCount; i++)
-            {
-                uint64* cmd = stream->m_commands[i];
-                TypeID  tid = stream->m_types[i];
-                (this->*m_cmdFunctions[tid])(cmd, sr);
-            }
-
-            VkResult result = vkEndCommandBuffer(buffer);
-            LOGA(result == VK_SUCCESS, "VKBackend-> Failed ending command buffer!");
-
-            cmds.push_back(buffer);
+            VkResult result = vkResetFences(m_device, static_cast<uint32>(fences.size()), &fences[0]);
+            VK_CHECK_RESULT(result, "Failed resetting fences!");
         }
-
-        auto&                            frame     = m_perFrameData[m_currentFrameIndex];
-        VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        LINAGX_VEC<VkSemaphore>          waitSemaphores;
-        LINAGX_VEC<VkSemaphore>          signalSemaphores;
-        LINAGX_VEC<VkPipelineStageFlags> waitStages;
-
-        // Make sure we wait for all image acquire requests before submitting the cmd buffers.
-        for (auto& swp : m_swapchains)
-        {
-            if (!swp.isValid)
-                continue;
-
-            auto submitSemaphore  = m_semaphores.GetItem(swp.submitSemaphores[m_currentFrameIndex]);
-            auto presentSemaphore = m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]);
-            waitStages.push_back(waitStage);
-            waitSemaphores.push_back(submitSemaphore);
-            signalSemaphores.push_back(presentSemaphore);
-            swp._presentSemaphoresActive = true;
-
-            LOGT("About to submit, wait semaphore %p, signal semaphore %p", (void*)submitSemaphore, (void*)presentSemaphore);
-        }
-
-        VkSubmitInfo info = VkSubmitInfo{};
-
-        info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        info.pNext                = nullptr;
-        info.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
-        info.pWaitSemaphores      = waitSemaphores.empty() ? nullptr : &waitSemaphores[0];
-        info.pWaitDstStageMask    = waitStages.empty() ? nullptr : &waitStages[0];
-        info.commandBufferCount   = static_cast<uint32>(cmds.size());
-        info.pCommandBuffers      = cmds.empty() ? nullptr : &cmds[0];
-        info.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
-        info.pSignalSemaphores    = signalSemaphores.empty() ? nullptr : &signalSemaphores[0];
-        VkResult result           = vkQueueSubmit(m_graphicsQueue, 1, &info, m_fences.GetItem(frame.graphicsFence));
-        LOGA(result == VK_SUCCESS, "VKBackend -> Failed submitting to queue!");
     }
 
     void VKBackend::Present(const PresentDesc& present)
     {
-        auto& swp = m_swapchains.GetItemR(present.swapchain);
-
-        if (!swp._presentSemaphoresActive)
-            return;
-
+        auto&                   swp   = m_swapchains.GetItemR(present.swapchain);
+        auto&                   frame = m_perFrameData[m_currentFrameIndex];
         LINAGX_VEC<VkSemaphore> waitSemaphores;
 
-        swp._presentSemaphoresActive = false;
-
-        waitSemaphores.push_back(m_semaphores.GetItem(swp.presentSemaphores[m_currentFrameIndex]));
+        for (uint32 i = 0; i < frame.submissionCount; i++)
+            waitSemaphores.push_back(frame.submitSemaphores[i]);
 
         VkPresentInfoKHR info   = VkPresentInfoKHR{};
         info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         info.pNext              = nullptr;
         info.waitSemaphoreCount = static_cast<uint32>(waitSemaphores.size());
-        info.pWaitSemaphores    = waitSemaphores.empty() ? nullptr : &waitSemaphores[0];
+        info.pWaitSemaphores    = &waitSemaphores[0];
         info.swapchainCount     = 1;
         info.pSwapchains        = &swp.ptr;
         info.pImageIndices      = &swp._imageIndex;
-        LOGT("Presenting swapchain %p, image index %d, wait semaphore %p", (void*)swp.ptr, swp._imageIndex, (void*)waitSemaphores[0]);
 
-        VkResult result = vkQueuePresentKHR(m_graphicsQueue, &info);
-
-        // LOGA(result == VK_SUCCESS, "VKBackend -> Failed presenting image from queue!");
+        VkResult result = vkQueuePresentKHR(m_queueData[QueueType::Graphics].queue, &info);
+        VK_CHECK_RESULT(result, "Failed presentation!");
 
         // TODO: check for swapchain recreation.
     }
@@ -1388,31 +1627,36 @@ namespace LinaGX
     {
     }
 
-    void VKBackend::CMD_BeginRenderPass(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_BeginRenderPass(uint8* data, const VKBCommandStream& stream)
     {
-        CMDBeginRenderPass* begin = static_cast<CMDBeginRenderPass*>(data);
+        CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
 
-        VkImageView colorImageView = nullptr;
-        VkImage     colorImage     = nullptr;
+        VkImageView colorImageView, depthImageView = nullptr;
+        VkImage     colorImage, depthImage         = nullptr;
 
         if (begin->isSwapchain)
         {
             const auto& swp = m_swapchains.GetItemR(begin->swapchain);
             colorImageView  = swp.views[swp._imageIndex];
             colorImage      = swp.imgs[swp._imageIndex];
+
+            const auto& depthTxt = m_texture2Ds.GetItemR(swp.depthTextures[swp._imageIndex]);
+            depthImageView       = depthTxt.imgView;
+            depthImage           = depthTxt.img;
         }
         else
         {
-            const auto& txt = m_texture2Ds.GetItemR(begin->texture);
-            colorImageView  = txt.imgView;
-            colorImage      = txt.img;
+            const auto& txt      = m_texture2Ds.GetItemR(begin->colorTexture);
+            const auto& depthTxt = m_texture2Ds.GetItemR(begin->depthTexture);
+            colorImageView       = txt.imgView;
+            colorImage           = txt.img;
+            depthImageView       = depthTxt.imgView;
+            depthImage           = depthTxt.img;
         }
 
-        VkClearValue cvColor     = {};
-        cvColor.color.float32[0] = begin->clearColor[0];
-        cvColor.color.float32[1] = begin->clearColor[1];
-        cvColor.color.float32[2] = begin->clearColor[2];
-        cvColor.color.float32[3] = begin->clearColor[3];
+        VkClearValue clearValues[2];
+        clearValues[0].color              = {begin->clearColor[0], begin->clearColor[1], begin->clearColor[2], begin->clearColor[3]};
+        clearValues[1].depthStencil.depth = 0.0f;
 
         VkRenderingAttachmentInfo colorAttachment = VkRenderingAttachmentInfo{};
         colorAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1424,7 +1668,19 @@ namespace LinaGX
         colorAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
         colorAttachment.loadOp                    = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.clearValue                = cvColor;
+        colorAttachment.clearValue                = clearValues[0];
+
+        VkRenderingAttachmentInfo depthAttachment = VkRenderingAttachmentInfo{};
+        depthAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        depthAttachment.pNext                     = nullptr;
+        depthAttachment.imageView                 = depthImageView;
+        depthAttachment.imageLayout               = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
+        depthAttachment.resolveImageView          = nullptr;
+        depthAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.loadOp                    = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.clearValue                = clearValues[1];
 
         CMDSetViewport interVP = {};
         CMDSetScissors interSC = {};
@@ -1452,25 +1708,21 @@ namespace LinaGX
         renderingInfo.renderArea           = area;
         renderingInfo.layerCount           = 1;
         renderingInfo.viewMask             = 0;
-        renderingInfo.pDepthAttachment     = nullptr;
+        renderingInfo.pDepthAttachment     = &depthAttachment;
         renderingInfo.pStencilAttachment   = nullptr;
         renderingInfo.colorAttachmentCount = 1;
         renderingInfo.pColorAttachments    = &colorAttachment;
 
         auto buffer = stream.buffers[m_currentFrameIndex];
-
         ImageTransition(ImageTransitionType::Present2RT, buffer, colorImage, true);
-        LOGT("Beginning rendering, color image: %p, color image view: %p", (void*)colorImage, (void*)colorImageView);
-
         vkCmdBeginRendering(buffer, &renderingInfo);
-
-        CMD_SetViewport(&interVP, stream);
-        CMD_SetScissors(&interSC, stream);
+        CMD_SetViewport((uint8*)&interVP, stream);
+        CMD_SetScissors((uint8*)&interSC, stream);
     }
 
-    void VKBackend::CMD_EndRenderPass(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_EndRenderPass(uint8* data, const VKBCommandStream& stream)
     {
-        CMDEndRenderPass* end    = static_cast<CMDEndRenderPass*>(data);
+        CMDEndRenderPass* end    = reinterpret_cast<CMDEndRenderPass*>(data);
         auto              buffer = stream.buffers[m_currentFrameIndex];
         vkCmdEndRendering(buffer);
 
@@ -1478,29 +1730,26 @@ namespace LinaGX
         {
             const auto& swp = m_swapchains.GetItemR(end->swapchain);
             ImageTransition(ImageTransitionType::RT2Present, buffer, swp.imgs[swp._imageIndex], true);
-            LOGT("Ending rendering, color image: %p", swp.imgs[swp._imageIndex]);
         }
     }
 
-    void VKBackend::CMD_SetViewport(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_SetViewport(uint8* data, const VKBCommandStream& stream)
     {
-        CMDSetViewport* cmd    = static_cast<CMDSetViewport*>(data);
+        CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
         auto            buffer = stream.buffers[m_currentFrameIndex];
-
-        VkViewport vp = VkViewport{};
-        vp.x          = static_cast<float>(cmd->x);
-        vp.y          = Config.vulkanFlipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
-        vp.width      = static_cast<float>(cmd->width);
-        vp.height     = Config.vulkanFlipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
-        vp.minDepth   = cmd->minDepth;
-        vp.maxDepth   = cmd->maxDepth;
-
+        VkViewport      vp     = VkViewport{};
+        vp.x                   = static_cast<float>(cmd->x);
+        vp.y                   = Config.vulkanConfig.flipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
+        vp.width               = static_cast<float>(cmd->width);
+        vp.height              = Config.vulkanConfig.flipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
+        vp.minDepth            = cmd->minDepth;
+        vp.maxDepth            = cmd->maxDepth;
         vkCmdSetViewport(buffer, 0, 1, &vp);
     }
 
-    void VKBackend::CMD_SetScissors(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_SetScissors(uint8* data, const VKBCommandStream& stream)
     {
-        CMDSetViewport* cmd    = static_cast<CMDSetViewport*>(data);
+        CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
         auto            buffer = stream.buffers[m_currentFrameIndex];
         VkRect2D        rect   = VkRect2D{};
         rect.offset.x          = static_cast<int32>(cmd->x);
@@ -1510,24 +1759,24 @@ namespace LinaGX
         vkCmdSetScissor(buffer, 0, 1, &rect);
     }
 
-    void VKBackend::CMD_BindPipeline(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_BindPipeline(uint8* data, const VKBCommandStream& stream)
     {
-        CMDBindPipeline* cmd    = static_cast<CMDBindPipeline*>(data);
+        CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
         auto             buffer = stream.buffers[m_currentFrameIndex];
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrPipeline);
     }
 
-    void VKBackend::CMD_DrawInstanced(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_DrawInstanced(uint8* data, const VKBCommandStream& stream)
     {
-        CMDDrawInstanced* cmd    = static_cast<CMDDrawInstanced*>(data);
+        CMDDrawInstanced* cmd    = reinterpret_cast<CMDDrawInstanced*>(data);
         auto              buffer = stream.buffers[m_currentFrameIndex];
         vkCmdDraw(buffer, cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
-    void VKBackend::CMD_DrawIndexedInstanced(void* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_DrawIndexedInstanced(uint8* data, const VKBCommandStream& stream)
     {
-        CMDDrawIndexedInstanced* cmd    = static_cast<CMDDrawIndexedInstanced*>(data);
+        CMDDrawIndexedInstanced* cmd    = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     buffer = stream.buffers[m_currentFrameIndex];
         vkCmdDrawIndexed(buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }

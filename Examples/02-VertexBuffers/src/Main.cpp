@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is a part of: LinaVG
 https://github.com/inanevin/LinaVG
 
@@ -26,23 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef INTRODUCTION_HPP
-#define INTRODUCTION_HPP
+#include "Main.hpp"
+#include "Example.hpp"
 
-#include "App.hpp"
-namespace LinaGX
+using namespace LinaGX::Examples;
+
+int main(int argc, char* argv[])
 {
-    namespace Examples
-    {
-        class Introduction : public App
-        {
-        public:
-            virtual void Initialize() override;
-            virtual void Shutdown() override;
-            virtual void OnTick() override;
-        };
-
-    } // namespace Examples
-} // namespace LinaGX
-
-#endif
+    Example app;
+    app.Initialize();
+    app.Run();
+    return 0;
+}

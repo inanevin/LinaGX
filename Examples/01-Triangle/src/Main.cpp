@@ -27,13 +27,13 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "Introduction.hpp"
+#include "Example.hpp"
 
 using namespace LinaGX::Examples;
 
 int main(int argc, char* argv[])
 {
-    Introduction app;
+    Example app;
     app.Initialize();
     app.Run();
     return 0;
