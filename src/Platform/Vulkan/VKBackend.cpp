@@ -122,6 +122,8 @@ namespace LinaGX
             return VK_FORMAT_R32_SFLOAT;
         case Format::R32_SINT:
             return VK_FORMAT_R32_SINT;
+        case Format::R32_UINT:
+            return VK_FORMAT_R32_UINT;
         case Format::R8_UNORM:
             return VK_FORMAT_R8_UNORM;
         case Format::R8_UINT:
@@ -130,6 +132,19 @@ namespace LinaGX
             return VK_FORMAT_R8G8_UNORM;
         default:
             return VK_FORMAT_B8G8R8A8_SRGB;
+        }
+    }
+
+    VkIndexType GetVKIndexType(IndexType type)
+    {
+        switch (type)
+        {
+        case IndexType::Uint16:
+            return VK_INDEX_TYPE_UINT16;
+        case IndexType::Uint32:
+            return VK_INDEX_TYPE_UINT32;
+        default:
+            return VK_INDEX_TYPE_UINT32;
         }
     }
 
@@ -1846,6 +1861,8 @@ namespace LinaGX
     {
         CMDBindIndexBuffers* cmd    = reinterpret_cast<CMDBindIndexBuffers*>(data);
         auto                 buffer = stream.buffers[m_currentFrameIndex];
+        const auto&          res    = m_resources.GetItemR(cmd->resource);
+        vkCmdBindIndexBuffer(buffer, res.buffer, cmd->offset, GetVKIndexType(cmd->indexFormat));
     }
 
     void VKBackend::CMD_CopyResource(uint8* data, const VKBCommandStream& stream)

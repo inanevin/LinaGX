@@ -99,11 +99,26 @@ namespace LinaGX
             return DXGI_FORMAT_R32_FLOAT;
         case Format::R32_SINT:
             return DXGI_FORMAT_R32_SINT;
+        case Format::R32_UINT:
+            return DXGI_FORMAT_R32_UINT;
         default:
             return DXGI_FORMAT_UNKNOWN;
         }
 
         return DXGI_FORMAT_UNKNOWN;
+    }
+
+    DXGI_FORMAT GetDXIndexType(IndexType type)
+    {
+        switch (type)
+        {
+        case IndexType::Uint16:
+            return DXGI_FORMAT_R16_UINT;
+        case IndexType::Uint32:
+            return DXGI_FORMAT_R32_UINT;
+        default:
+            return DXGI_FORMAT_R32_UINT;
+        }
     }
 
     D3D12_BLEND GetDXBlend(BlendFactor factor)
@@ -1784,8 +1799,14 @@ namespace LinaGX
 
     void DX12Backend::CMD_BindIndexBuffers(uint8* data, const DX12CommandStream& stream)
     {
-        CMDBindIndexBuffers* cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
-        auto                 list = stream.lists[m_currentFrameIndex];
+        CMDBindIndexBuffers*    cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
+        auto                    list = stream.lists[m_currentFrameIndex];
+        const auto&             res  = m_resources.GetItemR(cmd->resource);
+        D3D12_INDEX_BUFFER_VIEW view;
+        view.BufferLocation = GetGPUResource(res)->GetGPUVirtualAddress();
+        view.SizeInBytes    = static_cast<uint32>(res.size);
+        view.Format         = GetDXIndexType(cmd->indexFormat);
+        list->IASetIndexBuffer(&view);
     }
 
     void DX12Backend::CMD_CopyResource(uint8* data, const DX12CommandStream& stream)

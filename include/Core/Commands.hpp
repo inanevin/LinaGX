@@ -110,6 +110,9 @@ namespace LinaGX
 
     struct CMDBindIndexBuffers
     {
+        uint32    resource;
+        uint64    offset;
+        IndexType indexFormat;
     };
 
 #define BACKEND_BIND_COMMANDS(BACKEND)                                                         \

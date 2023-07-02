@@ -88,6 +88,7 @@ namespace LinaGX
         R16_SINT,
         R32_SFLOAT,
         R32_SINT,
+        R32_UINT,
         FORMAT_MAX,
     };
 
@@ -280,6 +281,12 @@ namespace LinaGX
         StagingHeap,
         GPUOnly,
         CPUVisibleGPUMemory,
+    };
+
+    enum class IndexType
+    {
+        Uint16,
+        Uint32,
     };
 
     struct DataBlob
@@ -479,6 +486,69 @@ namespace LinaGX
         const wchar_t* debugName = L"Resource";
     };
 
+    struct PresentDesc
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        uint8 swapchain = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        VsyncMode vsync = VsyncMode::None;
+    };
+
+    class CommandStream;
+
+    struct ExecuteDesc
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        QueueType queue = QueueType::Graphics;
+
+        /// <summary>
+        ///
+        /// </summary>
+        CommandStream** streams = nullptr;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint32 streamCount = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        bool useWait = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint16 waitSemaphore = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint64 waitValue = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        bool useSignal = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint16 signalSemaphore = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        uint64 signalValue = 0;
+    };
+
     struct GPULimits
     {
         /// <summary>
@@ -518,6 +588,14 @@ namespace LinaGX
         ///
         /// </summary>
         uint64 dedicatedVideoMemory = 0;
+    };
+
+    struct PerformanceStatistics
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        uint64 totalFrames = 0;
     };
 
     typedef void (*LogCallback)(const char*, ...);
@@ -601,71 +679,9 @@ namespace LinaGX
         Format rtDepthFormat = Format::D32_SFLOAT;
     };
 
-    struct PresentDesc
-    {
-        /// <summary>
-        ///
-        /// </summary>
-        uint8 swapchain = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        VsyncMode vsync = VsyncMode::None;
-    };
-
-    class CommandStream;
-
-    struct ExecuteDesc
-    {
-        /// <summary>
-        ///
-        /// </summary>
-        QueueType queue = QueueType::Graphics;
-
-        /// <summary>
-        ///
-        /// </summary>
-        CommandStream** streams = nullptr;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 streamCount = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        bool useWait = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint16 waitSemaphore = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 waitValue = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        bool useSignal = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint16 signalSemaphore = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 signalValue = 0;
-    };
-
-    extern LINAGX_API Configuration  Config;
-    extern LINAGX_API GPUInformation GPUInfo;
+    extern LINAGX_API Configuration         Config;
+    extern LINAGX_API GPUInformation        GPUInfo;
+    extern LINAGX_API PerformanceStatistics PerformanceStats;
 
 #define LOGT(...)                                                                                            \
     if (Config.infoCallback && Config.logLevel != LogLevel::None && Config.logLevel != LogLevel::OnlyErrors) \

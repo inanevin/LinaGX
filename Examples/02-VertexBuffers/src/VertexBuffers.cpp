@@ -44,6 +44,8 @@ namespace LinaGX::Examples
     uint16                 _shaderProgram       = 0;
     uint32                 _vertexBufferStaging = 0;
     uint32                 _vertexBufferGPU     = 0;
+    uint32                 _indexBufferStaging  = 0;
+    uint32                 _indexBufferGPU      = 0;
     uint16                 _copySemaphore       = 0;
     uint64                 _copySemaphoreValue  = 0;
     Window*                window               = nullptr;
@@ -72,7 +74,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
-                .gpu               = PreferredGPUType::Discrete,
+                .gpu               = PreferredGPUType::Integrated,
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
@@ -147,9 +149,11 @@ namespace LinaGX::Examples
                     {{-1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
                     {{0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
 
+            std::vector<uint32> indexBuffer = {0, 1, 2};
+
             uint32_t vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
 
-            ResourceDesc vertexBufferDesc = ResourceDesc{
+            ResourceDesc bufferDesc = ResourceDesc{
                 .size          = vertexBufferSize,
                 .typeHintFlags = LGX_VertexBuffer,
                 .heapType      = ResourceHeap::StagingHeap,
@@ -157,20 +161,37 @@ namespace LinaGX::Examples
             };
 
             // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
-            _vertexBufferStaging      = _renderer->CreateResource(vertexBufferDesc);
-            vertexBufferDesc.heapType = ResourceHeap::GPUOnly;
-            _vertexBufferGPU          = _renderer->CreateResource(vertexBufferDesc);
+            _vertexBufferStaging = _renderer->CreateResource(bufferDesc);
+            bufferDesc.heapType  = ResourceHeap::GPUOnly;
+            _vertexBufferGPU     = _renderer->CreateResource(bufferDesc);
+
+            // Same for index buffers.
+            bufferDesc.typeHintFlags = LGX_IndexBuffer;
+            bufferDesc.heapType      = ResourceHeap::StagingHeap;
+            _indexBufferStaging      = _renderer->CreateResource(bufferDesc);
+            bufferDesc.heapType      = ResourceHeap::GPUOnly;
+            _indexBufferGPU          = _renderer->CreateResource(bufferDesc);
 
             // Map & fill data into the staging buffer.
-            uint8* data = nullptr;
-            _renderer->MapResource(_vertexBufferStaging, data);
-            std::memcpy(data, vertexBuffer.data(), sizeof(Vertex) * vertexBuffer.size());
+            uint8* vtxData = nullptr;
+            _renderer->MapResource(_vertexBufferStaging, vtxData);
+            std::memcpy(vtxData, vertexBuffer.data(), sizeof(Vertex) * vertexBuffer.size());
             _renderer->UnmapResource(_vertexBufferStaging);
+
+            uint8* indexData = nullptr;
+            _renderer->MapResource(_indexBufferStaging, indexData);
+            std::memcpy(indexData, indexBuffer.data(), sizeof(uint32) * indexBuffer.size());
+            _renderer->UnmapResource(_indexBufferStaging);
 
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
             copyVtxBuf->source          = _vertexBufferStaging;
             copyVtxBuf->destination     = _vertexBufferGPU;
+
+            CMDCopyResource* copyIndexBuf = _copyStream->AddCommand<CMDCopyResource>();
+            copyIndexBuf->source          = _indexBufferStaging;
+            copyIndexBuf->destination     = _indexBufferGPU;
+
             _renderer->CloseCommandStreams(&_copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
@@ -191,6 +212,8 @@ namespace LinaGX::Examples
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyResource(_vertexBufferStaging);
         _renderer->DestroyResource(_vertexBufferGPU);
+        _renderer->DestroyResource(_indexBufferStaging);
+        _renderer->DestroyResource(_indexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
         _renderer->DestroyCommandStream(_stream);
@@ -225,13 +248,18 @@ namespace LinaGX::Examples
             beginRenderPass->scissors           = sc;
         }
 
-        // Bind vertex buffers
+        // Bind buffers
         {
             CMDBindVertexBuffers* bind = _stream->AddCommand<CMDBindVertexBuffers>();
             bind->slot                 = 0;
             bind->resource             = _vertexBufferGPU;
             bind->vertexSize           = sizeof(Vertex);
             bind->offset               = 0;
+
+            CMDBindIndexBuffers* bindIndex = _stream->AddCommand<CMDBindIndexBuffers>();
+            bindIndex->resource            = _indexBufferGPU;
+            bindIndex->indexFormat         = IndexType::Uint32;
+            bindIndex->offset              = 0;
         }
 
         // Set shader
@@ -242,11 +270,12 @@ namespace LinaGX::Examples
 
         // Draw the triangle
         {
-            CMDDrawInstanced* drawInstanced       = _stream->AddCommand<CMDDrawInstanced>();
-            drawInstanced->vertexCountPerInstance = 3;
-            drawInstanced->instanceCount          = 1;
-            drawInstanced->startInstanceLocation  = 0;
-            drawInstanced->startVertexLocation    = 0;
+            CMDDrawIndexedInstanced* drawIndexed = _stream->AddCommand<CMDDrawIndexedInstanced>();
+            drawIndexed->baseVertexLocation      = 0;
+            drawIndexed->indexCountPerInstance   = 3;
+            drawIndexed->instanceCount           = 1;
+            drawIndexed->startIndexLocation      = 0;
+            drawIndexed->startInstanceLocation   = 0;
         }
 
         // End render pass

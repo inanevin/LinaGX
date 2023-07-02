@@ -28,22 +28,40 @@ SOFTWARE.
 
 #include "App.hpp"
 #include "LinaGX.hpp"
+#include <chrono>
 
 namespace LinaGX::Examples
 {
     void App::Initialize()
     {
-        
     }
 
     void App::Run()
     {
         m_isRunning = true;
 
+        auto          prev       = std::chrono::high_resolution_clock::now();
+        static uint64 lastFrames = 0;
+
         while (m_isRunning)
         {
-            // Poll for inputs etc.
+            auto now            = std::chrono::high_resolution_clock::now();
+            auto duration       = std::chrono::duration_cast<std::chrono::microseconds>(now - prev);
+            prev                = now;
+            m_deltaMicroseconds = duration.count();
+
             OnTick();
+
+            static uint64 fpsCounter = 0;
+            fpsCounter += m_deltaMicroseconds;
+
+            if (fpsCounter > 2000000)
+            {
+                fpsCounter        = 0;
+                m_framesPerSecond = (PerformanceStats.totalFrames - lastFrames) / 2;
+                lastFrames        = PerformanceStats.totalFrames;
+                std::cout << "FPS: " << m_framesPerSecond << std::endl;
+            }
         }
 
         Shutdown();

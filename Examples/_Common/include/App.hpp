@@ -73,7 +73,9 @@ namespace LinaGX
             virtual void OnMousePress(uint32 mouse){};
 
         protected:
-            bool m_isRunning = false;
+            bool   m_isRunning         = false;
+            uint64 m_deltaMicroseconds = 0;
+            uint64 m_framesPerSecond   = 0;
         };
 
     } // namespace Examples

@@ -109,6 +109,7 @@ namespace LinaGX
     {
         m_backend->EndFrame();
         m_currentFrameIndex = (m_currentFrameIndex + 1) % m_initInfo.framesInFlight;
+        PerformanceStats.totalFrames++;
     }
 
     void Renderer::Present(const PresentDesc& present)
