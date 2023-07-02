@@ -51,7 +51,10 @@ namespace LinaGX
         bool                                    isValid = false;
         LINAGX_VEC<uint32>                      colorTextures;
         LINAGX_VEC<uint32>                      depthTextures;
+        uint32                                  width       = 0;
+        uint32                                  height      = 0;
         uint32                                  _imageIndex = 0;
+        VsyncMode                               vsync       = VsyncMode::None;
     };
 
     struct DX12Shader
@@ -127,6 +130,7 @@ namespace LinaGX
         virtual void   WaitForUserSemaphore(uint16 handle, uint64 value) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
+        virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;

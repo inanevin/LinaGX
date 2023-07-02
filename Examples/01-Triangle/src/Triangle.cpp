@@ -119,12 +119,29 @@ namespace LinaGX::Examples
         {
             // Create a swapchain for main window.
             _swapchain = _renderer->CreateSwapchain({
-                .x        = 0,
-                .y        = 0,
-                .width    = 800,
-                .height   = 600,
-                .window   = window->GetWindowHandle(),
-                .osHandle = window->GetOSHandle(),
+                .x            = 0,
+                .y            = 0,
+                .width        = window->GetWidth(),
+                .height       = window->GetHeight(),
+                .window       = window->GetWindowHandle(),
+                .osHandle     = window->GetOSHandle(),
+                .isFullscreen = false,
+                .vsyncMode    = VsyncMode::None,
+            });
+
+            // We need to re-create the swapchain (thus it's images) if window size changes!
+            window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
+                uint32 monitorW, monitorH = 0;
+                window->GetMonitorSize(monitorW, monitorH);
+
+                SwapchainRecreateDesc resizeDesc = {
+                    .swapchain    = _swapchain,
+                    .width        = w,
+                    .height       = h,
+                    .isFullscreen = w == monitorW && h == monitorH,
+                };
+
+                _renderer->RecreateSwapchain(resizeDesc);
             });
 
             // Create command stream to record draw calls.
@@ -160,8 +177,8 @@ namespace LinaGX::Examples
 
         // Render pass begin
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = 800, .height = 600, .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = 800, .height = 600};
+            Viewport            viewport        = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect        sc              = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight()};
             CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;

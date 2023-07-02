@@ -117,6 +117,12 @@ namespace LinaGX
         void DestroySwapchain(uint8 handle);
 
         /// <summary>
+        ///
+        /// </summary>
+        /// <param name="handle"></param>
+        void RecreateSwapchain(const SwapchainRecreateDesc& desc);
+
+        /// <summary>
         /// Compiles given GLSL text file into a blob. This blob is used to generate shader programs in the gpu. You can save the blob to file and pass it without compiling next time.
         /// </summary>
         /// <param name="stage">Target shader stage.</param>

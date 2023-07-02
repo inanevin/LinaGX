@@ -13,7 +13,7 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 3.6)
-project(01-Triangle)
+project(00-WindowCreation)
 
 #--------------------------------------------------------------------
 # Set sources
@@ -21,14 +21,12 @@ project(01-Triangle)
 
 set(SOURCES 
 src/Main.cpp
-src/Triangle.cpp
+src/WindowCreation.cpp
 )
 
 set(HEADERS
 include/Main.hpp
-include/Triangle.hpp
-Resources/Shaders/triangle_frag.glsl
-Resources/Shaders/triangle_vert.glsl
+include/WindowCreation.hpp
 )
 
 #--------------------------------------------------------------------
@@ -53,15 +51,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/Examples/_Common/include)
 
-
 #--------------------------------------------------------------------
 # Links
 #--------------------------------------------------------------------
 target_link_libraries(${PROJECT_NAME} 
 PUBLIC LinaGX::ExamplesCommon
 )
-
-include(${CMAKE_SOURCE_DIR}/CMake/CopyResources.cmake)
 
 #--------------------------------------------------------------------
 # Folder structuring in visual studio

@@ -457,6 +457,21 @@ namespace LinaGX
         }
     }
 
+    VkPresentModeKHR GetVKPresentMode(VsyncMode vsync)
+    {
+        switch (vsync)
+        {
+        case VsyncMode::None:
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        case VsyncMode::EveryVBlank:
+            return VK_PRESENT_MODE_FIFO_KHR;
+        case VsyncMode::EverySecondVBlank:
+            return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        default:
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
+    }
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         switch (messageSeverity)
@@ -538,11 +553,14 @@ namespace LinaGX
 #else
         LOGA(false, "VKBackend -> Vulkan backend is only supported for Windows at the moment!");
 #endif
+
+        VkPresentModeKHR presentMode = GetVKPresentMode(desc.vsyncMode);
+
         VkFormat              swpFormat = GetVKFormat(m_initInfo.rtSwapchainFormat);
         vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
         swapchainBuilder = swapchainBuilder
                                //.use_default_format_selection()
-                               .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                               .set_desired_present_mode(presentMode)
                                .set_desired_extent(desc.width, desc.height)
                                .set_desired_format({swpFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
                                .set_desired_min_image_count(m_initInfo.backbufferCount);
@@ -553,6 +571,9 @@ namespace LinaGX
         swp.imgs                    = vkbSwapchain.get_images().value();
         swp.views                   = vkbSwapchain.get_image_views().value();
         swp.surface                 = surface;
+        swp.presentMode             = presentMode;
+        swp.width                   = vkbSwapchain.extent.width;
+        swp.height                  = vkbSwapchain.extent.height;
         swp.isValid                 = true;
 
         if (swp.format != swpFormat)
@@ -564,8 +585,8 @@ namespace LinaGX
         {
             Texture2DDesc depthDesc = {};
             depthDesc.format        = m_initInfo.rtDepthFormat;
-            depthDesc.width         = desc.width;
-            depthDesc.height        = desc.height;
+            depthDesc.width         = swp.width;
+            depthDesc.height        = swp.height;
             depthDesc.mipLevels     = 1;
             depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
             swp.depthTextures.push_back(CreateTexture2D(depthDesc));
@@ -598,6 +619,70 @@ namespace LinaGX
         swp.isValid = false;
         m_swapchains.RemoveItem(handle);
         LOGT("VKBackend -> Destroyed swapchain.");
+    }
+
+    void VKBackend::RecreateSwapchain(const SwapchainRecreateDesc& desc)
+    {
+        auto& swp       = m_swapchains.GetItemR(desc.swapchain);
+        swp.width       = desc.width;
+        swp.height      = desc.height;
+        swp.presentMode = GetVKPresentMode(desc.vsyncMode);
+
+        if (desc.width == 0 || desc.height == 0)
+            return;
+
+        Join();
+
+        if (!swp.isValid)
+        {
+            LOGE("VKBackend -> Swapchain to be re-created is not valid!");
+            return;
+        }
+
+        auto                  oldSwapchain = swp.ptr;
+        vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, swp.surface};
+        vkb::Swapchain        vkbSwapchain = swapchainBuilder
+                                          .set_old_swapchain(swp.ptr)
+                                          .set_desired_present_mode(swp.presentMode)
+                                          .set_desired_extent(desc.width, desc.height)
+                                          .set_desired_format({swp.format, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
+                                          .set_required_min_image_count(m_initInfo.backbufferCount)
+                                          .build()
+                                          .value();
+        swp.ptr    = vkbSwapchain.swapchain;
+        swp.format = vkbSwapchain.image_format;
+        swp.width  = vkbSwapchain.extent.width;
+        swp.height = vkbSwapchain.extent.height;
+
+        vkDestroySwapchainKHR(m_device, oldSwapchain, m_allocator);
+
+        for (auto view : swp.views)
+            vkDestroyImageView(m_device, view, m_allocator);
+
+        for (auto depth : swp.depthTextures)
+            DestroyTexture2D(depth);
+
+        std::vector<VkImage>     imgs  = vkbSwapchain.get_images().value();
+        std::vector<VkImageView> views = vkbSwapchain.get_image_views().value();
+        swp.imgs.clear();
+        swp.views.clear();
+        swp.depthTextures.clear();
+
+        for (VkImage img : imgs)
+        {
+            swp.imgs.push_back(img);
+
+            Texture2DDesc depthDesc = {};
+            depthDesc.format        = m_initInfo.rtDepthFormat;
+            depthDesc.width         = swp.width;
+            depthDesc.height        = swp.height;
+            depthDesc.mipLevels     = 1;
+            depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+            swp.depthTextures.push_back(CreateTexture2D(depthDesc));
+        }
+
+        for (VkImageView view : views)
+            swp.views.push_back(view);
     }
 
     bool VKBackend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
@@ -1644,19 +1729,24 @@ namespace LinaGX
         frame.submissionCount     = 0;
 
         // Acquire images for each swapchain
+        uint8 i = 0;
         for (auto& swp : m_swapchains)
         {
-            if (!swp.isValid)
+            if (!swp.isValid || swp.width == 0 || swp.height == 0)
+            {
+                i++;
                 continue;
+            }
 
             VkResult result = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, frame.imageAcquiredSemaphores[m_imageAcqSemaphoresCount], nullptr, &swp._imageIndex);
             m_imageAcqSemaphoresCount++;
 
-            if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             {
-                LOGA(false, "!!");
-                // TODO: CHECK FOR SWAPCHAIN RECREATION
+                LOGA(false, "VkBackend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
             }
+
+            i++;
         }
 
         // reset
@@ -1673,6 +1763,9 @@ namespace LinaGX
         auto&                   frame = m_perFrameData[m_currentFrameIndex];
         LINAGX_VEC<VkSemaphore> waitSemaphores;
 
+        if (swp.width == 0 || swp.height == 0)
+            return;
+
         for (uint32 i = 0; i < frame.submissionCount; i++)
             waitSemaphores.push_back(frame.submitSemaphores[i]);
 
@@ -1686,9 +1779,12 @@ namespace LinaGX
         info.pImageIndices      = &swp._imageIndex;
 
         VkResult result = vkQueuePresentKHR(m_queueData[QueueType::Graphics].queue, &info);
-        VK_CHECK_RESULT(result, "Failed presentation!");
 
-        // TODO: check for swapchain recreation.
+        // Check for swapchain recreation.
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        {
+            LOGA(false, "VkBackend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
+        }
     }
 
     void VKBackend::EndFrame()
@@ -1812,6 +1908,13 @@ namespace LinaGX
         vp.height              = Config.vulkanConfig.flipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
         vp.minDepth            = cmd->minDepth;
         vp.maxDepth            = cmd->maxDepth;
+
+        if (vp.width == 0.0)
+            vp.width = 1.0f;
+
+        if (vp.height == 0.0)
+            vp.height = 1.0f;
+
         vkCmdSetViewport(buffer, 0, 1, &vp);
     }
 

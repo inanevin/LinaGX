@@ -66,9 +66,12 @@ namespace LinaGX
     struct VKBSwapchain
     {
         bool                    isValid = false;
+        uint32                  width   = 0;
+        uint32                  height  = 0;
         VkFormat                format  = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
         VkSwapchainKHR          ptr     = nullptr;
         VkSurfaceKHR            surface = nullptr;
+        VkPresentModeKHR        presentMode;
         LINAGX_VEC<VkImage>     imgs;
         LINAGX_VEC<VkImageView> views;
         LINAGX_VEC<uint32>      depthTextures;
@@ -127,6 +130,7 @@ namespace LinaGX
         virtual void   WaitForUserSemaphore(uint16 handle, uint64 value) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
+        virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;

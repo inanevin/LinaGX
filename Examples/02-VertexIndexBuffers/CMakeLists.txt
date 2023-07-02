@@ -13,20 +13,20 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 3.6)
-project(02-VertexBuffers)
+project(02-VertexIndexBuffers)
 
 #--------------------------------------------------------------------
 # Set sources
 #--------------------------------------------------------------------
 
-set(02-VERTEXBUFFERS_SOURCES 
+set(SOURCES 
 src/Main.cpp
-src/VertexBuffers.cpp
+src/VertexIndexBuffers.cpp
 )
 
-set(02-VERTEXBUFFERS_HEADERS
+set(HEADERS
 include/Main.hpp
-include/VertexBuffers.hpp
+include/VertexIndexBuffers.hpp
 Resources/Shaders/triangle_frag.glsl
 Resources/Shaders/triangle_vert.glsl
 )
@@ -34,7 +34,7 @@ Resources/Shaders/triangle_vert.glsl
 #--------------------------------------------------------------------
 # Create executable project
 #--------------------------------------------------------------------
-add_executable(${PROJECT_NAME} ${02-VERTEXBUFFERS_SOURCES} ${02-VERTEXBUFFERS_HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 include(${CMAKE_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
@@ -67,9 +67,9 @@ include(${CMAKE_SOURCE_DIR}/CMake/CopyResources.cmake)
 # Folder structuring in visual studio
 #--------------------------------------------------------------------
 if(MSVC_IDE)
-	foreach(source IN LISTS 02-VERTEXBUFFERS_HEADERS 02-VERTEXBUFFERS_SOURCES)
+	foreach(source IN LISTS HEADERS SOURCES)
 		get_filename_component(source_path "${source}" PATH)
-		string(REPLACE "${02-VERTEXBUFFERS_SOURCE_DIR}" "" relative_source_path "${source_path}")
+		string(REPLACE "${SOURCE_DIR}" "" relative_source_path "${source_path}")
 		string(REPLACE "/" "\\" source_path_msvc "${relative_source_path}")
 				source_group("${source_path_msvc}" FILES "${source}")
 	endforeach()

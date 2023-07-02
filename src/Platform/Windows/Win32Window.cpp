@@ -39,6 +39,9 @@ namespace LinaGX
     {
         auto* win32Window = s_win32Windows[window];
 
+        if (win32Window == nullptr)
+            return DefWindowProcA(window, msg, wParam, lParam);
+
         switch (msg)
         {
         case WM_CLOSE: {
@@ -66,9 +69,35 @@ namespace LinaGX
             break;
         }
         case WM_MOVE: {
+
+            const uint32 x = static_cast<uint32>((short)LOWORD(lParam));
+            const uint32 y = static_cast<uint32>((short)HIWORD(lParam));
+
+            win32Window->m_posX = x;
+            win32Window->m_posY = y;
+
+            if (win32Window->m_cbPosChanged)
+                win32Window->m_cbPosChanged(x, y);
+
             break;
         }
         case WM_SIZE: {
+
+            RECT rect;
+            GetWindowRect(window, &rect);
+
+            RECT clientRect;
+            GetClientRect(win32Window->m_hwnd, &clientRect);
+
+            win32Window->m_width  = clientRect.right - clientRect.left;
+            win32Window->m_height = clientRect.bottom - clientRect.top;
+
+            win32Window->m_trueWidth  = rect.right - rect.left;
+            win32Window->m_trueHeight = rect.bottom - rect.top;
+
+            if (win32Window->m_cbSizeChanged)
+                win32Window->m_cbSizeChanged(win32Window->m_width, win32Window->m_height);
+
             break;
         }
         case WM_KEYDOWN: {
@@ -130,14 +159,17 @@ namespace LinaGX
         }
 
         DWORD exStyle = WS_EX_APPWINDOW;
-        DWORD stylew  = WS_OVERLAPPEDWINDOW;
+        DWORD stylew  = GetStyle(style);
 
-        RECT  windowRect  = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
-        DWORD windowStyle = WS_OVERLAPPEDWINDOW;
-        AdjustWindowRect(&windowRect, windowStyle, FALSE);
+        RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+        AdjustWindowRect(&windowRect, stylew, FALSE);
 
         int adjustedWidth  = windowRect.right - windowRect.left;
         int adjustedHeight = windowRect.bottom - windowRect.top;
+        m_trueWidth        = adjustedWidth;
+        m_trueHeight       = adjustedHeight;
+        m_width            = width;
+        m_height           = height;
 
         m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, NULL, NULL, m_hinst, NULL);
         ShowWindow(m_hwnd, SW_SHOW);
@@ -161,4 +193,88 @@ namespace LinaGX
     {
         DestroyWindow(m_hwnd);
     }
+
+    uint32 Win32Window::GetStyle(WindowStyle style)
+    {
+        if (style == WindowStyle::Borderless)
+            return WS_POPUP;
+
+        return WS_OVERLAPPEDWINDOW;
+    }
+
+    void Win32Window::SetStyle(WindowStyle style)
+    {
+        SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
+    }
+
+    void Win32Window::GetMonitorWorkArea(uint32& width, uint32& height)
+    {
+        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(hMonitor, &monitorInfo);
+        width  = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
+        height = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
+    }
+
+    void Win32Window::GetMonitorSize(uint32& width, uint32& height)
+    {
+        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(hMonitor, &monitorInfo);
+        width  = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
+        height = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
+    }
+
+    void Win32Window::SetPosition(uint32 x, uint32 y)
+    {
+        m_posX = x;
+        m_posY = y;
+        SetWindowPos(m_hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    }
+
+    void Win32Window::SetSize(uint32 width, uint32 height)
+    {
+        m_width         = width;
+        m_height        = height;
+        RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+        AdjustWindowRect(&windowRect, GetWindowLong(m_hwnd, GWL_STYLE), FALSE);
+        int adjustedWidth  = windowRect.right - windowRect.left;
+        int adjustedHeight = windowRect.bottom - windowRect.top;
+        m_trueWidth        = adjustedWidth;
+        m_trueHeight       = adjustedHeight;
+        SetWindowPos(m_hwnd, NULL, 0, 0, adjustedWidth, adjustedHeight, SWP_NOMOVE | SWP_NOZORDER);
+    }
+
+    void Win32Window::CenterPositionToCurrentMonitor()
+    {
+        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(MONITORINFO);
+        GetMonitorInfo(hMonitor, &monitorInfo);
+
+        int monitorWidth  = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
+        int monitorHeight = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
+
+        int xPos = (monitorWidth - m_trueWidth) / 2;
+        int yPos = (monitorHeight - m_trueHeight) / 2;
+
+        SetWindowPos(m_hwnd, NULL, xPos, yPos, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    }
+
+    void Win32Window::SetFullscreen()
+    {
+        SetWindowLong(m_hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(hMonitor, &monitorInfo);
+        SetWindowPos(m_hwnd, HWND_TOP, monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+                     monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+                     monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+                     SWP_NOZORDER | SWP_FRAMECHANGED);
+        ShowWindow(m_hwnd, SW_MAXIMIZE);
+    }
+
 } // namespace LinaGX

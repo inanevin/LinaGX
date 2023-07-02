@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "VertexBuffers.hpp"
+#include "VertexIndexBuffers.hpp"
 
 using namespace LinaGX::Examples;
 

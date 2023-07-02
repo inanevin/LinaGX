@@ -182,8 +182,9 @@ link_spirv()
 
 if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/_Common)
+	add_subdirectory(Examples/00-WindowCreation)
 	add_subdirectory(Examples/01-Triangle)
-	add_subdirectory(Examples/02-VertexBuffers)
+	add_subdirectory(Examples/02-VertexIndexBuffers)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()

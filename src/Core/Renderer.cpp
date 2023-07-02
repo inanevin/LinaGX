@@ -142,6 +142,11 @@ namespace LinaGX
         m_backend->DestroySwapchain(handle);
     }
 
+    void Renderer::RecreateSwapchain(const SwapchainRecreateDesc& desc)
+    {
+        m_backend->RecreateSwapchain(desc);
+    }
+
     bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
     {
         DataBlob spv = {};

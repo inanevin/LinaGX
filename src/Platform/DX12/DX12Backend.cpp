@@ -478,9 +478,9 @@ namespace LinaGX
         swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchainDesc.SampleDesc.Count      = 1;
+        swapchainDesc.Flags                 = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
         ComPtr<IDXGISwapChain1> swapchain;
-        swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
         if (m_allowTearing)
             swapchainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
@@ -494,8 +494,13 @@ namespace LinaGX
                                                             nullptr,
                                                             &swapchain));
 
+            ThrowIfFailed(swapchain->SetFullscreenState(desc.isFullscreen, nullptr));
+
             DX12Swapchain swp = {};
             swp.isValid       = true;
+            swp.width         = desc.width;
+            swp.height        = desc.height;
+            swp.vsync         = desc.vsyncMode;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
             LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
@@ -553,6 +558,15 @@ namespace LinaGX
             return;
         }
 
+        try
+        {
+            ThrowIfFailed(swp.ptr->SetFullscreenState(FALSE, nullptr));
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "DX12Backend -> Setting swapchain fullscreen state!");
+        }
+
         for (auto t : swp.colorTextures)
             DestroyTexture2D(t);
 
@@ -562,6 +576,69 @@ namespace LinaGX
         swp.isValid = false;
         swp.ptr.Reset();
         m_swapchains.RemoveItem(handle);
+    }
+
+    void DX12Backend::RecreateSwapchain(const SwapchainRecreateDesc& desc)
+    {
+        if (desc.width == 0 || desc.height == 0)
+            return;
+
+        auto&                swp     = m_swapchains.GetItemR(desc.swapchain);
+        DXGI_SWAP_CHAIN_DESC swpDesc = {};
+        swp.ptr->GetDesc(&swpDesc);
+
+        try
+        {
+            if (!m_allowTearing)
+                ThrowIfFailed(swp.ptr->SetFullscreenState(desc.isFullscreen, nullptr));
+
+            for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
+            {
+                DestroyTexture2D(swp.colorTextures[i]);
+                DestroyTexture2D(swp.depthTextures[i]);
+            }
+
+            ThrowIfFailed(swp.ptr->ResizeBuffers(m_initInfo.backbufferCount, desc.width, desc.height, swpDesc.BufferDesc.Format, swpDesc.Flags));
+
+            swp.width       = desc.width;
+            swp.height      = desc.height;
+            swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
+
+            for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
+            {
+                DX12Texture2D color      = {};
+                color.isSwapchainTexture = true;
+                color.descriptor         = m_rtvHeap->GetNewHeapHandle();
+                color.isValid            = true;
+
+                try
+                {
+                    ThrowIfFailed(swp.ptr->GetBuffer(i, IID_PPV_ARGS(&color.rawRes)));
+                }
+                catch (HrException e)
+                {
+                    DX12_THROW(e, "DX12Backend -> Exception while creating render target for swapchain! %s", e.what());
+                }
+
+                D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+                rtvDesc.Format                        = GetDXFormat(m_initInfo.rtSwapchainFormat);
+                rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
+                m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
+                swp.colorTextures[i] = m_texture2Ds.AddItem(color);
+
+                Texture2DDesc depthDesc = {};
+                depthDesc.format        = m_initInfo.rtDepthFormat;
+                depthDesc.width         = desc.width;
+                depthDesc.height        = desc.height;
+                depthDesc.mipLevels     = 1;
+                depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+                swp.depthTextures[i]    = CreateTexture2D(depthDesc);
+            }
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "DX12Backend -> Failed resizing swapchain! %s", e.what());
+        }
     }
 
     bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
@@ -1619,12 +1696,12 @@ namespace LinaGX
             UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
             uint32 interval = 0;
 
-            if (present.vsync == VsyncMode::EveryVBlank)
+            if (swp.vsync == VsyncMode::EveryVBlank)
             {
                 interval = 1;
                 flags    = 0;
             }
-            else if (present.vsync == VsyncMode::EverySecondVBlank)
+            else if (swp.vsync == VsyncMode::EverySecondVBlank)
             {
                 interval = 2;
                 flags    = 0;

@@ -263,8 +263,6 @@ namespace LinaGX
     {
         Windowed,
         Borderless,
-        Fullscreen,
-        WorkArea
     };
 
     enum ResourceTypeHint
@@ -297,12 +295,23 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
-        uint32 x        = 0;
-        uint32 y        = 0;
-        uint32 width    = 0;
-        uint32 height   = 0;
-        void*  window   = nullptr;
-        void*  osHandle = nullptr;
+        uint32    x            = 0;
+        uint32    y            = 0;
+        uint32    width        = 0;
+        uint32    height       = 0;
+        void*     window       = nullptr;
+        void*     osHandle     = nullptr;
+        bool      isFullscreen = false;
+        VsyncMode vsyncMode    = VsyncMode::None;
+    };
+
+    struct SwapchainRecreateDesc
+    {
+        uint8     swapchain    = 0;
+        uint32    width        = 0;
+        uint32    height       = 0;
+        bool      isFullscreen = false;
+        VsyncMode vsyncMode    = VsyncMode::None;
     };
 
     struct ColorBlendAttachment
@@ -492,11 +501,6 @@ namespace LinaGX
         ///
         /// </summary>
         uint8 swapchain = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        VsyncMode vsync = VsyncMode::None;
     };
 
     class CommandStream;
@@ -709,7 +713,8 @@ namespace LinaGX
 
     } // namespace Internal
 
-    typedef std::function<void()> CallbackNoArg;
+    typedef std::function<void()>               CallbackNoArg;
+    typedef std::function<void(uint32, uint32)> CallbackUint2;
 
 } // namespace LinaGX
 
