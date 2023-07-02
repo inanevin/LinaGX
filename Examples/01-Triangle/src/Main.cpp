@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "Example.hpp"
+#include "Triangle.hpp"
 
 using namespace LinaGX::Examples;
 

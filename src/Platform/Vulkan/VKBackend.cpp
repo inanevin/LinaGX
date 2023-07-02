@@ -464,9 +464,15 @@ namespace LinaGX
         VKBUserSemaphore item = {};
         item.isValid          = true;
 
+        VkSemaphoreTypeCreateInfo timelineCreateInfo;
+        timelineCreateInfo.sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+        timelineCreateInfo.pNext         = NULL;
+        timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+        timelineCreateInfo.initialValue  = 0;
+
         VkSemaphoreCreateInfo info = VkSemaphoreCreateInfo{};
         info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        info.pNext                 = nullptr,
+        info.pNext                 = &timelineCreateInfo;
         info.flags                 = 0;
 
         VkResult result = vkCreateSemaphore(m_device, &info, m_allocator, &item.ptr);
@@ -485,6 +491,20 @@ namespace LinaGX
 
         vkDestroySemaphore(m_device, semaphore.ptr, m_allocator);
         m_userSemaphores.RemoveItem(handle);
+    }
+
+    void VKBackend::WaitForUserSemaphore(uint16 handle, uint64 value)
+    {
+        const uint64        timeout  = static_cast<uint64>(5000000000);
+        VkSemaphore         s        = m_userSemaphores.GetItemR(handle).ptr;
+        VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
+        waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+        waitInfo.pNext               = nullptr;
+        waitInfo.flags               = 0;
+        waitInfo.semaphoreCount      = 1;
+        waitInfo.pSemaphores         = &s;
+        waitInfo.pValues             = &value;
+        vkWaitSemaphores(m_device, &waitInfo, timeout);
     }
 
     uint8 VKBackend::CreateSwapchain(const SwapchainDesc& desc)
@@ -924,6 +944,7 @@ namespace LinaGX
     uint32 VKBackend::CreateResource(const ResourceDesc& desc)
     {
         VKBResource item = {};
+        item.size        = desc.size;
         item.isValid     = true;
         item.heapType    = desc.heapType;
 
@@ -951,16 +972,20 @@ namespace LinaGX
             LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "VKBackend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
             allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
             allocInfo.usage         = VMA_MEMORY_USAGE_AUTO;
+            allocInfo.flags         = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         }
         else if (desc.heapType == ResourceHeap::GPUOnly)
         {
             allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             allocInfo.usage         = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+            bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
         else if (desc.heapType == ResourceHeap::StagingHeap)
         {
             allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
             allocInfo.usage         = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+            allocInfo.flags         = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
         vmaCreateBuffer(m_vmaAllocator, &bufferInfo, &allocInfo, &item.buffer, &item.allocation, nullptr);
@@ -969,18 +994,18 @@ namespace LinaGX
 
     void VKBackend::MapResource(uint32 handle, uint8*& ptr)
     {
-        auto& item = m_resources.GetItemR(handle);
-
+        auto& item    = m_resources.GetItemR(handle);
         item.isMapped = true;
+        vmaMapMemory(m_vmaAllocator, item.allocation, reinterpret_cast<void**>(&ptr));
     }
 
     void VKBackend::UnmapResource(uint32 handle)
     {
         auto& item = m_resources.GetItemR(handle);
-
         if (!item.isMapped)
             return;
 
+        vmaUnmapMemory(m_vmaAllocator, item.allocation);
         item.isMapped = false;
     }
 
@@ -992,6 +1017,8 @@ namespace LinaGX
             LOGE("VKBackend -> Shader to be destroyed is not valid!");
             return;
         }
+
+        vmaDestroyBuffer(m_vmaAllocator, item.buffer, item.allocation);
 
         m_resources.RemoveItem(handle);
     }
@@ -1114,39 +1141,67 @@ namespace LinaGX
 
         auto queue = m_queueData[desc.queue].queue;
 
-        // This is for waiting on user semaphores
-        VkTimelineSemaphoreSubmitInfo timelineInfo;
-        timelineInfo.sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-        timelineInfo.pNext                     = NULL;
-        timelineInfo.waitSemaphoreValueCount   = desc.useWait ? 1 : 0;
-        timelineInfo.pWaitSemaphoreValues      = desc.useWait ? &desc.waitValue : nullptr;
-        timelineInfo.signalSemaphoreValueCount = desc.useSignal ? 1 : 0;
-        timelineInfo.pSignalSemaphoreValues    = desc.useSignal ? &desc.signalValue : nullptr;
-
         VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         LINAGX_VEC<VkSemaphore>          waitSemaphores;
         LINAGX_VEC<VkPipelineStageFlags> waitStages;
         LINAGX_VEC<VkSemaphore>          signalSemaphores;
+        LINAGX_VEC<uint64>               waitSemaphoreValues;
+        LINAGX_VEC<uint64>               signalSemaphoreValues;
 
-        // Wait for all acquired images from all windows.
-        for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
+        // This is for WITHIN the frame.
+        // We wait for image acquired semaphores.
+        // We signal 1 semaphore per submit for presentation.
         {
-            waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
-            waitStages.push_back(waitStage);
+            if (desc.queue == QueueType::Graphics)
+            {
+                for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
+                {
+                    waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
+                    waitStages.push_back(waitStage);
+                    waitSemaphoreValues.push_back(0); // ignored binary semaphore.
+                }
+            }
+
+            if (m_imageAcqSemaphoresCount != 0)
+            {
+                signalSemaphores.push_back(frame.submitSemaphores[frame.submissionCount]);
+                signalSemaphoreValues.push_back(0);
+            }
         }
 
-        signalSemaphores.push_back(frame.submitSemaphores[frame.submissionCount]);
+        // This is for USER signal mechanisms.
+        {
+            if (desc.useWait)
+            {
+                waitSemaphores.push_back(m_userSemaphores.GetItem(desc.waitSemaphore).ptr);
+                waitSemaphoreValues.push_back(desc.waitValue);
+            }
+
+            if (desc.useSignal)
+            {
+                signalSemaphores.push_back(m_userSemaphores.GetItem(desc.signalSemaphore).ptr);
+                signalSemaphoreValues.push_back(desc.signalValue);
+            }
+        }
+
+        VkTimelineSemaphoreSubmitInfo timelineInfo;
+        timelineInfo.sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext                     = NULL;
+        timelineInfo.waitSemaphoreValueCount   = static_cast<uint32>(waitSemaphores.size());
+        timelineInfo.pWaitSemaphoreValues      = waitSemaphoreValues.data();
+        timelineInfo.signalSemaphoreValueCount = static_cast<uint32>(signalSemaphores.size());
+        timelineInfo.pSignalSemaphoreValues    = signalSemaphoreValues.data();
 
         VkSubmitInfo submitInfo;
         submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.pNext                = nullptr;
+        submitInfo.pNext                = &timelineInfo;
         submitInfo.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
-        submitInfo.pWaitSemaphores      = &waitSemaphores[0];
+        submitInfo.pWaitSemaphores      = waitSemaphores.data();
         submitInfo.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
-        submitInfo.pSignalSemaphores    = &signalSemaphores[0];
+        submitInfo.pSignalSemaphores    = signalSemaphores.data();
         submitInfo.commandBufferCount   = desc.streamCount;
         submitInfo.pCommandBuffers      = _buffers.data();
-        submitInfo.pWaitDstStageMask    = &waitStages[0];
+        submitInfo.pWaitDstStageMask    = waitStages.data();
 
         VkResult res = vkQueueSubmit(queue, 1, &submitInfo, frame.submitFences[frame.submissionCount]);
         frame.submissionCount++;
@@ -1241,6 +1296,9 @@ namespace LinaGX
         features.samplerAnisotropy         = true;
         features.fillModeNonSolid          = true;
 
+        VkPhysicalDeviceVulkan12Features vk12Features = {};
+        vk12Features.timelineSemaphore                = true;
+
         // std::vector<const char*> deviceExtensions;
         // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
         // deviceExtensions.push_back(VK_KHR_MAINTENANCE2_EXTENSION_NAME);
@@ -1250,6 +1308,7 @@ namespace LinaGX
 
         vkb::PhysicalDeviceSelector selector{inst};
         vkb::PhysicalDevice         physicalDevice = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
+                                                 .set_required_features_12(vk12Features)
                                                  .defer_surface_initialization()
                                                  .prefer_gpu_device_type(targetDeviceType)
                                                  .allow_any_gpu_device_type(false)
@@ -1263,19 +1322,19 @@ namespace LinaGX
         shaderDrawParamsFeature.pNext                = nullptr;
         shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
 
-        // For using UPDATE_AFTER_BIND_BIT on material bindings
-        VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
-        descFeatures.sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-        descFeatures.pNext                                         = nullptr;
-        descFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
-        descFeatures.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
+        // For using UPDATE_AFTER_BIND_BIT on material bindings - invalid after using VK12 Features
+        // VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
+        // descFeatures.sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+        // descFeatures.pNext                                         = nullptr;
+        // descFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+        // descFeatures.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
+        // deviceBuilder.add_pNext(&descFeatures);
 
         VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = VkPhysicalDeviceDynamicRenderingFeaturesKHR{};
         dynamic_rendering_feature.sType                                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
         dynamic_rendering_feature.dynamicRendering                            = VK_TRUE;
 
         deviceBuilder.add_pNext(&shaderDrawParamsFeature);
-        deviceBuilder.add_pNext(&descFeatures);
         deviceBuilder.add_pNext(&dynamic_rendering_feature);
 
         bool   hasDedicatedTransferQueue = physicalDevice.has_dedicated_transfer_queue();
@@ -1473,13 +1532,7 @@ namespace LinaGX
 
         // Command functions
         {
-            m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &VKBackend::CMD_BeginRenderPass;
-            m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &VKBackend::CMD_EndRenderPass;
-            m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &VKBackend::CMD_SetViewport;
-            m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &VKBackend::CMD_SetScissors;
-            m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &VKBackend::CMD_BindPipeline;
-            m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &VKBackend::CMD_DrawInstanced;
-            m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &VKBackend::CMD_DrawIndexedInstanced;
+            BACKEND_BIND_COMMANDS(VKBackend);
         }
 
         return true;
@@ -1612,7 +1665,7 @@ namespace LinaGX
         info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         info.pNext              = nullptr;
         info.waitSemaphoreCount = static_cast<uint32>(waitSemaphores.size());
-        info.pWaitSemaphores    = &waitSemaphores[0];
+        info.pWaitSemaphores    = waitSemaphores.data();
         info.swapchainCount     = 1;
         info.pSwapchains        = &swp.ptr;
         info.pImageIndices      = &swp._imageIndex;
@@ -1779,6 +1832,35 @@ namespace LinaGX
         CMDDrawIndexedInstanced* cmd    = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     buffer = stream.buffers[m_currentFrameIndex];
         vkCmdDrawIndexed(buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void VKBackend::CMD_BindVertexBuffers(uint8* data, const VKBCommandStream& stream)
+    {
+        CMDBindVertexBuffers* cmd    = reinterpret_cast<CMDBindVertexBuffers*>(data);
+        auto                  buffer = stream.buffers[m_currentFrameIndex];
+        const auto&           res    = m_resources.GetItemR(cmd->resource);
+        vkCmdBindVertexBuffers(buffer, cmd->slot, 1, &res.buffer, &cmd->offset);
+    }
+
+    void VKBackend::CMD_BindIndexBuffers(uint8* data, const VKBCommandStream& stream)
+    {
+        CMDBindIndexBuffers* cmd    = reinterpret_cast<CMDBindIndexBuffers*>(data);
+        auto                 buffer = stream.buffers[m_currentFrameIndex];
+    }
+
+    void VKBackend::CMD_CopyResource(uint8* data, const VKBCommandStream& stream)
+    {
+        CMDCopyResource* cmd    = reinterpret_cast<CMDCopyResource*>(data);
+        auto             buffer = stream.buffers[m_currentFrameIndex];
+        const auto&      srcRes = m_resources.GetItemR(cmd->source);
+        const auto&      dstRes = m_resources.GetItemR(cmd->destination);
+
+        VkBufferCopy region = VkBufferCopy{};
+        region.size         = srcRes.size;
+        region.srcOffset    = 0;
+        region.dstOffset    = 0;
+
+        vkCmdCopyBuffer(buffer, srcRes.buffer, dstRes.buffer, 1, &region);
     }
 
     void VKBackend::ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor)

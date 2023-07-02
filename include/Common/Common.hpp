@@ -268,11 +268,11 @@ namespace LinaGX
 
     enum ResourceTypeHint
     {
-        LGX_VertexBuffer = 0,
-        LGX_ConstantBuffer,
-        LGX_StorageBuffer,
-        LGX_IndexBuffer,
-        LGX_IndirectBuffer,
+        LGX_VertexBuffer   = 1 << 0,
+        LGX_ConstantBuffer = 1 << 1,
+        LGX_StorageBuffer  = 1 << 2,
+        LGX_IndexBuffer    = 1 << 3,
+        LGX_IndirectBuffer = 1 << 4,
     };
 
     enum class ResourceHeap

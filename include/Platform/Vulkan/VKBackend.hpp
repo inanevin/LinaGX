@@ -95,6 +95,7 @@ namespace LinaGX
     {
         bool             isValid    = false;
         bool             isMapped   = false;
+        uint64           size       = 0;
         ResourceHeap     heapType   = ResourceHeap::StagingHeap;
         VkBuffer         buffer     = nullptr;
         VmaAllocation_T* allocation = nullptr;
@@ -123,6 +124,7 @@ namespace LinaGX
 
         virtual uint16 CreateUserSemaphore() override;
         virtual void   DestroyUserSemaphore(uint16 handle) override;
+        virtual void   WaitForUserSemaphore(uint16 handle, uint64 value) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
@@ -159,6 +161,9 @@ namespace LinaGX
         void CMD_BindPipeline(uint8* data, const VKBCommandStream& stream);
         void CMD_DrawInstanced(uint8* data, const VKBCommandStream& stream);
         void CMD_DrawIndexedInstanced(uint8* data, const VKBCommandStream& stream);
+        void CMD_BindVertexBuffers(uint8* data, const VKBCommandStream& stream);
+        void CMD_BindIndexBuffers(uint8* data, const VKBCommandStream& stream);
+        void CMD_CopyResource(uint8* data, const VKBCommandStream& stream);
 
     private:
         void ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor);

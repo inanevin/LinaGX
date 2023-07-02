@@ -99,6 +99,12 @@ namespace LinaGX
         void DestroyUserSemaphore(uint16 handle);
 
         /// <summary>
+        ///
+        /// </summary>
+        /// <param name="handle"></param>
+        void WaitForUserSemaphore(uint16 handle, uint64 value);
+
+        /// <summary>
         /// Creates a swapchain for a window given necessary handles per-platform. e.g HWND and hInstance on windows.
         /// </summary>
         /// <returns>Handle to the created swapchain.</returns>
@@ -140,7 +146,7 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        /// <param name="stream"></param>
+        /// <param name="stream"></param>k
         void DestroyCommandStream(CommandStream* stream);
 
         /// <summary>

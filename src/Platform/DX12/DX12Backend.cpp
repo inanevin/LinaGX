@@ -448,6 +448,11 @@ namespace LinaGX
         m_userSemaphores.RemoveItem(handle);
     }
 
+    void DX12Backend::WaitForUserSemaphore(uint16 handle, uint64 value)
+    {
+        WaitForFences(m_userSemaphores.GetItemR(handle).ptr.Get(), value);
+    }
+
     uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
     {
         DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
@@ -1018,6 +1023,7 @@ namespace LinaGX
         DX12Resource item = {};
         item.heapType     = desc.heapType;
         item.isValid      = true;
+        item.size         = desc.size;
 
         D3D12_RESOURCE_DESC resourceDesc = {};
         resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -1085,7 +1091,7 @@ namespace LinaGX
     {
         auto& item = m_resources.GetItemR(handle);
 
-        if (item.heapType == ResourceHeap::StagingHeap)
+        if (item.heapType == ResourceHeap::CPUVisibleGPUMemory)
         {
             try
             {
@@ -1130,19 +1136,11 @@ namespace LinaGX
         {
             CD3DX12_RANGE readRange(0, 0);
             item.allocation->GetResource()->Unmap(0, &readRange);
-            item.allocation->Release();
-            item.allocation = nullptr;
-        }
-        else if (item.heapType == ResourceHeap::GPUOnly)
-        {
-            item.allocation->Release();
-            item.allocation = nullptr;
         }
         else if (item.heapType == ResourceHeap::CPUVisibleGPUMemory)
         {
             CD3DX12_RANGE readRange(0, 0);
             item.cpuVisibleResource->Unmap(0, &readRange);
-            item.cpuVisibleResource.Reset();
         }
     }
 
@@ -1174,6 +1172,14 @@ namespace LinaGX
     {
         LOGE("DX12Backend -> Exception: %s", e.what());
         _ASSERT(false);
+    }
+
+    ID3D12Resource* DX12Backend::GetGPUResource(const DX12Resource& res)
+    {
+        if (res.heapType == ResourceHeap::CPUVisibleGPUMemory)
+            return res.cpuVisibleResource.Get();
+        else
+            return res.allocation->GetResource();
     }
 
     uint16 DX12Backend::CreateFence()
@@ -1358,13 +1364,7 @@ namespace LinaGX
 
             // Command functions
             {
-                m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &DX12Backend::CMD_BeginRenderPass;
-                m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &DX12Backend::CMD_EndRenderPass;
-                m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &DX12Backend::CMD_SetViewport;
-                m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &DX12Backend::CMD_SetScissors;
-                m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &DX12Backend::CMD_BindPipeline;
-                m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &DX12Backend::CMD_DrawInstanced;
-                m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &DX12Backend::CMD_DrawIndexedInstanced;
+                BACKEND_BIND_COMMANDS(DX12Backend);
             }
 
             // Per frame
@@ -1467,15 +1467,13 @@ namespace LinaGX
         try
         {
             item.allocators.resize(m_initInfo.framesInFlight);
+            item.lists.resize(m_initInfo.framesInFlight);
 
             for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             {
                 ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocators[i].GetAddressOf())));
-
-                Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
-                ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocators[i].Get(), nullptr, IID_PPV_ARGS(list.GetAddressOf())));
-                ThrowIfFailed(list->Close());
-                item.lists.push_back(list);
+                ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocators[i].Get(), nullptr, IID_PPV_ARGS(item.lists[i].GetAddressOf())));
+                ThrowIfFailed(item.lists[i]->Close());
             }
         }
         catch (HrException e)
@@ -1579,8 +1577,14 @@ namespace LinaGX
 
             auto queue = m_queueData[desc.queue].queue;
 
+            if (desc.useWait)
+                queue->Wait(m_userSemaphores.GetItem(desc.waitSemaphore).ptr.Get(), desc.waitValue);
+
             ID3D12CommandList* const* data = _lists.data();
             queue->ExecuteCommandStreams(desc.streamCount, data);
+
+            if (desc.useSignal)
+                queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphore).ptr.Get(), desc.signalValue);
 
             m_submissionPerFrame++;
             LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "DX12Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
@@ -1763,6 +1767,34 @@ namespace LinaGX
         CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     list = stream.lists[m_currentFrameIndex];
         list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void DX12Backend::CMD_BindVertexBuffers(uint8* data, const DX12CommandStream& stream)
+    {
+        CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
+        auto                  list     = stream.lists[m_currentFrameIndex];
+        const auto&           resource = m_resources.GetItemR(cmd->resource);
+
+        D3D12_VERTEX_BUFFER_VIEW view;
+        view.BufferLocation = GetGPUResource(resource)->GetGPUVirtualAddress();
+        view.SizeInBytes    = static_cast<uint32>(resource.size);
+        view.StrideInBytes  = static_cast<uint32>(cmd->vertexSize);
+        list->IASetVertexBuffers(cmd->slot, 1, &view);
+    }
+
+    void DX12Backend::CMD_BindIndexBuffers(uint8* data, const DX12CommandStream& stream)
+    {
+        CMDBindIndexBuffers* cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
+        auto                 list = stream.lists[m_currentFrameIndex];
+    }
+
+    void DX12Backend::CMD_CopyResource(uint8* data, const DX12CommandStream& stream)
+    {
+        CMDCopyResource* cmd     = reinterpret_cast<CMDCopyResource*>(data);
+        auto             list    = stream.lists[m_currentFrameIndex];
+        const auto&      srcRes  = m_resources.GetItemR(cmd->source);
+        const auto&      destRes = m_resources.GetItemR(cmd->destination);
+        list->CopyResource(GetGPUResource(destRes), GetGPUResource(srcRes));
     }
 
 } // namespace LinaGX

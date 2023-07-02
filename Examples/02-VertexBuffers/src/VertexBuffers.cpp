@@ -30,18 +30,23 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "Example.hpp"
+#include "VertexBuffers.hpp"
 
 namespace LinaGX::Examples
 {
 
 #define MAIN_WINDOW_ID 0
 
-    LinaGX::Renderer*      _renderer      = nullptr;
-    LinaGX::CommandStream* _stream        = nullptr;
-    uint8                  _swapchain     = 0;
-    uint16                 _shaderProgram = 0;
-    Window*                window         = nullptr;
+    LinaGX::Renderer*      _renderer            = nullptr;
+    LinaGX::CommandStream* _stream              = nullptr;
+    LinaGX::CommandStream* _copyStream          = nullptr;
+    uint8                  _swapchain           = 0;
+    uint16                 _shaderProgram       = 0;
+    uint32                 _vertexBufferStaging = 0;
+    uint32                 _vertexBufferGPU     = 0;
+    uint16                 _copySemaphore       = 0;
+    uint64                 _copySemaphoreValue  = 0;
+    Window*                window               = nullptr;
 
     struct Vertex
     {
@@ -67,7 +72,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
-                .gpu               = PreferredGPUType::Integrated,
+                .gpu               = PreferredGPUType::Discrete,
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
@@ -128,7 +133,49 @@ namespace LinaGX::Examples
             });
 
             // Create command stream to record draw calls.
-            _stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
+            _stream        = _renderer->CreateCommandStream(10, QueueType::Graphics);
+            _copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
+            _copySemaphore = _renderer->CreateUserSemaphore();
+        }
+
+        //*******************  VERTEX BUFFER CREATION
+        {
+            // Define a vertex buffer.
+            std::vector<Vertex> vertexBuffer =
+                {
+                    {{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+                    {{-1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+                    {{0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+
+            uint32_t vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
+
+            ResourceDesc vertexBufferDesc = ResourceDesc{
+                .size          = vertexBufferSize,
+                .typeHintFlags = LGX_VertexBuffer,
+                .heapType      = ResourceHeap::StagingHeap,
+                .debugName     = L"VertexBuffer",
+            };
+
+            // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
+            _vertexBufferStaging      = _renderer->CreateResource(vertexBufferDesc);
+            vertexBufferDesc.heapType = ResourceHeap::GPUOnly;
+            _vertexBufferGPU          = _renderer->CreateResource(vertexBufferDesc);
+
+            // Map & fill data into the staging buffer.
+            uint8* data = nullptr;
+            _renderer->MapResource(_vertexBufferStaging, data);
+            std::memcpy(data, vertexBuffer.data(), sizeof(Vertex) * vertexBuffer.size());
+            _renderer->UnmapResource(_vertexBufferStaging);
+
+            // Record copy command.
+            CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
+            copyVtxBuf->source          = _vertexBufferStaging;
+            copyVtxBuf->destination     = _vertexBufferGPU;
+            _renderer->CloseCommandStreams(&_copyStream, 1);
+
+            // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
+            _renderer->ExecuteCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
+            _renderer->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
         }
     }
 
@@ -141,14 +188,20 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
+        _renderer->DestroyUserSemaphore(_copySemaphore);
+        _renderer->DestroyResource(_vertexBufferStaging);
+        _renderer->DestroyResource(_vertexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
         _renderer->DestroyCommandStream(_stream);
+        _renderer->DestroyCommandStream(_copyStream);
 
         // Terminate renderer & shutdown app.
         delete _renderer;
         App::Shutdown();
     }
+
+    float x = -1.0f;
 
     void Example::OnTick()
     {
@@ -170,6 +223,15 @@ namespace LinaGX::Examples
             beginRenderPass->clearColor[3]      = 1.0f;
             beginRenderPass->viewport           = viewport;
             beginRenderPass->scissors           = sc;
+        }
+
+        // Bind vertex buffers
+        {
+            CMDBindVertexBuffers* bind = _stream->AddCommand<CMDBindVertexBuffers>();
+            bind->slot                 = 0;
+            bind->resource             = _vertexBufferGPU;
+            bind->vertexSize           = sizeof(Vertex);
+            bind->offset               = 0;
         }
 
         // Set shader

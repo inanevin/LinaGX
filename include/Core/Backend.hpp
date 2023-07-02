@@ -54,6 +54,7 @@ namespace LinaGX
 
         virtual uint16 CreateUserSemaphore()                                                            = 0;
         virtual void   DestroyUserSemaphore(uint16 handle)                                              = 0;
+        virtual void   WaitForUserSemaphore(uint16 handle, uint64 value)                                = 0;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) = 0;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc)                                       = 0;
         virtual void   DestroySwapchain(uint8 handle)                                                   = 0;

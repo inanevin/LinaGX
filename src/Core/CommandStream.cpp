@@ -41,6 +41,7 @@ namespace LinaGX
         m_commands      = static_cast<uint8**>(malloc(sizeof(uint8*) * commandCount));
         m_type          = type;
         m_maxCommands   = commandCount;
+        m_gpuHandle     = gpuHandle;
     }
 
     void CommandStream::Reset()

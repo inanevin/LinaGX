@@ -21,12 +21,12 @@ project(01-Triangle)
 
 set(01-TRIANGLE_SOURCES 
 src/Main.cpp
-src/Example.cpp
+src/Triangle.cpp
 )
 
 set(01-TRIANGLE_HEADERS
 include/Main.hpp
-include/Example.hpp
+include/Triangle.hpp
 Resources/Shaders/triangle_frag.glsl
 Resources/Shaders/triangle_vert.glsl
 )

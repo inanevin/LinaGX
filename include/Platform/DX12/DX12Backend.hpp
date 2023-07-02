@@ -102,6 +102,7 @@ namespace LinaGX
         D3D12MA::Allocation*                   allocation         = nullptr;
         Microsoft::WRL::ComPtr<ID3D12Resource> cpuVisibleResource = nullptr;
         ResourceHeap                           heapType           = ResourceHeap::StagingHeap;
+        uint64                                 size               = 0;
         bool                                   isMapped           = false;
     };
 
@@ -123,6 +124,7 @@ namespace LinaGX
 
         virtual uint16 CreateUserSemaphore() override;
         virtual void   DestroyUserSemaphore(uint16 handle) override;
+        virtual void   WaitForUserSemaphore(uint16 handle, uint64 value) override;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
@@ -139,7 +141,8 @@ namespace LinaGX
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   ExecuteCommandStreams(const ExecuteDesc& desc) override;
 
-        void DX12Exception(HrException e);
+        void            DX12Exception(HrException e);
+        ID3D12Resource* GetGPUResource(const DX12Resource& res);
 
         ID3D12Device* GetDevice()
         {
@@ -167,6 +170,9 @@ namespace LinaGX
         void CMD_BindPipeline(uint8* data, const DX12CommandStream& stream);
         void CMD_DrawInstanced(uint8* data, const DX12CommandStream& stream);
         void CMD_DrawIndexedInstanced(uint8* data, const DX12CommandStream& stream);
+        void CMD_BindVertexBuffers(uint8* data, const DX12CommandStream& stream);
+        void CMD_BindIndexBuffers(uint8* data, const DX12CommandStream& stream);
+        void CMD_CopyResource(uint8* data, const DX12CommandStream& stream);
 
     private:
         D3D12MA::Allocator*                   m_dx12Allocator = nullptr;
@@ -202,6 +208,7 @@ namespace LinaGX
         InitInfo m_initInfo           = {};
         uint32   m_submissionPerFrame = 0;
     };
+
 } // namespace LinaGX
 
 #endif

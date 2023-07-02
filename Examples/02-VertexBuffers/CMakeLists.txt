@@ -21,12 +21,12 @@ project(02-VertexBuffers)
 
 set(02-VERTEXBUFFERS_SOURCES 
 src/Main.cpp
-src/Example.cpp
+src/VertexBuffers.cpp
 )
 
 set(02-VERTEXBUFFERS_HEADERS
 include/Main.hpp
-include/Example.hpp
+include/VertexBuffers.hpp
 Resources/Shaders/triangle_frag.glsl
 Resources/Shaders/triangle_vert.glsl
 )

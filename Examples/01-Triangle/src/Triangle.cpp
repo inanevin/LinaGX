@@ -30,20 +30,18 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "Example.hpp"
+#include "Triangle.hpp"
 
 namespace LinaGX::Examples
 {
 
 #define MAIN_WINDOW_ID 0
 
-    LinaGX::Renderer*      _renderer            = nullptr;
-    LinaGX::CommandStream* _stream              = nullptr;
-    uint8                  _swapchain           = 0;
-    uint16                 _shaderProgram       = 0;
-    uint32                 _vertexBufferStaging = 0;
-    uint32                 _vertexBufferGPU     = 0;
-    Window*                window               = nullptr;
+    LinaGX::Renderer*      _renderer      = nullptr;
+    LinaGX::CommandStream* _stream        = nullptr;
+    uint8                  _swapchain     = 0;
+    uint16                 _shaderProgram = 0;
+    Window*                window         = nullptr;
 
     struct Vertex
     {
@@ -61,7 +59,8 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
+
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
@@ -116,31 +115,6 @@ namespace LinaGX::Examples
             free(fragBlob.ptr);
         }
 
-        //*******************  VERTEX BUFFER CREATION
-        {
-            // Define a vertex buffer.
-            std::vector<Vertex> vertexBuffer =
-                {
-                    {{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                    {{-1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-                    {{0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-
-            uint32_t vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
-
-            // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
-            ResourceDesc vertexBufferDesc = ResourceDesc{
-                .size          = vertexBufferSize,
-                .typeHintFlags = LGX_VertexBuffer,
-                .heapType      = ResourceHeap::StagingHeap,
-                .debugName     = L"VertexBuffer",
-            };
-
-            _vertexBufferStaging = _renderer->CreateResource(vertexBufferDesc);
-
-            vertexBufferDesc.heapType = ResourceHeap::GPUOnly;
-            _vertexBufferGPU          = _renderer->CreateResource(vertexBufferDesc);
-        }
-
         //*******************  MISC
         {
             // Create a swapchain for main window.
@@ -167,8 +141,6 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
-        _renderer->DestroyResource(_vertexBufferStaging);
-        _renderer->DestroyResource(_vertexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
         _renderer->DestroyCommandStream(_stream);
@@ -226,7 +198,6 @@ namespace LinaGX::Examples
         _renderer->CloseCommandStreams(&_stream, 1);
 
         // Submit work on gpu.
-
         _renderer->ExecuteCommandStreams({.streams = &_stream, .streamCount = 1});
 
         // Present main swapchain.

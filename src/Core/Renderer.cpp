@@ -89,9 +89,6 @@ namespace LinaGX
 
     void Renderer::StartFrame()
     {
-        for (auto stream : m_commandStreams)
-            stream->Reset();
-
         m_backend->StartFrame(m_currentFrameIndex);
     }
 
@@ -127,6 +124,11 @@ namespace LinaGX
     void Renderer::DestroyUserSemaphore(uint16 handle)
     {
         m_backend->DestroyUserSemaphore(handle);
+    }
+
+    void Renderer::WaitForUserSemaphore(uint16 handle, uint64 value)
+    {
+        m_backend->WaitForUserSemaphore(handle, value);
     }
 
     uint8 Renderer::CreateSwapchain(const SwapchainDesc& desc)

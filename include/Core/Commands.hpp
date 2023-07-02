@@ -94,6 +94,35 @@ namespace LinaGX
         uint32 startInstanceLocation;
     };
 
+    struct CMDCopyResource
+    {
+        uint32 source;
+        uint32 destination;
+    };
+
+    struct CMDBindVertexBuffers
+    {
+        uint32 slot;
+        uint32 resource;
+        uint32 vertexSize;
+        uint64 offset;
+    };
+
+    struct CMDBindIndexBuffers
+    {
+    };
+
+#define BACKEND_BIND_COMMANDS(BACKEND)                                                         \
+    m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &BACKEND::CMD_BeginRenderPass;      \
+    m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &BACKEND::CMD_EndRenderPass;        \
+    m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &BACKEND::CMD_SetViewport;          \
+    m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &BACKEND::CMD_SetScissors;          \
+    m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &BACKEND::CMD_BindPipeline;         \
+    m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &BACKEND::CMD_DrawInstanced;        \
+    m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &BACKEND::CMD_DrawIndexedInstanced; \
+    m_cmdFunctions[GetTypeID<CMDBindVertexBuffers>()]    = &BACKEND::CMD_BindVertexBuffers;    \
+    m_cmdFunctions[GetTypeID<CMDBindIndexBuffers>()]     = &BACKEND::CMD_BindIndexBuffers;     \
+    m_cmdFunctions[GetTypeID<CMDCopyResource>()]         = &BACKEND::CMD_CopyResource;
 } // namespace LinaGX
 
 #endif
