@@ -208,13 +208,13 @@ namespace LinaGX
     {
         switch (stage)
         {
-        case ShaderStage::STG_Vertex:
+        case ShaderStage::Vertex:
             return EShLangVertex;
-        case ShaderStage::STG_Geometry:
+        case ShaderStage::Geometry:
             return EShLangGeometry;
-        case ShaderStage::STG_Fragment:
+        case ShaderStage::Fragment:
             return EShLangFragment;
-        case ShaderStage::STG_Compute:
+        case ShaderStage::Compute:
             return EShLangCompute;
         default:
             return EShLangVertex;
@@ -225,13 +225,13 @@ namespace LinaGX
     {
         switch (stg)
         {
-        case ShaderStage::STG_Vertex:
+        case ShaderStage::Vertex:
             return glslang_stage_t::GLSLANG_STAGE_VERTEX;
-        case ShaderStage::STG_Geometry:
+        case ShaderStage::Geometry:
             return glslang_stage_t::GLSLANG_STAGE_GEOMETRY;
-        case ShaderStage::STG_Fragment:
+        case ShaderStage::Fragment:
             return glslang_stage_t::GLSLANG_STAGE_FRAGMENT;
-        case ShaderStage::STG_Compute:
+        case ShaderStage::Compute:
             return glslang_stage_t::GLSLANG_STAGE_COMPUTE;
         default:
             return glslang_stage_t::GLSLANG_STAGE_VERTEX;
@@ -491,7 +491,7 @@ namespace LinaGX
 
         // Stage Inputs
         {
-            if (stg == ShaderStage::STG_Vertex)
+            if (stg == ShaderStage::Vertex)
             {
                 for (const auto& resource : resources.stage_inputs)
                 {

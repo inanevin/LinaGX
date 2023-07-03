@@ -43,13 +43,13 @@ namespace LinaGX
         Metal
     };
 
-    enum ShaderStage
+    enum class ShaderStage
     {
-        STG_Vertex      = 1 << 0,
-        STG_Fragment    = 1 << 1,
-        STG_Compute     = 1 << 2,
-        STG_Geometry    = 1 << 3,
-        STG_Tesellation = 1 << 4,
+        Vertex,
+        Fragment,
+        Compute,
+        Geometry,
+        Tesellation,
     };
 
     enum class PreferredGPUType
@@ -326,14 +326,14 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
-        uint32    x            = 0;
-        uint32    y            = 0;
-        uint32    width        = 0;
-        uint32    height       = 0;
-        void*     window       = nullptr;
-        void*     osHandle     = nullptr;
-        bool      isFullscreen = false;
-        VsyncMode vsyncMode    = VsyncMode::None;
+        uint32      x            = 0;
+        uint32      y            = 0;
+        uint32      width        = 0;
+        uint32      height       = 0;
+        void*       window       = nullptr;
+        void*       osHandle     = nullptr;
+        bool        isFullscreen = false;
+        VsyncMode   vsyncMode    = VsyncMode::None;
     };
 
     struct SwapchainRecreateDesc
@@ -448,6 +448,7 @@ namespace LinaGX
         ColorBlendAttachment              blendAttachment     = {};
         bool                              blendLogicOpEnabled = false;
         LogicOp                           blendLogicOp        = LogicOp::Copy;
+        const char*                       debugName           = "LinaGXShader";
     };
 
     struct Viewport
@@ -476,7 +477,7 @@ namespace LinaGX
         uint32             height             = 0;
         uint32             mipLevels          = 0;
         Format             format             = Format::R8G8B8A8_SRGB;
-        const wchar_t*     debugName          = L"Texture";
+        const char*        debugName          = "LinaGXTexture";
     };
 
     struct SamplerDesc
@@ -494,10 +495,10 @@ namespace LinaGX
 
     struct DescriptorBinding
     {
-        uint32         binding         = 0;
-        uint32         descriptorCount = 1;
-        DescriptorType type            = DescriptorType::UBO;
-        uint32         stageFlags      = 0;
+        uint32                  binding         = 0;
+        uint32                  descriptorCount = 1;
+        DescriptorType          type            = DescriptorType::UBO;
+        LINAGX_VEC<ShaderStage> stages;
     };
 
     struct DescriptorSetDesc
@@ -508,10 +509,12 @@ namespace LinaGX
 
     struct DescriptorUpdateImageDesc
     {
-        uint32  binding;
-        uint32  descriptorCount;
-        uint32* textures;
-        uint32* samplers;
+        uint16         set;
+        uint32         binding;
+        uint32         descriptorCount;
+        uint32*        textures;
+        uint32*        samplers;
+        DescriptorType descriptorType;
     };
 
     struct DescriptorUpdateBufferDesc
@@ -523,10 +526,10 @@ namespace LinaGX
 
     struct ResourceDesc
     {
-        uint64         size          = 0;
-        uint32         typeHintFlags = 0;
-        ResourceHeap   heapType      = ResourceHeap::StagingHeap;
-        const wchar_t* debugName     = L"Resource";
+        uint64       size          = 0;
+        uint32       typeHintFlags = 0;
+        ResourceHeap heapType      = ResourceHeap::StagingHeap;
+        const char*  debugName     = "LinaGXResource";
     };
 
     struct PresentDesc

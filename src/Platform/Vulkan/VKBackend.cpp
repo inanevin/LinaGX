@@ -40,6 +40,22 @@ SOFTWARE.
 namespace LinaGX
 {
 
+    PFN_vkSetDebugUtilsObjectNameEXT g_vkSetDebugUtilsObjectNameEXT;
+#define pfn_vkSetDebugUtilsObjectNameEXT g_vkSetDebugUtilsObjectNameEXT
+
+#ifndef NDEBUG
+#define VK_NAME_OBJECT(namedObject, objType, name, structName)                                     \
+    VkDebugUtilsObjectNameInfoEXT structName = {};                                                 \
+    structName.sType                         = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; \
+    structName.objectType                    = objType;                                            \
+    structName.objectHandle                  = (uint64_t)namedObject;                              \
+    structName.pObjectName                   = name;                                               \
+    pfn_vkSetDebugUtilsObjectNameEXT(m_device, &structName);
+
+#else
+#define VK_NAME_OBJECT(namedObject, name, structName)
+#endif
+
 #define LGX_VK_MAJOR 1
 #define LGX_VK_MINOR 3
 
@@ -346,15 +362,15 @@ namespace LinaGX
     {
         switch (s)
         {
-        case ShaderStage::STG_Vertex:
+        case ShaderStage::Vertex:
             return VK_SHADER_STAGE_VERTEX_BIT;
-        case ShaderStage::STG_Tesellation:
+        case ShaderStage::Tesellation:
             return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-        case ShaderStage::STG_Geometry:
+        case ShaderStage::Geometry:
             return VK_SHADER_STAGE_GEOMETRY_BIT;
-        case ShaderStage::STG_Fragment:
+        case ShaderStage::Fragment:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
-        case ShaderStage::STG_Compute:
+        case ShaderStage::Compute:
             return VK_SHADER_STAGE_COMPUTE_BIT;
         default:
             return VK_SHADER_STAGE_VERTEX_BIT;
@@ -1016,6 +1032,8 @@ namespace LinaGX
         res                                       = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, m_allocator, &shader.ptrPipeline);
         LOGA(res == VK_SUCCESS, "Backend -> Could not create shader pipeline!");
 
+        VK_NAME_OBJECT(shader.ptrPipeline, VK_OBJECT_TYPE_PIPELINE, shaderDesc.debugName, info);
+
         // Done with the module
         for (auto [stg, mod] : shader.modules)
             vkDestroyShaderModule(m_device, mod, m_allocator);
@@ -1080,6 +1098,8 @@ namespace LinaGX
 
         VkResult res = vmaCreateImage(m_vmaAllocator, &imgCreateInfo, &allocinfo, &item.img, &item.allocation, nullptr);
         VK_CHECK_RESULT(res, "Failed creating image.");
+
+        VK_NAME_OBJECT(item.img, VK_OBJECT_TYPE_IMAGE, txtDesc.debugName, info);
 
         VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
         subResRange.aspectMask              = txtDesc.usage == Texture2DUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1166,6 +1186,8 @@ namespace LinaGX
         }
 
         vmaCreateBuffer(m_vmaAllocator, &bufferInfo, &allocInfo, &item.buffer, &item.allocation, nullptr);
+        VK_NAME_OBJECT(item.buffer, VK_OBJECT_TYPE_BUFFER, desc.debugName, info);
+
         return m_resources.AddItem(item);
     }
 
@@ -1254,7 +1276,10 @@ namespace LinaGX
             vkBinding.binding                      = binding.binding;
             vkBinding.descriptorType               = GetVKDescriptorType(binding.type);
             vkBinding.descriptorCount              = binding.descriptorCount;
-            vkBinding.stageFlags                   = binding.stageFlags;
+
+            for (auto stg : binding.stages)
+                vkBinding.stageFlags |= GetVKShaderStage(stg);
+
             bindings.push_back(vkBinding);
         }
 
@@ -1284,13 +1309,13 @@ namespace LinaGX
         auto& item = m_descriptorSets.GetItemR(handle);
         if (!item.isValid)
         {
-            LOGE("Backend -> Descriptor Table to be destroyed is not valid!");
+            LOGE("Backend -> Descriptor set to be destroyed is not valid!");
             return;
         }
 
         vkDestroyDescriptorSetLayout(m_device, item.layout, m_allocator);
 
-        m_resources.RemoveItem(handle);
+        m_descriptorSets.RemoveItem(handle);
     }
 
     void VKBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
@@ -1299,6 +1324,27 @@ namespace LinaGX
 
     void VKBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
+
+        LINAGX_VEC<VkDescriptorImageInfo> imgInfos;
+
+        for (uint32 i = 0; i < desc.descriptorCount; i++)
+        {
+            VkDescriptorImageInfo imgInfo = VkDescriptorImageInfo{};
+            imgInfo.sampler               = m_samplers.GetItemR(desc.samplers[i]).ptr;
+            imgInfo.imageView             = m_texture2Ds.GetItemR(desc.textures[i]).imgView;
+            imgInfo.imageLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imgInfos.push_back(imgInfo);
+        }
+
+        VkWriteDescriptorSet write = {};
+        write.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext                = nullptr;
+        write.dstSet               = m_descriptorSets.GetItemR(desc.set).ptr;
+        write.dstBinding           = desc.binding;
+        write.descriptorCount      = desc.descriptorCount;
+        write.descriptorType       = GetVKDescriptorType(desc.descriptorType);
+        write.pImageInfo           = imgInfos.data();
+        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
     uint32 VKBackend::CreateCommandStream(QueueType cmdType)
@@ -1663,6 +1709,9 @@ namespace LinaGX
         m_device              = vkbDevice.device;
         m_gpu                 = physicalDevice.physical_device;
 
+        
+        g_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
+
         // Queue support
         {
             if (hasDedicatedComputeQueue)
@@ -1893,7 +1942,7 @@ namespace LinaGX
 
         for (auto& r : m_descriptorSets)
         {
-            LOGA(!r.isValid, "Backend -> Some descriptor tables were not destroyed!");
+            LOGA(!r.isValid, "Backend -> Some descriptor sets were not destroyed!");
         }
 
         vmaDestroyAllocator(m_vmaAllocator);
@@ -2241,8 +2290,9 @@ namespace LinaGX
             bufferOffset += txtBuffer.width * txtBuffer.height * txtBuffer.channels;
         }
 
-        
+        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         vkCmdCopyBufferToImage(buffer, srcResource.buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32>(regions.size()), regions.data());
+        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)

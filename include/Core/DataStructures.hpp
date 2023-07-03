@@ -101,6 +101,7 @@ namespace LinaGX
 #define LINAGX_VEC         std::vector
 #define LINAGX_QUEUE       std::queue
 #define LINAGX_STRING      std::string
+#define LINAGX_WSTRING     std::wstring
 #define LINAGX_MAP         std::unordered_map
 #define LINAGX_DEQUE       std::deque
 #define LINAGX_MALLOC(...) malloc(__VA_ARGS__)

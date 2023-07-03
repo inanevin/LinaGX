@@ -56,6 +56,7 @@ namespace LinaGX::Examples
     uint32 _textureStaging      = 0;
     uint32 _textureGPU          = 0;
     uint32 _sampler             = 0;
+    uint32 _descriptorSet0      = 0;
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -111,14 +112,14 @@ namespace LinaGX::Examples
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
-            _renderer->CompileShader(ShaderStage::STG_Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
-            _renderer->CompileShader(ShaderStage::STG_Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages          = {{ShaderStage::STG_Vertex, vertexBlob}, {ShaderStage::STG_Fragment, fragBlob}},
+                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
                 .layout          = outLayout,
                 .polygonMode     = PolygonMode::Fill,
                 .cullMode        = CullMode::None,
@@ -186,7 +187,7 @@ namespace LinaGX::Examples
                 .size          = vertexBufferSize,
                 .typeHintFlags = TH_VertexBuffer,
                 .heapType      = ResourceHeap::StagingHeap,
-                .debugName     = L"VertexBuffer",
+                .debugName     = "VertexBuffer",
             };
 
             // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
@@ -235,6 +236,7 @@ namespace LinaGX::Examples
                 .height    = height,
                 .mipLevels = 1,
                 .format    = Format::R8G8B8A8_SRGB,
+                .debugName = "LinaTexture",
             };
             _textureGPU = _renderer->CreateTexture2D(desc);
 
@@ -288,6 +290,33 @@ namespace LinaGX::Examples
             // Done with pixels.
             LinaGX::FreeImage(pixels);
         }
+
+        // Create descriptor set.
+        {
+            DescriptorBinding binding = {
+                .binding         = 0,
+                .descriptorCount = 1,
+                .type            = DescriptorType::CombinedImageSampler,
+                .stages          = {ShaderStage::Fragment},
+            };
+
+            DescriptorSetDesc desc = {
+                .bindings      = &binding,
+                .bindingsCount = 1,
+            };
+
+            _descriptorSet0 = _renderer->CreateDescriptorSet(desc);
+
+            DescriptorUpdateImageDesc imgUpdate = {
+                .binding         = 0,
+                .descriptorCount = 1,
+                .textures        = &_textureGPU,
+                .samplers        = &_sampler,
+                .descriptorType  = DescriptorType::CombinedImageSampler,
+            };
+
+            _renderer->DescriptorUpdateImage(imgUpdate);
+        }
     }
 
     void Example::Shutdown()
@@ -299,6 +328,7 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
+        _renderer->DestroyDescriptorSet(_descriptorSet0);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_textureGPU);
         _renderer->DestroySampler(_sampler);
@@ -358,15 +388,12 @@ namespace LinaGX::Examples
             bindPipeline->shader          = _shaderProgram;
         }
 
-        // Bind texture
+        // Bind texture descriptor
         {
-            // CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
-            // bindTxt->binding         = 0;
-            // bindTxt->set             = 0;
-            // bindTxt->textures        = &_textureGPU;
-            // bindTxt->texturesCount   = 1;
-            // bindTxt->samplers        = &_sampler;
-            // bindTxt->samplersCount   = 1;
+            CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
+            bindTxt->firstSet              = 0;
+            bindTxt->setCount              = 1;
+            bindTxt->descriptorSets        = &_descriptorSet0;
         }
 
         // Draw the triangle

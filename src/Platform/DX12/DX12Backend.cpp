@@ -293,13 +293,13 @@ namespace LinaGX
     {
         switch (stg)
         {
-        case ShaderStage::STG_Vertex:
+        case ShaderStage::Vertex:
             return D3D12_SHADER_VISIBILITY_VERTEX;
-        case ShaderStage::STG_Fragment:
+        case ShaderStage::Fragment:
             return D3D12_SHADER_VISIBILITY_PIXEL;
-        case ShaderStage::STG_Geometry:
+        case ShaderStage::Geometry:
             return D3D12_SHADER_VISIBILITY_GEOMETRY;
-        case ShaderStage::STG_Tesellation:
+        case ShaderStage::Tesellation:
             return D3D12_SHADER_VISIBILITY_HULL;
         default:
             return D3D12_SHADER_VISIBILITY_ALL;
@@ -691,13 +691,13 @@ namespace LinaGX
             m_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, static_cast<UINT>(source.size()), codePage, &sourceBlob);
 
             const wchar_t* targetProfile = L"vs_6_0";
-            if (stage & ShaderStage::STG_Fragment)
+            if (stage == ShaderStage::Fragment)
                 targetProfile = L"ps_6_0";
-            else if (stage & ShaderStage::STG_Compute)
+            else if (stage == ShaderStage::Compute)
                 targetProfile = L"cs_6_0";
-            else if (stage & ShaderStage::STG_Geometry)
+            else if (stage == ShaderStage::Geometry)
                 targetProfile = L"gs_6_0";
-            else if (stage & ShaderStage::STG_Tesellation)
+            else if (stage == ShaderStage::Tesellation)
                 targetProfile = L"hs_6_0";
 
             DxcBuffer sourceBuffer;
@@ -1010,27 +1010,27 @@ namespace LinaGX
             const void*  byteCode = (void*)blob.ptr;
             const SIZE_T length   = static_cast<SIZE_T>(blob.size);
 
-            if (stg & ShaderStage::STG_Vertex)
+            if (stg == ShaderStage::Vertex)
             {
                 psoDesc.VS.pShaderBytecode = byteCode;
                 psoDesc.VS.BytecodeLength  = length;
             }
-            else if (stg & ShaderStage::STG_Fragment)
+            else if (stg == ShaderStage::Fragment)
             {
                 psoDesc.PS.pShaderBytecode = byteCode;
                 psoDesc.PS.BytecodeLength  = length;
             }
-            else if (stg & ShaderStage::STG_Geometry)
+            else if (stg == ShaderStage::Geometry)
             {
                 psoDesc.GS.pShaderBytecode = byteCode;
                 psoDesc.GS.BytecodeLength  = length;
             }
-            else if (stg & ShaderStage::STG_Tesellation)
+            else if (stg == ShaderStage::Tesellation)
             {
                 psoDesc.HS.pShaderBytecode = byteCode;
                 psoDesc.HS.BytecodeLength  = length;
             }
-            else if (stg & ShaderStage::STG_Compute)
+            else if (stg == ShaderStage::Compute)
             {
                 LOGA(false, "!!");
             }
@@ -1039,6 +1039,7 @@ namespace LinaGX
         try
         {
             ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&shader.pso)));
+            NAME_DX12_OBJECT_CSTR(shader.pso, shaderDesc.debugName);
         }
         catch (HrException e)
         {
@@ -1082,7 +1083,7 @@ namespace LinaGX
         resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
         resourceDesc.Format              = GetDXFormat(txtDesc.format);
 
-        auto allocationInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+        auto allocationInfo    = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
         item.requiredAlignment = allocationInfo.Alignment;
 
         D3D12MA::ALLOCATION_DESC allocationDesc = {};
@@ -1114,15 +1115,12 @@ namespace LinaGX
         try
         {
             ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, clear, &item.allocation, IID_NULL, NULL));
+            NAME_DX12_OBJECT_CSTR(item.allocation->GetResource(), txtDesc.debugName);
         }
         catch (HrException e)
         {
             DX12_THROW(e, "Backend -> Exception when creating a texture resource! %s", e.what());
         }
-
-#ifndef NDEBUG
-        item.allocation->GetResource()->SetName(txtDesc.debugName);
-#endif
 
         if (txtDesc.usage == Texture2DUsage::ColorTexture || txtDesc.usage == Texture2DUsage::ColorTextureDynamic)
         {
@@ -1224,6 +1222,7 @@ namespace LinaGX
         item.descriptor = m_samplerHeap->GetNewHeapHandle();
 
         m_device->CreateSampler(&samplerDesc, {item.descriptor.GetCPUHandle()});
+
         return m_samplers.AddItem(item);
     }
 
@@ -1271,7 +1270,7 @@ namespace LinaGX
             auto         hp                     = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             NvAPI_Status result                 = NvAPI_D3D12_CreateCommittedResource(m_device.Get(), &hp, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COMMON, NULL, &nvResourceParams, IID_PPV_ARGS(&item.cpuVisibleResource), NULL);
             LOGA(result == NvAPI_Status::NVAPI_OK, "Backend -> Host-visible gpu resource creation failed! Maybe exceeded total size?");
-            NAME_DX12_OBJECT(item.cpuVisibleResource, desc.debugName);
+            NAME_DX12_OBJECT_CSTR(item.cpuVisibleResource, desc.debugName);
             return m_resources.AddItem(item);
         }
 
@@ -1304,7 +1303,7 @@ namespace LinaGX
             DX12_THROW(e, "Backend -> Exception when creating a resource! {0}", e.what());
         }
 
-        NAME_DX12_OBJECT(item.allocation->GetResource(), desc.debugName);
+        NAME_DX12_OBJECT_CSTR(item.allocation->GetResource(), desc.debugName);
 
         return m_resources.AddItem(item);
     }
@@ -1403,7 +1402,7 @@ namespace LinaGX
         auto& item = m_descriptorSets.GetItemR(handle);
         if (!item.isValid)
         {
-            LOGE("Backend -> Descriptor Table to be destroyed is not valid!");
+            LOGE("Backend -> Descriptor set to be destroyed is not valid!");
             return;
         }
 
@@ -1710,7 +1709,7 @@ namespace LinaGX
 
         for (auto& r : m_descriptorSets)
         {
-            LOGA(!r.isValid, "Backend -> Some descriptor tables were not destroyed!");
+            LOGA(!r.isValid, "Backend -> Some descriptor sets were not destroyed!");
         }
 
         ID3D12InfoQueue1* infoQueue = nullptr;

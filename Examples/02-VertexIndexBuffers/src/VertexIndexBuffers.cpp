@@ -108,14 +108,14 @@ namespace LinaGX::Examples
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
-            _renderer->CompileShader(ShaderStage::STG_Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
-            _renderer->CompileShader(ShaderStage::STG_Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages          = {{ShaderStage::STG_Vertex, vertexBlob}, {ShaderStage::STG_Fragment, fragBlob}},
+                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
                 .layout          = outLayout,
                 .polygonMode     = PolygonMode::Fill,
                 .cullMode        = CullMode::None,
@@ -182,7 +182,7 @@ namespace LinaGX::Examples
                 .size          = vertexBufferSize,
                 .typeHintFlags = TH_VertexBuffer,
                 .heapType      = ResourceHeap::StagingHeap,
-                .debugName     = L"VertexBuffer",
+                .debugName     = "VertexBuffer",
             };
 
             // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
