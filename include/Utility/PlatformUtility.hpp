@@ -28,17 +28,15 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
+#ifndef LINAGX_PLATFORM_UTILITY_HPP
+#define LINAGX_PLATFORM_UTILITY_HPP
 
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
+#include "Common/Common.hpp"
 
 namespace LinaGX
 {
+    extern LINAGX_API char*         WCharToChar(const wchar_t* wch);
+    extern LINAGX_API LINAGX_STRING ReadFileContentsAsString(const char* filePath);
 
 } // namespace LinaGX
 

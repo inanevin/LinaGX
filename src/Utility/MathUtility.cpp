@@ -5,7 +5,7 @@ https://github.com/inanevin/LinaGX
 Author: Inan Evin
 http://www.inanevin.com
 
-Copyright (c) [2022-] [Inan Evin]
+Copyright (c) [2023-] [Inan Evin]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
-
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
+#include "Utility/MathUtility.hpp"
+#include "Common/Common.hpp"
 
 namespace LinaGX
 {
-
+    LINAGX_API uint32 FloorLog2(uint32 val)
+    {
+        uint32 pos = 0;
+        if (val >= 1 << 16)
+        {
+            val >>= 16;
+            pos += 16;
+        }
+        if (val >= 1 << 8)
+        {
+            val >>= 8;
+            pos += 8;
+        }
+        if (val >= 1 << 4)
+        {
+            val >>= 4;
+            pos += 4;
+        }
+        if (val >= 1 << 2)
+        {
+            val >>= 2;
+            pos += 2;
+        }
+        if (val >= 1 << 1)
+        {
+            pos += 1;
+        }
+        return (val == 0) ? 0 : pos;
+    }
 } // namespace LinaGX
-
-#endif

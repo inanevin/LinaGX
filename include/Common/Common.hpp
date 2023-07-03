@@ -43,13 +43,13 @@ namespace LinaGX
         Metal
     };
 
-    enum class ShaderStage
+    enum ShaderStage
     {
-        Vertex,
-        Pixel,
-        Compute,
-        Geometry,
-        Tesellation
+        STG_Vertex      = 1 << 0,
+        STG_Fragment    = 1 << 1,
+        STG_Compute     = 1 << 2,
+        STG_Geometry    = 1 << 3,
+        STG_Tesellation = 1 << 4,
     };
 
     enum class PreferredGPUType
@@ -208,6 +208,13 @@ namespace LinaGX
         DepthStencilTexture
     };
 
+    enum class DepthStencilAspect
+    {
+        DepthOnly,
+        StencilOnly,
+        DepthStencil
+    };
+
     enum class QueueType
     {
         Graphics,
@@ -244,6 +251,12 @@ namespace LinaGX
         Linear,
     };
 
+    enum class MipmapMode
+    {
+        Nearest,
+        Linear
+    };
+
     enum class SamplerAddressMode
     {
         Repeat,
@@ -267,11 +280,12 @@ namespace LinaGX
 
     enum ResourceTypeHint
     {
-        LGX_VertexBuffer   = 1 << 0,
-        LGX_ConstantBuffer = 1 << 1,
-        LGX_StorageBuffer  = 1 << 2,
-        LGX_IndexBuffer    = 1 << 3,
-        LGX_IndirectBuffer = 1 << 4,
+        TH_None           = 1 << 0,
+        TH_VertexBuffer   = 1 << 1,
+        TH_ConstantBuffer = 1 << 2,
+        TH_StorageBuffer  = 1 << 3,
+        TH_IndexBuffer    = 1 << 4,
+        TH_IndirectBuffer = 1 << 5,
     };
 
     enum class ResourceHeap
@@ -285,6 +299,23 @@ namespace LinaGX
     {
         Uint16,
         Uint32,
+    };
+
+    enum class DescriptorType
+    {
+        CombinedImageSampler,
+        SeparateSampler,
+        SeparateImage,
+        SSBO,
+        UBO,
+        ConstantBlock,
+    };
+
+    enum class BorderColor
+    {
+        BlackTransparent,
+        BlackOpaque,
+        WhiteOpaque
     };
 
     struct DataBlob
@@ -326,7 +357,7 @@ namespace LinaGX
         ColorComponentFlags componentFlags;
     };
 
-    struct StageInput
+    struct ShaderStageInput
     {
         LINAGX_STRING name;
         uint32        location;
@@ -336,46 +367,37 @@ namespace LinaGX
         size_t        offset;
     };
 
-    struct UBOMember
+    struct ShaderUBOMember
     {
-        ;
         ShaderMemberType type;
         size_t           size;
         size_t           offset;
         LINAGX_STRING    name;
-        bool             isArray;
-        uint32           arraySize;
+        uint32           elementSize;
         size_t           arrayStride;
         size_t           matrixStride;
     };
 
-    struct ConstantBlock
+    struct ShaderConstantBlock
     {
-        size_t                  size;
-        LINAGX_VEC<UBOMember>   members;
-        LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name;
+        size_t                      size;
+        LINAGX_VEC<ShaderUBOMember> members;
+        LINAGX_VEC<ShaderStage>     stages;
+        LINAGX_STRING               name = "";
     };
 
-    struct UBO
+    struct ShaderUBO
     {
-        uint32                  set;
-        uint32                  binding;
-        size_t                  size;
-        LINAGX_VEC<UBOMember>   members;
-        LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name = "";
+        uint32                      set;
+        uint32                      binding;
+        size_t                      size;
+        LINAGX_VEC<ShaderUBOMember> members;
+        LINAGX_VEC<ShaderStage>     stages;
+        LINAGX_STRING               name        = "";
+        uint32                      elementSize = 1;
     };
 
-    struct SSBO
-    {
-        uint32                  set;
-        uint32                  binding;
-        LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name = "";
-    };
-
-    struct SRVTexture2D
+    struct ShaderSSBO
     {
         uint32                  set;
         uint32                  binding;
@@ -383,22 +405,33 @@ namespace LinaGX
         LINAGX_STRING           name = "";
     };
 
-    struct Sampler
+    struct ShaderSRVTexture2D
     {
         uint32                  set;
         uint32                  binding;
         LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name = "";
+        LINAGX_STRING           name        = "";
+        uint32                  elementSize = 1;
+    };
+
+    struct ShaderSampler
+    {
+        uint32                  set;
+        uint32                  binding;
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_STRING           name        = "";
+        uint32                  elementSize = 1;
     };
 
     struct ShaderLayout
     {
-        LINAGX_VEC<StageInput>   vertexInputs;
-        LINAGX_VEC<UBO>          ubos;
-        LINAGX_VEC<SSBO>         ssbos;
-        LINAGX_VEC<SRVTexture2D> combinedImageSamplers;
-        LINAGX_VEC<Sampler>      samplers;
-        ConstantBlock            constantBlock;
+        LINAGX_VEC<ShaderStageInput>   vertexInputs;
+        LINAGX_VEC<ShaderUBO>          ubos;
+        LINAGX_VEC<ShaderSSBO>         ssbos;
+        LINAGX_VEC<ShaderSRVTexture2D> combinedImageSamplers;
+        LINAGX_VEC<ShaderSRVTexture2D> separateImages;
+        LINAGX_VEC<ShaderSampler>      samplers;
+        ShaderConstantBlock            constantBlock;
     };
 
     struct ShaderDesc
@@ -434,171 +467,112 @@ namespace LinaGX
         uint32 width;
         uint32 height;
     };
+
     struct Texture2DDesc
     {
-        /// <summary>
-        ///
-        /// </summary>
-        Texture2DUsage usage;
+        Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
+        DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
+        uint32             width              = 0;
+        uint32             height             = 0;
+        uint32             mipLevels          = 0;
+        Format             format             = Format::R8G8B8A8_SRGB;
+        const wchar_t*     debugName          = L"Texture";
+    };
 
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 width = 0;
+    struct SamplerDesc
+    {
+        Filter             minFilter  = Filter::Linear;
+        Filter             magFilter  = Filter::Linear;
+        SamplerAddressMode mode       = SamplerAddressMode::ClampToEdge;
+        MipmapMode         mipmapMode = MipmapMode::Linear;
+        uint32             anisotropy = 0;
+        float              minLod     = 0.0f;
+        float              maxLod     = 1.0f;
+        float              mipLodBias = 0.0f;
+        BorderColor        borderColor;
+    };
 
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 height = 0;
+    struct DescriptorBinding
+    {
+        uint32         binding         = 0;
+        uint32         descriptorCount = 1;
+        DescriptorType type            = DescriptorType::UBO;
+        uint32         stageFlags      = 0;
+    };
 
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 mipLevels = 0;
+    struct DescriptorSetDesc
+    {
+        DescriptorBinding* bindings      = nullptr;
+        uint32             bindingsCount = 0;
+    };
 
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 channels = 4;
+    struct DescriptorUpdateImageDesc
+    {
+        uint32  binding;
+        uint32  descriptorCount;
+        uint32* textures;
+        uint32* samplers;
+    };
 
-        /// <summary>
-        ///
-        /// </summary>
-        Format format = Format::R8G8B8A8_SRGB;
-
-        /// <summary>
-        ///
-        /// </summary>
-        const wchar_t* debugName = L"Texture";
+    struct DescriptorUpdateBufferDesc
+    {
+        uint32  binding;
+        uint32  descriptorCount;
+        uint32* resources;
     };
 
     struct ResourceDesc
     {
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 size = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 typeHintFlags = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        ResourceHeap heapType = ResourceHeap::StagingHeap;
-
-        /// <summary>
-        ///
-        /// </summary>
-        const wchar_t* debugName = L"Resource";
+        uint64         size          = 0;
+        uint32         typeHintFlags = 0;
+        ResourceHeap   heapType      = ResourceHeap::StagingHeap;
+        const wchar_t* debugName     = L"Resource";
     };
 
     struct PresentDesc
     {
-        /// <summary>
-        ///
-        /// </summary>
         uint8 swapchain = 0;
     };
 
     class CommandStream;
 
-    struct ExecuteDesc
+    struct SubmitDesc
     {
-        /// <summary>
-        ///
-        /// </summary>
-        QueueType queue = QueueType::Graphics;
-
-        /// <summary>
-        ///
-        /// </summary>
-        CommandStream** streams = nullptr;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 streamCount = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        bool useWait = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint16 waitSemaphore = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 waitValue = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        bool useSignal = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint16 signalSemaphore = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 signalValue = 0;
+        QueueType       queue           = QueueType::Graphics;
+        CommandStream** streams         = nullptr;
+        uint32          streamCount     = 0;
+        bool            useWait         = 0;
+        uint16          waitSemaphore   = 0;
+        uint64          waitValue       = 0;
+        bool            useSignal       = 0;
+        uint16          signalSemaphore = 0;
+        uint64          signalValue     = 0;
     };
 
     struct GPULimits
     {
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 textureLimit = 1024;
+        uint32 textureLimit           = 1024;
+        uint32 samplerLimit           = 1024;
+        uint32 samplerLimitPerCommand = 128;
+        uint32 bufferLimitPerCommand  = 256;
+        uint32 textureLimitPerCommand = 256;
+        uint32 extraLimitPerCommand   = 128;
+        uint32 bufferLimit            = 1024;
+        uint32 maxSubmitsPerFrame     = 30;
 
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 samplerLimit = 1024;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 bufferLimit = 1024;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 maxSubmitsPerFrame = 30;
+        LINAGX_MAP<DescriptorType, uint32> descriptorLimits = {{DescriptorType::CombinedImageSampler, 20}, {DescriptorType::SeparateImage, 20}, {DescriptorType::SeparateSampler, 20}, {DescriptorType::SSBO, 20}, {DescriptorType::UBO, 20}};
     };
 
     struct GPUInformation
     {
-        /// <summary>
-        ///
-        /// </summary>
-        LINAGX_STRING deviceName = "";
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 totalCPUVisibleGPUMemorySize = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint64 dedicatedVideoMemory = 0;
+        LINAGX_STRING      deviceName = "";
+        LINAGX_VEC<Format> supportedImageFormats;
+        uint64             totalCPUVisibleGPUMemorySize = 0;
+        uint64             dedicatedVideoMemory         = 0;
     };
 
     struct PerformanceStatistics
     {
-        /// <summary>
-        ///
-        /// </summary>
         uint64 totalFrames = 0;
     };
 
@@ -606,81 +580,28 @@ namespace LinaGX
 
     struct VulkanConfiguration
     {
-        /// <summary>
-        ///
-        /// </summary>
         bool flipViewport = true;
     };
 
     struct Configuration
     {
-        /// <summary>
-        ///
-        /// </summary>
-        LogCallback errorCallback = nullptr;
-
-        /// <summary>
-        ///
-        /// </summary>
-        LogCallback infoCallback = nullptr;
-
-        /// <summary>
-        ///
-        /// </summary>
-        LogLevel logLevel = LogLevel::Normal;
-
-        /// <summary>
-        ///
-        /// </summary>
-        VulkanConfiguration vulkanConfig = {};
+        LogCallback         errorCallback = nullptr;
+        LogCallback         infoCallback  = nullptr;
+        LogLevel            logLevel      = LogLevel::Normal;
+        VulkanConfiguration vulkanConfig  = {};
     };
 
     struct InitInfo
     {
-        /// <summary>
-        ///
-        /// </summary>
-        BackendAPI api = BackendAPI::Vulkan;
-
-        /// <summary>
-        ///
-        /// </summary>
-        PreferredGPUType gpu = PreferredGPUType::Discrete;
-
-        /// <summary>
-        ///
-        /// </summary>
-        const char* appName = "LinaGX App";
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 framesInFlight = 2;
-
-        /// <summary>
-        ///
-        /// </summary>
-        uint32 backbufferCount = 2;
-
-        /// <summary>
-        ///
-        /// </summary>
-        GPULimits gpuLimits = {};
-
-        /// <summary>
-        ///
-        /// </summary>
-        Format rtSwapchainFormat = Format::B8G8R8A8_UNORM;
-
-        /// <summary>
-        ///
-        /// </summary>
-        Format rtColorFormat = Format::R8G8B8A8_SRGB;
-
-        /// <summary>
-        ///
-        /// </summary>
-        Format rtDepthFormat = Format::D32_SFLOAT;
+        BackendAPI       api               = BackendAPI::Vulkan;
+        PreferredGPUType gpu               = PreferredGPUType::Discrete;
+        const char*      appName           = "LinaGX App";
+        uint32           framesInFlight    = 2;
+        uint32           backbufferCount   = 2;
+        GPULimits        gpuLimits         = {};
+        Format           rtSwapchainFormat = Format::B8G8R8A8_UNORM;
+        Format           rtColorFormat     = Format::R8G8B8A8_SRGB;
+        Format           rtDepthFormat     = Format::D32_SFLOAT;
     };
 
     extern LINAGX_API Configuration         Config;
@@ -705,13 +626,6 @@ namespace LinaGX
     if (!condition && Config.errorCallback) \
         Config.errorCallback(__VA_ARGS__);  \
     _ASSERT(condition);
-
-    namespace Internal
-    {
-        extern LINAGX_API char*         WCharToChar(const wchar_t* wch);
-        extern LINAGX_API LINAGX_STRING ReadFileContentsAsString(const char* filePath);
-
-    } // namespace Internal
 
     typedef std::function<void()>               CallbackNoArg;
     typedef std::function<void(uint32, uint32)> CallbackUint2;

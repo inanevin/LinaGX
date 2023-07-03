@@ -37,18 +37,26 @@ namespace LinaGX::Examples
 
 #define MAIN_WINDOW_ID 0
 
-    LinaGX::Renderer*      _renderer            = nullptr;
-    LinaGX::CommandStream* _stream              = nullptr;
-    LinaGX::CommandStream* _copyStream          = nullptr;
-    uint8                  _swapchain           = 0;
-    uint16                 _shaderProgram       = 0;
-    uint32                 _vertexBufferStaging = 0;
-    uint32                 _vertexBufferGPU     = 0;
-    uint32                 _indexBufferStaging  = 0;
-    uint32                 _indexBufferGPU      = 0;
-    uint16                 _copySemaphore       = 0;
-    uint64                 _copySemaphoreValue  = 0;
-    Window*                window               = nullptr;
+    LinaGX::Renderer* _renderer  = nullptr;
+    uint8             _swapchain = 0;
+    Window*           window     = nullptr;
+
+    // Shaders.
+    uint16 _shaderProgram = 0;
+
+    // Streams.
+    LinaGX::CommandStream* _stream     = nullptr;
+    LinaGX::CommandStream* _copyStream = nullptr;
+
+    // Resources
+    uint32 _vertexBufferStaging = 0;
+    uint32 _vertexBufferGPU     = 0;
+    uint32 _indexBufferStaging  = 0;
+    uint32 _indexBufferGPU      = 0;
+
+    // Syncronization
+    uint16 _copySemaphore      = 0;
+    uint64 _copySemaphoreValue = 0;
 
     struct Vertex
     {
@@ -66,7 +74,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -95,19 +103,19 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = Internal::ReadFileContentsAsString("Resources/Shaders/triangle_vert.glsl");
-            const std::string fragShader = Internal::ReadFileContentsAsString("Resources/Shaders/triangle_frag.glsl");
+            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_vert.glsl");
+            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_frag.glsl");
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
-            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
-            _renderer->CompileShader(ShaderStage::Pixel, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::STG_Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::STG_Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Pixel, fragBlob}},
+                .stages          = {{ShaderStage::STG_Vertex, vertexBlob}, {ShaderStage::STG_Fragment, fragBlob}},
                 .layout          = outLayout,
                 .polygonMode     = PolygonMode::Fill,
                 .cullMode        = CullMode::None,
@@ -172,7 +180,7 @@ namespace LinaGX::Examples
 
             ResourceDesc bufferDesc = ResourceDesc{
                 .size          = vertexBufferSize,
-                .typeHintFlags = LGX_VertexBuffer,
+                .typeHintFlags = TH_VertexBuffer,
                 .heapType      = ResourceHeap::StagingHeap,
                 .debugName     = L"VertexBuffer",
             };
@@ -183,7 +191,7 @@ namespace LinaGX::Examples
             _vertexBufferGPU     = _renderer->CreateResource(bufferDesc);
 
             // Same for index buffers.
-            bufferDesc.typeHintFlags = LGX_IndexBuffer;
+            bufferDesc.typeHintFlags = TH_IndexBuffer;
             bufferDesc.heapType      = ResourceHeap::StagingHeap;
             _indexBufferStaging      = _renderer->CreateResource(bufferDesc);
             bufferDesc.heapType      = ResourceHeap::GPUOnly;
@@ -199,7 +207,10 @@ namespace LinaGX::Examples
             _renderer->MapResource(_indexBufferStaging, indexData);
             std::memcpy(indexData, indexBuffer.data(), sizeof(uint32) * indexBuffer.size());
             _renderer->UnmapResource(_indexBufferStaging);
+        }
 
+        // Complete transfer operations before beginning the main loop
+        {
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
             copyVtxBuf->source          = _vertexBufferStaging;
@@ -212,8 +223,12 @@ namespace LinaGX::Examples
             _renderer->CloseCommandStreams(&_copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
-            _renderer->ExecuteCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
+            _renderer->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
             _renderer->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
+
+            // Not needed anymore.
+            _renderer->DestroyResource(_vertexBufferStaging);
+            _renderer->DestroyResource(_indexBufferStaging);
         }
     }
 
@@ -227,9 +242,7 @@ namespace LinaGX::Examples
 
         // Get rid of resources
         _renderer->DestroyUserSemaphore(_copySemaphore);
-        _renderer->DestroyResource(_vertexBufferStaging);
         _renderer->DestroyResource(_vertexBufferGPU);
-        _renderer->DestroyResource(_indexBufferStaging);
         _renderer->DestroyResource(_indexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
@@ -306,7 +319,7 @@ namespace LinaGX::Examples
         _renderer->CloseCommandStreams(&_stream, 1);
 
         // Submit work on gpu.
-        _renderer->ExecuteCommandStreams({.streams = &_stream, .streamCount = 1});
+        _renderer->SubmitCommandStreams({.streams = &_stream, .streamCount = 1});
 
         // Present main swapchain.
         _renderer->Present({.swapchain = _swapchain});

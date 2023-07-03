@@ -58,19 +58,25 @@ namespace LinaGX
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) = 0;
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc)                                       = 0;
         virtual void   DestroySwapchain(uint8 handle)                                                   = 0;
-        virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc)                                 = 0;
+        virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc)                             = 0;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc)                                       = 0;
         virtual void   DestroyShader(uint16 handle)                                                     = 0;
         virtual uint32 CreateTexture2D(const Texture2DDesc& desc)                                       = 0;
         virtual void   DestroyTexture2D(uint32 handle)                                                  = 0;
+        virtual uint32 CreateSampler(const SamplerDesc& desc)                                           = 0;
+        virtual void   DestroySampler(uint32 handle)                                                    = 0;
         virtual uint32 CreateResource(const ResourceDesc& desc)                                         = 0;
         virtual void   DestroyResource(uint32 handle)                                                   = 0;
         virtual void   MapResource(uint32 resource, uint8*& ptr)                                        = 0;
         virtual void   UnmapResource(uint32 resource)                                                   = 0;
+        virtual uint16 CreateDescriptorSet(const DescriptorSetDesc& desc)                               = 0;
+        virtual void   DestroyDescriptorSet(uint16 handle)                                              = 0;
+        virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)                   = 0;
+        virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)                     = 0;
         virtual uint32 CreateCommandStream(QueueType type)                                              = 0;
         virtual void   DestroyCommandStream(uint32 handle)                                              = 0;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
-        virtual void   ExecuteCommandStreams(const ExecuteDesc& desc)                                   = 0;
+        virtual void   SubmitCommandStreams(const SubmitDesc& desc)                                     = 0;
 
         static Backend* CreateBackend(BackendAPI api, Renderer* renderer);
 

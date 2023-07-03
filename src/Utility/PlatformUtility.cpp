@@ -5,7 +5,7 @@ https://github.com/inanevin/LinaGX
 Author: Inan Evin
 http://www.inanevin.com
 
-Copyright (c) [2022-] [Inan Evin]
+Copyright (c) [2023-] [Inan Evin]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
-
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
 #include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
+#include "Common/Common.hpp"
+#include <sstream>
+#include <fstream>
 
 namespace LinaGX
 {
 
-} // namespace LinaGX
+    char* WCharToChar(const wchar_t* wch)
+    {
+        // Count required buffer size (plus one for null-terminator).
+        size_t size   = (wcslen(wch) + 1) * sizeof(wchar_t);
+        char*  buffer = new char[size];
 
+#ifdef __STDC_LIB_EXT1__
+        // wcstombs_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined
+        size_t convertedSize;
+        std::wcstombs_s(&convertedSize, buffer, size, input, size);
+#else
+#pragma warning(disable : 4996)
+        std::wcstombs(buffer, wch, size);
 #endif
+        return buffer;
+    }
+
+    LINAGX_STRING ReadFileContentsAsString(const char* filePath)
+    {
+        std::ifstream ifs(filePath);
+        auto          a = std::istreambuf_iterator<char>(ifs);
+        auto          b = (std::istreambuf_iterator<char>());
+        std::string   content(a, b);
+        return content.c_str();
+    }
+
+} // namespace LinaGX

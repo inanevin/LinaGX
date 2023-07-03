@@ -107,6 +107,10 @@ namespace LinaGX
 #define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
 #define LINAGX_FREE(...)   free(__VA_ARGS__)
 
+#define ALIGN_SIZE_POW(sizeToAlign, PowerOfTwo) (((sizeToAlign) + (PowerOfTwo)-1) & ~((PowerOfTwo)-1))
+#define ALIGN_SIZE(sizeToAlign, Alignment)      (sizeToAlign + Alignment - 1) - sizeToAlign % Alignment;
+#define IS_SIZE_ALIGNED(sizeToTest, PowerOfTwo) (((sizeToTest) & ((PowerOfTwo)-1)) == 0)
+
     template <typename T>
     struct Handle
     {

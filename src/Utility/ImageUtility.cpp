@@ -28,21 +28,46 @@ SOFTWARE.
 
 #pragma once
 
-#include "Core/DataStructures.hpp"
+#include "Utility/ImageUtility.hpp"
+#include "Utility/MathUtility.hpp"
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "Utility/stb/stb_image.h"
+#include "Utility/stb/stb_image_resize.h"
 
 namespace LinaGX
 {
-
-    uint32 FnvHash::fnvHash(const char* str)
+    int GetSTBIChannelMask(ImageChannelMask mask)
     {
-        const size_t length = strlen(str) + 1;
-        uint32       hash   = OFFSET_BASIS;
-        for (size_t i = 0; i < length; ++i)
+        switch (mask)
         {
-            hash ^= *str++;
-            hash *= FNV_PRIME;
+        case LinaGX::ImageChannelMask::Grey:
+            return STBI_grey;
+        case LinaGX::ImageChannelMask::GreyAlpha:
+            return STBI_grey_alpha;
+        case LinaGX::ImageChannelMask::Rgb:
+            return STBI_rgb;
+        case LinaGX::ImageChannelMask::Rgba:
+            return STBI_rgb_alpha;
+        default:
+            return STBI_rgb_alpha;
         }
-        return hash;
     }
 
+    uint8* LoadImage(const char* path, uint32& outWidth, uint32& outHeight, uint32& outChannelCount, uint32& outMipLevel, ImageChannelMask channelMask)
+    {
+        int    w = 0, h = 0, ch = 0;
+        uint8* data     = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
+        outWidth        = w;
+        outHeight       = h;
+        outChannelCount = static_cast<uint32>(channelMask) + 1;
+        outMipLevel     = FloorLog2(Max(outWidth, outHeight)) + 1;
+        return data;
+    }
+
+    LINAGX_API void FreeImage(uint8* pixels)
+    {
+        stbi_image_free(pixels);
+    }
 } // namespace LinaGX

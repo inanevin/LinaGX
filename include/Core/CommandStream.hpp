@@ -66,7 +66,12 @@ namespace LinaGX
             m_commandIndex += sizeof(T) + typeSize;
 
             m_commandCount++;
-            return reinterpret_cast<T*>(ptr);
+            T* retVal = reinterpret_cast<T*>(ptr);
+
+            // Commons
+            retVal->extension = nullptr;
+
+            return retVal;
         }
 
     private:
@@ -78,10 +83,10 @@ namespace LinaGX
         void Reset();
 
     private:
-        uint8**     m_commands     = nullptr;
-        uint32      m_commandCount = 0;
-        uint32      m_gpuHandle    = 0;
-        Backend*    m_backend      = nullptr;
+        uint8**   m_commands     = nullptr;
+        uint32    m_commandCount = 0;
+        uint32    m_gpuHandle    = 0;
+        Backend*  m_backend      = nullptr;
         QueueType m_type         = QueueType::Graphics;
 
         uint8* m_commandBuffer = nullptr;

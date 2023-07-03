@@ -32,6 +32,7 @@ SOFTWARE.
 #include "Platform/DX12/SDK/D3D12MemAlloc.h"
 #include "Platform/DX12/DX12HeapGPU.hpp"
 #include "Platform/DX12/DX12HeapStaging.hpp"
+#include "Utility/PlatformUtility.hpp"
 #include "Core/Commands.hpp"
 #include "Core/Renderer.hpp"
 #include "Core/CommandStream.hpp"
@@ -292,13 +293,13 @@ namespace LinaGX
     {
         switch (stg)
         {
-        case ShaderStage::Vertex:
+        case ShaderStage::STG_Vertex:
             return D3D12_SHADER_VISIBILITY_VERTEX;
-        case ShaderStage::Pixel:
+        case ShaderStage::STG_Fragment:
             return D3D12_SHADER_VISIBILITY_PIXEL;
-        case ShaderStage::Geometry:
+        case ShaderStage::STG_Geometry:
             return D3D12_SHADER_VISIBILITY_GEOMETRY;
-        case ShaderStage::Tesellation:
+        case ShaderStage::STG_Tesellation:
             return D3D12_SHADER_VISIBILITY_HULL;
         default:
             return D3D12_SHADER_VISIBILITY_ALL;
@@ -320,7 +321,7 @@ namespace LinaGX
         }
     }
 
-    D3D12_TEXTURE_ADDRESS_MODE GetAddressMode(SamplerAddressMode mode)
+    D3D12_TEXTURE_ADDRESS_MODE GetDXAddressMode(SamplerAddressMode mode)
     {
         switch (mode)
         {
@@ -339,7 +340,7 @@ namespace LinaGX
         }
     }
 
-    D3D12_FILTER GetFilter(Filter minFilter, Filter magFilter)
+    D3D12_FILTER GetDXFilter(Filter minFilter, Filter magFilter)
     {
         if (minFilter == Filter::Anisotropic || magFilter == Filter::Anisotropic)
             return D3D12_FILTER_ANISOTROPIC;
@@ -356,21 +357,40 @@ namespace LinaGX
         return D3D12_FILTER_ANISOTROPIC;
     }
 
+    void FillBorderColor(BorderColor bc, float* color)
+    {
+        switch (bc)
+        {
+        case LinaGX::BorderColor::BlackTransparent:
+            color[0] = color[1] = color[2] = color[3] = 0.0f;
+            break;
+        case LinaGX::BorderColor::BlackOpaque:
+            color[0] = color[1] = color[2] = 0.0f;
+            color[3]                       = 1.0f;
+            break;
+        case LinaGX::BorderColor::WhiteOpaque:
+            color[0] = color[1] = color[2] = color[3] = 1.0f;
+            break;
+        default:
+            break;
+        }
+    }
+
     void MessageCallback(D3D12_MESSAGE_CATEGORY messageType, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID messageId, LPCSTR pDesc, void* pContext)
     {
         if (pDesc != NULL)
         {
             if (severity == D3D12_MESSAGE_SEVERITY_MESSAGE)
             {
-                LOGT("DX12Backend -> %s", pDesc);
+                LOGT("Backend -> %s", pDesc);
             }
             else if (severity == D3D12_MESSAGE_SEVERITY_INFO)
             {
-                // LOGV("DX12Backend -> %s", pDesc);
+                // LOGV("Backend -> %s", pDesc);
             }
             else
             {
-                LOGE("DX12Backend -> %s", pDesc);
+                LOGE("Backend -> %s", pDesc);
             }
         }
     }
@@ -396,8 +416,8 @@ namespace LinaGX
                 // actual device yet.
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
                 {
-                    char* buf = Internal::WCharToChar(desc.Description);
-                    LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                    char* buf = WCharToChar(desc.Description);
+                    LOGT("Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
                     GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
                     GPUInfo.deviceName           = buf;
                     delete[] buf;
@@ -420,8 +440,8 @@ namespace LinaGX
                 // actual device yet.
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
                 {
-                    char* buf = Internal::WCharToChar(desc.Description);
-                    LOGT("DX12Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                    char* buf = WCharToChar(desc.Description);
+                    LOGT("Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
                     GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
                     GPUInfo.deviceName           = buf;
                     delete[] buf;
@@ -444,7 +464,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend-> Exception when creating a fence! {0}", e.what());
+            DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
         }
 
         return m_userSemaphores.AddItem(item);
@@ -455,7 +475,7 @@ namespace LinaGX
         auto& semaphore = m_userSemaphores.GetItemR(handle);
         if (!semaphore.isValid)
         {
-            LOGE("VKBackend -> Semaphore to be destroyed is not valid!");
+            LOGE("Backend -> Semaphore to be destroyed is not valid!");
             return;
         }
 
@@ -503,7 +523,7 @@ namespace LinaGX
             swp.vsync         = desc.vsyncMode;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
-            LOGT("DX12Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
+            LOGT("Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
 
             // Create RT and depth textures for swapchain.
             {
@@ -520,7 +540,7 @@ namespace LinaGX
                     }
                     catch (HrException e)
                     {
-                        DX12_THROW(e, "DX12Backend -> Exception while creating render target for swapchain! %s", e.what());
+                        DX12_THROW(e, "Backend -> Exception while creating render target for swapchain! %s", e.what());
                     }
 
                     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -529,12 +549,13 @@ namespace LinaGX
                     m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
                     swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
 
-                    Texture2DDesc depthDesc = {};
-                    depthDesc.format        = m_initInfo.rtDepthFormat;
-                    depthDesc.width         = desc.width;
-                    depthDesc.height        = desc.height;
-                    depthDesc.mipLevels     = 1;
-                    depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+                    Texture2DDesc depthDesc      = {};
+                    depthDesc.format             = m_initInfo.rtDepthFormat;
+                    depthDesc.width              = desc.width;
+                    depthDesc.height             = desc.height;
+                    depthDesc.mipLevels          = 1;
+                    depthDesc.usage              = Texture2DUsage::DepthStencilTexture;
+                    depthDesc.depthStencilAspect = DepthStencilAspect::DepthOnly;
                     swp.depthTextures.push_back(CreateTexture2D(depthDesc));
                 }
             }
@@ -543,7 +564,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when creating a swapchain! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when creating a swapchain! %s", e.what());
         }
 
         return 0;
@@ -554,7 +575,7 @@ namespace LinaGX
         auto& swp = m_swapchains.GetItemR(handle);
         if (!swp.isValid)
         {
-            LOGE("VKBackend -> Swapchain to be destroyed is not valid!");
+            LOGE("Backend -> Swapchain to be destroyed is not valid!");
             return;
         }
 
@@ -564,7 +585,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Setting swapchain fullscreen state!");
+            DX12_THROW(e, "Backend -> Setting swapchain fullscreen state!");
         }
 
         for (auto t : swp.colorTextures)
@@ -617,7 +638,7 @@ namespace LinaGX
                 }
                 catch (HrException e)
                 {
-                    DX12_THROW(e, "DX12Backend -> Exception while creating render target for swapchain! %s", e.what());
+                    DX12_THROW(e, "Backend -> Exception while creating render target for swapchain! %s", e.what());
                 }
 
                 D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -626,18 +647,19 @@ namespace LinaGX
                 m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
                 swp.colorTextures[i] = m_texture2Ds.AddItem(color);
 
-                Texture2DDesc depthDesc = {};
-                depthDesc.format        = m_initInfo.rtDepthFormat;
-                depthDesc.width         = desc.width;
-                depthDesc.height        = desc.height;
-                depthDesc.mipLevels     = 1;
-                depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
-                swp.depthTextures[i]    = CreateTexture2D(depthDesc);
+                Texture2DDesc depthDesc      = {};
+                depthDesc.format             = m_initInfo.rtDepthFormat;
+                depthDesc.width              = desc.width;
+                depthDesc.height             = desc.height;
+                depthDesc.mipLevels          = 1;
+                depthDesc.usage              = Texture2DUsage::DepthStencilTexture;
+                depthDesc.depthStencilAspect = DepthStencilAspect::DepthOnly;
+                swp.depthTextures[i]         = CreateTexture2D(depthDesc);
             }
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Failed resizing swapchain! %s", e.what());
+            DX12_THROW(e, "Backend -> Failed resizing swapchain! %s", e.what());
         }
     }
 
@@ -650,7 +672,7 @@ namespace LinaGX
             HRESULT hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&idxcCompiler));
             if (FAILED(hr))
             {
-                LOGE("DX12Backend -> Failed to create DXC compiler");
+                LOGE("Backend -> Failed to create DXC compiler");
                 return false;
             }
 
@@ -659,7 +681,7 @@ namespace LinaGX
 
             if (FAILED(hr))
             {
-                LOGE("DX12Backend -> Failed to create DXC utils.");
+                LOGE("Backend -> Failed to create DXC utils.");
                 return false;
             }
 
@@ -669,13 +691,13 @@ namespace LinaGX
             m_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, static_cast<UINT>(source.size()), codePage, &sourceBlob);
 
             const wchar_t* targetProfile = L"vs_6_0";
-            if (stage == ShaderStage::Pixel)
+            if (stage & ShaderStage::STG_Fragment)
                 targetProfile = L"ps_6_0";
-            else if (stage == ShaderStage::Compute)
+            else if (stage & ShaderStage::STG_Compute)
                 targetProfile = L"cs_6_0";
-            else if (stage == ShaderStage::Geometry)
+            else if (stage & ShaderStage::STG_Geometry)
                 targetProfile = L"gs_6_0";
-            else if (stage == ShaderStage::Tesellation)
+            else if (stage & ShaderStage::STG_Tesellation)
                 targetProfile = L"hs_6_0";
 
             DxcBuffer sourceBuffer;
@@ -709,7 +731,7 @@ namespace LinaGX
 
             if (errors && errors->GetStringLength() > 0)
             {
-                LOGE("DX12Backend -> %s", (char*)errors->GetStringPointer());
+                LOGE("Backend -> %s", (char*)errors->GetStringPointer());
             }
 
             result->GetStatus(&hr);
@@ -722,7 +744,7 @@ namespace LinaGX
                     hr = result->GetErrorBuffer(&errorsBlob);
                     if (SUCCEEDED(hr) && errorsBlob)
                     {
-                        LOGE("DX12Backend -> Shader compilation failed: %s", (const char*)errorsBlob->GetBufferPointer());
+                        LOGE("Backend -> Shader compilation failed: %s", (const char*)errorsBlob->GetBufferPointer());
                         return false;
                     }
                 }
@@ -738,7 +760,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when compiling shader! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when compiling shader! %s", e.what());
             return false;
         }
 
@@ -769,25 +791,79 @@ namespace LinaGX
                 if (ubo.stages.size() == 1)
                     visibility = GetDXVisibility(ubo.stages[0]);
 
-                CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-                ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, ubo.binding, ubo.set);
-                param.InitAsDescriptorTable(1, ranges, visibility);
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.binding           = ubo.binding;
+                paramInfo.set               = ubo.set;
+                paramInfo.elementSize       = ubo.elementSize;
+                paramInfo.reflectionType    = DescriptorType::UBO;
+                shader.rootParams.push_back(paramInfo);
+
+                if (ubo.elementSize > 1)
+                {
+                    CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+                    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, ubo.elementSize, ubo.binding, ubo.set);
+                    param.InitAsDescriptorTable(1, ranges, visibility);
+                }
+                else
+                    param.InitAsConstantBufferView(ubo.binding, ubo.set, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+
                 rootParameters.push_back(param);
             }
 
+            /*
+                Texture2D<float4> texSampler[3] : register(t0, space0);
+                SamplerState _texSampler_sampler[3] : register(s0, space0);
+*/
+
             for (const auto& t2d : shaderDesc.layout.combinedImageSamplers)
             {
-                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+                CD3DX12_ROOT_PARAMETER1 paramSRV     = CD3DX12_ROOT_PARAMETER1{};
+                CD3DX12_ROOT_PARAMETER1 paramSampler = CD3DX12_ROOT_PARAMETER1{};
 
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
                 if (t2d.stages.size() == 1)
                     visibility = GetDXVisibility(t2d.stages[0]);
 
-                CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-                ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                param.InitAsDescriptorTable(1, ranges, visibility);
-                rootParameters.push_back(param);
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.binding           = t2d.binding;
+                paramInfo.set               = t2d.set;
+                paramInfo.elementSize       = t2d.elementSize;
+                paramInfo.reflectionType    = DescriptorType::CombinedImageSampler;
+                shader.rootParams.push_back(paramInfo);
+
+                CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1], rangesSampler[1];
+                rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                rangesSampler[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                paramSRV.InitAsDescriptorTable(1, rangesSRV, visibility);
+                paramSampler.InitAsDescriptorTable(1, rangesSampler, visibility);
+
+                rootParameters.push_back(paramSRV);
+                rootParameters.push_back(paramSampler);
+            }
+
+            for (const auto& t2d : shaderDesc.layout.separateImages)
+            {
+                CD3DX12_ROOT_PARAMETER1 paramSRV = CD3DX12_ROOT_PARAMETER1{};
+
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (t2d.stages.size() == 1)
+                    visibility = GetDXVisibility(t2d.stages[0]);
+
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.binding           = t2d.binding;
+                paramInfo.set               = t2d.set;
+                paramInfo.elementSize       = t2d.elementSize;
+                paramInfo.reflectionType    = DescriptorType::SeparateImage;
+                shader.rootParams.push_back(paramInfo);
+
+                CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1];
+                rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                paramSRV.InitAsDescriptorTable(1, rangesSRV, visibility);
+
+                rootParameters.push_back(paramSRV);
             }
 
             for (const auto& sampler : shaderDesc.layout.samplers)
@@ -798,9 +874,18 @@ namespace LinaGX
                 if (sampler.stages.size() == 1)
                     visibility = GetDXVisibility(sampler.stages[0]);
 
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.binding           = sampler.binding;
+                paramInfo.set               = sampler.set;
+                paramInfo.elementSize       = sampler.elementSize;
+                paramInfo.reflectionType    = DescriptorType::SeparateSampler;
+                shader.rootParams.push_back(paramInfo);
+
                 CD3DX12_DESCRIPTOR_RANGE1 range[1];
-                range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
                 param.InitAsDescriptorTable(1, range, visibility);
+
                 rootParameters.push_back(param);
             }
 
@@ -810,6 +895,13 @@ namespace LinaGX
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
                 if (ssbo.stages.size() == 1)
                     visibility = GetDXVisibility(ssbo.stages[0]);
+
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.binding           = ssbo.binding;
+                paramInfo.set               = ssbo.set;
+                paramInfo.reflectionType    = DescriptorType::SSBO;
+                shader.rootParams.push_back(paramInfo);
 
                 CD3DX12_DESCRIPTOR_RANGE1 range[1];
                 range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
@@ -825,14 +917,16 @@ namespace LinaGX
                 if (ct.stages.size() == 1)
                     visibility = GetDXVisibility(ct.stages[0]);
 
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.reflectionType    = DescriptorType::ConstantBlock;
+                shader.rootParams.push_back(paramInfo);
+
                 param.InitAsConstants(static_cast<uint32>(ct.members.size()), 0, 0, visibility);
                 rootParameters.push_back(param);
             }
 
-            CD3DX12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
-            samplerDesc[0].Init(0, D3D12_FILTER_ANISOTROPIC);
-
-            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 1, samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
             ComPtr<ID3DBlob>                      signatureBlob = nullptr;
             ComPtr<ID3DBlob>                      errorBlob     = nullptr;
 
@@ -840,7 +934,7 @@ namespace LinaGX
 
             if (FAILED(hr))
             {
-                LOGA(false, "DX12Backend -> Failed serializing root signature! %s", (char*)errorBlob->GetBufferPointer());
+                LOGA(false, "Backend -> Failed serializing root signature! %s", (char*)errorBlob->GetBufferPointer());
                 return 0;
             }
 
@@ -848,7 +942,7 @@ namespace LinaGX
 
             if (FAILED(hr))
             {
-                LOGA(false, "DX12Backend -> Failed creating root signature!");
+                LOGA(false, "Backend -> Failed creating root signature!");
                 return 0;
             }
         }
@@ -916,27 +1010,27 @@ namespace LinaGX
             const void*  byteCode = (void*)blob.ptr;
             const SIZE_T length   = static_cast<SIZE_T>(blob.size);
 
-            if (stg == ShaderStage::Vertex)
+            if (stg & ShaderStage::STG_Vertex)
             {
                 psoDesc.VS.pShaderBytecode = byteCode;
                 psoDesc.VS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::Pixel)
+            else if (stg & ShaderStage::STG_Fragment)
             {
                 psoDesc.PS.pShaderBytecode = byteCode;
                 psoDesc.PS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::Geometry)
+            else if (stg & ShaderStage::STG_Geometry)
             {
                 psoDesc.GS.pShaderBytecode = byteCode;
                 psoDesc.GS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::Tesellation)
+            else if (stg & ShaderStage::STG_Tesellation)
             {
                 psoDesc.HS.pShaderBytecode = byteCode;
                 psoDesc.HS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::Compute)
+            else if (stg & ShaderStage::STG_Compute)
             {
                 LOGA(false, "!!");
             }
@@ -948,7 +1042,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when creating PSO! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when creating PSO! %s", e.what());
             return 0;
         }
 
@@ -960,7 +1054,7 @@ namespace LinaGX
         auto& shader = m_shaders.GetItemR(handle);
         if (!shader.isValid)
         {
-            LOGE("DX12Backend -> Shader to be destroyed is not valid!");
+            LOGE("Backend -> Shader to be destroyed is not valid!");
             return;
         }
 
@@ -972,8 +1066,8 @@ namespace LinaGX
     uint32 DX12Backend::CreateTexture2D(const Texture2DDesc& txtDesc)
     {
         DX12Texture2D item = {};
-        item.usage         = txtDesc.usage;
         item.isValid       = true;
+        item.desc          = txtDesc;
 
         D3D12_RESOURCE_DESC resourceDesc = {};
         resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -988,8 +1082,8 @@ namespace LinaGX
         resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
         resourceDesc.Format              = GetDXFormat(txtDesc.format);
 
-        uint32 mostDetailedSize = txtDesc.width * txtDesc.height * txtDesc.channels;
-        item.requiredAlignment  = txtDesc.usage == Texture2DUsage::ColorTexture ? (mostDetailedSize < D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        auto allocationInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+        item.requiredAlignment = allocationInfo.Alignment;
 
         D3D12MA::ALLOCATION_DESC allocationDesc = {};
         allocationDesc.HeapType                 = D3D12_HEAP_TYPE_DEFAULT;
@@ -1023,7 +1117,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when creating a texture resource! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when creating a texture resource! %s", e.what());
         }
 
 #ifndef NDEBUG
@@ -1078,7 +1172,7 @@ namespace LinaGX
         auto& txt = m_texture2Ds.GetItemR(handle);
         if (!txt.isValid)
         {
-            LOGE("DX12Backend -> Texture to be destroyed is not valid!");
+            LOGE("Backend -> Texture to be destroyed is not valid!");
             return;
         }
 
@@ -1089,11 +1183,11 @@ namespace LinaGX
         }
         else
         {
-            if (txt.usage == Texture2DUsage::DepthStencilTexture)
+            if (txt.desc.usage == Texture2DUsage::DepthStencilTexture)
                 m_dsvHeap->FreeHeapHandle(txt.descriptor);
-            else if (txt.usage == Texture2DUsage::ColorTexture || txt.usage == Texture2DUsage::ColorTextureDynamic)
+            else if (txt.desc.usage == Texture2DUsage::ColorTexture || txt.desc.usage == Texture2DUsage::ColorTextureDynamic)
                 m_textureHeap->FreeHeapHandle(txt.descriptor);
-            else if (txt.usage == Texture2DUsage::ColorTextureRenderTarget)
+            else if (txt.desc.usage == Texture2DUsage::ColorTextureRenderTarget)
             {
                 m_rtvHeap->FreeHeapHandle(txt.descriptor);
                 m_textureHeap->FreeHeapHandle(txt.descriptor2);
@@ -1108,6 +1202,42 @@ namespace LinaGX
 
         txt.isValid = false;
         m_texture2Ds.RemoveItem(handle);
+    }
+
+    uint32 DX12Backend::CreateSampler(const SamplerDesc& desc)
+    {
+        DX12Sampler item = {};
+        item.isValid     = true;
+
+        D3D12_SAMPLER_DESC samplerDesc;
+        samplerDesc.AddressU       = GetDXAddressMode(desc.mode);
+        samplerDesc.AddressV       = GetDXAddressMode(desc.mode);
+        samplerDesc.AddressW       = GetDXAddressMode(desc.mode);
+        samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE;
+        samplerDesc.Filter         = GetDXFilter(desc.minFilter, desc.magFilter);
+        samplerDesc.MinLOD         = desc.minLod;
+        samplerDesc.MaxLOD         = desc.maxLod;
+        samplerDesc.MaxAnisotropy  = desc.anisotropy;
+        samplerDesc.MipLODBias     = static_cast<FLOAT>(desc.mipLodBias);
+        FillBorderColor(desc.borderColor, samplerDesc.BorderColor);
+
+        item.descriptor = m_samplerHeap->GetNewHeapHandle();
+
+        m_device->CreateSampler(&samplerDesc, {item.descriptor.GetCPUHandle()});
+        return m_samplers.AddItem(item);
+    }
+
+    void DX12Backend::DestroySampler(uint32 handle)
+    {
+        auto& item = m_samplers.GetItemR(handle);
+        if (!item.isValid)
+        {
+            LOGE("Backend -> Sampler to be destroyed is not valid!");
+            return;
+        }
+
+        m_samplerHeap->FreeHeapHandle(item.descriptor);
+        m_samplers.RemoveItem(handle);
     }
 
     uint32 DX12Backend::CreateResource(const ResourceDesc& desc)
@@ -1134,13 +1264,13 @@ namespace LinaGX
 
         if (usedHeapType == ResourceHeap::CPUVisibleGPUMemory)
         {
-            LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "DX12Backend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
+            LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "Backend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
 
             NV_RESOURCE_PARAMS nvResourceParams = {};
             nvResourceParams.NVResourceFlags    = NV_D3D12_RESOURCE_FLAG_CPUVISIBLE_VIDMEM;
             auto         hp                     = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             NvAPI_Status result                 = NvAPI_D3D12_CreateCommittedResource(m_device.Get(), &hp, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COMMON, NULL, &nvResourceParams, IID_PPV_ARGS(&item.cpuVisibleResource), NULL);
-            LOGA(result == NvAPI_Status::NVAPI_OK, "DX12Backend -> Host-visible gpu resource creation failed! Maybe exceeded total size?");
+            LOGA(result == NvAPI_Status::NVAPI_OK, "Backend -> Host-visible gpu resource creation failed! Maybe exceeded total size?");
             NAME_DX12_OBJECT(item.cpuVisibleResource, desc.debugName);
             return m_resources.AddItem(item);
         }
@@ -1152,9 +1282,9 @@ namespace LinaGX
         {
             allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
 
-            if (desc.typeHintFlags & LGX_VertexBuffer || desc.typeHintFlags & LGX_ConstantBuffer)
+            if (desc.typeHintFlags & TH_VertexBuffer || desc.typeHintFlags & TH_ConstantBuffer)
                 state = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-            else if (desc.typeHintFlags & LGX_IndexBuffer)
+            else if (desc.typeHintFlags & TH_IndexBuffer)
                 state = D3D12_RESOURCE_STATE_INDEX_BUFFER;
             else
                 state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
@@ -1171,7 +1301,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when creating a resource! {0}", e.what());
+            DX12_THROW(e, "Backend -> Exception when creating a resource! {0}", e.what());
         }
 
         NAME_DX12_OBJECT(item.allocation->GetResource(), desc.debugName);
@@ -1192,12 +1322,12 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                DX12_THROW(e, "DX12Backend -> Failed mapping resource! {0}", e.what());
+                DX12_THROW(e, "Backend -> Failed mapping resource! {0}", e.what());
             }
         }
         else if (item.heapType == ResourceHeap::GPUOnly)
         {
-            LOGA(false, "DX12Backend -> Can not map GPU Only resource!");
+            LOGA(false, "Backend -> Can not map GPU Only resource!");
         }
         else if (item.heapType == ResourceHeap::StagingHeap)
         {
@@ -1208,7 +1338,7 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                DX12_THROW(e, "DX12Backend -> Failed mapping resource! {0}", e.what());
+                DX12_THROW(e, "Backend -> Failed mapping resource! {0}", e.what());
             }
         }
 
@@ -1241,7 +1371,7 @@ namespace LinaGX
         auto& res = m_resources.GetItemR(handle);
         if (!res.isValid)
         {
-            LOGE("VKBackend -> Resource to be destroyed is not valid!");
+            LOGE("Backend -> Resource to be destroyed is not valid!");
             return;
         }
 
@@ -1260,9 +1390,37 @@ namespace LinaGX
         m_resources.RemoveItem(handle);
     }
 
+    uint16 DX12Backend::CreateDescriptorSet(const DescriptorSetDesc& desc)
+    {
+        DX12DescriptorSet item = {};
+        item.isValid           = true;
+
+        return m_descriptorSets.AddItem(item);
+    }
+
+    void DX12Backend::DestroyDescriptorSet(uint16 handle)
+    {
+        auto& item = m_descriptorSets.GetItemR(handle);
+        if (!item.isValid)
+        {
+            LOGE("Backend -> Descriptor Table to be destroyed is not valid!");
+            return;
+        }
+
+        m_resources.RemoveItem(handle);
+    }
+
+    void DX12Backend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
+    {
+    }
+
+    void DX12Backend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
+    {
+    }
+
     void DX12Backend::DX12Exception(HrException e)
     {
-        LOGE("DX12Backend -> Exception: %s", e.what());
+        LOGE("Backend -> Exception: %s", e.what());
         _ASSERT(false);
     }
 
@@ -1285,7 +1443,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend-> Exception when creating a fence! {0}", e.what());
+            DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
         }
 
         return handle;
@@ -1320,7 +1478,7 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                LOGE("DX12Backend -> Exception when waiting for a fence! {0}", e.what());
+                LOGE("Backend -> Exception when waiting for a fence! {0}", e.what());
             }
         }
     }
@@ -1348,7 +1506,7 @@ namespace LinaGX
                 }
                 else
                 {
-                    LOGE("DX12Backend -> Failed enabling debug layers!");
+                    LOGE("Backend -> Failed enabling debug layers!");
                 }
 #endif
 
@@ -1408,7 +1566,7 @@ namespace LinaGX
                 HRESULT hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&m_idxcLib));
                 if (FAILED(hr))
                 {
-                    LOGE("DX12Backend -> Failed to create DXC library!");
+                    LOGE("Backend -> Failed to create DXC library!");
                 }
             }
 
@@ -1441,7 +1599,7 @@ namespace LinaGX
                 }
                 catch (HrException e)
                 {
-                    DX12_THROW(e, "DX12Backend-> Exception when creating a fence! {0}", e.what());
+                    DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
                 }
             }
 
@@ -1476,11 +1634,33 @@ namespace LinaGX
                 {
                     GPUInfo.totalCPUVisibleGPUMemorySize = freeBytes;
                 }
+
+                const uint32 last = static_cast<uint32>(Format::FORMAT_MAX);
+
+                for (uint32 i = 0; i < last; i++)
+                {
+                    const Format lgxFormat = static_cast<Format>(i);
+
+                    D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport = {GetDXFormat(lgxFormat), D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE};
+
+                    ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &formatSupport, sizeof(formatSupport)));
+
+                    if ((formatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D) != 0)
+                        GPUInfo.supportedImageFormats.push_back(lgxFormat);
+                }
+
+                LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtColorFormat, m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
+                for (auto& f : requiredFormats)
+                {
+                    auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
+                    if (it == GPUInfo.supportedImageFormats.end())
+                        LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+                }
             }
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when pre-initializating renderer! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when pre-initializating renderer! %s", e.what());
         }
 
         return true;
@@ -1495,32 +1675,42 @@ namespace LinaGX
 
         for (auto& swp : m_swapchains)
         {
-            LOGA(!swp.isValid, "DX12Backend -> Some swapchains were not destroyed!");
+            LOGA(!swp.isValid, "Backend -> Some swapchains were not destroyed!");
         }
 
         for (auto& shader : m_shaders)
         {
-            LOGA(!shader.isValid, "DX12Backend -> Some shaders were not destroyed!");
+            LOGA(!shader.isValid, "Backend -> Some shaders were not destroyed!");
         }
 
         for (auto& txt : m_texture2Ds)
         {
-            LOGA(!txt.isValid, "DX12Backend -> Some textures were not destroyed!");
+            LOGA(!txt.isValid, "Backend -> Some textures were not destroyed!");
         }
 
         for (auto& str : m_cmdStreams)
         {
-            LOGA(!str.isValid, "DX12Backend -> Some command streams were not destroyed!");
+            LOGA(!str.isValid, "Backend -> Some command streams were not destroyed!");
         }
 
         for (auto& r : m_resources)
         {
-            LOGA(!r.isValid, "DX12Backend -> Some resources were not destroyed!");
+            LOGA(!r.isValid, "Backend -> Some resources were not destroyed!");
         }
 
         for (auto& r : m_userSemaphores)
         {
-            LOGA(!r.isValid, "VKBackend -> Some semaphores were not destroyed!");
+            LOGA(!r.isValid, "Backend ->Some semaphores were not destroyed!");
+        }
+
+        for (auto& r : m_samplers)
+        {
+            LOGA(!r.isValid, "Backend -> Some samplers were not destroyed!");
+        }
+
+        for (auto& r : m_descriptorSets)
+        {
+            LOGA(!r.isValid, "Backend -> Some descriptor tables were not destroyed!");
         }
 
         ID3D12InfoQueue1* infoQueue = nullptr;
@@ -1560,17 +1750,21 @@ namespace LinaGX
         {
             item.allocators.resize(m_initInfo.framesInFlight);
             item.lists.resize(m_initInfo.framesInFlight);
+            item.samplerHeaps.resize(m_initInfo.framesInFlight);
+            item.bufferHeaps.resize(m_initInfo.framesInFlight);
 
             for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             {
                 ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocators[i].GetAddressOf())));
                 ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocators[i].Get(), nullptr, IID_PPV_ARGS(item.lists[i].GetAddressOf())));
                 ThrowIfFailed(item.lists[i]->Close());
+                item.samplerHeaps[i] = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimitPerCommand, true);
+                item.bufferHeaps[i]  = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimitPerCommand + m_initInfo.gpuLimits.extraLimitPerCommand + m_initInfo.gpuLimits.textureLimitPerCommand, true);
             }
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when creating a command allocator! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when creating a command allocator! %s", e.what());
         }
 
         return m_cmdStreams.AddItem(item);
@@ -1590,7 +1784,7 @@ namespace LinaGX
         auto& stream = m_cmdStreams.GetItemR(handle);
         if (!stream.isValid)
         {
-            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            LOGE("Backend -> Command Stream to be destroyed is not valid!");
             return;
         }
         stream.isValid = false;
@@ -1599,6 +1793,15 @@ namespace LinaGX
         {
             stream.lists[i].Reset();
             stream.allocators[i].Reset();
+
+            auto samplerHeap = stream.samplerHeaps[i];
+            auto bufferHeap  = stream.bufferHeaps[i];
+
+            samplerHeap->Reset();
+            bufferHeap->Reset();
+
+            delete samplerHeap;
+            delete bufferHeap;
         }
 
         m_cmdStreams.RemoveItem(handle);
@@ -1608,10 +1811,12 @@ namespace LinaGX
     {
         for (uint32 i = 0; i < streamCount; i++)
         {
-            auto  stream    = streams[i];
-            auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            auto  list      = sr.lists[m_currentFrameIndex];
-            auto  allocator = sr.allocators[m_currentFrameIndex];
+            auto  stream      = streams[i];
+            auto& sr          = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto  list        = sr.lists[m_currentFrameIndex];
+            auto  allocator   = sr.allocators[m_currentFrameIndex];
+            auto  samplerHeap = sr.samplerHeaps[m_currentFrameIndex];
+            auto  bufferHeap  = sr.bufferHeaps[m_currentFrameIndex];
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -1620,10 +1825,20 @@ namespace LinaGX
             {
                 ThrowIfFailed(allocator->Reset());
                 ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
+
+                if (sr.type == QueueType::Graphics)
+                {
+                    samplerHeap->Reset();
+                    bufferHeap->Reset();
+                    sr._cbvSize = sr._extraSize = sr._textureSize = 0;
+
+                    ID3D12DescriptorHeap* heaps[] = {bufferHeap->GetHeap(), samplerHeap->GetHeap()};
+                    list->SetDescriptorHeaps(_countof(heaps), heaps);
+                }
             }
             catch (HrException e)
             {
-                DX12_THROW(e, "DX12Backend-> Exception when resetting a command list! %s", e.what());
+                DX12_THROW(e, "Backend-> Exception when resetting a command list! %s", e.what());
             }
 
             for (uint32 i = 0; i < stream->m_commandCount; i++)
@@ -1643,12 +1858,12 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                DX12_THROW(e, "DX12Backend -> Exception when closing a command list! %s", e.what());
+                DX12_THROW(e, "Backend -> Exception when closing a command list! %s", e.what());
             }
         }
     }
 
-    void DX12Backend::ExecuteCommandStreams(const ExecuteDesc& desc)
+    void DX12Backend::SubmitCommandStreams(const SubmitDesc& desc)
     {
         try
         {
@@ -1659,7 +1874,7 @@ namespace LinaGX
                 auto stream = desc.streams[i];
                 if (stream->m_commandCount == 0)
                 {
-                    LOGE("DX12Backend -> Can not execute stream as no commands were recorded!");
+                    LOGE("Backend -> Can not execute stream as no commands were recorded!");
                     continue;
                 }
 
@@ -1673,17 +1888,17 @@ namespace LinaGX
                 queue->Wait(m_userSemaphores.GetItem(desc.waitSemaphore).ptr.Get(), desc.waitValue);
 
             ID3D12CommandList* const* data = _lists.data();
-            queue->ExecuteCommandStreams(desc.streamCount, data);
+            queue->ExecuteCommandLists(desc.streamCount, data);
 
             if (desc.useSignal)
                 queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphore).ptr.Get(), desc.signalValue);
 
             m_submissionPerFrame++;
-            LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "DX12Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+            LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "DX12Backend -> Exception when executing operations on the queue! %s", e.what());
+            DX12_THROW(e, "Backend -> Exception when executing operations on the queue! %s", e.what());
         }
     }
 
@@ -1727,7 +1942,7 @@ namespace LinaGX
         }
         catch (HrException& e)
         {
-            DX12_THROW(e, "DX12Backend -> Present engine error! {0}", e.what());
+            DX12_THROW(e, "Backend -> Present engine error! {0}", e.what());
         }
     }
 
@@ -1748,7 +1963,7 @@ namespace LinaGX
         transfer.queue->Signal(transfer.frameFence.Get(), transfer.frameFenceValue);
     }
 
-    void DX12Backend::CMD_BeginRenderPass(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BeginRenderPass(uint8* data, DX12CommandStream& stream)
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
         auto                list  = stream.lists[m_currentFrameIndex];
@@ -1796,7 +2011,7 @@ namespace LinaGX
         CMD_SetScissors((uint8*)&interSC, stream);
     }
 
-    void DX12Backend::CMD_EndRenderPass(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_EndRenderPass(uint8* data, DX12CommandStream& stream)
     {
         CMDEndRenderPass* end  = reinterpret_cast<CMDEndRenderPass*>(data);
         auto              list = stream.lists[m_currentFrameIndex];
@@ -1811,7 +2026,7 @@ namespace LinaGX
         }
     }
 
-    void DX12Backend::CMD_SetViewport(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_SetViewport(uint8* data, DX12CommandStream& stream)
     {
         CMDSetViewport* cmd  = reinterpret_cast<CMDSetViewport*>(data);
         auto            list = stream.lists[m_currentFrameIndex];
@@ -1825,7 +2040,7 @@ namespace LinaGX
         list->RSSetViewports(1, &vp);
     }
 
-    void DX12Backend::CMD_SetScissors(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_SetScissors(uint8* data, DX12CommandStream& stream)
     {
         CMDSetScissors* cmd  = reinterpret_cast<CMDSetScissors*>(data);
         auto            list = stream.lists[m_currentFrameIndex];
@@ -1837,7 +2052,7 @@ namespace LinaGX
         list->RSSetScissorRects(1, &sc);
     }
 
-    void DX12Backend::CMD_BindPipeline(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BindPipeline(uint8* data, DX12CommandStream& stream)
     {
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
         auto             list   = stream.lists[m_currentFrameIndex];
@@ -1845,23 +2060,24 @@ namespace LinaGX
         list->SetGraphicsRootSignature(shader.rootSig.Get());
         list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
         list->SetPipelineState(shader.pso.Get());
+        stream.boundShader = cmd->shader;
     }
 
-    void DX12Backend::CMD_DrawInstanced(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_DrawInstanced(uint8* data, DX12CommandStream& stream)
     {
         CMDDrawInstanced* cmd  = reinterpret_cast<CMDDrawInstanced*>(data);
         auto              list = stream.lists[m_currentFrameIndex];
         list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
-    void DX12Backend::CMD_DrawIndexedInstanced(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_DrawIndexedInstanced(uint8* data, DX12CommandStream& stream)
     {
         CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     list = stream.lists[m_currentFrameIndex];
         list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
-    void DX12Backend::CMD_BindVertexBuffers(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)
     {
         CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
         auto                  list     = stream.lists[m_currentFrameIndex];
@@ -1874,7 +2090,7 @@ namespace LinaGX
         list->IASetVertexBuffers(cmd->slot, 1, &view);
     }
 
-    void DX12Backend::CMD_BindIndexBuffers(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream)
     {
         CMDBindIndexBuffers*    cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
         auto                    list = stream.lists[m_currentFrameIndex];
@@ -1886,13 +2102,85 @@ namespace LinaGX
         list->IASetIndexBuffer(&view);
     }
 
-    void DX12Backend::CMD_CopyResource(uint8* data, const DX12CommandStream& stream)
+    void DX12Backend::CMD_CopyResource(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyResource* cmd     = reinterpret_cast<CMDCopyResource*>(data);
         auto             list    = stream.lists[m_currentFrameIndex];
         const auto&      srcRes  = m_resources.GetItemR(cmd->source);
         const auto&      destRes = m_resources.GetItemR(cmd->destination);
         list->CopyResource(GetGPUResource(destRes), GetGPUResource(srcRes));
+    }
+
+    void DX12Backend::CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream)
+    {
+        CMDCopyBufferToTexture2D* cmd         = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
+        auto                      list        = stream.lists[m_currentFrameIndex];
+        const auto&               srcResource = m_resources.GetItemR(cmd->srcResource);
+        const auto&               dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);
+
+        LINAGX_VEC<D3D12_SUBRESOURCE_DATA> allData;
+
+        auto calcTd = [&](void* data, uint32 width, uint32 height, uint32 channels) {
+            D3D12_SUBRESOURCE_DATA textureData = {};
+            LONG_PTR               aligned     = static_cast<LONG_PTR>(ALIGN_SIZE_POW(textureData.RowPitch * static_cast<LONG_PTR>(height), static_cast<LONG_PTR>(dstTexture.requiredAlignment)));
+            textureData.pData                  = data;
+            textureData.RowPitch               = static_cast<LONG_PTR>(width * channels);
+            textureData.SlicePitch             = aligned;
+            allData.push_back(textureData);
+        };
+
+        for (uint32 i = 0; i < cmd->mipLevels; i++)
+        {
+            const auto& buffer = cmd->buffers[i];
+            calcTd(buffer.pixels, buffer.width, buffer.height, buffer.channels);
+        }
+
+        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcResource), 0, 0, static_cast<uint32>(allData.size()), allData.data());
+    }
+
+    void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
+    {
+        CMDBindDescriptorSets* cmd  = reinterpret_cast<CMDBindDescriptorSets*>(data);
+        auto                   list = stream.lists[m_currentFrameIndex];
+        // auto&            shader        = m_shaders.GetItemR(stream.boundShader);
+        // auto             samplerHeap   = stream.samplerHeaps[m_currentFrameIndex];
+        // auto             bufferHeap    = stream.bufferHeaps[m_currentFrameIndex];
+        // auto             texturesStart = bufferHeap->GetOffsetedHandle(m_initInfo.gpuLimits.bufferLimitPerCommand + stream._textureSize);
+        // auto             samplerStart  = samplerHeap->GetOffsetedHandle(stream._samplerSize);
+        //
+        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> txtSrcDescriptors;
+        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> txtDestDescriptors;
+        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> samplerSrcDescriptors;
+        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> samplerDestDescriptors;
+        //
+        // const auto samplerIncrement = samplerHeap->GetDescriptorSize();
+        // const auto bufferIncrement  = bufferHeap->GetDescriptorSize();
+        // auto       allocSampler     = samplerHeap->GetHeapHandleBlock(cmd->texturesCount);
+        // auto       allocTxt         = bufferHeap->GetHeapHandleBlock(cmd->texturesCount);
+        //
+        // for (uint32 i = 0; i < cmd->texturesCount; i++)
+        // {
+        //     const auto& txt     = m_texture2Ds.GetItemR(cmd->textures[i]);
+        //     const auto& sampler = m_samplers.GetItemR(cmd->samplers[i]);
+        //
+        //     // Sources
+        //     txtSrcDescriptors.push_back({txt.descriptor.GetCPUHandle()});
+        //     samplerSrcDescriptors.push_back({sampler.descriptor.GetCPUHandle()});
+        //
+        //     // Dest
+        //     txtDestDescriptors.push_back({texturesStart.GetCPUHandle() + i * bufferHeap->GetDescriptorSize()});
+        //     samplerDestDescriptors.push_back({samplerStart.GetCPUHandle() + i * samplerIncrement});
+        // }
+        //
+        // m_device->CopyDescriptors(cmd->texturesCount, txtDestDescriptors.data(), NULL, cmd->texturesCount, txtSrcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        // m_device->CopyDescriptors(cmd->texturesCount, samplerDestDescriptors.data(), NULL, cmd->texturesCount, samplerSrcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        //
+        // DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::CombinedImageSampler, cmd->binding, cmd->set);
+        // list->SetGraphicsRootDescriptorTable(param->rootParameter, {texturesStart.GetGPUHandle()});
+        // list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {samplerStart.GetGPUHandle()});
+        //
+        // stream._textureSize += cmd->texturesCount;
+        // stream._samplerSize += cmd->samplersCount;
     }
 
 } // namespace LinaGX

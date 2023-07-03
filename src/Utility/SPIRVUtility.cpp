@@ -27,6 +27,7 @@ SOFTWARE.
 */
 
 #include "Utility/SPIRVUtility.hpp"
+#include "Utility/PlatformUtility.hpp"
 #include "spirv_cross/spirv_glsl.hpp"
 #include "spirv_cross/spirv_msl.hpp"
 #include "spirv_cross/spirv_hlsl.hpp"
@@ -187,7 +188,7 @@ namespace LinaGX
                     std::string         filename = line.substr(firstQuote + 1, lastQuote - firstQuote - 1);
                     const LINAGX_STRING str      = LINAGX_STRING(includePath) + "/" + filename;
 
-                    LINAGX_STRING contents      = Internal::ReadFileContentsAsString(str.c_str());
+                    LINAGX_STRING contents      = ReadFileContentsAsString(str.c_str());
                     const size_t  endOfComments = contents.find("*/");
 
                     // Remove comments if exists.
@@ -207,13 +208,13 @@ namespace LinaGX
     {
         switch (stage)
         {
-        case ShaderStage::Vertex:
+        case ShaderStage::STG_Vertex:
             return EShLangVertex;
-        case ShaderStage::Geometry:
+        case ShaderStage::STG_Geometry:
             return EShLangGeometry;
-        case ShaderStage::Pixel:
+        case ShaderStage::STG_Fragment:
             return EShLangFragment;
-        case ShaderStage::Compute:
+        case ShaderStage::STG_Compute:
             return EShLangCompute;
         default:
             return EShLangVertex;
@@ -224,13 +225,13 @@ namespace LinaGX
     {
         switch (stg)
         {
-        case ShaderStage::Vertex:
+        case ShaderStage::STG_Vertex:
             return glslang_stage_t::GLSLANG_STAGE_VERTEX;
-        case ShaderStage::Geometry:
+        case ShaderStage::STG_Geometry:
             return glslang_stage_t::GLSLANG_STAGE_GEOMETRY;
-        case ShaderStage::Pixel:
+        case ShaderStage::STG_Fragment:
             return glslang_stage_t::GLSLANG_STAGE_FRAGMENT;
-        case ShaderStage::Compute:
+        case ShaderStage::STG_Compute:
             return glslang_stage_t::GLSLANG_STAGE_COMPUTE;
         default:
             return glslang_stage_t::GLSLANG_STAGE_VERTEX;
@@ -383,12 +384,12 @@ namespace LinaGX
         return outType;
     }
 
-    void FillStructMembers(spirv_cross::CompilerGLSL& compiler, spirv_cross::SPIRType type, LINAGX_VEC<UBOMember>& members)
+    void FillStructMembers(spirv_cross::CompilerGLSL& compiler, spirv_cross::SPIRType type, LINAGX_VEC<ShaderUBOMember>& members)
     {
         unsigned int memberCount = static_cast<unsigned int>(type.member_types.size());
         for (unsigned int i = 0; i < memberCount; i++)
         {
-            UBOMember member;
+            ShaderUBOMember member;
 
             auto& member_type = compiler.get_type(type.member_types[i]);
             member.size       = compiler.get_declared_struct_member_size(type, i);
@@ -399,8 +400,7 @@ namespace LinaGX
             {
                 // Get array stride, e.g. float4 foo[]; Will have array stride of 16 bytes.
                 member.arrayStride = compiler.type_struct_member_array_stride(type, i);
-                member.isArray     = true;
-                member.arraySize   = member_type.array[0];
+                member.elementSize = member_type.array[0];
             }
 
             if (member_type.columns > 1)
@@ -491,7 +491,7 @@ namespace LinaGX
 
         // Stage Inputs
         {
-            if (stg == ShaderStage::Vertex)
+            if (stg == ShaderStage::STG_Vertex)
             {
                 for (const auto& resource : resources.stage_inputs)
                 {
@@ -504,12 +504,12 @@ namespace LinaGX
                     // Get type information about the input
                     const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
 
-                    const bool isFloat = type.basetype == spirv_cross::SPIRType::Float;
-                    StageInput input   = {};
-                    input.location     = location;
-                    input.elements     = type.vecsize;
-                    input.size         = type.vecsize * type.columns * (isFloat ? sizeof(float) : sizeof(int));
-                    input.name         = compiler.get_name(resource.id);
+                    const bool       isFloat = type.basetype == spirv_cross::SPIRType::Float;
+                    ShaderStageInput input   = {};
+                    input.location           = location;
+                    input.elements           = type.vecsize;
+                    input.size               = type.vecsize * type.columns * (isFloat ? sizeof(float) : sizeof(int));
+                    input.name               = compiler.get_name(resource.id);
 
                     if (type.vecsize == 1)
                         input.format = isFloat ? Format::R32_SFLOAT : Format::R32_SINT;
@@ -524,7 +524,7 @@ namespace LinaGX
                 }
 
                 // Sort & set the offsets of the inputs.
-                std::sort(outLayout.vertexInputs.begin(), outLayout.vertexInputs.end(), [](const StageInput& i1, const StageInput& i2) { return i1.location < i2.location; });
+                std::sort(outLayout.vertexInputs.begin(), outLayout.vertexInputs.end(), [](const ShaderStageInput& i1, const ShaderStageInput& i2) { return i1.location < i2.location; });
                 size_t totalOffset = 0;
                 for (auto& input : outLayout.vertexInputs)
                 {
@@ -541,11 +541,11 @@ namespace LinaGX
                 // Get the SPIR-V ID of the uniform buffer
                 auto id = resource.id;
 
-                UBO ubo     = {};
-                ubo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
-                ubo.binding = compiler.get_decoration(id, spv::DecorationBinding);
+                ShaderUBO ubo = {};
+                ubo.set       = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                ubo.binding   = compiler.get_decoration(id, spv::DecorationBinding);
 
-                auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const UBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
+                auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const ShaderUBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
                 if (it != outLayout.ubos.end())
                 {
                     it->stages.push_back(stg);
@@ -553,9 +553,12 @@ namespace LinaGX
                 }
                 ubo.stages.push_back(stg);
 
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
+                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 ubo.size                          = compiler.get_declared_struct_size(type);
                 ubo.name                          = compiler.get_name(resource.id);
+
+                if (type.array.size() > 0)
+                    ubo.elementSize = type.array[0];
 
                 FillStructMembers(compiler, type, ubo.members);
                 outLayout.ubos.push_back(ubo);
@@ -566,7 +569,7 @@ namespace LinaGX
                 const auto& resource = resources.push_constant_buffers[0];
                 auto        id       = resource.id;
 
-                ConstantBlock block = {};
+                ShaderConstantBlock block = {};
 
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 block.size                        = compiler.get_declared_struct_size(type);
@@ -581,14 +584,14 @@ namespace LinaGX
 
             for (const auto& resource : resources.sampled_images)
             {
-                auto         id  = resource.id;
-                SRVTexture2D txt = {};
+                auto               id  = resource.id;
+                ShaderSRVTexture2D txt = {};
 
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
 
-                auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const SRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
+                auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.combinedImageSamplers.end())
                 {
                     it->stages.push_back(stg);
@@ -597,21 +600,52 @@ namespace LinaGX
                 txt.stages.push_back(stg);
 
                 // Get type information about the uniform buffer
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
+                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
+
+                if (type.array.size() > 0)
+                    txt.elementSize = type.array[0];
+
                 outLayout.combinedImageSamplers.push_back(txt);
+            }
+
+            for (const auto& resource : resources.separate_images)
+            {
+                auto               id  = resource.id;
+                ShaderSRVTexture2D txt = {};
+
+                // Get the set and binding number for this uniform buffer
+                txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
+
+                auto it = std::find_if(outLayout.separateImages.begin(), outLayout.separateImages.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
+                if (it != outLayout.separateImages.end())
+                {
+                    it->stages.push_back(stg);
+                    continue;
+                }
+                txt.stages.push_back(stg);
+
+                // Get type information about the uniform buffer
+                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
+                txt.name                          = compiler.get_name(resource.id);
+
+                if (type.array.size() > 0)
+                    txt.elementSize = type.array[0];
+
+                outLayout.separateImages.push_back(txt);
             }
 
             for (const auto& resource : resources.separate_samplers)
             {
-                auto    id      = resource.id;
-                Sampler sampler = {};
+                auto          id      = resource.id;
+                ShaderSampler sampler = {};
 
                 // Get the set and binding number for this uniform buffer
                 sampler.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 sampler.binding = compiler.get_decoration(id, spv::DecorationBinding);
 
-                auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const Sampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
+                auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const ShaderSampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
                 if (it != outLayout.samplers.end())
                 {
                     it->stages.push_back(stg);
@@ -620,21 +654,25 @@ namespace LinaGX
                 sampler.stages.push_back(stg);
 
                 // Get type information about the uniform buffer
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
+                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 sampler.name                      = compiler.get_name(resource.id);
+
+                if (type.array.size() > 0)
+                    sampler.elementSize = type.array[0];
+
                 outLayout.samplers.push_back(sampler);
             }
 
             for (const auto& resource : resources.storage_buffers)
             {
-                auto id   = resource.id;
-                SSBO ssbo = {};
+                auto       id   = resource.id;
+                ShaderSSBO ssbo = {};
 
                 // Get the set and binding number for this uniform buffer
                 ssbo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ssbo.binding = compiler.get_decoration(id, spv::DecorationBinding);
 
-                auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const SSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
+                auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const ShaderSSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
                 if (it != outLayout.ssbos.end())
                 {
                     it->stages.push_back(stg);

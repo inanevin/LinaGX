@@ -57,12 +57,33 @@ namespace LinaGX
         VsyncMode                               vsync       = VsyncMode::None;
     };
 
+    struct DX12RootParamInfo
+    {
+        uint32         rootParameter  = 0;
+        uint32         binding        = 0;
+        uint32         set            = 0;
+        uint32         elementSize    = 1;
+        DescriptorType reflectionType = DescriptorType::UBO;
+    };
+
     struct DX12Shader
     {
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pso      = NULL;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig  = NULL;
         Topology                                    topology = Topology::TriangleList;
         bool                                        isValid  = false;
+        LINAGX_VEC<DX12RootParamInfo>               rootParams;
+
+        DX12RootParamInfo* FindRootParam(DescriptorType type, uint32 binding, uint32 set)
+        {
+            for (auto& p : rootParams)
+            {
+                if (p.reflectionType == type && p.binding == binding && p.set == set)
+                    return &p;
+            }
+
+            return nullptr;
+        }
     };
 
     struct DX12Texture2D
@@ -70,12 +91,18 @@ namespace LinaGX
         DescriptorHandle                       descriptor        = {};
         DescriptorHandle                       descriptor2       = {};
         Microsoft::WRL::ComPtr<ID3D12Resource> rawRes            = NULL;
-        uint32                                 requiredAlignment = 0;
+        uint64                                 requiredAlignment = 0;
         D3D12MA::Allocation*                   allocation        = NULL;
 
-        Texture2DUsage usage              = Texture2DUsage::ColorTexture;
-        bool           isValid            = false;
-        bool           isSwapchainTexture = false;
+        Texture2DDesc desc               = {};
+        bool          isValid            = false;
+        bool          isSwapchainTexture = false;
+    };
+
+    struct DX12Sampler
+    {
+        bool             isValid    = false;
+        DescriptorHandle descriptor = {};
     };
 
     struct DX12CommandStream
@@ -84,6 +111,13 @@ namespace LinaGX
         QueueType                                                      type    = QueueType::Graphics;
         LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>>     allocators;
         LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4>> lists;
+        LINAGX_VEC<DX12HeapGPU*>                                       samplerHeaps;
+        LINAGX_VEC<DX12HeapGPU*>                                       bufferHeaps;
+        uint32                                                         boundShader;
+        uint32                                                         _cbvSize     = 0;
+        uint32                                                         _extraSize   = 0;
+        uint32                                                         _textureSize = 0;
+        uint32                                                         _samplerSize = 0;
     };
 
     struct DX12PerFrameData
@@ -115,10 +149,15 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12Fence> ptr     = nullptr;
     };
 
+    struct DX12DescriptorSet
+    {
+        bool isValid = false;
+    };
+
     class DX12Backend : public Backend
     {
     private:
-        typedef void (DX12Backend::*CommandFunction)(uint8*, const DX12CommandStream& stream);
+        typedef void (DX12Backend::*CommandFunction)(uint8*, DX12CommandStream& stream);
 
     public:
         DX12Backend(Renderer* renderer)
@@ -136,14 +175,20 @@ namespace LinaGX
         virtual void   DestroyShader(uint16 handle) override;
         virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
         virtual void   DestroyTexture2D(uint32 handle) override;
+        virtual uint32 CreateSampler(const SamplerDesc& desc) override;
+        virtual void   DestroySampler(uint32 handle) override;
         virtual uint32 CreateResource(const ResourceDesc& desc) override;
         virtual void   MapResource(uint32 handle, uint8*& ptr) override;
         virtual void   UnmapResource(uint32 handle) override;
         virtual void   DestroyResource(uint32 handle) override;
+        virtual uint16 CreateDescriptorSet(const DescriptorSetDesc& desc) override;
+        virtual void   DestroyDescriptorSet(uint16 handle) override;
+        virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
+        virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
         virtual uint32 CreateCommandStream(QueueType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
-        virtual void   ExecuteCommandStreams(const ExecuteDesc& desc) override;
+        virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
 
         void            DX12Exception(HrException e);
         ID3D12Resource* GetGPUResource(const DX12Resource& res);
@@ -167,16 +212,18 @@ namespace LinaGX
         virtual void EndFrame() override;
 
     private:
-        void CMD_BeginRenderPass(uint8* data, const DX12CommandStream& stream);
-        void CMD_EndRenderPass(uint8* data, const DX12CommandStream& stream);
-        void CMD_SetViewport(uint8* data, const DX12CommandStream& stream);
-        void CMD_SetScissors(uint8* data, const DX12CommandStream& stream);
-        void CMD_BindPipeline(uint8* data, const DX12CommandStream& stream);
-        void CMD_DrawInstanced(uint8* data, const DX12CommandStream& stream);
-        void CMD_DrawIndexedInstanced(uint8* data, const DX12CommandStream& stream);
-        void CMD_BindVertexBuffers(uint8* data, const DX12CommandStream& stream);
-        void CMD_BindIndexBuffers(uint8* data, const DX12CommandStream& stream);
-        void CMD_CopyResource(uint8* data, const DX12CommandStream& stream);
+        void CMD_BeginRenderPass(uint8* data, DX12CommandStream& stream);
+        void CMD_EndRenderPass(uint8* data, DX12CommandStream& stream);
+        void CMD_SetViewport(uint8* data, DX12CommandStream& stream);
+        void CMD_SetScissors(uint8* data, DX12CommandStream& stream);
+        void CMD_BindPipeline(uint8* data, DX12CommandStream& stream);
+        void CMD_DrawInstanced(uint8* data, DX12CommandStream& stream);
+        void CMD_DrawIndexedInstanced(uint8* data, DX12CommandStream& stream);
+        void CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream);
+        void CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream);
+        void CMD_CopyResource(uint8* data, DX12CommandStream& stream);
+        void CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream);
+        void CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream);
 
     private:
         D3D12MA::Allocator*                   m_dx12Allocator = nullptr;
@@ -198,6 +245,8 @@ namespace LinaGX
         IDList<uint16, Microsoft::WRL::ComPtr<ID3D12Fence>> m_fences         = {20};
         IDList<uint32, DX12Resource>                        m_resources      = {100};
         IDList<uint16, DX12UserSemaphore>                   m_userSemaphores = {20};
+        IDList<uint32, DX12Sampler>                         m_samplers       = {100};
+        IDList<uint16, DX12DescriptorSet>                   m_descriptorSets = {20};
 
         LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions;
         uint32                              m_currentFrameIndex    = 0;

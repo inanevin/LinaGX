@@ -56,22 +56,29 @@ namespace LinaGX
 
     struct VKBTexture2D
     {
-        Texture2DUsage   usage      = Texture2DUsage::ColorTexture;
-        VkImage          img        = nullptr;
-        VkImageView      imgView    = nullptr;
-        VmaAllocation_T* allocation = nullptr;
-        bool             isValid    = false;
+        Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
+        DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthOnly;
+        VkImage            img                = nullptr;
+        VkImageView        imgView            = nullptr;
+        VmaAllocation_T*   allocation         = nullptr;
+        bool               isValid            = false;
+    };
+
+    struct VKBSampler
+    {
+        bool      isValid = false;
+        VkSampler ptr     = nullptr;
     };
 
     struct VKBSwapchain
     {
-        bool                    isValid = false;
-        uint32                  width   = 0;
-        uint32                  height  = 0;
-        VkFormat                format  = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
-        VkSwapchainKHR          ptr     = nullptr;
-        VkSurfaceKHR            surface = nullptr;
-        VkPresentModeKHR        presentMode;
+        bool                    isValid     = false;
+        uint32                  width       = 0;
+        uint32                  height      = 0;
+        VkFormat                format      = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
+        VkSwapchainKHR          ptr         = nullptr;
+        VkSurfaceKHR            surface     = nullptr;
+        VkPresentModeKHR        presentMode = VK_PRESENT_MODE_FIFO_KHR;
         LINAGX_VEC<VkImage>     imgs;
         LINAGX_VEC<VkImageView> views;
         LINAGX_VEC<uint32>      depthTextures;
@@ -92,6 +99,7 @@ namespace LinaGX
         QueueType                   type    = QueueType::Graphics;
         LINAGX_VEC<VkCommandBuffer> buffers;
         LINAGX_VEC<VkCommandPool>   pools;
+        uint32                      boundShader = 0;
     };
 
     struct VKBResource
@@ -115,10 +123,17 @@ namespace LinaGX
         VkSemaphore ptr     = nullptr;
     };
 
+    struct VKBDescriptorSet
+    {
+        bool                  isValid = false;
+        VkDescriptorSet       ptr     = nullptr;
+        VkDescriptorSetLayout layout  = nullptr;
+    };
+
     class VKBackend : public Backend
     {
     private:
-        typedef void (VKBackend::*CommandFunction)(uint8*, const VKBCommandStream& stream);
+        typedef void (VKBackend::*CommandFunction)(uint8*, VKBCommandStream& stream);
 
     public:
         VKBackend(Renderer* renderer)
@@ -136,14 +151,20 @@ namespace LinaGX
         virtual void   DestroyShader(uint16 handle) override;
         virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
         virtual void   DestroyTexture2D(uint32 handle) override;
+        virtual uint32 CreateSampler(const SamplerDesc& desc) override;
+        virtual void   DestroySampler(uint32 handle) override;
         virtual uint32 CreateResource(const ResourceDesc& desc) override;
         virtual void   MapResource(uint32 handle, uint8*& ptr) override;
         virtual void   UnmapResource(uint32 handle) override;
         virtual void   DestroyResource(uint32 handle) override;
+        virtual uint16 CreateDescriptorSet(const DescriptorSetDesc& desc) override;
+        virtual void   DestroyDescriptorSet(uint16 handle) override;
+        virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
+        virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
         virtual uint32 CreateCommandStream(QueueType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
-        virtual void   ExecuteCommandStreams(const ExecuteDesc& desc) override;
+        virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
 
     private:
         uint16 CreateFence();
@@ -158,19 +179,21 @@ namespace LinaGX
         virtual void EndFrame() override;
 
     private:
-        void CMD_BeginRenderPass(uint8* data, const VKBCommandStream& stream);
-        void CMD_EndRenderPass(uint8* data, const VKBCommandStream& stream);
-        void CMD_SetViewport(uint8* data, const VKBCommandStream& stream);
-        void CMD_SetScissors(uint8* data, const VKBCommandStream& stream);
-        void CMD_BindPipeline(uint8* data, const VKBCommandStream& stream);
-        void CMD_DrawInstanced(uint8* data, const VKBCommandStream& stream);
-        void CMD_DrawIndexedInstanced(uint8* data, const VKBCommandStream& stream);
-        void CMD_BindVertexBuffers(uint8* data, const VKBCommandStream& stream);
-        void CMD_BindIndexBuffers(uint8* data, const VKBCommandStream& stream);
-        void CMD_CopyResource(uint8* data, const VKBCommandStream& stream);
+        void CMD_BeginRenderPass(uint8* data, VKBCommandStream& stream);
+        void CMD_EndRenderPass(uint8* data, VKBCommandStream& stream);
+        void CMD_SetViewport(uint8* data, VKBCommandStream& stream);
+        void CMD_SetScissors(uint8* data, VKBCommandStream& stream);
+        void CMD_BindPipeline(uint8* data, VKBCommandStream& stream);
+        void CMD_DrawInstanced(uint8* data, VKBCommandStream& stream);
+        void CMD_DrawIndexedInstanced(uint8* data, VKBCommandStream& stream);
+        void CMD_BindVertexBuffers(uint8* data, VKBCommandStream& stream);
+        void CMD_BindIndexBuffers(uint8* data, VKBCommandStream& stream);
+        void CMD_CopyResource(uint8* data, VKBCommandStream& stream);
+        void CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream);
+        void CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream);
 
     private:
-        void ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor);
+        void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
     private:
         VkInstance               m_vkInstance     = nullptr;
@@ -197,13 +220,16 @@ namespace LinaGX
         IDList<uint16, VKBUserSemaphore> m_userSemaphores = {20};
         IDList<uint16, VkFence>          m_fences         = {20};
         IDList<uint32, VKBResource>      m_resources      = {100};
+        IDList<uint32, VKBSampler>       m_samplers       = {100};
+        IDList<uint16, VKBDescriptorSet> m_descriptorSets = {20};
 
         InitInfo                            m_initInfo     = {};
         LINAGX_VEC<VKBPerFrameData>         m_perFrameData = {};
-        LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions;
-        LINAGX_MAP<QueueType, VKBQueueData> m_queueData;
+        LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions = {};
+        LINAGX_MAP<QueueType, VKBQueueData> m_queueData    = {};
 
-        uint32 m_imageAcqSemaphoresCount = 0;
+        VkDescriptorPool m_descriptorPool          = nullptr;
+        uint32           m_imageAcqSemaphoresCount = 0;
     };
 } // namespace LinaGX
 

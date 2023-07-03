@@ -97,9 +97,9 @@ namespace LinaGX
         m_backend->CloseCommandStreams(streams, streamCount);
     }
 
-    void Renderer::ExecuteCommandStreams(const ExecuteDesc& desc)
+    void Renderer::SubmitCommandStreams(const SubmitDesc& desc)
     {
-        m_backend->ExecuteCommandStreams(desc);
+        m_backend->SubmitCommandStreams(desc);
 
         for (uint32 i = 0; i < desc.streamCount; i++)
             desc.streams[i]->Reset();
@@ -216,6 +216,21 @@ namespace LinaGX
         return m_backend->CreateTexture2D(desc);
     }
 
+    void Renderer::DestroyTexture2D(uint32 handle)
+    {
+        m_backend->DestroyTexture2D(handle);
+    }
+
+    uint32 Renderer::CreateSampler(const SamplerDesc& desc)
+    {
+        return m_backend->CreateSampler(desc);
+    }
+
+    void Renderer::DestroySampler(uint32 handle)
+    {
+        m_backend->DestroySampler(handle);
+    }
+
     uint32 Renderer::CreateResource(const ResourceDesc& desc)
     {
         return m_backend->CreateResource(desc);
@@ -234,6 +249,26 @@ namespace LinaGX
     void Renderer::UnmapResource(uint32 resource)
     {
         m_backend->UnmapResource(resource);
+    }
+
+    uint16 Renderer::CreateDescriptorSet(const DescriptorSetDesc& desc)
+    {
+        return m_backend->CreateDescriptorSet(desc);
+    }
+
+    void Renderer::DestroyDescriptorSet(uint16 handle)
+    {
+        m_backend->DestroyDescriptorSet(handle);
+    }
+
+    void Renderer::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
+    {
+        m_backend->DescriptorUpdateBuffer(desc);
+    }
+
+    void Renderer::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
+    {
+        m_backend->DescriptorUpdateImage(desc);
     }
 
 } // namespace LinaGX

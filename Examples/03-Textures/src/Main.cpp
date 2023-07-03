@@ -1,6 +1,6 @@
-/*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+﻿/*
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,20 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include "Main.hpp"
+#include "Textures.hpp"
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
+using namespace LinaGX::Examples;
 
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
-
-namespace LinaGX
+int main(int argc, char* argv[])
 {
-
-} // namespace LinaGX
-
-#endif
+    Example app;
+    app.Initialize();
+    app.Run();
+    return 0;
+}

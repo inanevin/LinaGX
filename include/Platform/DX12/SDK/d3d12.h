@@ -8391,7 +8391,7 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
             _In_  const D3D12_TILE_REGION_SIZE *pRegionSize,
             D3D12_TILE_MAPPING_FLAGS Flags) = 0;
         
-        virtual void STDMETHODCALLTYPE ExecuteCommandStreams( 
+        virtual void STDMETHODCALLTYPE ExecuteCommandLists( 
             _In_  UINT NumCommandLists,
             _In_reads_(NumCommandLists)  ID3D12CommandList *const *ppCommandLists) = 0;
         
@@ -8507,8 +8507,8 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
             _In_  const D3D12_TILE_REGION_SIZE *pRegionSize,
             D3D12_TILE_MAPPING_FLAGS Flags);
         
-        DECLSPEC_XFGVIRT(ID3D12CommandQueue, ExecuteCommandStreams)
-        void ( STDMETHODCALLTYPE *ExecuteCommandStreams )( 
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, ExecuteCommandLists)
+        void ( STDMETHODCALLTYPE *ExecuteCommandLists )( 
             ID3D12CommandQueue * This,
             _In_  UINT NumCommandLists,
             _In_reads_(NumCommandLists)  ID3D12CommandList *const *ppCommandLists);
@@ -8614,7 +8614,7 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
     ( (This)->lpVtbl -> CopyTileMappings(This,pDstResource,pDstRegionStartCoordinate,pSrcResource,pSrcRegionStartCoordinate,pRegionSize,Flags) ) 
 
 #define ID3D12CommandQueue_ExecuteCommandLists(This,NumCommandLists,ppCommandLists)	\
-    ( (This)->lpVtbl -> ExecuteCommandStreams(This,NumCommandLists,ppCommandLists) ) 
+    ( (This)->lpVtbl -> ExecuteCommandLists(This,NumCommandLists,ppCommandLists) ) 
 
 #define ID3D12CommandQueue_SetMarker(This,Metadata,pData,Size)	\
     ( (This)->lpVtbl -> SetMarker(This,Metadata,pData,Size) ) 

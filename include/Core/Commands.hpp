@@ -38,6 +38,7 @@ namespace LinaGX
 
     struct CMDBeginRenderPass
     {
+        void*        extension;
         bool         isSwapchain;
         uint8        swapchain;
         uint32       colorTexture;
@@ -49,6 +50,7 @@ namespace LinaGX
 
     struct CMDEndRenderPass
     {
+        void*  extension;
         uint32 texture;
         uint8  swapchain;
         bool   isSwapchain;
@@ -56,6 +58,7 @@ namespace LinaGX
 
     struct CMDSetViewport
     {
+        void*  extension;
         uint32 x;
         uint32 y;
         uint32 width;
@@ -66,6 +69,7 @@ namespace LinaGX
 
     struct CMDSetScissors
     {
+        void*  extension;
         uint32 x;
         uint32 y;
         uint32 width;
@@ -74,11 +78,13 @@ namespace LinaGX
 
     struct CMDBindPipeline
     {
+        void*  extension;
         uint16 shader;
     };
 
     struct CMDDrawInstanced
     {
+        void*  extension;
         uint32 vertexCountPerInstance;
         uint32 instanceCount;
         uint32 startVertexLocation;
@@ -87,6 +93,7 @@ namespace LinaGX
 
     struct CMDDrawIndexedInstanced
     {
+        void*  extension;
         uint32 indexCountPerInstance;
         uint32 instanceCount;
         uint32 startIndexLocation;
@@ -96,12 +103,14 @@ namespace LinaGX
 
     struct CMDCopyResource
     {
+        void*  extension;
         uint32 source;
         uint32 destination;
     };
 
     struct CMDBindVertexBuffers
     {
+        void*  extension;
         uint32 slot;
         uint32 resource;
         uint32 vertexSize;
@@ -110,22 +119,50 @@ namespace LinaGX
 
     struct CMDBindIndexBuffers
     {
+        void*     extension;
         uint32    resource;
         uint64    offset;
         IndexType indexFormat;
     };
 
-#define BACKEND_BIND_COMMANDS(BACKEND)                                                         \
-    m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]      = &BACKEND::CMD_BeginRenderPass;      \
-    m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]        = &BACKEND::CMD_EndRenderPass;        \
-    m_cmdFunctions[GetTypeID<CMDSetViewport>()]          = &BACKEND::CMD_SetViewport;          \
-    m_cmdFunctions[GetTypeID<CMDSetScissors>()]          = &BACKEND::CMD_SetScissors;          \
-    m_cmdFunctions[GetTypeID<CMDBindPipeline>()]         = &BACKEND::CMD_BindPipeline;         \
-    m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]        = &BACKEND::CMD_DrawInstanced;        \
-    m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()] = &BACKEND::CMD_DrawIndexedInstanced; \
-    m_cmdFunctions[GetTypeID<CMDBindVertexBuffers>()]    = &BACKEND::CMD_BindVertexBuffers;    \
-    m_cmdFunctions[GetTypeID<CMDBindIndexBuffers>()]     = &BACKEND::CMD_BindIndexBuffers;     \
-    m_cmdFunctions[GetTypeID<CMDCopyResource>()]         = &BACKEND::CMD_CopyResource;
+    struct TextureBuffer
+    {
+        uint8* pixels;
+        uint32 width;
+        uint32 height;
+        uint32 channels;
+    };
+
+    struct CMDCopyBufferToTexture2D
+    {
+        void*           extension;
+        uint32          srcResource;
+        uint32          destTexture;
+        uint32          mipLevels;
+        TextureBuffer*  buffers;
+    };
+
+    struct CMDBindDescriptorSets
+    {
+        void*   extension;
+        uint32  firstSet;
+        uint32  setCount;
+        uint32* descriptorSets;
+    };
+
+#define BACKEND_BIND_COMMANDS(BACKEND)                                                           \
+    m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]       = &BACKEND::CMD_BeginRenderPass;       \
+    m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]         = &BACKEND::CMD_EndRenderPass;         \
+    m_cmdFunctions[GetTypeID<CMDSetViewport>()]           = &BACKEND::CMD_SetViewport;           \
+    m_cmdFunctions[GetTypeID<CMDSetScissors>()]           = &BACKEND::CMD_SetScissors;           \
+    m_cmdFunctions[GetTypeID<CMDBindPipeline>()]          = &BACKEND::CMD_BindPipeline;          \
+    m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]         = &BACKEND::CMD_DrawInstanced;         \
+    m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()]  = &BACKEND::CMD_DrawIndexedInstanced;  \
+    m_cmdFunctions[GetTypeID<CMDBindVertexBuffers>()]     = &BACKEND::CMD_BindVertexBuffers;     \
+    m_cmdFunctions[GetTypeID<CMDBindIndexBuffers>()]      = &BACKEND::CMD_BindIndexBuffers;      \
+    m_cmdFunctions[GetTypeID<CMDCopyResource>()]          = &BACKEND::CMD_CopyResource;          \
+    m_cmdFunctions[GetTypeID<CMDCopyBufferToTexture2D>()] = &BACKEND::CMD_CopyBufferToTexture2D; \
+    m_cmdFunctions[GetTypeID<CMDBindDescriptorSets>()]    = &BACKEND::CMD_BindDescriptorSets;
 } // namespace LinaGX
 
 #endif

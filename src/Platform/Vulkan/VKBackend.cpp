@@ -79,11 +79,11 @@ namespace LinaGX
         }
     }
 
-#define VK_CHECK_RESULT(item, err)                                                                                \
-    {                                                                                                             \
-        LOGA(item == VK_SUCCESS, "VkBackend -> Fatal, operation failed! Result: %s", LinaGX_VkErr(item).c_str()); \
-        if (item != VK_SUCCESS)                                                                                   \
-            throw std::runtime_error(err);                                                                        \
+#define VK_CHECK_RESULT(item, err)                                                                              \
+    {                                                                                                           \
+        LOGA(item == VK_SUCCESS, "Backend -> Fatal, operation failed! Result: %s", LinaGX_VkErr(item).c_str()); \
+        if (item != VK_SUCCESS)                                                                                 \
+            throw std::runtime_error(err);                                                                      \
     }
 
     VkFormat GetVKFormat(Format f)
@@ -346,15 +346,15 @@ namespace LinaGX
     {
         switch (s)
         {
-        case ShaderStage::Vertex:
+        case ShaderStage::STG_Vertex:
             return VK_SHADER_STAGE_VERTEX_BIT;
-        case ShaderStage::Tesellation:
+        case ShaderStage::STG_Tesellation:
             return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-        case ShaderStage::Geometry:
+        case ShaderStage::STG_Geometry:
             return VK_SHADER_STAGE_GEOMETRY_BIT;
-        case ShaderStage::Pixel:
+        case ShaderStage::STG_Fragment:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
-        case ShaderStage::Compute:
+        case ShaderStage::STG_Compute:
             return VK_SHADER_STAGE_COMPUTE_BIT;
         default:
             return VK_SHADER_STAGE_VERTEX_BIT;
@@ -393,6 +393,21 @@ namespace LinaGX
         }
     }
 
+    VkImageAspectFlags GetVKAspectFlags(DepthStencilAspect depthStencilAspect)
+    {
+        switch (depthStencilAspect)
+        {
+        case LinaGX::DepthStencilAspect::DepthOnly:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+        case LinaGX::DepthStencilAspect::StencilOnly:
+            return VK_IMAGE_ASPECT_STENCIL_BIT;
+        case LinaGX::DepthStencilAspect::DepthStencil:
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        default:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+    }
+
     VkAttachmentLoadOp GetLoadOp(LoadOp p)
     {
         switch (p)
@@ -425,7 +440,7 @@ namespace LinaGX
         }
     }
 
-    VkFilter GetFilter(Filter f)
+    VkFilter GetVKFilter(Filter f)
     {
         switch (f)
         {
@@ -438,7 +453,7 @@ namespace LinaGX
         }
     }
 
-    VkSamplerAddressMode GetSamplerAddressMode(SamplerAddressMode m)
+    VkSamplerAddressMode GetVKSamplerAddressMode(SamplerAddressMode m)
     {
         switch (m)
         {
@@ -457,6 +472,19 @@ namespace LinaGX
         }
     }
 
+    VkSamplerMipmapMode GetVKMipmapMode(MipmapMode mode)
+    {
+        switch (mode)
+        {
+        case MipmapMode::Nearest:
+            return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        case MipmapMode::Linear:
+            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        default:
+            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        }
+    }
+
     VkPresentModeKHR GetVKPresentMode(VsyncMode vsync)
     {
         switch (vsync)
@@ -472,18 +500,52 @@ namespace LinaGX
         }
     }
 
+    VkDescriptorType GetVKDescriptorType(DescriptorType type)
+    {
+        switch (type)
+        {
+        case LinaGX::DescriptorType::CombinedImageSampler:
+            return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        case LinaGX::DescriptorType::SeparateSampler:
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        case LinaGX::DescriptorType::SSBO:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        case LinaGX::DescriptorType::UBO:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case LinaGX::DescriptorType::ConstantBlock:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        default:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }
+    }
+
+    VkBorderColor GetVKBorderColor(BorderColor col)
+    {
+        switch (col)
+        {
+        case BorderColor::BlackTransparent:
+            return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        case BorderColor::BlackOpaque:
+            return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+        case BorderColor::WhiteOpaque:
+            return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        default:
+            return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        }
+    }
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         switch (messageSeverity)
         {
         case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-            LOGE("VKBackend -> Validation Layer: %s", pCallbackData->pMessage);
+            LOGE("Backend -> Validation Layer: %s", pCallbackData->pMessage);
             break;
         case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-            LOGT("VKBackend -> Validation Layer: %s", pCallbackData->pMessage);
+            LOGT("Backend -> Validation Layer: %s", pCallbackData->pMessage);
             break;
         default:
-            LOGT("VKBackend -> Validation Layer: %s", pCallbackData->pMessage);
+            LOGT("Backend -> Validation Layer: %s", pCallbackData->pMessage);
             break;
         }
         return VK_FALSE;
@@ -515,7 +577,7 @@ namespace LinaGX
         auto& semaphore = m_userSemaphores.GetItemR(handle);
         if (!semaphore.isValid)
         {
-            LOGE("VKBackend -> Semaphore to be destroyed is not valid!");
+            LOGE("Backend -> Semaphore to be destroyed is not valid!");
             return;
         }
 
@@ -551,7 +613,7 @@ namespace LinaGX
         surfaceCreateInfo.hwnd                        = static_cast<HWND>(desc.window);
         vkCreateWin32SurfaceKHR(m_vkInstance, &surfaceCreateInfo, nullptr, &surface);
 #else
-        LOGA(false, "VKBackend -> Vulkan backend is only supported for Windows at the moment!");
+        LOGA(false, "Backend -> Vulkan backend is only supported for Windows at the moment!");
 #endif
 
         VkPresentModeKHR presentMode = GetVKPresentMode(desc.vsyncMode);
@@ -578,21 +640,22 @@ namespace LinaGX
 
         if (swp.format != swpFormat)
         {
-            LOGE("VkBackend -> Desired color format for swapchain was not supported, selected a supported format!");
+            LOGE("Backend -> Desired color format for swapchain was not supported, selected a supported format!");
         }
 
         for (const auto& img : swp.imgs)
         {
-            Texture2DDesc depthDesc = {};
-            depthDesc.format        = m_initInfo.rtDepthFormat;
-            depthDesc.width         = swp.width;
-            depthDesc.height        = swp.height;
-            depthDesc.mipLevels     = 1;
-            depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+            Texture2DDesc depthDesc      = {};
+            depthDesc.format             = m_initInfo.rtDepthFormat;
+            depthDesc.width              = swp.width;
+            depthDesc.height             = swp.height;
+            depthDesc.mipLevels          = 1;
+            depthDesc.usage              = Texture2DUsage::DepthStencilTexture;
+            depthDesc.depthStencilAspect = DepthStencilAspect::DepthOnly;
             swp.depthTextures.push_back(CreateTexture2D(depthDesc));
         }
 
-        LOGT("VKBackend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
+        LOGT("Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
 
         return m_swapchains.AddItem(swp);
     }
@@ -602,7 +665,7 @@ namespace LinaGX
         auto& swp = m_swapchains.GetItemR(handle);
         if (!swp.isValid)
         {
-            LOGE("VKBackend -> Swapchain to be destroyed is not valid!");
+            LOGE("Backend -> Swapchain to be destroyed is not valid!");
             return;
         }
 
@@ -618,7 +681,7 @@ namespace LinaGX
 
         swp.isValid = false;
         m_swapchains.RemoveItem(handle);
-        LOGT("VKBackend -> Destroyed swapchain.");
+        LOGT("Backend -> Destroyed swapchain.");
     }
 
     void VKBackend::RecreateSwapchain(const SwapchainRecreateDesc& desc)
@@ -635,7 +698,7 @@ namespace LinaGX
 
         if (!swp.isValid)
         {
-            LOGE("VKBackend -> Swapchain to be re-created is not valid!");
+            LOGE("Backend -> Swapchain to be re-created is not valid!");
             return;
         }
 
@@ -672,12 +735,13 @@ namespace LinaGX
         {
             swp.imgs.push_back(img);
 
-            Texture2DDesc depthDesc = {};
-            depthDesc.format        = m_initInfo.rtDepthFormat;
-            depthDesc.width         = swp.width;
-            depthDesc.height        = swp.height;
-            depthDesc.mipLevels     = 1;
-            depthDesc.usage         = Texture2DUsage::DepthStencilTexture;
+            Texture2DDesc depthDesc      = {};
+            depthDesc.format             = m_initInfo.rtDepthFormat;
+            depthDesc.width              = swp.width;
+            depthDesc.height             = swp.height;
+            depthDesc.mipLevels          = 1;
+            depthDesc.usage              = Texture2DUsage::DepthStencilTexture;
+            depthDesc.depthStencilAspect = DepthStencilAspect::DepthOnly;
             swp.depthTextures.push_back(CreateTexture2D(depthDesc));
         }
 
@@ -950,7 +1014,7 @@ namespace LinaGX
         pipelineInfo.subpass                      = 0;
         pipelineInfo.basePipelineHandle           = VK_NULL_HANDLE;
         res                                       = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, m_allocator, &shader.ptrPipeline);
-        LOGA(res == VK_SUCCESS, "VKBackend -> Could not create shader pipeline!");
+        LOGA(res == VK_SUCCESS, "Backend -> Could not create shader pipeline!");
 
         // Done with the module
         for (auto [stg, mod] : shader.modules)
@@ -965,7 +1029,7 @@ namespace LinaGX
         auto& shader = m_shaders.GetItemR(handle);
         if (!shader.isValid)
         {
-            LOGE("VKBackend -> Shader to be destroyed is not valid!");
+            LOGE("Backend -> Shader to be destroyed is not valid!");
             return;
         }
 
@@ -979,9 +1043,10 @@ namespace LinaGX
 
     uint32 VKBackend::CreateTexture2D(const Texture2DDesc& txtDesc)
     {
-        VKBTexture2D item = {};
-        item.usage        = txtDesc.usage;
-        item.isValid      = true;
+        VKBTexture2D item       = {};
+        item.usage              = txtDesc.usage;
+        item.isValid            = true;
+        item.depthStencilAspect = txtDesc.depthStencilAspect;
 
         VkImageCreateInfo imgCreateInfo = VkImageCreateInfo{};
         imgCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -993,9 +1058,21 @@ namespace LinaGX
         imgCreateInfo.arrayLayers       = 1;
         imgCreateInfo.samples           = VK_SAMPLE_COUNT_1_BIT;
         imgCreateInfo.tiling            = txtDesc.usage == Texture2DUsage::ColorTextureDynamic ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
-        imgCreateInfo.usage             = GetVKImageUsage(txtDesc.usage);
         imgCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
-        imgCreateInfo.initialLayout     = GetVKImageLayout(txtDesc.usage);
+        imgCreateInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
+        {
+            imgCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        }
+        else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
+        {
+            imgCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        else
+        {
+            imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        }
 
         VmaAllocationCreateInfo allocinfo = VmaAllocationCreateInfo{};
         allocinfo.usage                   = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
@@ -1005,9 +1082,9 @@ namespace LinaGX
         VK_CHECK_RESULT(res, "Failed creating image.");
 
         VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
-        subResRange.aspectMask              = txtDesc.usage == Texture2DUsage::DepthStencilTexture ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        subResRange.aspectMask              = txtDesc.usage == Texture2DUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
         subResRange.baseMipLevel            = 0;
-        subResRange.levelCount              = 1;
+        subResRange.levelCount              = txtDesc.mipLevels;
         subResRange.baseArrayLayer          = 0;
         subResRange.layerCount              = 1;
 
@@ -1030,7 +1107,7 @@ namespace LinaGX
         auto& txt = m_texture2Ds.GetItemR(handle);
         if (!txt.isValid)
         {
-            LOGE("VKBackend -> Texture to be destroyed is not valid!");
+            LOGE("Backend -> Texture to be destroyed is not valid!");
             return;
         }
 
@@ -1051,15 +1128,15 @@ namespace LinaGX
         VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         bufferInfo.size               = desc.size;
 
-        if (desc.typeHintFlags & LGX_VertexBuffer)
+        if (desc.typeHintFlags & TH_VertexBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        if (desc.typeHintFlags & LGX_ConstantBuffer)
+        if (desc.typeHintFlags & TH_ConstantBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        if (desc.typeHintFlags & LGX_IndexBuffer)
+        if (desc.typeHintFlags & TH_IndexBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if (desc.typeHintFlags & LGX_IndexBuffer)
+        if (desc.typeHintFlags & TH_IndexBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-        if (desc.typeHintFlags == LGX_StorageBuffer)
+        if (desc.typeHintFlags & TH_StorageBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
         if (bufferInfo.usage == 0)
@@ -1069,7 +1146,7 @@ namespace LinaGX
 
         if (desc.heapType == ResourceHeap::CPUVisibleGPUMemory)
         {
-            LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "VKBackend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
+            LOGA(GPUInfo.totalCPUVisibleGPUMemorySize != 0, "Backend -> Trying to create a host-visible gpu resource meanwhile current gpu doesn't support this!");
             allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
             allocInfo.usage         = VMA_MEMORY_USAGE_AUTO;
             allocInfo.flags         = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
@@ -1090,6 +1167,46 @@ namespace LinaGX
 
         vmaCreateBuffer(m_vmaAllocator, &bufferInfo, &allocInfo, &item.buffer, &item.allocation, nullptr);
         return m_resources.AddItem(item);
+    }
+
+    uint32 VKBackend::CreateSampler(const SamplerDesc& desc)
+    {
+        VKBSampler item = {};
+        item.isValid    = true;
+
+        VkSamplerCreateInfo info = VkSamplerCreateInfo{};
+        info.sType               = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        info.pNext               = nullptr;
+        info.magFilter           = GetVKFilter(desc.magFilter);
+        info.minFilter           = GetVKFilter(desc.minFilter);
+        info.mipmapMode          = GetVKMipmapMode(desc.mipmapMode);
+        info.addressModeU        = GetVKSamplerAddressMode(desc.mode);
+        info.addressModeV        = GetVKSamplerAddressMode(desc.mode);
+        info.addressModeW        = GetVKSamplerAddressMode(desc.mode);
+        info.mipLodBias          = desc.mipLodBias;
+        info.anisotropyEnable    = desc.anisotropy != 0;
+        info.maxAnisotropy       = static_cast<float>(desc.anisotropy);
+        info.minLod              = desc.minLod;
+        info.maxLod              = desc.maxLod;
+        info.borderColor         = GetVKBorderColor(desc.borderColor);
+
+        VkResult res = vkCreateSampler(m_device, &info, m_allocator, &item.ptr);
+        VK_CHECK_RESULT(res, "Backend -> Could not create sampler!");
+
+        return m_samplers.AddItem(item);
+    }
+
+    void VKBackend::DestroySampler(uint32 handle)
+    {
+        auto& item = m_samplers.GetItemR(handle);
+        if (!item.isValid)
+        {
+            LOGE("Backend -> Sampler to be destroyed is not valid!");
+            return;
+        }
+
+        vkDestroySampler(m_device, item.ptr, m_allocator);
+        m_samplers.RemoveItem(handle);
     }
 
     void VKBackend::MapResource(uint32 handle, uint8*& ptr)
@@ -1114,13 +1231,74 @@ namespace LinaGX
         auto& item = m_resources.GetItemR(handle);
         if (!item.isValid)
         {
-            LOGE("VKBackend -> Shader to be destroyed is not valid!");
+            LOGE("Backend -> Shader to be destroyed is not valid!");
             return;
         }
 
         vmaDestroyBuffer(m_vmaAllocator, item.buffer, item.allocation);
 
         m_resources.RemoveItem(handle);
+    }
+
+    uint16 VKBackend::CreateDescriptorSet(const DescriptorSetDesc& desc)
+    {
+        VKBDescriptorSet item = {};
+        item.isValid          = true;
+
+        LINAGX_VEC<VkDescriptorSetLayoutBinding> bindings;
+
+        for (uint32 i = 0; i < desc.bindingsCount; i++)
+        {
+            DescriptorBinding&           binding   = desc.bindings[i];
+            VkDescriptorSetLayoutBinding vkBinding = {};
+            vkBinding.binding                      = binding.binding;
+            vkBinding.descriptorType               = GetVKDescriptorType(binding.type);
+            vkBinding.descriptorCount              = binding.descriptorCount;
+            vkBinding.stageFlags                   = binding.stageFlags;
+            bindings.push_back(vkBinding);
+        }
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.flags                           = 0;
+        layoutInfo.bindingCount                    = static_cast<uint32>(bindings.size());
+        layoutInfo.pBindings                       = bindings.data();
+
+        VkResult res = vkCreateDescriptorSetLayout(m_device, &layoutInfo, m_allocator, &item.layout);
+        VK_CHECK_RESULT(res, "Backend -> Could not create layout!");
+
+        VkDescriptorSetAllocateInfo allocInfo = {};
+        allocInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.pNext                       = nullptr;
+        allocInfo.descriptorPool              = m_descriptorPool;
+        allocInfo.descriptorSetCount          = 1;
+        allocInfo.pSetLayouts                 = &item.layout;
+
+        res = vkAllocateDescriptorSets(m_device, &allocInfo, &item.ptr);
+        VK_CHECK_RESULT(res, "Backend -> Could not allocate descriptor set!");
+        return m_descriptorSets.AddItem(item);
+    }
+
+    void VKBackend::DestroyDescriptorSet(uint16 handle)
+    {
+        auto& item = m_descriptorSets.GetItemR(handle);
+        if (!item.isValid)
+        {
+            LOGE("Backend -> Descriptor Table to be destroyed is not valid!");
+            return;
+        }
+
+        vkDestroyDescriptorSetLayout(m_device, item.layout, m_allocator);
+
+        m_resources.RemoveItem(handle);
+    }
+
+    void VKBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
+    {
+    }
+
+    void VKBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
+    {
     }
 
     uint32 VKBackend::CreateCommandStream(QueueType cmdType)
@@ -1169,7 +1347,7 @@ namespace LinaGX
         auto& stream = m_cmdStreams.GetItemR(handle);
         if (!stream.isValid)
         {
-            LOGE("VKBackend -> Command Stream to be destroyed is not valid!");
+            LOGE("Backend -> Command Stream to be destroyed is not valid!");
             return;
         }
 
@@ -1220,7 +1398,7 @@ namespace LinaGX
         }
     }
 
-    void VKBackend::ExecuteCommandStreams(const ExecuteDesc& desc)
+    void VKBackend::SubmitCommandStreams(const SubmitDesc& desc)
     {
         auto&                       frame = m_perFrameData[m_currentFrameIndex];
         LINAGX_VEC<VkCommandBuffer> _buffers;
@@ -1231,7 +1409,7 @@ namespace LinaGX
             auto stream = desc.streams[i];
             if (stream->m_commandCount == 0)
             {
-                LOGE("VKBackend -> Can not execute stream as no commands were recorded!");
+                LOGE("Backend -> Can not execute stream as no commands were recorded!");
                 continue;
             }
 
@@ -1306,7 +1484,7 @@ namespace LinaGX
         VkResult res = vkQueueSubmit(queue, 1, &submitInfo, frame.submitFences[frame.submissionCount]);
         frame.submissionCount++;
 
-        LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "VKBackend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
     }
 
@@ -1328,7 +1506,7 @@ namespace LinaGX
         auto fence = m_fences.GetItemR(handle);
         if (fence == nullptr)
         {
-            LOGE("VKBackend -> Fence to be destroyed is not valid!");
+            LOGE("Backend -> Fence to be destroyed is not valid!");
             return;
         }
 
@@ -1374,7 +1552,7 @@ namespace LinaGX
         auto res = builder.build();
         if (!res)
         {
-            LOGE("VKBackend ->Vulkan builder failed!");
+            LOGE("Backend ->Vulkan builder failed!");
             return false;
         }
 
@@ -1529,27 +1707,26 @@ namespace LinaGX
         // Check format support
         {
             VkImageFormatProperties p;
-            LINAGX_VEC<VkFormat>    formats;
 
-            for (int i = 1; i < 130; i++)
+            const uint32 last = static_cast<uint32>(Format::FORMAT_MAX);
+
+            for (uint32 i = 0; i < last; i++)
             {
-                const VkFormat format    = static_cast<VkFormat>(i);
-                VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
+                const Format   lgxFormat = static_cast<Format>(i);
+                const VkFormat vkFormat  = GetVKFormat(lgxFormat);
+                VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, vkFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
                 if (supported == VK_SUCCESS)
-                    formats.push_back(format);
+                {
+                    GPUInfo.supportedImageFormats.push_back(lgxFormat);
+                }
             }
 
-            LINAGX_VEC<VkFormat> requiredFormats;
-            requiredFormats.push_back(GetVKFormat(m_initInfo.rtColorFormat));
-            requiredFormats.push_back(GetVKFormat(m_initInfo.rtSwapchainFormat));
-            requiredFormats.push_back(GetVKFormat(m_initInfo.rtDepthFormat));
-
+            LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtColorFormat, m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
             for (auto& f : requiredFormats)
             {
-                auto it = std::find_if(formats.begin(), formats.end(), [&](VkFormat format) { return f == format; });
-
-                if (it == formats.end())
-                    LOGE("VKBackend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+                auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
+                if (it == GPUInfo.supportedImageFormats.end())
+                    LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
             }
         }
 
@@ -1560,7 +1737,7 @@ namespace LinaGX
             VkPhysicalDeviceMemoryProperties gpuMemProps;
             vkGetPhysicalDeviceMemoryProperties(m_gpu, &gpuMemProps);
             m_minUniformBufferOffsetAlignment = gpuProps.limits.minUniformBufferOffsetAlignment;
-            LOGT("VKBackend -> Selected GPU: %s - %f mb", gpuProps.deviceName, gpuMemProps.memoryHeaps->size / 1000000.0);
+            LOGT("Backend -> Selected GPU: %s - %f mb", gpuProps.deviceName, gpuMemProps.memoryHeaps->size / 1000000.0);
             GPUInfo.dedicatedVideoMemory = gpuMemProps.memoryHeaps->size;
             GPUInfo.deviceName           = gpuProps.deviceName;
 
@@ -1630,6 +1807,30 @@ namespace LinaGX
             }
         }
 
+        // Descriptors
+        {
+            LINAGX_VEC<VkDescriptorPoolSize> sizeInfos;
+
+            uint32 totalSets = 0;
+            for (const auto& [dt, limit] : m_initInfo.gpuLimits.descriptorLimits)
+            {
+                VkDescriptorPoolSize sizeInfo = VkDescriptorPoolSize{};
+                sizeInfo.type                 = GetVKDescriptorType(dt);
+                sizeInfo.descriptorCount      = limit;
+                sizeInfos.push_back(sizeInfo);
+                totalSets += limit;
+            }
+
+            VkDescriptorPoolCreateInfo info = VkDescriptorPoolCreateInfo{};
+            info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            info.flags                      = 0;
+            info.maxSets                    = totalSets;
+            info.poolSizeCount              = static_cast<uint32>(sizeInfos.size());
+            info.pPoolSizes                 = sizeInfos.data();
+
+            VkResult res = vkCreateDescriptorPool(m_device, &info, m_allocator, &m_descriptorPool);
+            VK_CHECK_RESULT(res, "Backend -> Could not create descriptor pool!");
+        }
         // Command functions
         {
             BACKEND_BIND_COMMANDS(VKBackend);
@@ -1640,6 +1841,9 @@ namespace LinaGX
 
     void VKBackend::Shutdown()
     {
+
+        vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
+
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];
@@ -1654,32 +1858,42 @@ namespace LinaGX
 
         for (auto& swp : m_swapchains)
         {
-            LOGA(!swp.isValid, "VKBackend -> Some swapchains were not destroyed!");
+            LOGA(!swp.isValid, "Backend -> Some swapchains were not destroyed!");
         }
 
         for (auto& pp : m_shaders)
         {
-            LOGA(!pp.isValid, "VKBackend -> Some shader pipelines were not destroyed!");
+            LOGA(!pp.isValid, "Backend -> Some shader pipelines were not destroyed!");
         }
 
         for (auto& txt : m_texture2Ds)
         {
-            LOGA(!txt.isValid, "VKBackend -> Some textures were not destroyed!");
+            LOGA(!txt.isValid, "Backend -> Some textures were not destroyed!");
         }
 
         for (auto& str : m_cmdStreams)
         {
-            LOGA(!str.isValid, "VKBackend -> Some command streams were not destroyed!");
+            LOGA(!str.isValid, "Backend -> Some command streams were not destroyed!");
         }
 
         for (auto& r : m_resources)
         {
-            LOGA(!r.isValid, "VKBackend -> Some resources were not destroyed!");
+            LOGA(!r.isValid, "Backend -> Some resources were not destroyed!");
         }
 
         for (auto& r : m_userSemaphores)
         {
-            LOGA(!r.isValid, "VKBackend -> Some semaphores were not destroyed!");
+            LOGA(!r.isValid, "Backend -> Some semaphores were not destroyed!");
+        }
+
+        for (auto& r : m_samplers)
+        {
+            LOGA(!r.isValid, "Backend -> Some samplers were not destroyed!");
+        }
+
+        for (auto& r : m_descriptorSets)
+        {
+            LOGA(!r.isValid, "Backend -> Some descriptor tables were not destroyed!");
         }
 
         vmaDestroyAllocator(m_vmaAllocator);
@@ -1743,7 +1957,7 @@ namespace LinaGX
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             {
-                LOGA(false, "VkBackend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
+                LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
             }
 
             i++;
@@ -1783,7 +1997,7 @@ namespace LinaGX
         // Check for swapchain recreation.
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
-            LOGA(false, "VkBackend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
+            LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
         }
     }
 
@@ -1791,7 +2005,7 @@ namespace LinaGX
     {
     }
 
-    void VKBackend::CMD_BeginRenderPass(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_BeginRenderPass(uint8* data, VKBCommandStream& stream)
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
 
@@ -1878,13 +2092,13 @@ namespace LinaGX
         renderingInfo.pColorAttachments    = &colorAttachment;
 
         auto buffer = stream.buffers[m_currentFrameIndex];
-        ImageTransition(ImageTransitionType::Present2RT, buffer, colorImage, true);
+        TransitionImageLayout(buffer, colorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         vkCmdBeginRendering(buffer, &renderingInfo);
         CMD_SetViewport((uint8*)&interVP, stream);
         CMD_SetScissors((uint8*)&interSC, stream);
     }
 
-    void VKBackend::CMD_EndRenderPass(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_EndRenderPass(uint8* data, VKBCommandStream& stream)
     {
         CMDEndRenderPass* end    = reinterpret_cast<CMDEndRenderPass*>(data);
         auto              buffer = stream.buffers[m_currentFrameIndex];
@@ -1893,11 +2107,11 @@ namespace LinaGX
         if (end->isSwapchain)
         {
             const auto& swp = m_swapchains.GetItemR(end->swapchain);
-            ImageTransition(ImageTransitionType::RT2Present, buffer, swp.imgs[swp._imageIndex], true);
+            TransitionImageLayout(buffer, swp.imgs[swp._imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         }
     }
 
-    void VKBackend::CMD_SetViewport(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_SetViewport(uint8* data, VKBCommandStream& stream)
     {
         CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
         auto            buffer = stream.buffers[m_currentFrameIndex];
@@ -1918,7 +2132,7 @@ namespace LinaGX
         vkCmdSetViewport(buffer, 0, 1, &vp);
     }
 
-    void VKBackend::CMD_SetScissors(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_SetScissors(uint8* data, VKBCommandStream& stream)
     {
         CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
         auto            buffer = stream.buffers[m_currentFrameIndex];
@@ -1930,29 +2144,30 @@ namespace LinaGX
         vkCmdSetScissor(buffer, 0, 1, &rect);
     }
 
-    void VKBackend::CMD_BindPipeline(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_BindPipeline(uint8* data, VKBCommandStream& stream)
     {
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
         auto             buffer = stream.buffers[m_currentFrameIndex];
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrPipeline);
+        stream.boundShader = cmd->shader;
     }
 
-    void VKBackend::CMD_DrawInstanced(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_DrawInstanced(uint8* data, VKBCommandStream& stream)
     {
         CMDDrawInstanced* cmd    = reinterpret_cast<CMDDrawInstanced*>(data);
         auto              buffer = stream.buffers[m_currentFrameIndex];
         vkCmdDraw(buffer, cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
-    void VKBackend::CMD_DrawIndexedInstanced(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_DrawIndexedInstanced(uint8* data, VKBCommandStream& stream)
     {
         CMDDrawIndexedInstanced* cmd    = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     buffer = stream.buffers[m_currentFrameIndex];
         vkCmdDrawIndexed(buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
-    void VKBackend::CMD_BindVertexBuffers(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_BindVertexBuffers(uint8* data, VKBCommandStream& stream)
     {
         CMDBindVertexBuffers* cmd    = reinterpret_cast<CMDBindVertexBuffers*>(data);
         auto                  buffer = stream.buffers[m_currentFrameIndex];
@@ -1960,7 +2175,7 @@ namespace LinaGX
         vkCmdBindVertexBuffers(buffer, cmd->slot, 1, &res.buffer, &cmd->offset);
     }
 
-    void VKBackend::CMD_BindIndexBuffers(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_BindIndexBuffers(uint8* data, VKBCommandStream& stream)
     {
         CMDBindIndexBuffers* cmd    = reinterpret_cast<CMDBindIndexBuffers*>(data);
         auto                 buffer = stream.buffers[m_currentFrameIndex];
@@ -1968,7 +2183,7 @@ namespace LinaGX
         vkCmdBindIndexBuffer(buffer, res.buffer, cmd->offset, GetVKIndexType(cmd->indexFormat));
     }
 
-    void VKBackend::CMD_CopyResource(uint8* data, const VKBCommandStream& stream)
+    void VKBackend::CMD_CopyResource(uint8* data, VKBCommandStream& stream)
     {
         CMDCopyResource* cmd    = reinterpret_cast<CMDCopyResource*>(data);
         auto             buffer = stream.buffers[m_currentFrameIndex];
@@ -1983,52 +2198,128 @@ namespace LinaGX
         vkCmdCopyBuffer(buffer, srcRes.buffer, dstRes.buffer, 1, &region);
     }
 
-    void VKBackend::ImageTransition(ImageTransitionType type, VkCommandBuffer buffer, VkImage img, bool isColor)
+    void VKBackend::CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream)
     {
-        VkImageSubresourceRange subresRange = VkImageSubresourceRange{};
-        subresRange.aspectMask              = isColor ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
-        subresRange.baseMipLevel            = 0;
-        subresRange.levelCount              = 1;
-        subresRange.baseArrayLayer          = 0;
-        subresRange.layerCount              = 1;
+        CMDCopyBufferToTexture2D* cmd         = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
+        auto                      buffer      = stream.buffers[m_currentFrameIndex];
+        const auto&               srcResource = m_resources.GetItemR(cmd->srcResource);
+        const auto&               dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);
 
-        VkImageMemoryBarrier imgBarrier = VkImageMemoryBarrier{};
-        imgBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        imgBarrier.pNext                = nullptr;
-        imgBarrier.srcQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
-        imgBarrier.dstQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
-        imgBarrier.image                = img;
-        imgBarrier.subresourceRange     = subresRange;
+        LINAGX_VEC<VkBufferImageCopy> regions;
 
-        VkPipelineStageFlags srcStageMask;
-        VkPipelineStageFlags dstStageMask;
+        VkOffset3D imageOffset = {};
+        imageOffset.x = imageOffset.y = imageOffset.z = 0;
 
-        if (type == ImageTransitionType::Present2RT)
+        uint32 bufferOffset = 0;
+        uint32 mip          = 0;
+
+        for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
-            imgBarrier.srcAccessMask = VK_ACCESS_NONE;
-            imgBarrier.dstAccessMask = isColor ? VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT : VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            imgBarrier.oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
-            imgBarrier.newLayout     = isColor ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            const auto& txtBuffer = cmd->buffers[i];
 
-            srcStageMask = isColor ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-            dstStageMask = isColor ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT : VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            VkExtent3D extent = {};
+            extent.width      = txtBuffer.width;
+            extent.height     = txtBuffer.height;
+            extent.depth      = 1;
+
+            VkImageSubresourceLayers subresLayers = {};
+            subresLayers.aspectMask               = dstTexture.usage == Texture2DUsage::DepthStencilTexture ? (GetVKAspectFlags(dstTexture.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
+            subresLayers.mipLevel                 = mip;
+            subresLayers.baseArrayLayer           = 0;
+            subresLayers.layerCount               = 1;
+
+            VkBufferImageCopy copy = VkBufferImageCopy{};
+            copy.bufferOffset      = bufferOffset;
+            copy.bufferRowLength   = 0;
+            copy.bufferImageHeight = 0;
+            copy.imageSubresource  = subresLayers;
+            copy.imageOffset       = imageOffset;
+            copy.imageExtent       = extent;
+
+            regions.push_back(copy);
+
+            bufferOffset += txtBuffer.width * txtBuffer.height * txtBuffer.channels;
         }
-        else if (type == ImageTransitionType::RT2Present)
-        {
-            imgBarrier.srcAccessMask = isColor ? VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT : VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            imgBarrier.dstAccessMask = VK_ACCESS_NONE;
-            imgBarrier.oldLayout     = isColor ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            imgBarrier.newLayout     = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-            srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        
+        vkCmdCopyBufferToImage(buffer, srcResource.buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32>(regions.size()), regions.data());
+    }
+
+    void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)
+    {
+        CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
+        auto                   buffer = stream.buffers[m_currentFrameIndex];
+        const auto&            shader = m_shaders.GetItemR(stream.boundShader);
+
+        LINAGX_VEC<VkDescriptorSet> sets;
+        sets.resize(cmd->setCount);
+
+        for (uint32 i = 0; i < cmd->setCount; i++)
+            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSets[0]).ptr;
+
+        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), 0, nullptr);
+    }
+
+    void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+    {
+        VkImageMemoryBarrier barrier{};
+        barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout                       = oldLayout;
+        barrier.newLayout                       = newLayout;
+        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image                           = image;
+        barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel   = 0;
+        barrier.subresourceRange.levelCount     = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount     = 1;
+
+        VkPipelineStageFlags sourceStage;
+        VkPipelineStageFlags destinationStage;
+
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+            sourceStage      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        {
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            sourceStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        else if ((oldLayout == VK_IMAGE_LAYOUT_UNDEFINED || oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            sourceStage           = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            destinationStage      = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+        {
+            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            barrier.dstAccessMask = 0;
+            sourceStage           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            destinationStage      = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
         }
         else
         {
-            LOGA(false, "!!");
+            LOGA(false, "Backend -> Unsupported transition!");
         }
 
-        vkCmdPipelineBarrier(buffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imgBarrier);
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            sourceStage, destinationStage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
     }
 
 } // namespace LinaGX

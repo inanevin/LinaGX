@@ -75,7 +75,7 @@ namespace LinaGX
         /// </summary>
         /// <param name="sterams"></param>
         /// <param name="streamCount"></param>
-        void ExecuteCommandStreams(const ExecuteDesc& execute);
+        void SubmitCommandStreams(const SubmitDesc& execute);
 
         /// <summary>
         ///
@@ -165,6 +165,25 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
+        /// <param name="handle"></param>
+        void DestroyTexture2D(uint32 handle);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="desc"></param>
+        /// <returns></returns>
+        uint32 CreateSampler(const SamplerDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="handle"></param>
+        void DestroySampler(uint32 handle);
+
+        /// <summary>
+        ///
+        /// </summary>
         /// <param name="desc"></param>
         /// <returns></returns>
         uint32 CreateResource(const ResourceDesc& desc);
@@ -187,6 +206,31 @@ namespace LinaGX
         /// </summary>
         /// <param name="resource"></param>
         void UnmapResource(uint32 resource);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="desc"></param>
+        /// <returns></returns>
+        uint16 CreateDescriptorSet(const DescriptorSetDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="handle"></param>
+        void DestroyDescriptorSet(uint16 handle);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="desc"></param>
+        void DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="desc"></param>
+        void DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc);
 
         /// <summary>
         ///

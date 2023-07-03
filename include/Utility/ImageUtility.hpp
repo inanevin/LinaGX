@@ -28,17 +28,23 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
+#ifndef LINAGX_IMAGE_UTILITY_HPP
+#define LINAGX_IMAGE_UTILITY_HPP
 
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
+#include "Common/Common.hpp"
 
 namespace LinaGX
 {
+    enum class ImageChannelMask
+    {
+        Grey = 0,
+        GreyAlpha,
+        Rgb,
+        Rgba
+    };
+
+    LINAGX_API uint8* LoadImage(const char* path, uint32& outWidth, uint32& outHeight, uint32& outChannelCount, uint32& outMipLevel, ImageChannelMask channelMask = ImageChannelMask::Rgba);
+    LINAGX_API void   FreeImage(uint8* pixels);
 
 } // namespace LinaGX
 

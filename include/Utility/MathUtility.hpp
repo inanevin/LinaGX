@@ -28,18 +28,26 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
+#ifndef LINAGX_MATH_UTILITY_HPP
+#define LINAGX_MATH_UTILITY_HPP
 
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
+#include "Common/Common.hpp"
 
 namespace LinaGX
 {
+    extern LINAGX_API uint32 FloorLog2(uint32 val);
 
+    template <typename T>
+    inline constexpr T Max(const T& val1, const T& val2)
+    {
+        return val1 >= val2 ? val1 : val2;
+    }
+
+    template <typename T>
+    inline constexpr T Min(const T& val1, const T& val2)
+    {
+        return val1 <= val2 ? val1 : val2;
+    }
 } // namespace LinaGX
 
 #endif
