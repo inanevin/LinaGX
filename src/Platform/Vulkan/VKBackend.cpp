@@ -912,7 +912,7 @@ namespace LinaGX
             VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
             binding.binding                      = ubo.binding;
             binding.descriptorType               = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            binding.descriptorCount              = 1;
+            binding.descriptorCount              = ubo.elementSize;
 
             for (ShaderStage stg : ubo.stages)
                 binding.stageFlags |= GetVKShaderStage(stg);
@@ -938,7 +938,7 @@ namespace LinaGX
             VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
             binding.binding                      = t2d.binding;
             binding.descriptorType               = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.descriptorCount              = 1;
+            binding.descriptorCount              = t2d.elementSize;
 
             for (ShaderStage stg : t2d.stages)
                 binding.stageFlags |= GetVKShaderStage(stg);
@@ -946,13 +946,12 @@ namespace LinaGX
             bindingMap[t2d.set].push_back(binding);
         }
 
-        // TODO: Descriptor count reflection?
         for (const auto& sampler : shaderDesc.layout.samplers)
         {
             VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
             binding.binding                      = sampler.binding;
             binding.descriptorType               = VK_DESCRIPTOR_TYPE_SAMPLER;
-            binding.descriptorCount              = 1;
+            binding.descriptorCount              = sampler.elementSize;
 
             for (ShaderStage stg : sampler.stages)
                 binding.stageFlags |= GetVKShaderStage(stg);
@@ -1492,7 +1491,7 @@ namespace LinaGX
 
             // Mark submitted intermediate resources.
             for (auto& inter : str.intermediateResources)
-                m_submittedIntermediateResources[inter] = PerformanceStats.totalFrames;
+                m_killQueueIntermediateResources[inter] = PerformanceStats.totalFrames;
             str.intermediateResources.clear();
         }
 
@@ -1922,10 +1921,10 @@ namespace LinaGX
 
     void VKBackend::Shutdown()
     {
-        for (const auto [id, frame] : m_submittedIntermediateResources)
+        for (const auto [id, frame] : m_killQueueIntermediateResources)
             DestroyResource(id);
 
-        m_submittedIntermediateResources.clear();
+        m_killQueueIntermediateResources.clear();
 
         vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
 
@@ -2056,12 +2055,12 @@ namespace LinaGX
         }
 
         // Check for dangling intermediate resources.
-        for (auto it = m_submittedIntermediateResources.begin(); it != m_submittedIntermediateResources.end();)
+        for (auto it = m_killQueueIntermediateResources.begin(); it != m_killQueueIntermediateResources.end();)
         {
             if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
             {
                 DestroyResource(it->first);
-                it = m_submittedIntermediateResources.erase(it);
+                it = m_killQueueIntermediateResources.erase(it);
             }
             else
                 ++it;

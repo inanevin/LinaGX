@@ -228,7 +228,7 @@ namespace LinaGX
         LINAGX_VEC<VKBPerFrameData>         m_perFrameData = {};
         LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions = {};
         LINAGX_MAP<QueueType, VKBQueueData> m_queueData    = {};
-        LINAGX_MAP<uint32, uint64>          m_submittedIntermediateResources;
+        LINAGX_MAP<uint32, uint64>          m_killQueueIntermediateResources;
 
         VkDescriptorPool m_descriptorPool          = nullptr;
         uint32           m_imageAcqSemaphoresCount = 0;

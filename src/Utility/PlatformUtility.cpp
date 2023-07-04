@@ -73,4 +73,33 @@ namespace LinaGX
         return content.c_str();
     }
 
+    LINAGX_API void* AdjustBufferPitch(void* data, uint32 width, uint32 height, uint32 bytesPerPixel, uint32 alignment)
+    {
+        // calculate the adjusted row pitch
+        uint32_t rowPitch = (width * bytesPerPixel + (alignment - 1)) & ~(alignment - 1);
+
+        // create a new buffer with the adjusted pitch
+        char* buffer = (char*)LINAGX_MALLOC(rowPitch * height);
+
+        // copy each row from the original data to the new buffer
+        char* src = static_cast<char*>(data);
+        char* dst = buffer;
+
+        if (dst != 0)
+        {
+            for (uint32_t i = 0; i < height; ++i)
+            {
+                memcpy(dst, src, width * bytesPerPixel);
+                dst += rowPitch;
+                src += width * bytesPerPixel;
+            }
+        }
+        else
+        {
+            LOGE("Malloc failed!");
+        }
+
+        return buffer;
+    }
+
 } // namespace LinaGX

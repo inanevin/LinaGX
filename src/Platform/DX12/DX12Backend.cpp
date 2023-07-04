@@ -1770,10 +1770,14 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
-        for (const auto [id, frame] : m_submittedIntermediateResources)
+        for (const auto [id, frame] : m_killQueueIntermediateResources)
             DestroyResource(id);
 
-        m_submittedIntermediateResources.clear();
+        for (const auto [ptr, frame] : m_killQueueAdjustedBuffers)
+            LINAGX_FREE(ptr);
+
+        m_killQueueIntermediateResources.clear();
+        m_killQueueAdjustedBuffers.clear();
 
         for (auto& [queue, data] : m_queueData)
         {
@@ -1890,12 +1894,23 @@ namespace LinaGX
         WaitForFences(m_queueData[QueueType::Transfer].frameFence.Get(), frame.storedFenceTransfer);
 
         // Check for dangling intermediate resources.
-        for (auto it = m_submittedIntermediateResources.begin(); it != m_submittedIntermediateResources.end();)
+        for (auto it = m_killQueueIntermediateResources.begin(); it != m_killQueueIntermediateResources.end();)
         {
             if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
             {
                 DestroyResource(it->first);
-                it = m_submittedIntermediateResources.erase(it);
+                it = m_killQueueIntermediateResources.erase(it);
+            }
+            else
+                ++it;
+        }
+
+        for (auto it = m_killQueueAdjustedBuffers.begin(); it != m_killQueueAdjustedBuffers.end();)
+        {
+            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+            {
+                LINAGX_FREE(it->first);
+                it = m_killQueueAdjustedBuffers.erase(it);
             }
             else
                 ++it;
@@ -1992,7 +2007,7 @@ namespace LinaGX
 
                 // Mark submitted intermediate resources.
                 for (auto& inter : str.intermediateResources)
-                    m_submittedIntermediateResources[inter] = PerformanceStats.totalFrames;
+                    m_killQueueIntermediateResources[inter] = PerformanceStats.totalFrames;
                 str.intermediateResources.clear();
             }
 
@@ -2232,18 +2247,20 @@ namespace LinaGX
         const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
 
         // Find correct size for staging resource.
-        const uint64 ogDataSize    = cmd->buffers[0].width * cmd->buffers[0].height * cmd->buffers[0].bytesPerPixel;
-        uint64       totalDataSize = ALIGN_SIZE_POW(ogDataSize, dstTexture.requiredAlignment);
+        const uint64 rowPitch   = (cmd->buffers[0].width * cmd->buffers[0].bytesPerPixel + (D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+        uint64       ogDataSize = rowPitch * cmd->buffers[0].height;
+
         for (uint32 i = 1; i < cmd->mipLevels; i++)
         {
-            const auto&  buf   = cmd->buffers[i];
-            const uint64 mipSz = buf.width * buf.height * buf.bytesPerPixel;
-            totalDataSize += ALIGN_SIZE_POW(mipSz, dstTexture.requiredAlignment);
+            const auto&  buf         = cmd->buffers[i];
+            const uint64 mipRowPitch = (buf.width * buf.bytesPerPixel + (D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+            const uint64 mipSz       = mipRowPitch * buf.height;
+            ogDataSize += mipSz;
         }
 
         // Create staging.
         ResourceDesc stagingDesc  = {};
-        stagingDesc.size          = totalDataSize;
+        stagingDesc.size          = ogDataSize;
         stagingDesc.typeHintFlags = TH_None;
         stagingDesc.heapType      = ResourceHeap::StagingHeap;
         uint32 stagingHandle      = CreateResource(stagingDesc);
@@ -2254,15 +2271,17 @@ namespace LinaGX
         auto calcTd = [&](void* data, uint32 width, uint32 height, uint32 bytesPerPixel) {
             D3D12_SUBRESOURCE_DATA textureData = {};
             textureData.pData                  = data;
-            textureData.RowPitch               = static_cast<LONG_PTR>(width * bytesPerPixel);
-            textureData.SlicePitch             = static_cast<LONG_PTR>(ALIGN_SIZE_POW(textureData.RowPitch * static_cast<LONG_PTR>(height), static_cast<LONG_PTR>(dstTexture.requiredAlignment)));
+            textureData.RowPitch               = static_cast<LONG_PTR>((width * bytesPerPixel + (D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1));
+            textureData.SlicePitch             = textureData.RowPitch * static_cast<LONG_PTR>(height);
             allData.push_back(textureData);
         };
 
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
-            const auto& buffer = cmd->buffers[i];
-            calcTd(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel);
+            const auto& buffer                       = cmd->buffers[i];
+            void*       adjustedData                 = AdjustBufferPitch(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+            m_killQueueAdjustedBuffers[adjustedData] = PerformanceStats.totalFrames;
+            calcTd(adjustedData, buffer.width, buffer.height, buffer.bytesPerPixel);
         }
 
         const auto& srcRes = m_resources.GetItemR(stagingHandle);

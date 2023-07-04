@@ -38,6 +38,7 @@ namespace LinaGX
     extern LINAGX_API char*          WCharToChar(const wchar_t* wch);
     extern LINAGX_API const wchar_t* CharToWChar(const char* ch);
     extern LINAGX_API LINAGX_STRING  ReadFileContentsAsString(const char* filePath);
+    extern LINAGX_API void*          AdjustBufferPitch(void* data, uint32 width, uint32 height, uint32 bytesPerPixel, uint32 alignment);
 
 } // namespace LinaGX
 

@@ -263,7 +263,8 @@ namespace LinaGX
         uint32                              m_previousPresentCount = 0;
         uint32                              m_glitchCount          = 0;
 
-        LINAGX_MAP<uint32, uint64>           m_submittedIntermediateResources;
+        LINAGX_MAP<uint32, uint64>           m_killQueueIntermediateResources;
+        LINAGX_MAP<void*, uint64>            m_killQueueAdjustedBuffers;
         LINAGX_VEC<DX12PerFrameData>         m_perFrameData;
         LINAGX_MAP<QueueType, DX12QueueData> m_queueData;
 
