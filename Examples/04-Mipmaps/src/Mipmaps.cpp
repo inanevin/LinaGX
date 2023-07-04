@@ -30,7 +30,7 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "VertexIndexBuffers.hpp"
+#include "Mipmaps.hpp"
 
 namespace LinaGX::Examples
 {
@@ -53,6 +53,9 @@ namespace LinaGX::Examples
     uint32 _vertexBufferGPU     = 0;
     uint32 _indexBufferStaging  = 0;
     uint32 _indexBufferGPU      = 0;
+    uint32 _textureGPU          = 0;
+    uint32 _sampler             = 0;
+    uint32 _descriptorSet0      = 0;
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -61,7 +64,7 @@ namespace LinaGX::Examples
     struct Vertex
     {
         float position[3];
-        float color[3];
+        float uv[2];
     };
 
     void Example::Initialize()
@@ -96,7 +99,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREAITON & CALLBACKS
         {
-            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 600, WindowStyle::Windowed);
+            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
             window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -170,13 +173,14 @@ namespace LinaGX::Examples
             // Define a vertex buffer.
             std::vector<Vertex> vertexBuffer =
                 {
-                    {{1.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                    {{-1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-                    {{0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+                    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
+                    {{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
+                    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
+                    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
+                };
 
-            std::vector<uint32> indexBuffer = {0, 1, 2};
-
-            uint32_t vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
+            std::vector<uint32> indexBuffer      = {0, 1, 3, 1, 2, 3};
+            uint32_t            vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
 
             ResourceDesc bufferDesc = ResourceDesc{
                 .size          = vertexBufferSize,
@@ -209,8 +213,74 @@ namespace LinaGX::Examples
             _renderer->UnmapResource(_indexBufferStaging);
         }
 
+        // Load image.
+        TextureLoadData loadedTextureData = {};
+        LinaGX::LoadImage("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
+
+        // Generate mipmaps
+        LINAGX_VEC<MipData> outMipmaps;
+        LinaGX::GenerateMipmaps(loadedTextureData, outMipmaps, MipmapFilter::Default, ImageChannelMask::Rgba, false);
+
+        // Need big enough staging resource, calculate size.
+        uint32 totalStagingResourceSize = loadedTextureData.width * loadedTextureData.height * 4;
+        for (const auto& md : outMipmaps)
+            totalStagingResourceSize += md.width * md.height * 4;
+
+        // Texture
+        {
+            // Create gpu resource
+            Texture2DDesc desc = {
+                .usage     = Texture2DUsage::ColorTexture,
+                .width     = loadedTextureData.width,
+                .height    = loadedTextureData.height,
+                .mipLevels = loadedTextureData.totalMipLevels,
+                .format    = Format::R8G8B8A8_UNORM,
+                .debugName = "Lina Logo",
+            };
+            _textureGPU = _renderer->CreateTexture2D(desc);
+
+            // Sampler
+            SamplerDesc samplerDesc = {
+                .minFilter  = Filter::Anisotropic,
+                .magFilter  = Filter::Anisotropic,
+                .mode       = SamplerAddressMode::ClampToBorder,
+                .anisotropy = 0,
+            };
+
+            _sampler = _renderer->CreateSampler(samplerDesc);
+        }
+
         // Complete transfer operations before beginning the main loop
         {
+            TextureBuffer txtBuffer = {
+                .pixels        = loadedTextureData.pixels,
+                .width         = loadedTextureData.width,
+                .height        = loadedTextureData.height,
+                .bytesPerPixel = 4,
+            };
+
+            // Put the base texture data + all mip data together.
+            LINAGX_VEC<TextureBuffer> textureDataWithMips;
+            textureDataWithMips.push_back(txtBuffer);
+
+            for (const auto& md : outMipmaps)
+            {
+                TextureBuffer mip = {
+                    .pixels        = md.pixels,
+                    .width         = md.width,
+                    .height        = md.height,
+                    .bytesPerPixel = 4,
+                };
+
+                textureDataWithMips.push_back(mip);
+            }
+
+            // Copy texture
+            CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
+            copyTxt->destTexture              = _textureGPU;
+            copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
+            copyTxt->buffers                  = textureDataWithMips.data();
+
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
             copyVtxBuf->source          = _vertexBufferStaging;
@@ -229,6 +299,39 @@ namespace LinaGX::Examples
             // Not needed anymore.
             _renderer->DestroyResource(_vertexBufferStaging);
             _renderer->DestroyResource(_indexBufferStaging);
+
+            // Done with pixels.
+            LinaGX::FreeImage(loadedTextureData.pixels);
+
+            for (const auto& md : outMipmaps)
+                LinaGX::FreeImage(md.pixels);
+        }
+
+        // Create descriptor set.
+        {
+            DescriptorBinding binding = {
+                .binding         = 0,
+                .descriptorCount = 1,
+                .type            = DescriptorType::CombinedImageSampler,
+                .stages          = {ShaderStage::Fragment},
+            };
+
+            DescriptorSetDesc desc = {
+                .bindings      = &binding,
+                .bindingsCount = 1,
+            };
+
+            _descriptorSet0 = _renderer->CreateDescriptorSet(desc);
+
+            DescriptorUpdateImageDesc imgUpdate = {
+                .binding         = 0,
+                .descriptorCount = 1,
+                .textures        = &_textureGPU,
+                .samplers        = &_sampler,
+                .descriptorType  = DescriptorType::CombinedImageSampler,
+            };
+
+            _renderer->DescriptorUpdateImage(imgUpdate);
         }
     }
 
@@ -241,7 +344,10 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
+        _renderer->DestroyDescriptorSet(_descriptorSet0);
         _renderer->DestroyUserSemaphore(_copySemaphore);
+        _renderer->DestroyTexture2D(_textureGPU);
+        _renderer->DestroySampler(_sampler);
         _renderer->DestroyResource(_vertexBufferGPU);
         _renderer->DestroyResource(_indexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
@@ -296,11 +402,19 @@ namespace LinaGX::Examples
             bindPipeline->shader          = _shaderProgram;
         }
 
+        // Bind texture descriptor
+        {
+            CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
+            bindTxt->firstSet              = 0;
+            bindTxt->setCount              = 1;
+            bindTxt->descriptorSets        = &_descriptorSet0;
+        }
+
         // Draw the triangle
         {
             CMDDrawIndexedInstanced* drawIndexed = _stream->AddCommand<CMDDrawIndexedInstanced>();
             drawIndexed->baseVertexLocation      = 0;
-            drawIndexed->indexCountPerInstance   = 3;
+            drawIndexed->indexCountPerInstance   = 6;
             drawIndexed->instanceCount           = 1;
             drawIndexed->startIndexLocation      = 0;
             drawIndexed->startInstanceLocation   = 0;

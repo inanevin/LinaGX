@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,19 +26,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#ifndef EXAMPLE_HPP
+#define EXAMPLE_HPP
 
-#ifndef LINAGX_PLATFORM_UTILITY_HPP
-#define LINAGX_PLATFORM_UTILITY_HPP
-
-#include "Common/Common.hpp"
-
+#include "App.hpp"
 namespace LinaGX
 {
-    extern LINAGX_API char*          WCharToChar(const wchar_t* wch);
-    extern LINAGX_API const wchar_t* CharToWChar(const char* ch);
-    extern LINAGX_API LINAGX_STRING  ReadFileContentsAsString(const char* filePath);
+    namespace Examples
+    {
+        class Example : public App
+        {
+        public:
+            virtual void Initialize() override;
+            virtual void Shutdown() override;
+            virtual void OnTick() override;
+        };
 
+    } // namespace Examples
 } // namespace LinaGX
 
 #endif

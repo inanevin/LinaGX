@@ -49,7 +49,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            LOGE("[Renderer] -> Exception when creating a descriptor heap! {0}", e.what());
+            LOGE("Backend -> Exception when creating a descriptor heap! {0}", e.what());
             backend->DX12Exception(e);
         }
 

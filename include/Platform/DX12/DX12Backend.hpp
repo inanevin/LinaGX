@@ -107,17 +107,12 @@ namespace LinaGX
 
     struct DX12CommandStream
     {
-        bool                                                           isValid = false;
-        QueueType                                                      type    = QueueType::Graphics;
+        bool                                                           isValid     = false;
+        uint32                                                         boundShader = 0;
+        QueueType                                                      type        = QueueType::Graphics;
         LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>>     allocators;
         LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4>> lists;
-        LINAGX_VEC<DX12HeapGPU*>                                       samplerHeaps;
-        LINAGX_VEC<DX12HeapGPU*>                                       bufferHeaps;
-        uint32                                                         boundShader;
-        uint32                                                         _cbvSize     = 0;
-        uint32                                                         _extraSize   = 0;
-        uint32                                                         _textureSize = 0;
-        uint32                                                         _samplerSize = 0;
+        LINAGX_VEC<uint32>                                             intermediateResources;
     };
 
     struct DX12PerFrameData
@@ -141,6 +136,7 @@ namespace LinaGX
         ResourceHeap                           heapType           = ResourceHeap::StagingHeap;
         uint64                                 size               = 0;
         bool                                   isMapped           = false;
+        DescriptorHandle                       descriptor         = {};
     };
 
     struct DX12UserSemaphore
@@ -149,9 +145,19 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12Fence> ptr     = nullptr;
     };
 
+    struct DX12DescriptorBinding
+    {
+        uint32           binding;
+        uint32           descriptorCount;
+        DescriptorType   type;
+        DescriptorHandle gpuPointer;
+        DescriptorHandle additionalGpuPointer;
+    };
+
     struct DX12DescriptorSet
     {
-        bool isValid = false;
+        bool                              isValid = false;
+        LINAGX_VEC<DX12DescriptorBinding> bindings;
     };
 
     class DX12Backend : public Backend
@@ -247,6 +253,8 @@ namespace LinaGX
         IDList<uint16, DX12UserSemaphore>                   m_userSemaphores = {20};
         IDList<uint32, DX12Sampler>                         m_samplers       = {100};
         IDList<uint16, DX12DescriptorSet>                   m_descriptorSets = {20};
+        DX12HeapGPU*                                        m_gpuHeapBuffer  = nullptr;
+        DX12HeapGPU*                                        m_gpuHeapSampler = nullptr;
 
         LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions;
         uint32                              m_currentFrameIndex    = 0;
@@ -255,6 +263,7 @@ namespace LinaGX
         uint32                              m_previousPresentCount = 0;
         uint32                              m_glitchCount          = 0;
 
+        LINAGX_MAP<uint32, uint64>           m_submittedIntermediateResources;
         LINAGX_VEC<DX12PerFrameData>         m_perFrameData;
         LINAGX_MAP<QueueType, DX12QueueData> m_queueData;
 

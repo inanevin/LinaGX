@@ -53,7 +53,6 @@ namespace LinaGX::Examples
     uint32 _vertexBufferGPU     = 0;
     uint32 _indexBufferStaging  = 0;
     uint32 _indexBufferGPU      = 0;
-    uint32 _textureStaging      = 0;
     uint32 _textureGPU          = 0;
     uint32 _sampler             = 0;
     uint32 _descriptorSet0      = 0;
@@ -78,7 +77,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -100,7 +99,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREAITON & CALLBACKS
         {
-            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 600, WindowStyle::Windowed);
+            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
             window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -215,36 +214,27 @@ namespace LinaGX::Examples
         }
 
         // Load image.
-        uint32 width = 0, height = 0, channels = 0, mipLevels = 0;
-        uint8* pixels = LinaGX::LoadImage("Resources/Textures/LinaGX.png", width, height, channels, mipLevels, ImageChannelMask::Rgba);
+        TextureLoadData loadedTextureData = {};
+        LinaGX::LoadImage("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
 
         // Texture
         {
-            // Create staging resource
-            ResourceDesc stagingDesc = {
-                .size          = width * height * channels,
-                .typeHintFlags = TH_None,
-                .heapType      = ResourceHeap::StagingHeap,
-            };
-
-            _textureStaging = _renderer->CreateResource(stagingDesc);
-
             // Create gpu resource
             Texture2DDesc desc = {
                 .usage     = Texture2DUsage::ColorTexture,
-                .width     = width,
-                .height    = height,
+                .width     = loadedTextureData.width,
+                .height    = loadedTextureData.height,
                 .mipLevels = 1,
-                .format    = Format::R8G8B8A8_SRGB,
-                .debugName = "LinaTexture",
+                .format    = Format::R8G8B8A8_UNORM,
+                .debugName = "Lina Logo",
             };
             _textureGPU = _renderer->CreateTexture2D(desc);
 
             // Sampler
             SamplerDesc samplerDesc = {
-                .minFilter  = Filter::Linear,
-                .magFilter  = Filter::Nearest,
-                .mode       = SamplerAddressMode::ClampToEdge,
+                .minFilter  = Filter::Anisotropic,
+                .magFilter  = Filter::Anisotropic,
+                .mode       = SamplerAddressMode::ClampToBorder,
                 .anisotropy = 0,
             };
 
@@ -254,16 +244,15 @@ namespace LinaGX::Examples
         // Complete transfer operations before beginning the main loop
         {
             TextureBuffer txtBuffer = {
-                .pixels   = pixels,
-                .width    = width,
-                .height   = height,
-                .channels = channels,
+                .pixels        = loadedTextureData.pixels,
+                .width         = loadedTextureData.width,
+                .height        = loadedTextureData.height,
+                .bytesPerPixel = 4,
             };
 
             // Copy texture
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _textureGPU;
-            copyTxt->srcResource              = _textureStaging;
             copyTxt->mipLevels                = 1;
             copyTxt->buffers                  = &txtBuffer;
 
@@ -285,10 +274,9 @@ namespace LinaGX::Examples
             // Not needed anymore.
             _renderer->DestroyResource(_vertexBufferStaging);
             _renderer->DestroyResource(_indexBufferStaging);
-            _renderer->DestroyResource(_textureStaging);
 
             // Done with pixels.
-            LinaGX::FreeImage(pixels);
+            LinaGX::FreeImage(loadedTextureData.pixels);
         }
 
         // Create descriptor set.
@@ -343,8 +331,6 @@ namespace LinaGX::Examples
         delete _renderer;
         App::Shutdown();
     }
-
-    float x = -1.0f;
 
     void Example::OnTick()
     {

@@ -95,11 +95,12 @@ namespace LinaGX
 
     struct VKBCommandStream
     {
-        bool                        isValid = false;
-        QueueType                   type    = QueueType::Graphics;
+        bool                        isValid     = false;
+        QueueType                   type        = QueueType::Graphics;
+        uint32                      boundShader = 0;
         LINAGX_VEC<VkCommandBuffer> buffers;
         LINAGX_VEC<VkCommandPool>   pools;
-        uint32                      boundShader = 0;
+        LINAGX_VEC<uint32>          intermediateResources;
     };
 
     struct VKBResource
@@ -193,7 +194,7 @@ namespace LinaGX
         void CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream);
 
     private:
-        void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+        void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels);
 
     private:
         VkInstance               m_vkInstance     = nullptr;
@@ -227,6 +228,7 @@ namespace LinaGX
         LINAGX_VEC<VKBPerFrameData>         m_perFrameData = {};
         LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions = {};
         LINAGX_MAP<QueueType, VKBQueueData> m_queueData    = {};
+        LINAGX_MAP<uint32, uint64>          m_submittedIntermediateResources;
 
         VkDescriptorPool m_descriptorPool          = nullptr;
         uint32           m_imageAcqSemaphoresCount = 0;

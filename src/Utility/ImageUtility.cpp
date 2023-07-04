@@ -55,19 +55,51 @@ namespace LinaGX
         }
     }
 
-    uint8* LoadImage(const char* path, uint32& outWidth, uint32& outHeight, uint32& outChannelCount, uint32& outMipLevel, ImageChannelMask channelMask)
+    void LoadImage(const char* path, TextureLoadData& outData, ImageChannelMask channelMask)
     {
-        int    w = 0, h = 0, ch = 0;
-        uint8* data     = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
-        outWidth        = w;
-        outHeight       = h;
-        outChannelCount = static_cast<uint32>(channelMask) + 1;
-        outMipLevel     = FloorLog2(Max(outWidth, outHeight)) + 1;
-        return data;
+        int w = 0, h = 0, ch = 0;
+        outData.pixels         = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
+        outData.width          = w;
+        outData.height         = h;
+        outData.totalMipLevels = FloorLog2(Max(outData.width, outData.height)) + 1;
     }
 
     LINAGX_API void FreeImage(uint8* pixels)
     {
         stbi_image_free(pixels);
+    }
+
+    LINAGX_API void GenerateMipmaps(const TextureLoadData& sourceData, LINAGX_VEC<MipData>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace)
+    {
+        outMipData.clear();
+
+        uint8* lastPixels = sourceData.pixels;
+        uint32 lastWidth  = sourceData.width;
+        uint32 lastHeight = sourceData.height;
+
+        for (uint32 i = 0; i < sourceData.totalMipLevels - 1; i++)
+        {
+            uint32 width  = lastWidth / 2;
+            uint32 height = lastHeight / 2;
+
+            if (width < 1)
+                width = 1;
+
+            if (height < 1)
+                height = 1;
+
+            const uint32 channels         = static_cast<int>(channelMask) + 1;
+            MipData      mipData          = {};
+            mipData.width                 = width;
+            mipData.height                = height;
+            mipData.pixels                = (uint8*)std::malloc(width * height * channels);
+            const stbir_colorspace cs     = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
+            int                    retval = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+
+            lastWidth  = width;
+            lastHeight = height;
+            lastPixels = mipData.pixels;
+            outMipData.push_back(mipData);
+        }
     }
 } // namespace LinaGX

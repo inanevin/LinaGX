@@ -125,21 +125,12 @@ namespace LinaGX
         IndexType indexFormat;
     };
 
-    struct TextureBuffer
-    {
-        uint8* pixels;
-        uint32 width;
-        uint32 height;
-        uint32 channels;
-    };
-
     struct CMDCopyBufferToTexture2D
     {
-        void*           extension;
-        uint32          srcResource;
-        uint32          destTexture;
-        uint32          mipLevels;
-        TextureBuffer*  buffers;
+        void*          extension;
+        uint32         destTexture;
+        uint32         mipLevels;
+        TextureBuffer* buffers;
     };
 
     struct CMDBindDescriptorSets

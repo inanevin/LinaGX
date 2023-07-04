@@ -1257,6 +1257,11 @@ namespace LinaGX
             return;
         }
 
+        if (item.isMapped)
+        {
+            UnmapResource(handle);
+        }
+
         vmaDestroyBuffer(m_vmaAllocator, item.buffer, item.allocation);
 
         m_resources.RemoveItem(handle);
@@ -1320,6 +1325,27 @@ namespace LinaGX
 
     void VKBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
+        LINAGX_VEC<VkDescriptorBufferInfo> bufferInfos;
+
+        for (uint32 i = 0; i < desc.descriptorCount; i++)
+        {
+            const auto&            res   = m_resources.GetItemR(desc.resources[i]);
+            VkDescriptorBufferInfo binfo = {};
+            binfo.buffer                 = res.buffer;
+            binfo.offset                 = 0;
+            binfo.range                  = res.size;
+            bufferInfos.push_back(binfo);
+        }
+
+        VkWriteDescriptorSet write = {};
+        write.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext                = nullptr;
+        write.dstSet               = m_descriptorSets.GetItemR(desc.set).ptr;
+        write.dstBinding           = desc.binding;
+        write.descriptorCount      = desc.descriptorCount;
+        write.descriptorType       = GetVKDescriptorType(desc.descriptorType);
+        write.pBufferInfo          = bufferInfos.data();
+        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
     void VKBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
@@ -1429,6 +1455,8 @@ namespace LinaGX
             VkResult res                       = vkBeginCommandBuffer(buffer, &beginInfo);
             VK_CHECK_RESULT(res, "Failed beginning command buffer.");
 
+            sr.boundShader = 0;
+
             for (uint32 i = 0; i < stream->m_commandCount; i++)
             {
                 uint8* data = stream->m_commands[i];
@@ -1459,8 +1487,13 @@ namespace LinaGX
                 continue;
             }
 
-            const auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             _buffers.push_back(str.buffers[m_currentFrameIndex]);
+
+            // Mark submitted intermediate resources.
+            for (auto& inter : str.intermediateResources)
+                m_submittedIntermediateResources[inter] = PerformanceStats.totalFrames;
+            str.intermediateResources.clear();
         }
 
         auto queue = m_queueData[desc.queue].queue;
@@ -1709,7 +1742,6 @@ namespace LinaGX
         m_device              = vkbDevice.device;
         m_gpu                 = physicalDevice.physical_device;
 
-        
         g_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
 
         // Queue support
@@ -1890,6 +1922,10 @@ namespace LinaGX
 
     void VKBackend::Shutdown()
     {
+        for (const auto [id, frame] : m_submittedIntermediateResources)
+            DestroyResource(id);
+
+        m_submittedIntermediateResources.clear();
 
         vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
 
@@ -2018,6 +2054,18 @@ namespace LinaGX
             VkResult result = vkResetFences(m_device, static_cast<uint32>(fences.size()), &fences[0]);
             VK_CHECK_RESULT(result, "Failed resetting fences!");
         }
+
+        // Check for dangling intermediate resources.
+        for (auto it = m_submittedIntermediateResources.begin(); it != m_submittedIntermediateResources.end();)
+        {
+            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+            {
+                DestroyResource(it->first);
+                it = m_submittedIntermediateResources.erase(it);
+            }
+            else
+                ++it;
+        }
     }
 
     void VKBackend::Present(const PresentDesc& present)
@@ -2141,7 +2189,7 @@ namespace LinaGX
         renderingInfo.pColorAttachments    = &colorAttachment;
 
         auto buffer = stream.buffers[m_currentFrameIndex];
-        TransitionImageLayout(buffer, colorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        TransitionImageLayout(buffer, colorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
         vkCmdBeginRendering(buffer, &renderingInfo);
         CMD_SetViewport((uint8*)&interVP, stream);
         CMD_SetScissors((uint8*)&interSC, stream);
@@ -2156,7 +2204,7 @@ namespace LinaGX
         if (end->isSwapchain)
         {
             const auto& swp = m_swapchains.GetItemR(end->swapchain);
-            TransitionImageLayout(buffer, swp.imgs[swp._imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+            TransitionImageLayout(buffer, swp.imgs[swp._imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
         }
     }
 
@@ -2249,10 +2297,25 @@ namespace LinaGX
 
     void VKBackend::CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream)
     {
-        CMDCopyBufferToTexture2D* cmd         = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
-        auto                      buffer      = stream.buffers[m_currentFrameIndex];
-        const auto&               srcResource = m_resources.GetItemR(cmd->srcResource);
-        const auto&               dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);
+        CMDCopyBufferToTexture2D* cmd    = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
+        auto                      buffer = stream.buffers[m_currentFrameIndex];
+
+        uint32 totalDataSize = cmd->buffers[0].width * cmd->buffers[0].height * cmd->buffers[0].bytesPerPixel;
+        for (uint32 i = 1; i < cmd->mipLevels; i++)
+        {
+            const auto& buf = cmd->buffers[i];
+            totalDataSize += buf.width * buf.height * buf.bytesPerPixel;
+        }
+
+        ResourceDesc stagingDesc  = {};
+        stagingDesc.size          = totalDataSize;
+        stagingDesc.typeHintFlags = TH_None;
+        stagingDesc.heapType      = ResourceHeap::StagingHeap;
+        uint32 stagingHandle      = CreateResource(stagingDesc);
+        stream.intermediateResources.push_back(stagingHandle);
+
+        const auto& srcResource = m_resources.GetItemR(stagingHandle);
+        const auto& dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);
 
         LINAGX_VEC<VkBufferImageCopy> regions;
 
@@ -2260,7 +2323,9 @@ namespace LinaGX
         imageOffset.x = imageOffset.y = imageOffset.z = 0;
 
         uint32 bufferOffset = 0;
-        uint32 mip          = 0;
+
+        uint8* mapped = nullptr;
+        MapResource(stagingHandle, mapped);
 
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
@@ -2273,7 +2338,7 @@ namespace LinaGX
 
             VkImageSubresourceLayers subresLayers = {};
             subresLayers.aspectMask               = dstTexture.usage == Texture2DUsage::DepthStencilTexture ? (GetVKAspectFlags(dstTexture.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
-            subresLayers.mipLevel                 = mip;
+            subresLayers.mipLevel                 = i;
             subresLayers.baseArrayLayer           = 0;
             subresLayers.layerCount               = 1;
 
@@ -2287,12 +2352,16 @@ namespace LinaGX
 
             regions.push_back(copy);
 
-            bufferOffset += txtBuffer.width * txtBuffer.height * txtBuffer.channels;
+            const uint32 totalSz = txtBuffer.width * txtBuffer.height * txtBuffer.bytesPerPixel;
+            std::memcpy(mapped + bufferOffset, txtBuffer.pixels, static_cast<size_t>(totalSz));
+            bufferOffset += totalSz;
         }
 
-        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        UnmapResource(stagingHandle);
+
+        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd->mipLevels);
         vkCmdCopyBufferToImage(buffer, srcResource.buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32>(regions.size()), regions.data());
-        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd->mipLevels);
     }
 
     void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)
@@ -2310,7 +2379,7 @@ namespace LinaGX
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), 0, nullptr);
     }
 
-    void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+    void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels)
     {
         VkImageMemoryBarrier barrier{};
         barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -2321,7 +2390,7 @@ namespace LinaGX
         barrier.image                           = image;
         barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier.subresourceRange.baseMipLevel   = 0;
-        barrier.subresourceRange.levelCount     = 1;
+        barrier.subresourceRange.levelCount     = mipLevels;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount     = 1;
 

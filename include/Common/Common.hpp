@@ -318,6 +318,16 @@ namespace LinaGX
         WhiteOpaque
     };
 
+    enum class MipmapFilter
+    {
+        Default = 0,
+        Box,
+        Triangle,
+        CubicSpline,
+        CatmullRom,
+        Mitchell
+    };
+
     struct DataBlob
     {
         uint8* ptr  = nullptr;
@@ -326,14 +336,14 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
-        uint32      x            = 0;
-        uint32      y            = 0;
-        uint32      width        = 0;
-        uint32      height       = 0;
-        void*       window       = nullptr;
-        void*       osHandle     = nullptr;
-        bool        isFullscreen = false;
-        VsyncMode   vsyncMode    = VsyncMode::None;
+        uint32    x            = 0;
+        uint32    y            = 0;
+        uint32    width        = 0;
+        uint32    height       = 0;
+        void*     window       = nullptr;
+        void*     osHandle     = nullptr;
+        bool      isFullscreen = false;
+        VsyncMode vsyncMode    = VsyncMode::None;
     };
 
     struct SwapchainRecreateDesc
@@ -469,6 +479,14 @@ namespace LinaGX
         uint32 height;
     };
 
+    struct TextureBuffer
+    {
+        uint8* pixels;
+        uint32 width;
+        uint32 height;
+        uint32 bytesPerPixel;
+    };
+
     struct Texture2DDesc
     {
         Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
@@ -519,9 +537,11 @@ namespace LinaGX
 
     struct DescriptorUpdateBufferDesc
     {
-        uint32  binding;
-        uint32  descriptorCount;
-        uint32* resources;
+        uint16         set;
+        uint32         binding;
+        uint32         descriptorCount;
+        uint32*        resources;
+        DescriptorType descriptorType;
     };
 
     struct ResourceDesc
@@ -554,14 +574,10 @@ namespace LinaGX
 
     struct GPULimits
     {
-        uint32 textureLimit           = 1024;
-        uint32 samplerLimit           = 1024;
-        uint32 samplerLimitPerCommand = 128;
-        uint32 bufferLimitPerCommand  = 256;
-        uint32 textureLimitPerCommand = 256;
-        uint32 extraLimitPerCommand   = 128;
-        uint32 bufferLimit            = 1024;
-        uint32 maxSubmitsPerFrame     = 30;
+        uint32 textureLimit       = 1024;
+        uint32 samplerLimit       = 1024;
+        uint32 bufferLimit        = 1024;
+        uint32 maxSubmitsPerFrame = 30;
 
         LINAGX_MAP<DescriptorType, uint32> descriptorLimits = {{DescriptorType::CombinedImageSampler, 20}, {DescriptorType::SeparateImage, 20}, {DescriptorType::SeparateSampler, 20}, {DescriptorType::SSBO, 20}, {DescriptorType::UBO, 20}};
     };

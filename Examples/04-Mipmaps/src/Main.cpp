@@ -1,6 +1,6 @@
-/*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+﻿/*
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,19 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include "Main.hpp"
+#include "Mipmaps.hpp"
 
-#ifndef LINAGX_PLATFORM_UTILITY_HPP
-#define LINAGX_PLATFORM_UTILITY_HPP
+using namespace LinaGX::Examples;
 
-#include "Common/Common.hpp"
-
-namespace LinaGX
+int main(int argc, char* argv[])
 {
-    extern LINAGX_API char*          WCharToChar(const wchar_t* wch);
-    extern LINAGX_API const wchar_t* CharToWChar(const char* ch);
-    extern LINAGX_API LINAGX_STRING  ReadFileContentsAsString(const char* filePath);
-
-} // namespace LinaGX
-
-#endif
+    Example app;
+    app.Initialize();
+    app.Run();
+    return 0;
+}

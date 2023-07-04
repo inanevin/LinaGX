@@ -45,8 +45,12 @@ using Microsoft::WRL::ComPtr;
 namespace LinaGX
 {
 #ifndef NDEBUG
-#define NAME_DX12_OBJECT_CSTR(x, NAME) x->SetName(L#NAME)
-#define NAME_DX12_OBJECT(x, NAME)      x->SetName(NAME)
+#define NAME_DX12_OBJECT_CSTR(x, NAME)       \
+    auto wcharConverted = CharToWChar(NAME); \
+    x->SetName(wcharConverted);              \
+    delete[] wcharConverted;
+
+#define NAME_DX12_OBJECT(x, NAME) x->SetName(NAME)
 #else
 #define NAME_D3D12_OBJECT(x)
 #define NAME_D3D12_OBJECT_INDEXED(x, n)
@@ -1297,6 +1301,7 @@ namespace LinaGX
         try
         {
             ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, NULL, &item.allocation, IID_NULL, NULL));
+            item.descriptor = m_bufferHeap->GetNewHeapHandle();
         }
         catch (HrException e)
         {
@@ -1394,6 +1399,32 @@ namespace LinaGX
         DX12DescriptorSet item = {};
         item.isValid           = true;
 
+        for (uint32 i = 0; i < desc.bindingsCount; i++)
+        {
+            DescriptorBinding& binding = desc.bindings[i];
+
+            DX12DescriptorBinding dx12Binding = {};
+            dx12Binding.descriptorCount       = binding.descriptorCount;
+            dx12Binding.binding               = binding.binding;
+            dx12Binding.type                  = binding.type;
+
+            if (binding.type == DescriptorType::CombinedImageSampler)
+            {
+                dx12Binding.gpuPointer           = m_gpuHeapBuffer->GetHeapHandleBlock(dx12Binding.descriptorCount);
+                dx12Binding.additionalGpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(dx12Binding.descriptorCount);
+            }
+            else if (binding.type == DescriptorType::SeparateSampler)
+            {
+                dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(dx12Binding.descriptorCount);
+            }
+            else
+            {
+                dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(dx12Binding.descriptorCount);
+            }
+
+            item.bindings.push_back(dx12Binding);
+        }
+
         return m_descriptorSets.AddItem(item);
     }
 
@@ -1406,15 +1437,74 @@ namespace LinaGX
             return;
         }
 
-        m_resources.RemoveItem(handle);
+        m_descriptorSets.RemoveItem(handle);
     }
 
     void DX12Backend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
+        LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptors;
+        LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors;
+        auto&                                   descriptorSet = m_descriptorSets.GetItemR(desc.set);
+
+        for (const auto& binding : descriptorSet.bindings)
+        {
+            if (binding.binding == desc.binding)
+            {
+                for (uint32 i = 0; i < desc.descriptorCount; i++)
+                {
+                    const auto& res = m_resources.GetItemR(desc.resources[i]);
+                    srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
+                    destDescriptors.push_back({binding.gpuPointer.GetCPUHandle()});
+                }
+            }
+        }
+
+        m_device->CopyDescriptors(desc.descriptorCount, destDescriptors.data(), NULL, desc.descriptorCount, srcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     void DX12Backend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
+        LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsTxt;
+        LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsSampler;
+        LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptorsTxt;
+        LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptorsSampler;
+        destDescriptorsTxt.resize(desc.descriptorCount);
+        destDescriptorsSampler.resize(desc.descriptorCount);
+        srcDescriptorsTxt.resize(desc.descriptorCount);
+        srcDescriptorsSampler.resize(desc.descriptorCount);
+
+        auto& descriptorSet = m_descriptorSets.GetItemR(desc.set);
+
+        for (const auto& binding : descriptorSet.bindings)
+        {
+            if (binding.binding == desc.binding)
+            {
+                for (uint32 i = 0; i < desc.descriptorCount; i++)
+                {
+                    const auto& res                        = m_texture2Ds.GetItemR(desc.textures[i]);
+                    const auto& sampler                    = m_samplers.GetItemR(desc.samplers[i]);
+                    const auto& srcResDescriptorHandle     = res.desc.usage == Texture2DUsage::ColorTextureRenderTarget ? res.descriptor2 : res.descriptor;
+                    const auto& srcSamplerDescriptorHandle = sampler.descriptor;
+
+                    D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt, srcHandleSampler;
+                    srcHandleTxt.ptr         = srcResDescriptorHandle.GetCPUHandle();
+                    srcHandleSampler.ptr     = srcSamplerDescriptorHandle.GetCPUHandle();
+                    srcDescriptorsTxt[i]     = srcHandleTxt;
+                    srcDescriptorsSampler[i] = srcHandleSampler;
+
+                    D3D12_CPU_DESCRIPTOR_HANDLE txtHandle, samplerHandle;
+                    txtHandle.ptr     = binding.gpuPointer.GetCPUHandle() + i * m_gpuHeapBuffer->GetDescriptorSize();
+                    samplerHandle.ptr = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
+
+                    destDescriptorsTxt[i]     = txtHandle;
+                    destDescriptorsSampler[i] = samplerHandle;
+                }
+                break;
+            }
+        }
+
+        m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsTxt.data(), NULL, desc.descriptorCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsSampler.data(), NULL, desc.descriptorCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
     }
 
     void DX12Backend::DX12Exception(HrException e)
@@ -1604,11 +1694,13 @@ namespace LinaGX
 
             // Heaps
             {
-                m_bufferHeap  = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimit);
-                m_textureHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.textureLimit);
-                m_dsvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, m_initInfo.gpuLimits.textureLimit);
-                m_rtvHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_initInfo.gpuLimits.textureLimit);
-                m_samplerHeap = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimit);
+                m_bufferHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimit);
+                m_textureHeap    = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.textureLimit);
+                m_dsvHeap        = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, m_initInfo.gpuLimits.textureLimit);
+                m_rtvHeap        = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_initInfo.gpuLimits.textureLimit);
+                m_samplerHeap    = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimit);
+                m_gpuHeapBuffer  = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimit, true);
+                m_gpuHeapSampler = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimit, true);
             }
 
             // Command functions
@@ -1667,6 +1759,11 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
+        for (const auto [id, frame] : m_submittedIntermediateResources)
+            DestroyResource(id);
+
+        m_submittedIntermediateResources.clear();
+
         for (auto& [queue, data] : m_queueData)
         {
             data.frameFence.Reset();
@@ -1718,6 +1815,14 @@ namespace LinaGX
             infoQueue->UnregisterMessageCallback(msgCallback);
         }
 
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            auto& pfd = m_perFrameData[i];
+        }
+
+        delete m_gpuHeapBuffer;
+        delete m_gpuHeapSampler;
+
         m_dx12Allocator->Release();
         m_idxcLib.Reset();
         m_device.Reset();
@@ -1749,16 +1854,12 @@ namespace LinaGX
         {
             item.allocators.resize(m_initInfo.framesInFlight);
             item.lists.resize(m_initInfo.framesInFlight);
-            item.samplerHeaps.resize(m_initInfo.framesInFlight);
-            item.bufferHeaps.resize(m_initInfo.framesInFlight);
 
             for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             {
                 ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocators[i].GetAddressOf())));
                 ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocators[i].Get(), nullptr, IID_PPV_ARGS(item.lists[i].GetAddressOf())));
                 ThrowIfFailed(item.lists[i]->Close());
-                item.samplerHeaps[i] = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimitPerCommand, true);
-                item.bufferHeaps[i]  = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimitPerCommand + m_initInfo.gpuLimits.extraLimitPerCommand + m_initInfo.gpuLimits.textureLimitPerCommand, true);
             }
         }
         catch (HrException e)
@@ -1776,6 +1877,18 @@ namespace LinaGX
         auto& frame          = m_perFrameData[m_currentFrameIndex];
         WaitForFences(m_queueData[QueueType::Graphics].frameFence.Get(), frame.storedFenceGraphics);
         WaitForFences(m_queueData[QueueType::Transfer].frameFence.Get(), frame.storedFenceTransfer);
+
+        // Check for dangling intermediate resources.
+        for (auto it = m_submittedIntermediateResources.begin(); it != m_submittedIntermediateResources.end();)
+        {
+            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+            {
+                DestroyResource(it->first);
+                it = m_submittedIntermediateResources.erase(it);
+            }
+            else
+                ++it;
+        }
     }
 
     void DX12Backend::DestroyCommandStream(uint32 handle)
@@ -1792,15 +1905,6 @@ namespace LinaGX
         {
             stream.lists[i].Reset();
             stream.allocators[i].Reset();
-
-            auto samplerHeap = stream.samplerHeaps[i];
-            auto bufferHeap  = stream.bufferHeaps[i];
-
-            samplerHeap->Reset();
-            bufferHeap->Reset();
-
-            delete samplerHeap;
-            delete bufferHeap;
         }
 
         m_cmdStreams.RemoveItem(handle);
@@ -1810,12 +1914,10 @@ namespace LinaGX
     {
         for (uint32 i = 0; i < streamCount; i++)
         {
-            auto  stream      = streams[i];
-            auto& sr          = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            auto  list        = sr.lists[m_currentFrameIndex];
-            auto  allocator   = sr.allocators[m_currentFrameIndex];
-            auto  samplerHeap = sr.samplerHeaps[m_currentFrameIndex];
-            auto  bufferHeap  = sr.bufferHeaps[m_currentFrameIndex];
+            auto  stream    = streams[i];
+            auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            auto  list      = sr.lists[m_currentFrameIndex];
+            auto  allocator = sr.allocators[m_currentFrameIndex];
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -1824,14 +1926,11 @@ namespace LinaGX
             {
                 ThrowIfFailed(allocator->Reset());
                 ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
+                sr.boundShader = 0;
 
                 if (sr.type == QueueType::Graphics)
                 {
-                    samplerHeap->Reset();
-                    bufferHeap->Reset();
-                    sr._cbvSize = sr._extraSize = sr._textureSize = 0;
-
-                    ID3D12DescriptorHeap* heaps[] = {bufferHeap->GetHeap(), samplerHeap->GetHeap()};
+                    ID3D12DescriptorHeap* heaps[] = {m_gpuHeapBuffer->GetHeap(), m_gpuHeapSampler->GetHeap()};
                     list->SetDescriptorHeaps(_countof(heaps), heaps);
                 }
             }
@@ -1877,8 +1976,13 @@ namespace LinaGX
                     continue;
                 }
 
-                const auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+                auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
                 _lists.push_back(str.lists[m_currentFrameIndex].Get());
+
+                // Mark submitted intermediate resources.
+                for (auto& inter : str.intermediateResources)
+                    m_submittedIntermediateResources[inter] = PerformanceStats.totalFrames;
+                str.intermediateResources.clear();
             }
 
             auto queue = m_queueData[desc.queue].queue;
@@ -2112,74 +2216,74 @@ namespace LinaGX
 
     void DX12Backend::CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream)
     {
-        CMDCopyBufferToTexture2D* cmd         = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
-        auto                      list        = stream.lists[m_currentFrameIndex];
-        const auto&               srcResource = m_resources.GetItemR(cmd->srcResource);
-        const auto&               dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);
+        CMDCopyBufferToTexture2D* cmd        = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
+        auto                      list       = stream.lists[m_currentFrameIndex];
+        const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
+
+        // Find correct size for staging resource.
+        const uint64 ogDataSize    = cmd->buffers[0].width * cmd->buffers[0].height * cmd->buffers[0].bytesPerPixel;
+        uint64       totalDataSize = ALIGN_SIZE_POW(ogDataSize, dstTexture.requiredAlignment);
+        for (uint32 i = 1; i < cmd->mipLevels; i++)
+        {
+            const auto&  buf   = cmd->buffers[i];
+            const uint64 mipSz = buf.width * buf.height * buf.bytesPerPixel;
+            totalDataSize += ALIGN_SIZE_POW(mipSz, dstTexture.requiredAlignment);
+        }
+
+        // Create staging.
+        ResourceDesc stagingDesc  = {};
+        stagingDesc.size          = totalDataSize;
+        stagingDesc.typeHintFlags = TH_None;
+        stagingDesc.heapType      = ResourceHeap::StagingHeap;
+        uint32 stagingHandle      = CreateResource(stagingDesc);
+        stream.intermediateResources.push_back(stagingHandle);
 
         LINAGX_VEC<D3D12_SUBRESOURCE_DATA> allData;
 
-        auto calcTd = [&](void* data, uint32 width, uint32 height, uint32 channels) {
+        auto calcTd = [&](void* data, uint32 width, uint32 height, uint32 bytesPerPixel) {
             D3D12_SUBRESOURCE_DATA textureData = {};
-            LONG_PTR               aligned     = static_cast<LONG_PTR>(ALIGN_SIZE_POW(textureData.RowPitch * static_cast<LONG_PTR>(height), static_cast<LONG_PTR>(dstTexture.requiredAlignment)));
             textureData.pData                  = data;
-            textureData.RowPitch               = static_cast<LONG_PTR>(width * channels);
-            textureData.SlicePitch             = aligned;
+            textureData.RowPitch               = static_cast<LONG_PTR>(width * bytesPerPixel);
+            textureData.SlicePitch             = static_cast<LONG_PTR>(ALIGN_SIZE_POW(textureData.RowPitch * static_cast<LONG_PTR>(height), static_cast<LONG_PTR>(dstTexture.requiredAlignment)));
             allData.push_back(textureData);
         };
 
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
             const auto& buffer = cmd->buffers[i];
-            calcTd(buffer.pixels, buffer.width, buffer.height, buffer.channels);
+            calcTd(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel);
         }
 
-        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcResource), 0, 0, static_cast<uint32>(allData.size()), allData.data());
+        const auto& srcRes = m_resources.GetItemR(stagingHandle);
+        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, 0, static_cast<uint32>(allData.size()), allData.data());
     }
 
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
     {
-        CMDBindDescriptorSets* cmd  = reinterpret_cast<CMDBindDescriptorSets*>(data);
-        auto                   list = stream.lists[m_currentFrameIndex];
-        // auto&            shader        = m_shaders.GetItemR(stream.boundShader);
-        // auto             samplerHeap   = stream.samplerHeaps[m_currentFrameIndex];
-        // auto             bufferHeap    = stream.bufferHeaps[m_currentFrameIndex];
-        // auto             texturesStart = bufferHeap->GetOffsetedHandle(m_initInfo.gpuLimits.bufferLimitPerCommand + stream._textureSize);
-        // auto             samplerStart  = samplerHeap->GetOffsetedHandle(stream._samplerSize);
-        //
-        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> txtSrcDescriptors;
-        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> txtDestDescriptors;
-        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> samplerSrcDescriptors;
-        // LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> samplerDestDescriptors;
-        //
-        // const auto samplerIncrement = samplerHeap->GetDescriptorSize();
-        // const auto bufferIncrement  = bufferHeap->GetDescriptorSize();
-        // auto       allocSampler     = samplerHeap->GetHeapHandleBlock(cmd->texturesCount);
-        // auto       allocTxt         = bufferHeap->GetHeapHandleBlock(cmd->texturesCount);
-        //
-        // for (uint32 i = 0; i < cmd->texturesCount; i++)
-        // {
-        //     const auto& txt     = m_texture2Ds.GetItemR(cmd->textures[i]);
-        //     const auto& sampler = m_samplers.GetItemR(cmd->samplers[i]);
-        //
-        //     // Sources
-        //     txtSrcDescriptors.push_back({txt.descriptor.GetCPUHandle()});
-        //     samplerSrcDescriptors.push_back({sampler.descriptor.GetCPUHandle()});
-        //
-        //     // Dest
-        //     txtDestDescriptors.push_back({texturesStart.GetCPUHandle() + i * bufferHeap->GetDescriptorSize()});
-        //     samplerDestDescriptors.push_back({samplerStart.GetCPUHandle() + i * samplerIncrement});
-        // }
-        //
-        // m_device->CopyDescriptors(cmd->texturesCount, txtDestDescriptors.data(), NULL, cmd->texturesCount, txtSrcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        // m_device->CopyDescriptors(cmd->texturesCount, samplerDestDescriptors.data(), NULL, cmd->texturesCount, samplerSrcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-        //
-        // DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::CombinedImageSampler, cmd->binding, cmd->set);
-        // list->SetGraphicsRootDescriptorTable(param->rootParameter, {texturesStart.GetGPUHandle()});
-        // list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {samplerStart.GetGPUHandle()});
-        //
-        // stream._textureSize += cmd->texturesCount;
-        // stream._samplerSize += cmd->samplersCount;
+        CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
+        auto                   list   = stream.lists[m_currentFrameIndex];
+        auto&                  shader = m_shaders.GetItemR(stream.boundShader);
+
+        for (uint32 i = 0; i < cmd->setCount; i++)
+        {
+            const uint32             targetSetIndex = i + cmd->firstSet;
+            const DX12DescriptorSet& set            = m_descriptorSets.GetItemR(cmd->descriptorSets[i]);
+
+            for (const auto& binding : set.bindings)
+            {
+                DX12RootParamInfo* param = shader.FindRootParam(binding.type, binding.binding, targetSetIndex);
+
+                if (binding.type == DescriptorType::UBO && binding.descriptorCount == 1)
+                    list->SetGraphicsRootConstantBufferView(param->rootParameter, binding.gpuPointer.GetGPUHandle());
+                else if (binding.type == DescriptorType::CombinedImageSampler)
+                {
+                    list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                    list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {binding.additionalGpuPointer.GetGPUHandle()});
+                }
+                else
+                    list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+            }
+        }
     }
 
 } // namespace LinaGX

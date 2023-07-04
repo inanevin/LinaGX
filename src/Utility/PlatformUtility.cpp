@@ -30,7 +30,9 @@ SOFTWARE.
 #include "Common/Common.hpp"
 #include <sstream>
 #include <fstream>
-
+#include <codecvt>
+#include <locale>
+#include <string>
 namespace LinaGX
 {
 
@@ -49,6 +51,17 @@ namespace LinaGX
         std::wcstombs(buffer, wch, size);
 #endif
         return buffer;
+    }
+
+    LINAGX_API const wchar_t* CharToWChar(const char* ch)
+    {
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+        std::wstring                                     wideStr = converter.from_bytes(ch);
+
+        wchar_t* wideStrCopy = new wchar_t[wideStr.size() + 1];
+        wcscpy_s(wideStrCopy, wideStr.size() + 1, wideStr.c_str());
+
+        return wideStrCopy;
     }
 
     LINAGX_STRING ReadFileContentsAsString(const char* filePath)
