@@ -76,7 +76,7 @@ namespace LinaGX
     LINAGX_API void* AdjustBufferPitch(void* data, uint32 width, uint32 height, uint32 bytesPerPixel, uint32 alignment)
     {
         // calculate the adjusted row pitch
-        uint32_t rowPitch = (width * bytesPerPixel + (alignment - 1)) & ~(alignment - 1);
+        uint32 rowPitch = (width * bytesPerPixel + (alignment - 1)) & ~(alignment - 1);
 
         // create a new buffer with the adjusted pitch
         char* buffer = (char*)LINAGX_MALLOC(rowPitch * height);
@@ -87,7 +87,7 @@ namespace LinaGX
 
         if (dst != 0)
         {
-            for (uint32_t i = 0; i < height; ++i)
+            for (uint32 i = 0; i < height; ++i)
             {
                 memcpy(dst, src, width * bytesPerPixel);
                 dst += rowPitch;

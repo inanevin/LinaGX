@@ -49,16 +49,17 @@ namespace LinaGX::Examples
     LinaGX::CommandStream* _copyStream = nullptr;
 
     // Resources
-    uint32 _vertexBufferStaging   = 0;
-    uint32 _vertexBufferGPU       = 0;
-    uint32 _indexBufferStaging    = 0;
-    uint32 _indexBufferGPU        = 0;
-    uint32 _textureGPU            = 0;
-    uint32 _sampler               = 0;
-    uint16 _descriptorSet0        = 0;
-    uint32 _cpuResourceUBO        = 0;
-    uint32 _cpuResourceUBO2       = 0;
-    uint8* _cpuResourceUBOMapping = nullptr;
+    uint32 _vertexBufferStaging    = 0;
+    uint32 _vertexBufferGPU        = 0;
+    uint32 _indexBufferStaging     = 0;
+    uint32 _indexBufferGPU         = 0;
+    uint32 _textureGPU             = 0;
+    uint32 _sampler                = 0;
+    uint16 _descriptorSet0         = 0;
+    uint32 _cpuResourceUBO         = 0;
+    uint32 _cpuResourceUBO2        = 0;
+    uint8* _cpuResourceUBOMapping  = nullptr;
+    uint8* _cpuResourceUBOMapping2 = nullptr;
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -322,7 +323,7 @@ namespace LinaGX::Examples
             _cpuResourceUBO  = _renderer->CreateResource(desc);
             _cpuResourceUBO2 = _renderer->CreateResource(desc);
             _renderer->MapResource(_cpuResourceUBO, _cpuResourceUBOMapping);
-            _renderer->MapResource(_cpuResourceUBO2, _cpuResourceUBOMapping);
+            _renderer->MapResource(_cpuResourceUBO2, _cpuResourceUBOMapping2);
         }
 
         // Create descriptor set.
@@ -412,8 +413,11 @@ namespace LinaGX::Examples
 
         // update mapped UBO data.
         static float time = 0.0f;
-        time += m_deltaMicroseconds * 1e-6;
+        time += (float)(m_deltaMicroseconds * 1e-6);
+        float time2 = 0.2f;
+
         std::memcpy(_cpuResourceUBOMapping, &time, sizeof(float));
+        std::memcpy(_cpuResourceUBOMapping2, &time2, sizeof(float));
 
         // Render pass begin
         {
@@ -449,7 +453,7 @@ namespace LinaGX::Examples
             bindPipeline->shader          = _shaderProgram;
         }
 
-        // Bind texture descriptor
+        // Bind the descriptor
         {
             CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
             bindTxt->firstSet              = 0;

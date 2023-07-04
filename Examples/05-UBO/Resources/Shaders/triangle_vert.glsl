@@ -10,5 +10,5 @@ float time;
 
 void main() {
     gl_Position = vec4(inPosition, 1.0);
-    outUV = vec2(uv.x + sin(ubo[0].time), uv.y);
+    outUV = vec2(uv.x + sin(ubo[0].time), uv.y + sin(ubo[1].time));
 }

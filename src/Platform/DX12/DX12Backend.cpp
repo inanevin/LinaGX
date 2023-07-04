@@ -806,7 +806,7 @@ namespace LinaGX
                 if (ubo.elementSize > 1)
                 {
                     CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-                    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, ubo.elementSize, ubo.binding, ubo.set);
+                    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, ubo.elementSize, ubo.binding, ubo.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                     param.InitAsDescriptorTable(1, ranges, visibility);
                 }
                 else
@@ -1245,15 +1245,21 @@ namespace LinaGX
 
     uint32 DX12Backend::CreateResource(const ResourceDesc& desc)
     {
+        const uint64 alignedSize = ALIGN_SIZE_POW(desc.size, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+        uint64       finalSize   = desc.size;
+
+        if (desc.typeHintFlags & TH_ConstantBuffer)
+            finalSize = alignedSize;
+
         DX12Resource item = {};
         item.heapType     = desc.heapType;
         item.isValid      = true;
-        item.size         = desc.size;
+        item.size         = finalSize;
 
         D3D12_RESOURCE_DESC resourceDesc = {};
         resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_BUFFER;
         resourceDesc.Alignment           = 0;
-        resourceDesc.Width               = desc.size;
+        resourceDesc.Width               = finalSize;
         resourceDesc.Height              = 1;
         resourceDesc.DepthOrArraySize    = 1;
         resourceDesc.MipLevels           = 1;
@@ -1302,6 +1308,14 @@ namespace LinaGX
         {
             ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, NULL, &item.allocation, IID_NULL, NULL));
             item.descriptor = m_bufferHeap->GetNewHeapHandle();
+
+            if (desc.typeHintFlags & TH_ConstantBuffer)
+            {
+                D3D12_CONSTANT_BUFFER_VIEW_DESC cbv;
+                cbv.BufferLocation = item.allocation->GetResource()->GetGPUVirtualAddress();
+                cbv.SizeInBytes    = static_cast<UINT>(finalSize);
+                m_device->CreateConstantBufferView(&cbv, {item.descriptor.GetCPUHandle()});
+            }
         }
         catch (HrException e)
         {
@@ -1464,7 +1478,7 @@ namespace LinaGX
                     else
                     {
                         srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
-                        destDescriptors.push_back({binding.gpuPointer.GetCPUHandle() + i * m_bufferHeap->GetDescriptorSize()});
+                        destDescriptors.push_back({binding.gpuPointer.GetCPUHandle() + i * m_gpuHeapBuffer->GetDescriptorSize()});
                     }
                 }
             }
