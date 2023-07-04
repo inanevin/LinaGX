@@ -1340,7 +1340,7 @@ namespace LinaGX
         VkWriteDescriptorSet write = {};
         write.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.pNext                = nullptr;
-        write.dstSet               = m_descriptorSets.GetItemR(desc.set).ptr;
+        write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
         write.dstBinding           = desc.binding;
         write.descriptorCount      = desc.descriptorCount;
         write.descriptorType       = GetVKDescriptorType(desc.descriptorType);
@@ -1365,7 +1365,7 @@ namespace LinaGX
         VkWriteDescriptorSet write = {};
         write.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.pNext                = nullptr;
-        write.dstSet               = m_descriptorSets.GetItemR(desc.set).ptr;
+        write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
         write.dstBinding           = desc.binding;
         write.descriptorCount      = desc.descriptorCount;
         write.descriptorType       = GetVKDescriptorType(desc.descriptorType);
@@ -2374,7 +2374,7 @@ namespace LinaGX
         sets.resize(cmd->setCount);
 
         for (uint32 i = 0; i < cmd->setCount; i++)
-            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSets[0]).ptr;
+            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[0]).ptr;
 
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), 0, nullptr);
     }

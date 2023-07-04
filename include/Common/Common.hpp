@@ -527,7 +527,7 @@ namespace LinaGX
 
     struct DescriptorUpdateImageDesc
     {
-        uint16         set;
+        uint16         setHandle;
         uint32         binding;
         uint32         descriptorCount;
         uint32*        textures;
@@ -537,7 +537,7 @@ namespace LinaGX
 
     struct DescriptorUpdateBufferDesc
     {
-        uint16         set;
+        uint16         setHandle;
         uint32         binding;
         uint32         descriptorCount;
         uint32*        resources;

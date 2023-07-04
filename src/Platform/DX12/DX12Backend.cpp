@@ -1444,17 +1444,28 @@ namespace LinaGX
     {
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptors;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors;
-        auto&                                   descriptorSet = m_descriptorSets.GetItemR(desc.set);
+        auto&                                   descriptorSet = m_descriptorSets.GetItemR(desc.setHandle);
 
-        for (const auto& binding : descriptorSet.bindings)
+        for (auto& binding : descriptorSet.bindings)
         {
             if (binding.binding == desc.binding)
             {
                 for (uint32 i = 0; i < desc.descriptorCount; i++)
                 {
                     const auto& res = m_resources.GetItemR(desc.resources[i]);
-                    srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
-                    destDescriptors.push_back({binding.gpuPointer.GetCPUHandle()});
+
+                    if (desc.descriptorType == DescriptorType::UBO && desc.descriptorCount == 1)
+                    {
+                        DescriptorHandle handle = {};
+                        handle.SetGPUHandle(res.allocation->GetResource()->GetGPUVirtualAddress());
+                        binding.gpuPointer = handle;
+                        return;
+                    }
+                    else
+                    {
+                        srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
+                        destDescriptors.push_back({binding.gpuPointer.GetCPUHandle()});
+                    }
                 }
             }
         }
@@ -1473,7 +1484,7 @@ namespace LinaGX
         srcDescriptorsTxt.resize(desc.descriptorCount);
         srcDescriptorsSampler.resize(desc.descriptorCount);
 
-        auto& descriptorSet = m_descriptorSets.GetItemR(desc.set);
+        auto& descriptorSet = m_descriptorSets.GetItemR(desc.setHandle);
 
         for (const auto& binding : descriptorSet.bindings)
         {
@@ -2267,7 +2278,7 @@ namespace LinaGX
         for (uint32 i = 0; i < cmd->setCount; i++)
         {
             const uint32             targetSetIndex = i + cmd->firstSet;
-            const DX12DescriptorSet& set            = m_descriptorSets.GetItemR(cmd->descriptorSets[i]);
+            const DX12DescriptorSet& set            = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]);
 
             for (const auto& binding : set.bindings)
             {

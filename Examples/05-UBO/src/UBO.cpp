@@ -30,7 +30,7 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "Textures.hpp"
+#include "UBO.hpp"
 
 namespace LinaGX::Examples
 {
@@ -49,13 +49,15 @@ namespace LinaGX::Examples
     LinaGX::CommandStream* _copyStream = nullptr;
 
     // Resources
-    uint32 _vertexBufferStaging = 0;
-    uint32 _vertexBufferGPU     = 0;
-    uint32 _indexBufferStaging  = 0;
-    uint32 _indexBufferGPU      = 0;
-    uint32 _textureGPU          = 0;
-    uint32 _sampler             = 0;
-    uint16 _descriptorSet0      = 0;
+    uint32 _vertexBufferStaging   = 0;
+    uint32 _vertexBufferGPU       = 0;
+    uint32 _indexBufferStaging    = 0;
+    uint32 _indexBufferGPU        = 0;
+    uint32 _textureGPU            = 0;
+    uint32 _sampler               = 0;
+    uint16 _descriptorSet0        = 0;
+    uint32 _cpuResourceUBO        = 0;
+    uint8* _cpuResourceUBOMapping = nullptr;
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -85,7 +87,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
-                .gpu               = PreferredGPUType::Integrated,
+                .gpu               = PreferredGPUType::Discrete,
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
@@ -217,6 +219,15 @@ namespace LinaGX::Examples
         TextureLoadData loadedTextureData = {};
         LinaGX::LoadImage("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
 
+        // Generate mipmaps
+        LINAGX_VEC<MipData> outMipmaps;
+        LinaGX::GenerateMipmaps(loadedTextureData, outMipmaps, MipmapFilter::Default, ImageChannelMask::Rgba, false);
+
+        // Need big enough staging resource, calculate size.
+        uint32 totalStagingResourceSize = loadedTextureData.width * loadedTextureData.height * 4;
+        for (const auto& md : outMipmaps)
+            totalStagingResourceSize += md.width * md.height * 4;
+
         // Texture
         {
             // Create gpu resource
@@ -224,7 +235,7 @@ namespace LinaGX::Examples
                 .usage     = Texture2DUsage::ColorTexture,
                 .width     = loadedTextureData.width,
                 .height    = loadedTextureData.height,
-                .mipLevels = 1,
+                .mipLevels = loadedTextureData.totalMipLevels,
                 .format    = Format::R8G8B8A8_UNORM,
                 .debugName = "Lina Logo",
             };
@@ -250,11 +261,27 @@ namespace LinaGX::Examples
                 .bytesPerPixel = 4,
             };
 
+            // Put the base texture data + all mip data together.
+            LINAGX_VEC<TextureBuffer> textureDataWithMips;
+            textureDataWithMips.push_back(txtBuffer);
+
+            for (const auto& md : outMipmaps)
+            {
+                TextureBuffer mip = {
+                    .pixels        = md.pixels,
+                    .width         = md.width,
+                    .height        = md.height,
+                    .bytesPerPixel = 4,
+                };
+
+                textureDataWithMips.push_back(mip);
+            }
+
             // Copy texture
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _textureGPU;
-            copyTxt->mipLevels                = 1;
-            copyTxt->buffers                  = &txtBuffer;
+            copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
+            copyTxt->buffers                  = textureDataWithMips.data();
 
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
@@ -277,25 +304,51 @@ namespace LinaGX::Examples
 
             // Done with pixels.
             LinaGX::FreeImage(loadedTextureData.pixels);
+
+            for (const auto& md : outMipmaps)
+                LinaGX::FreeImage(md.pixels);
+        }
+
+        // UBO resource
+        {
+            ResourceDesc desc = {
+                .size          = sizeof(float),
+                .typeHintFlags = ResourceTypeHint::TH_ConstantBuffer,
+                .heapType      = ResourceHeap::StagingHeap,
+                .debugName     = "UBO",
+            };
+
+            _cpuResourceUBO = _renderer->CreateResource(desc);
+            _renderer->MapResource(_cpuResourceUBO, _cpuResourceUBOMapping);
         }
 
         // Create descriptor set.
         {
-            DescriptorBinding binding = {
+            DescriptorBinding bindings[2];
+
+            bindings[0] = {
                 .binding         = 0,
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
                 .stages          = {ShaderStage::Fragment},
             };
 
+            bindings[1] = {
+                .binding         = 1,
+                .descriptorCount = 1,
+                .type            = DescriptorType::UBO,
+                .stages          = {ShaderStage::Vertex},
+            };
+
             DescriptorSetDesc desc = {
-                .bindings      = &binding,
-                .bindingsCount = 1,
+                .bindings      = &bindings[0],
+                .bindingsCount = 2,
             };
 
             _descriptorSet0 = _renderer->CreateDescriptorSet(desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
+                .setHandle       = _descriptorSet0,
                 .binding         = 0,
                 .descriptorCount = 1,
                 .textures        = &_textureGPU,
@@ -304,6 +357,16 @@ namespace LinaGX::Examples
             };
 
             _renderer->DescriptorUpdateImage(imgUpdate);
+
+            DescriptorUpdateBufferDesc bufferDesc = {
+                .setHandle       = _descriptorSet0,
+                .binding         = 1,
+                .descriptorCount = 1,
+                .resources       = &_cpuResourceUBO,
+                .descriptorType  = DescriptorType::UBO,
+            };
+
+            _renderer->DescriptorUpdateBuffer(bufferDesc);
         }
     }
 
@@ -316,6 +379,7 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
+        _renderer->DestroyResource(_cpuResourceUBO);
         _renderer->DestroyDescriptorSet(_descriptorSet0);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_textureGPU);
@@ -339,6 +403,11 @@ namespace LinaGX::Examples
 
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
+
+        // update mapped UBO data.
+        static float time = 0.0f;
+        time += m_deltaMicroseconds * 1e-6;
+        std::memcpy(_cpuResourceUBOMapping, &time, sizeof(float));
 
         // Render pass begin
         {
@@ -379,7 +448,7 @@ namespace LinaGX::Examples
             CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 1;
-            bindTxt->descriptorSetHandles        = &_descriptorSet0;
+            bindTxt->descriptorSetHandles  = &_descriptorSet0;
         }
 
         // Draw the triangle

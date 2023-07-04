@@ -196,6 +196,7 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/02-VertexIndexBuffers)
 	add_subdirectory(Examples/03-Textures)
 	add_subdirectory(Examples/04-Mipmaps)
+	add_subdirectory(Examples/05-UBO)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()

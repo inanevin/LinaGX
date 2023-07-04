@@ -138,7 +138,7 @@ namespace LinaGX
         void*   extension;
         uint32  firstSet;
         uint32  setCount;
-        uint32* descriptorSets;
+        uint16* descriptorSetHandles;
     };
 
 #define BACKEND_BIND_COMMANDS(BACKEND)                                                           \

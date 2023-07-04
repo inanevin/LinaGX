@@ -55,7 +55,7 @@ namespace LinaGX::Examples
     uint32 _indexBufferGPU      = 0;
     uint32 _textureGPU          = 0;
     uint32 _sampler             = 0;
-    uint32 _descriptorSet0      = 0;
+    uint16 _descriptorSet0      = 0;
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -407,7 +407,7 @@ namespace LinaGX::Examples
             CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 1;
-            bindTxt->descriptorSets        = &_descriptorSet0;
+            bindTxt->descriptorSetHandles        = &_descriptorSet0;
         }
 
         // Draw the triangle

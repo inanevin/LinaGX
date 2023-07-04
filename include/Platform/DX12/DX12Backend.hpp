@@ -147,11 +147,11 @@ namespace LinaGX
 
     struct DX12DescriptorBinding
     {
-        uint32           binding;
-        uint32           descriptorCount;
-        DescriptorType   type;
-        DescriptorHandle gpuPointer;
-        DescriptorHandle additionalGpuPointer;
+        uint32           binding              = 0;
+        uint32           descriptorCount      = 1;
+        DescriptorType   type                 = DescriptorType::UBO;
+        DescriptorHandle gpuPointer           = {};
+        DescriptorHandle additionalGpuPointer = {};
     };
 
     struct DX12DescriptorSet
