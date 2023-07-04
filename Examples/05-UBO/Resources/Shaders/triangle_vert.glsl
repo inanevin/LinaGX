@@ -6,9 +6,9 @@ layout(location = 0) out vec2 outUV;
 
 layout(set = 0, binding = 1) uniform UBO {
 float time;
-} ubo;
+} ubo[2];
 
 void main() {
     gl_Position = vec4(inPosition, 1.0);
-    outUV = vec2(uv.x + sin(ubo.time), uv.y);
+    outUV = vec2(uv.x + sin(ubo[0].time), uv.y);
 }

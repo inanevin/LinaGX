@@ -1464,7 +1464,7 @@ namespace LinaGX
                     else
                     {
                         srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
-                        destDescriptors.push_back({binding.gpuPointer.GetCPUHandle()});
+                        destDescriptors.push_back({binding.gpuPointer.GetCPUHandle() + i * m_bufferHeap->GetDescriptorSize()});
                     }
                 }
             }

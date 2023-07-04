@@ -57,6 +57,7 @@ namespace LinaGX::Examples
     uint32 _sampler               = 0;
     uint16 _descriptorSet0        = 0;
     uint32 _cpuResourceUBO        = 0;
+    uint32 _cpuResourceUBO2       = 0;
     uint8* _cpuResourceUBOMapping = nullptr;
 
     // Syncronization
@@ -318,8 +319,10 @@ namespace LinaGX::Examples
                 .debugName     = "UBO",
             };
 
-            _cpuResourceUBO = _renderer->CreateResource(desc);
+            _cpuResourceUBO  = _renderer->CreateResource(desc);
+            _cpuResourceUBO2 = _renderer->CreateResource(desc);
             _renderer->MapResource(_cpuResourceUBO, _cpuResourceUBOMapping);
+            _renderer->MapResource(_cpuResourceUBO2, _cpuResourceUBOMapping);
         }
 
         // Create descriptor set.
@@ -335,7 +338,7 @@ namespace LinaGX::Examples
 
             bindings[1] = {
                 .binding         = 1,
-                .descriptorCount = 1,
+                .descriptorCount = 2,
                 .type            = DescriptorType::UBO,
                 .stages          = {ShaderStage::Vertex},
             };
@@ -358,11 +361,13 @@ namespace LinaGX::Examples
 
             _renderer->DescriptorUpdateImage(imgUpdate);
 
+            uint32 resources[2] = {_cpuResourceUBO, _cpuResourceUBO2};
+
             DescriptorUpdateBufferDesc bufferDesc = {
                 .setHandle       = _descriptorSet0,
                 .binding         = 1,
-                .descriptorCount = 1,
-                .resources       = &_cpuResourceUBO,
+                .descriptorCount = 2,
+                .resources       = &resources[0],
                 .descriptorType  = DescriptorType::UBO,
             };
 
@@ -380,6 +385,7 @@ namespace LinaGX::Examples
 
         // Get rid of resources
         _renderer->DestroyResource(_cpuResourceUBO);
+        _renderer->DestroyResource(_cpuResourceUBO2);
         _renderer->DestroyDescriptorSet(_descriptorSet0);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_textureGPU);
