@@ -106,8 +106,8 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_frag.glsl");
+            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
@@ -226,7 +226,7 @@ namespace LinaGX::Examples
         for (const auto& md : outMipmaps)
             totalStagingResourceSize += md.width * md.height * 4;
 
-        // Texture
+        //******************* TEXTURE
         {
             // Create gpu resource
             Texture2DDesc desc = {
@@ -250,7 +250,7 @@ namespace LinaGX::Examples
             _sampler = _renderer->CreateSampler(samplerDesc);
         }
 
-        // Complete transfer operations before beginning the main loop
+        //******************* TRANSFER
         {
             TextureBuffer txtBuffer = {
                 .pixels        = loadedTextureData.pixels,
@@ -307,7 +307,7 @@ namespace LinaGX::Examples
                 LinaGX::FreeImage(md.pixels);
         }
 
-        // Create descriptor set.
+        //******************* DESCRIPTOR SET
         {
             DescriptorBinding binding = {
                 .binding         = 0,

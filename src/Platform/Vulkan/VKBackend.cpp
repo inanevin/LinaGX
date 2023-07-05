@@ -120,6 +120,8 @@ namespace LinaGX
             return VK_FORMAT_R32G32B32A32_SFLOAT;
         case Format::R32G32B32A32_SINT:
             return VK_FORMAT_R32G32B32A32_SINT;
+        case Format::R16G16B16A16_SFLOAT:
+            return VK_FORMAT_R16G16B16A16_SFLOAT;
         case Format::R32G32_SFLOAT:
             return VK_FORMAT_R32G32_SFLOAT;
         case Format::R32G32_SINT:
@@ -1531,6 +1533,7 @@ namespace LinaGX
             {
                 waitSemaphores.push_back(m_userSemaphores.GetItem(desc.waitSemaphore).ptr);
                 waitSemaphoreValues.push_back(desc.waitValue);
+                waitStages.push_back(waitStage);
             }
 
             if (desc.useSignal)
@@ -2376,6 +2379,20 @@ namespace LinaGX
             sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[0]).ptr;
 
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), 0, nullptr);
+    }
+
+    void VKBackend::CMD_BindConstants(uint8* data, VKBCommandStream& stream)
+    {
+        CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
+        auto              buffer = stream.buffers[m_currentFrameIndex];
+        const auto&       shader = m_shaders.GetItemR(stream.boundShader);
+
+        uint32 stageFlags = 0;
+
+        for (uint32 i = 0; i < cmd->stagesSize; i++)
+            stageFlags |= GetVKShaderStage(cmd->stages[i]);
+
+        vkCmdPushConstants(buffer, shader.ptrLayout, stageFlags, cmd->offset, cmd->size, cmd->data);
     }
 
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels)

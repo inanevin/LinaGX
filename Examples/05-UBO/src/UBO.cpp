@@ -89,7 +89,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
-                .gpu               = PreferredGPUType::Discrete,
+                .gpu               = PreferredGPUType::Integrated,
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
@@ -110,8 +110,8 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_frag.glsl");
+            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
@@ -230,7 +230,7 @@ namespace LinaGX::Examples
         for (const auto& md : outMipmaps)
             totalStagingResourceSize += md.width * md.height * 4;
 
-        // Texture
+        //******************* TEXTURE
         {
             // Create gpu resource
             Texture2DDesc desc = {
@@ -254,7 +254,7 @@ namespace LinaGX::Examples
             _sampler = _renderer->CreateSampler(samplerDesc);
         }
 
-        // Complete transfer operations before beginning the main loop
+        //******************* TRANSFER
         {
             TextureBuffer txtBuffer = {
                 .pixels        = loadedTextureData.pixels,
@@ -311,7 +311,7 @@ namespace LinaGX::Examples
                 LinaGX::FreeImage(md.pixels);
         }
 
-        // UBO resource
+        //******************* UBO
         {
             ResourceDesc desc = {
                 .size          = sizeof(float),
@@ -326,7 +326,7 @@ namespace LinaGX::Examples
             _renderer->MapResource(_cpuResourceUBO2, _cpuResourceUBOMapping2);
         }
 
-        // Create descriptor set.
+        //******************* DESCRIPTOR SET
         {
             DescriptorBinding bindings[2];
 
@@ -411,13 +411,14 @@ namespace LinaGX::Examples
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
 
-        // update mapped UBO data.
-        static float time = 0.0f;
-        time += (float)(m_deltaMicroseconds * 1e-6);
-        float time2 = 0.2f;
-
-        std::memcpy(_cpuResourceUBOMapping, &time, sizeof(float));
-        std::memcpy(_cpuResourceUBOMapping2, &time2, sizeof(float));
+        // Update mapped UBO data.
+        {
+            static float time = 0.0f;
+            time += (float)(m_deltaMicroseconds * 1e-6);
+            float time2 = time * 0.01f;
+            std::memcpy(_cpuResourceUBOMapping, &time, sizeof(float));
+            std::memcpy(_cpuResourceUBOMapping2, &time2, sizeof(float));
+        }
 
         // Render pass begin
         {

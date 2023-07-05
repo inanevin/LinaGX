@@ -576,10 +576,15 @@ namespace LinaGX
                 block.name                        = compiler.get_name(resource.id);
 
                 if (outLayout.constantBlock.size != 0)
+                {
                     outLayout.constantBlock.stages.push_back(stg);
-
-                FillStructMembers(compiler, type, block.members);
-                outLayout.constantBlock = block;
+                }
+                else
+                {
+                    block.stages.push_back(stg);
+                    FillStructMembers(compiler, type, block.members);
+                    outLayout.constantBlock = block;
+                }
             }
 
             for (const auto& resource : resources.sampled_images)

@@ -76,6 +76,7 @@ namespace LinaGX
         R32G32B32_SINT,
         R32G32B32A32_SFLOAT,
         R32G32B32A32_SINT,
+        R16G16B16A16_SFLOAT,
         R32G32_SFLOAT,
         R32G32_SINT,
         D32_SFLOAT,
@@ -390,7 +391,7 @@ namespace LinaGX
 
     struct ShaderConstantBlock
     {
-        size_t                      size;
+        size_t                      size = 0;
         LINAGX_VEC<ShaderUBOMember> members;
         LINAGX_VEC<ShaderStage>     stages;
         LINAGX_STRING               name = "";

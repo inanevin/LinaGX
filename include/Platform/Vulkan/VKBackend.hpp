@@ -192,6 +192,7 @@ namespace LinaGX
         void CMD_CopyResource(uint8* data, VKBCommandStream& stream);
         void CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream);
+        void CMD_BindConstants(uint8* data, VKBCommandStream& stream);
 
     private:
         void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels);

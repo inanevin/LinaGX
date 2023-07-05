@@ -141,6 +141,16 @@ namespace LinaGX
         uint16* descriptorSetHandles;
     };
 
+    struct CMDBindConstants
+    {
+        void*        extension;
+        void*        data;
+        uint32       offset;
+        uint32       size;
+        ShaderStage* stages;
+        uint32       stagesSize;
+    };
+
 #define BACKEND_BIND_COMMANDS(BACKEND)                                                           \
     m_cmdFunctions[GetTypeID<CMDBeginRenderPass>()]       = &BACKEND::CMD_BeginRenderPass;       \
     m_cmdFunctions[GetTypeID<CMDEndRenderPass>()]         = &BACKEND::CMD_EndRenderPass;         \
@@ -153,7 +163,8 @@ namespace LinaGX
     m_cmdFunctions[GetTypeID<CMDBindIndexBuffers>()]      = &BACKEND::CMD_BindIndexBuffers;      \
     m_cmdFunctions[GetTypeID<CMDCopyResource>()]          = &BACKEND::CMD_CopyResource;          \
     m_cmdFunctions[GetTypeID<CMDCopyBufferToTexture2D>()] = &BACKEND::CMD_CopyBufferToTexture2D; \
-    m_cmdFunctions[GetTypeID<CMDBindDescriptorSets>()]    = &BACKEND::CMD_BindDescriptorSets;
+    m_cmdFunctions[GetTypeID<CMDBindDescriptorSets>()]    = &BACKEND::CMD_BindDescriptorSets;    \
+    m_cmdFunctions[GetTypeID<CMDBindConstants>()]         = &BACKEND::CMD_BindConstants;
 } // namespace LinaGX
 
 #endif

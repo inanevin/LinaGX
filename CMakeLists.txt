@@ -48,10 +48,13 @@ include/Core/WindowManager.hpp
 include/Utility/SPIRVUtility.hpp
 include/Utility/PlatformUtility.hpp
 include/Utility/ImageUtility.hpp
+include/Utility/ModelUtility.hpp
 include/Utility/MathUtility.hpp
 include/Utility/stb/stb_image_write.h
 include/Utility/stb/stb_image_resize.h
 include/Utility/stb/stb_image.h
+include/Utility/tinygltf/tiny_gltf.h
+include/Utility/tinygltf/json.hpp
 )
 
 set(LinaGX_SOURCES
@@ -63,6 +66,7 @@ src/Core/CommandStream.cpp
 src/Core/WindowManager.cpp
 src/Utility/SPIRVUtility.cpp
 src/Utility/ImageUtility.cpp
+src/Utility/ModelUtility.cpp
 src/Utility/MathUtility.cpp
 src/Utility/PlatformUtility.cpp
 )
@@ -197,6 +201,9 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/03-Textures)
 	add_subdirectory(Examples/04-Mipmaps)
 	add_subdirectory(Examples/05-UBO)
+	add_subdirectory(Examples/06-Constants)
+	add_subdirectory(Examples/07-SSBO)
+	add_subdirectory(Examples/08-GLTF)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()

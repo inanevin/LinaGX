@@ -80,6 +80,8 @@ namespace LinaGX
             return DXGI_FORMAT_R32G32B32A32_FLOAT;
         case Format::R32G32B32A32_SINT:
             return DXGI_FORMAT_R32G32B32A32_SINT;
+        case Format::R16G16B16A16_SFLOAT:
+            return DXGI_FORMAT_R16G16B16A16_FLOAT;
         case Format::R32G32_SFLOAT:
             return DXGI_FORMAT_R32G32_FLOAT;
         case Format::R32G32_SINT:
@@ -830,7 +832,7 @@ namespace LinaGX
                     visibility = GetDXVisibility(t2d.stages[0]);
 
                 DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
                 paramInfo.binding           = t2d.binding;
                 paramInfo.set               = t2d.set;
                 paramInfo.elementSize       = t2d.elementSize;
@@ -856,7 +858,7 @@ namespace LinaGX
                     visibility = GetDXVisibility(t2d.stages[0]);
 
                 DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
                 paramInfo.binding           = t2d.binding;
                 paramInfo.set               = t2d.set;
                 paramInfo.elementSize       = t2d.elementSize;
@@ -879,7 +881,7 @@ namespace LinaGX
                     visibility = GetDXVisibility(sampler.stages[0]);
 
                 DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
                 paramInfo.binding           = sampler.binding;
                 paramInfo.set               = sampler.set;
                 paramInfo.elementSize       = sampler.elementSize;
@@ -901,7 +903,7 @@ namespace LinaGX
                     visibility = GetDXVisibility(ssbo.stages[0]);
 
                 DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
                 paramInfo.binding           = ssbo.binding;
                 paramInfo.set               = ssbo.set;
                 paramInfo.reflectionType    = DescriptorType::SSBO;
@@ -922,11 +924,18 @@ namespace LinaGX
                     visibility = GetDXVisibility(ct.stages[0]);
 
                 DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
                 paramInfo.reflectionType    = DescriptorType::ConstantBlock;
+                paramInfo.set = paramInfo.binding = 0;
                 shader.rootParams.push_back(paramInfo);
 
-                param.InitAsConstants(static_cast<uint32>(ct.members.size()), 0, 0, visibility);
+                uint32 totalConstants = 0;
+                for (const auto& mem : ct.members)
+                {
+                    totalConstants += static_cast<uint32>(mem.size) / sizeof(uint32);
+                }
+
+                param.InitAsConstants(totalConstants, 0, 0, visibility);
                 rootParameters.push_back(param);
             }
 
@@ -1315,6 +1324,18 @@ namespace LinaGX
                 cbv.BufferLocation = item.allocation->GetResource()->GetGPUVirtualAddress();
                 cbv.SizeInBytes    = static_cast<UINT>(finalSize);
                 m_device->CreateConstantBufferView(&cbv, {item.descriptor.GetCPUHandle()});
+            }
+            else if (desc.typeHintFlags & TH_StorageBuffer)
+            {
+                D3D12_SHADER_RESOURCE_VIEW_DESC srv;
+                srv.Shader4ComponentMapping    = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                srv.Format                     = DXGI_FORMAT_R32_TYPELESS;
+                srv.ViewDimension              = D3D12_SRV_DIMENSION_BUFFER;
+                srv.Buffer.FirstElement        = 0;
+                srv.Buffer.NumElements         = static_cast<UINT>(finalSize / 4);
+                srv.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_RAW;
+                srv.Buffer.StructureByteStride = 0;
+                m_device->CreateShaderResourceView(item.allocation->GetResource(), &srv, {item.descriptor.GetCPUHandle()});
             }
         }
         catch (HrException e)
@@ -2328,6 +2349,16 @@ namespace LinaGX
                     list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
             }
         }
+    }
+
+    void DX12Backend::CMD_BindConstants(uint8* data, DX12CommandStream& stream)
+    {
+        CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
+        auto              list   = stream.lists[m_currentFrameIndex];
+        auto&             shader = m_shaders.GetItemR(stream.boundShader);
+
+        DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::ConstantBlock, 0, 0);
+        list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
     }
 
 } // namespace LinaGX

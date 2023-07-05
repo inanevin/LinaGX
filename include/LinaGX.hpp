@@ -26,6 +26,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+NOTES:
+
+16 byte alignment per element in each struct for SSBO and UBOs.
+
+*/
+
 #pragma once
 
 #ifndef LinaGX_HPP

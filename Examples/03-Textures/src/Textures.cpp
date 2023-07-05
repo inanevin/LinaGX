@@ -106,8 +106,8 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_frag.glsl");
+            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
@@ -217,7 +217,7 @@ namespace LinaGX::Examples
         TextureLoadData loadedTextureData = {};
         LinaGX::LoadImage("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
 
-        // Texture
+        //******************* TEXTURE
         {
             // Create gpu resource
             Texture2DDesc desc = {
@@ -241,7 +241,7 @@ namespace LinaGX::Examples
             _sampler = _renderer->CreateSampler(samplerDesc);
         }
 
-        // Complete transfer operations before beginning the main loop
+        //******************* TRANSFER
         {
             TextureBuffer txtBuffer = {
                 .pixels        = loadedTextureData.pixels,
@@ -379,7 +379,7 @@ namespace LinaGX::Examples
             CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 1;
-            bindTxt->descriptorSetHandles        = &_descriptorSet0;
+            bindTxt->descriptorSetHandles  = &_descriptorSet0;
         }
 
         // Draw the triangle

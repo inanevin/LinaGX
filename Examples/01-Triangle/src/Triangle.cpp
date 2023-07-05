@@ -90,8 +90,8 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/triangle_frag.glsl");
+            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
             ShaderLayout      outLayout  = {};
             DataBlob          vertexBlob = {};
             DataBlob          fragBlob   = {};
