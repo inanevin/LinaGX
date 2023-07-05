@@ -43,6 +43,7 @@ NOTES:
 #include "Core/Commands.hpp"
 #include "Utility/PlatformUtility.hpp"
 #include "Utility/ImageUtility.hpp"
+#include "Utility/ModelUtility.hpp"
 
 namespace LinaGX
 {

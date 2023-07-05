@@ -98,15 +98,66 @@ namespace LinaGX
 #endif
 #endif
 
-#define LINAGX_VEC         std::vector
-#define LINAGX_QUEUE       std::queue
-#define LINAGX_STRING      std::string
-#define LINAGX_WSTRING     std::wstring
-#define LINAGX_MAP         std::unordered_map
-#define LINAGX_DEQUE       std::deque
+#ifndef LINAGX_VECTOR3
+    struct Vector3
+    {
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+    };
+
+#define LINAGX_VECTOR3 Vector3
+#endif
+
+#ifndef LINAGX_VECTOR2
+    struct Vector2
+    {
+        float x = 0.0f, y = 0.0f;
+    };
+#define LINAGX_VECTOR2 Vector2
+#endif
+
+#ifndef LINAGX_VECTOR4
+    struct Vector4
+    {
+        float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
+    };
+#define LINAGX_VECTOR4 Vector4
+#endif
+
+#ifndef LINAGX_VEC
+#define LINAGX_VEC std::vector
+#endif
+
+#ifndef INAGX_QUEUE
+#define LINAGX_QUEUE std::queue
+#endif
+
+#ifndef LINAGX_STRING
+#define LINAGX_STRING std::string
+#endif
+
+#ifndef LINAGX_WSTRING
+#define LINAGX_WSTRING std::wstring
+#endif
+
+#ifndef LINAGX_MAP
+#define LINAGX_MAP std::unordered_map
+#endif
+
+#ifndef LINAGX_DEQUE
+#define LINAGX_DEQUE std::deque
+#endif
+
+#ifndef LINAGX_MALLOC
 #define LINAGX_MALLOC(...) malloc(__VA_ARGS__)
+#endif
+
+#ifndef LINAGX_MEMCPY
 #define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
-#define LINAGX_FREE(...)   free(__VA_ARGS__)
+#endif
+
+#ifndef LINAGX_FREE
+#define LINAGX_FREE(...) free(__VA_ARGS__)
+#endif
 
 #define ALIGN_SIZE_POW(sizeToAlign, PowerOfTwo) (((sizeToAlign) + (PowerOfTwo)-1) & ~((PowerOfTwo)-1))
 #define ALIGN_SIZE(sizeToAlign, Alignment)      (sizeToAlign + Alignment - 1) - sizeToAlign % Alignment;

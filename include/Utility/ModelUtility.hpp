@@ -36,6 +36,126 @@ SOFTWARE.
 namespace LinaGX
 {
 
+#define LINAGX_TEXTURE_BASECOLOR          "BaseColor"
+#define LINAGX_TEXTURE_NORMAL             "Normal"
+#define LINAGX_TEXTURE_OCCLUSION          "Occlusion"
+#define LINAGX_TEXTURE_EMISSIVE           "Emissive"
+#define LINAGX_TEXTURE_METALLIC_ROUGHNESS "MetallicRoughness"
+
+    struct ModelMeshPrimitive
+    {
+        LINAGX_VEC<LINAGX_VECTOR2> texCoords;
+        LINAGX_VEC<LINAGX_VECTOR3> vertices;
+        LINAGX_VEC<LINAGX_VECTOR3> normals;
+        LINAGX_VEC<LINAGX_VECTOR4> tangents;
+        LINAGX_VEC<LINAGX_VECTOR4> colors;
+        LINAGX_VEC<uint32>         indices;
+
+        inline void Clear()
+        {
+            texCoords.clear();
+            vertices.clear();
+            normals.clear();
+            tangents.clear();
+            colors.clear();
+            indices.clear();
+        }
+    };
+
+    struct ModelMesh
+    {
+        ModelMeshPrimitive* primitives     = nullptr;
+        uint32              primitiveCount = 0;
+        LINAGX_STRING       name           = "";
+
+        ~ModelMesh()
+        {
+            if (primitives != nullptr)
+            {
+                for (uint32 i = 0; i < primitiveCount; i++)
+                {
+                    ModelMeshPrimitive* prim = primitives + i;
+                    prim->Clear();
+                }
+
+                delete[] primitives;
+            }
+
+            primitives = nullptr;
+        }
+    };
+
+    struct ModelMaterial
+    {
+        LINAGX_STRING                     name      = "";
+        LINAGX_VECTOR4                    baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        LINAGX_VECTOR3                    emissive  = {1.0f, 1.0f, 1.0f};
+        LINAGX_MAP<LINAGX_STRING, uint32> textureIndices;
+        float                             metallicFactor  = 0.0f;
+        float                             roughnessFactor = 0.0f;
+        float                             alphaCutoff     = 0.0f;
+        bool                              doubleSided     = false;
+        bool                              isOpaque        = true;
+    };
+
+    struct ModelNode
+    {
+    public:
+        ModelMesh*             mesh   = nullptr;
+        ModelNode*             parent = nullptr;
+        LINAGX_VEC<ModelNode*> children;
+
+        ~ModelNode()
+        {
+            if (mesh != nullptr)
+                delete mesh;
+
+            children.clear();
+        }
+    };
+
+    struct ModelData
+    {
+        ModelNode*             allNodes      = nullptr;
+        uint32                 allNodesCount = 0;
+        LINAGX_VEC<ModelNode*> rootNodes;
+
+        ModelMaterial* allMaterials      = nullptr;
+        uint32         allMaterialsCount = 0;
+
+        TextureBuffer* allTextures      = nullptr;
+        uint32         allTexturesCount = 0;
+
+        ~ModelData()
+        {
+            Clear();
+        }
+
+        void Clear()
+        {
+            if (allNodes != nullptr)
+                delete[] allNodes;
+
+            if (allMaterials != nullptr)
+                delete[] allMaterials;
+
+            if (allTextures != nullptr)
+            {
+                for (uint32 i = 0; i < allTexturesCount; i++)
+                {
+                    delete[] allTextures[i].pixels;
+                }
+
+                delete[] allTextures;
+            }
+
+            allNodes     = nullptr;
+            allMaterials = nullptr;
+            allTextures  = nullptr;
+            rootNodes.clear();
+        }
+    };
+
     /// <summary>
     ///
     /// </summary>
@@ -43,7 +163,15 @@ namespace LinaGX
     /// <param name="outData"></param>
     /// <param name="channelMask"></param>
     /// <returns></returns>
-    LINAGX_API void LoadGLTF(const char* path);
+    LINAGX_API void LoadGLTFBinary(const char* path, ModelData& outData);
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <param name="path"></param>
+    /// <param name="outData"></param>
+    /// <returns></returns>
+    LINAGX_API void LoadGLTFASCII(const char* path, ModelData& outData);
 
 } // namespace LinaGX
 

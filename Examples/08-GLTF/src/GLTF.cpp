@@ -26,11 +26,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include "GLTF.hpp"
 #include "App.hpp"
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "GLTF.hpp"
 
 namespace LinaGX::Examples
 {
@@ -175,6 +175,12 @@ namespace LinaGX::Examples
             _stream        = _renderer->CreateCommandStream(10, QueueType::Graphics);
             _copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
             _copySemaphore = _renderer->CreateUserSemaphore();
+        }
+
+        //*******************  MODEL
+        {
+            LinaGX::ModelData modelData = {};
+            LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", modelData);
         }
 
         //*******************  VERTEX BUFFER CREATION

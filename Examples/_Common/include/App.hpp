@@ -55,7 +55,7 @@ namespace LinaGX
         {
             va_list args;
             va_start(args, info);
-            std::cout << "\033[32mLinaGX: ";
+            std::cout << "LinaGX: ";
             vprintf(info, args);
             std::cout << std::endl;
             va_end(args);

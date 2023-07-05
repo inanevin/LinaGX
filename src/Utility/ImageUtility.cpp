@@ -33,7 +33,9 @@ SOFTWARE.
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "Utility/stb/stb_image.h"
+#include "Utility/stb/stb_image_write.h"
 #include "Utility/stb/stb_image_resize.h"
 
 namespace LinaGX
@@ -62,6 +64,7 @@ namespace LinaGX
         outData.width          = w;
         outData.height         = h;
         outData.totalMipLevels = FloorLog2(Max(outData.width, outData.height)) + 1;
+        LOGV("Loaded image: %s", path);
     }
 
     LINAGX_API void FreeImage(uint8* pixels)
