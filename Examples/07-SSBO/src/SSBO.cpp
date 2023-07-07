@@ -39,7 +39,7 @@ namespace LinaGX::Examples
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
-    Window*           window     = nullptr;
+    Window*           _window     = nullptr;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -86,7 +86,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -108,8 +108,8 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREAITON & CALLBACKS
         {
-            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
-            window->SetCallbackClose([this]() { m_isRunning = false; });
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
         //******************* SHADER CREATION
@@ -148,18 +148,18 @@ namespace LinaGX::Examples
             _swapchain = _renderer->CreateSwapchain({
                 .x            = 0,
                 .y            = 0,
-                .width        = window->GetWidth(),
-                .height       = window->GetHeight(),
-                .window       = window->GetWindowHandle(),
-                .osHandle     = window->GetOSHandle(),
+                .width        = _window->GetWidth(),
+                .height       = _window->GetHeight(),
+                .window       = _window->GetWindowHandle(),
+                .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
                 .vsyncMode    = VsyncMode::None,
             });
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
-            window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
+            _window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
                 uint32 monitorW, monitorH = 0;
-                window->GetMonitorSize(monitorW, monitorH);
+                _window->GetMonitorSize(monitorW, monitorH);
 
                 SwapchainRecreateDesc resizeDesc = {
                     .swapchain    = _swapchain,
@@ -459,8 +459,8 @@ namespace LinaGX::Examples
 
         // Render pass begin
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight()};
+            Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
             CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;
@@ -499,14 +499,14 @@ namespace LinaGX::Examples
             bindTxt->descriptorSetHandles  = &_descriptorSet0;
         }
 
-        // Bind constnats.
+        // Bind constants & draw.
         {
-            int         triangleIndex = 0;
+            int         quadIndex = 0;
             ShaderStage stages[2]     = {ShaderStage::Fragment, ShaderStage::Vertex};
 
-            // // Constant 1
+            // Constant 1
             CMDBindConstants* constant = _stream->AddCommand<CMDBindConstants>();
-            constant->data             = &triangleIndex;
+            constant->data             = &quadIndex;
             constant->offset           = 0;
             constant->size             = sizeof(int);
             constant->stages           = &stages[0];
@@ -521,9 +521,9 @@ namespace LinaGX::Examples
             drawIndexed->startInstanceLocation   = 0;
 
             // Constant 2
-            int               triangleIndex2 = 1;
+            int               quadIndex2 = 1;
             CMDBindConstants* constant2      = _stream->AddCommand<CMDBindConstants>();
-            constant2->data                  = &triangleIndex2;
+            constant2->data                  = &quadIndex2;
             constant2->offset                = 0;
             constant2->size                  = sizeof(int);
             constant2->stages                = &stages[0];

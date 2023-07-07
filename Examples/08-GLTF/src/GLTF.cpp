@@ -39,7 +39,32 @@ namespace LinaGX::Examples
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
-    Window*           window     = nullptr;
+    Window*           _window    = nullptr;
+
+    struct Vertex
+    {
+        LINAGX_VECTOR3 position = {};
+        LINAGX_VECTOR2 uv       = {};
+    };
+
+    struct Object
+    {
+        LINAGX_MAT4        modelMatrix;
+        LINAGX_VEC<Vertex> vertices;
+
+        uint32 vertexBufferStaging = 0;
+        uint32 vertexBufferGPU     = 0;
+    };
+
+    struct GPUSceneData
+    {
+        LINAGX_MAT4 viewProj;
+    };
+
+    struct GPUObjectData
+    {
+        LINAGX_MAT4 modelMatrix;
+    };
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -48,33 +73,25 @@ namespace LinaGX::Examples
     LinaGX::CommandStream* _stream     = nullptr;
     LinaGX::CommandStream* _copyStream = nullptr;
 
+    // Objects
+    LinaGX::ModelData  _modelData   = {};
+    ModelTexture*      _baseTexture = nullptr;
+    LINAGX_VEC<Object> _objects;
+
     // Resources
-    uint32 _vertexBufferStaging = 0;
-    uint32 _vertexBufferGPU     = 0;
-    uint32 _indexBufferStaging  = 0;
-    uint32 _indexBufferGPU      = 0;
-    uint32 _textureGPU          = 0;
-    uint32 _sampler             = 0;
-    uint16 _descriptorSet0      = 0;
-    uint32 _ssboStaging         = 0;
-    uint32 _ssboGPU             = 0;
-    uint8* _ssboMapping         = nullptr;
+    uint32 _sampler        = 0;
+    uint16 _descriptorSet0 = 0;
+    uint16 _descriptorSet1 = 0;
+    uint32 _ssboStaging    = 0;
+    uint32 _ssboGPU        = 0;
+    uint8* _ssboMapping    = nullptr;
+    uint32 _ubo            = 0;
+    uint8* _uboMapping     = 0;
+    uint32 _baseColorGPU   = 0;
 
     // Syncronization
     uint16 _copySemaphore      = 0;
     uint64 _copySemaphoreValue = 0;
-
-    struct Vertex
-    {
-        float position[3];
-        float uv[2];
-    };
-
-    struct TriangleProperties
-    {
-        float color[4];
-        float positionOffset[4];
-    };
 
     void Example::Initialize()
     {
@@ -86,7 +103,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -108,8 +125,8 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREAITON & CALLBACKS
         {
-            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
-            window->SetCallbackClose([this]() { m_isRunning = false; });
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
         //******************* SHADER CREATION
@@ -148,18 +165,18 @@ namespace LinaGX::Examples
             _swapchain = _renderer->CreateSwapchain({
                 .x            = 0,
                 .y            = 0,
-                .width        = window->GetWidth(),
-                .height       = window->GetHeight(),
-                .window       = window->GetWindowHandle(),
-                .osHandle     = window->GetOSHandle(),
+                .width        = _window->GetWidth(),
+                .height       = _window->GetHeight(),
+                .window       = _window->GetWindowHandle(),
+                .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
                 .vsyncMode    = VsyncMode::None,
             });
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
-            window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
+            _window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
                 uint32 monitorW, monitorH = 0;
-                window->GetMonitorSize(monitorW, monitorH);
+                _window->GetMonitorSize(monitorW, monitorH);
 
                 SwapchainRecreateDesc resizeDesc = {
                     .swapchain    = _swapchain,
@@ -177,82 +194,55 @@ namespace LinaGX::Examples
             _copySemaphore = _renderer->CreateUserSemaphore();
         }
 
-        //*******************  MODEL
+        //*******************  MODEL (Vertex Data & Object Array)
         {
-            LinaGX::ModelData modelData = {};
-            LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", modelData);
-        }
+            LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", _modelData);
 
-        //*******************  VERTEX BUFFER CREATION
-        {
-            // Define a vertex buffer.
-            std::vector<Vertex> vertexBuffer =
+            _objects.resize(_modelData.allMeshesCount);
+
+            for (uint32 i = 0; i < _modelData.allMeshesCount; i++)
+            {
+                ModelMesh* mesh         = _modelData.allMeshes + i;
+                _objects[i].modelMatrix = mesh->node->globalMatrix;
+
+                for (uint32 j = 0; j < mesh->primitiveCount; j++)
                 {
-                    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
-                    {{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
-                    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
-                    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
+                    ModelMeshPrimitive* prim = mesh->primitives + j;
+
+                    for (uint32 k = 0; k < prim->vertexCount; k++)
+                    {
+                        Vertex vtx   = {};
+                        vtx.position = prim->vertices[k];
+                        vtx.uv       = prim->texCoords[k];
+                        _objects[i].vertices.push_back(vtx);
+                    }
+                }
+            }
+
+            for (auto& obj : _objects)
+            {
+                const uint32 vertexBufferSize = sizeof(Vertex) * obj.vertices.size();
+
+                ResourceDesc vbDesc = ResourceDesc{
+                    .size          = vertexBufferSize,
+                    .typeHintFlags = TH_VertexBuffer,
+                    .heapType      = ResourceHeap::StagingHeap,
+                    .debugName     = "VertexBuffer",
                 };
 
-            std::vector<uint32> indexBuffer      = {0, 1, 3, 1, 2, 3};
-            uint32_t            vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
+                obj.vertexBufferStaging = _renderer->CreateResource(vbDesc);
+                vbDesc.heapType         = ResourceHeap::GPUOnly;
+                obj.vertexBufferGPU     = _renderer->CreateResource(vbDesc);
 
-            ResourceDesc bufferDesc = ResourceDesc{
-                .size          = vertexBufferSize,
-                .typeHintFlags = TH_VertexBuffer,
-                .heapType      = ResourceHeap::StagingHeap,
-                .debugName     = "VertexBuffer",
-            };
-
-            // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
-            _vertexBufferStaging = _renderer->CreateResource(bufferDesc);
-            bufferDesc.heapType  = ResourceHeap::GPUOnly;
-            _vertexBufferGPU     = _renderer->CreateResource(bufferDesc);
-
-            // Same for index buffers.
-            bufferDesc.typeHintFlags = TH_IndexBuffer;
-            bufferDesc.heapType      = ResourceHeap::StagingHeap;
-            _indexBufferStaging      = _renderer->CreateResource(bufferDesc);
-            bufferDesc.heapType      = ResourceHeap::GPUOnly;
-            _indexBufferGPU          = _renderer->CreateResource(bufferDesc);
-
-            // Map & fill data into the staging buffer.
-            uint8* vtxData = nullptr;
-            _renderer->MapResource(_vertexBufferStaging, vtxData);
-            std::memcpy(vtxData, vertexBuffer.data(), sizeof(Vertex) * vertexBuffer.size());
-            _renderer->UnmapResource(_vertexBufferStaging);
-
-            uint8* indexData = nullptr;
-            _renderer->MapResource(_indexBufferStaging, indexData);
-            std::memcpy(indexData, indexBuffer.data(), sizeof(uint32) * indexBuffer.size());
-            _renderer->UnmapResource(_indexBufferStaging);
+                uint8* vtxData = nullptr;
+                _renderer->MapResource(obj.vertexBufferStaging, vtxData);
+                std::memcpy(vtxData, obj.vertices.data(), vertexBufferSize);
+                _renderer->UnmapResource(obj.vertexBufferStaging);
+            }
         }
 
-        // Load image.
-        TextureLoadData loadedTextureData = {};
-        LinaGX::LoadImage("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
-
-        // Generate mipmaps
-        LINAGX_VEC<MipData> outMipmaps;
-        LinaGX::GenerateMipmaps(loadedTextureData, outMipmaps, MipmapFilter::Default, ImageChannelMask::Rgba, false);
-
-        // Need big enough staging resource, calculate size.
-        uint32 totalStagingResourceSize = loadedTextureData.width * loadedTextureData.height * 4;
-        for (const auto& md : outMipmaps)
-            totalStagingResourceSize += md.width * md.height * 4;
-
-        //*******************  TEXTURE
+        //******************* TEXTURE AND SAMPLER
         {
-            // Create gpu resource
-            Texture2DDesc desc = {
-                .usage     = Texture2DUsage::ColorTexture,
-                .width     = loadedTextureData.width,
-                .height    = loadedTextureData.height,
-                .mipLevels = loadedTextureData.totalMipLevels,
-                .format    = Format::R8G8B8A8_UNORM,
-                .debugName = "Lina Logo",
-            };
-            _textureGPU = _renderer->CreateTexture2D(desc);
 
             // Sampler
             SamplerDesc samplerDesc = {
@@ -263,47 +253,44 @@ namespace LinaGX::Examples
             };
 
             _sampler = _renderer->CreateSampler(samplerDesc);
+
+            // Will be base color, skipping the whole material shenanigans from gltf for now.
+            _baseTexture = _modelData.allTextures;
+
+            // Create gpu resource
+            Texture2DDesc desc = {
+                .usage     = Texture2DUsage::ColorTexture,
+                .width     = _baseTexture->buffer.width,
+                .height    = _baseTexture->buffer.height,
+                .mipLevels = 1,
+                .format    = Format::R8G8B8A8_UNORM,
+                .debugName = "Lina Logo",
+            };
+            _baseColorGPU = _renderer->CreateTexture2D(desc);
         }
 
         //******************* TRANSFER
         {
             TextureBuffer txtBuffer = {
-                .pixels        = loadedTextureData.pixels,
-                .width         = loadedTextureData.width,
-                .height        = loadedTextureData.height,
+                .pixels        = _baseTexture->buffer.pixels,
+                .width         = _baseTexture->buffer.width,
+                .height        = _baseTexture->buffer.height,
                 .bytesPerPixel = 4,
             };
 
-            // Put the base texture data + all mip data together.
-            LINAGX_VEC<TextureBuffer> textureDataWithMips;
-            textureDataWithMips.push_back(txtBuffer);
-
-            for (const auto& md : outMipmaps)
-            {
-                TextureBuffer mip = {
-                    .pixels        = md.pixels,
-                    .width         = md.width,
-                    .height        = md.height,
-                    .bytesPerPixel = 4,
-                };
-
-                textureDataWithMips.push_back(mip);
-            }
-
             // Copy texture
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
-            copyTxt->destTexture              = _textureGPU;
-            copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
-            copyTxt->buffers                  = textureDataWithMips.data();
+            copyTxt->destTexture              = _baseColorGPU;
+            copyTxt->mipLevels                = 1;
+            copyTxt->buffers                  = &txtBuffer;
 
-            // Record copy command.
-            CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
-            copyVtxBuf->source          = _vertexBufferStaging;
-            copyVtxBuf->destination     = _vertexBufferGPU;
-
-            CMDCopyResource* copyIndexBuf = _copyStream->AddCommand<CMDCopyResource>();
-            copyIndexBuf->source          = _indexBufferStaging;
-            copyIndexBuf->destination     = _indexBufferGPU;
+            for (auto& obj : _objects)
+            {
+                // Record copy command.
+                CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
+                copyVtxBuf->source          = obj.vertexBufferStaging;
+                copyVtxBuf->destination     = obj.vertexBufferGPU;
+            }
 
             _renderer->CloseCommandStreams(&_copyStream, 1);
 
@@ -312,20 +299,19 @@ namespace LinaGX::Examples
             _renderer->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
 
             // Not needed anymore.
-            _renderer->DestroyResource(_vertexBufferStaging);
-            _renderer->DestroyResource(_indexBufferStaging);
+            for (auto& obj : _objects)
+                _renderer->DestroyResource(obj.vertexBufferStaging);
 
-            // Done with pixels.
-            LinaGX::FreeImage(loadedTextureData.pixels);
-
-            for (const auto& md : outMipmaps)
-                LinaGX::FreeImage(md.pixels);
+            // Done with whole model.
+            _modelData.Clear();
         }
 
         //*******************  SSBO
         {
+            const uint32 objectCount = static_cast<uint32>(_objects.size());
+
             ResourceDesc desc = {
-                .size          = sizeof(TriangleProperties) * 2,
+                .size          = sizeof(GPUObjectData) * objectCount,
                 .typeHintFlags = ResourceTypeHint::TH_StorageBuffer,
                 .heapType      = ResourceHeap::StagingHeap,
                 .debugName     = "SSBO",
@@ -338,45 +324,84 @@ namespace LinaGX::Examples
             _ssboGPU      = _renderer->CreateResource(desc);
         }
 
+        //*******************  UBO
+        {
+            ResourceDesc desc = {
+                .size          = sizeof(GPUSceneData),
+                .typeHintFlags = ResourceTypeHint::TH_ConstantBuffer,
+                .heapType      = ResourceHeap::StagingHeap,
+                .debugName     = "UBO",
+            };
+
+            _ubo = _renderer->CreateResource(desc);
+            _renderer->MapResource(_ubo, _uboMapping);
+        }
+
         //*******************  DESCRIPTOR SET
         {
-            DescriptorBinding bindings[2];
 
-            bindings[0] = {
+            DescriptorBinding set0Bindings[2];
+
+            set0Bindings[0] = {
                 .binding         = 0,
+                .descriptorCount = 1,
+                .type            = DescriptorType::UBO,
+                .stages          = {ShaderStage::Vertex},
+            };
+
+            set0Bindings[1] = {
+                .binding         = 1,
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
                 .stages          = {ShaderStage::Fragment},
             };
 
-            bindings[1] = {
-                .binding         = 1,
-                .descriptorCount = 1,
-                .type            = DescriptorType::SSBO,
-                .stages          = {ShaderStage::Vertex, ShaderStage::Fragment},
-            };
-
-            DescriptorSetDesc desc = {
-                .bindings      = &bindings[0],
+            DescriptorSetDesc set0Desc = {
+                .bindings      = set0Bindings,
                 .bindingsCount = 2,
             };
 
-            _descriptorSet0 = _renderer->CreateDescriptorSet(desc);
+            _descriptorSet0 = _renderer->CreateDescriptorSet(set0Desc);
 
-            DescriptorUpdateImageDesc imgUpdate = {
+            DescriptorBinding set1Bindings[1];
+
+            set1Bindings[0] = {
+                .binding         = 0,
+                .descriptorCount = 1,
+                .type            = DescriptorType::SSBO,
+                .stages          = {ShaderStage::Vertex},
+            };
+
+            DescriptorSetDesc set1Desc = {
+                .bindings      = set1Bindings,
+                .bindingsCount = 1,
+            };
+
+            _descriptorSet1 = _renderer->CreateDescriptorSet(set1Desc);
+
+            DescriptorUpdateBufferDesc uboUpdate = {
                 .setHandle       = _descriptorSet0,
                 .binding         = 0,
                 .descriptorCount = 1,
-                .textures        = &_textureGPU,
+                .resources       = &_ubo,
+                .descriptorType  = DescriptorType::UBO,
+            };
+
+            DescriptorUpdateImageDesc imgUpdate = {
+                .setHandle       = _descriptorSet0,
+                .binding         = 1,
+                .descriptorCount = 1,
+                .textures        = &_baseColorGPU,
                 .samplers        = &_sampler,
                 .descriptorType  = DescriptorType::CombinedImageSampler,
             };
 
+            _renderer->DescriptorUpdateBuffer(uboUpdate);
             _renderer->DescriptorUpdateImage(imgUpdate);
 
             DescriptorUpdateBufferDesc bufferDesc = {
-                .setHandle       = _descriptorSet0,
-                .binding         = 1,
+                .setHandle       = _descriptorSet1,
+                .binding         = 0,
                 .descriptorCount = 1,
                 .resources       = &_ssboGPU,
                 .descriptorType  = DescriptorType::SSBO,
@@ -395,14 +420,17 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
+        for (auto& obj : _objects)
+            _renderer->DestroyResource(obj.vertexBufferGPU);
+
+        _renderer->DestroyResource(_ubo);
         _renderer->DestroyResource(_ssboStaging);
         _renderer->DestroyResource(_ssboGPU);
         _renderer->DestroyDescriptorSet(_descriptorSet0);
+        _renderer->DestroyDescriptorSet(_descriptorSet1);
         _renderer->DestroyUserSemaphore(_copySemaphore);
-        _renderer->DestroyTexture2D(_textureGPU);
+        _renderer->DestroyTexture2D(_baseColorGPU);
         _renderer->DestroySampler(_sampler);
-        _renderer->DestroyResource(_vertexBufferGPU);
-        _renderer->DestroyResource(_indexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
         _renderer->DestroyCommandStream(_stream);
@@ -421,28 +449,18 @@ namespace LinaGX::Examples
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
 
-        static float time = 0.0f;
-        time += (float)(m_deltaMicroseconds * 1e-6);
-
         // Copy SSBO data on copy queue
         {
-            TriangleProperties props[2];
-            props[0].color[0]          = (std::sin(time) + 2) * 0.5f;
-            props[0].color[1]          = (std::cos(time) + 2) * 0.5f;
-            props[0].color[2]          = 0.0f;
-            props[0].color[3]          = 1.0f;
-            props[0].positionOffset[0] = -0.5f;
-            props[0].positionOffset[1] = 0.0f;
+            LINAGX_VEC<GPUObjectData> objectData;
+            objectData.resize(_objects.size());
 
-            props[1].color[0]          = 0.0f;
-            props[1].color[1]          = (std::sin(time) + 2) * 0.5f;
-            props[1].color[2]          = (std::cos(time) + 2) * 0.5f;
-            props[1].color[3]          = 1.0f;
-            props[1].positionOffset[0] = 0.5f;
-            props[1].positionOffset[1] = 0.0f;
+            for (size_t i = 0; i < _objects.size(); i++)
+            {
+                objectData[i].modelMatrix = _objects[i].modelMatrix;
+            }
 
-            auto sz = sizeof(TriangleProperties);
-            std::memcpy(_ssboMapping, props, sz * 2);
+            auto sz = sizeof(GPUObjectData) * _objects.size();
+            std::memcpy(_ssboMapping, objectData.data(), sz);
 
             CMDCopyResource* copyRes = _copyStream->AddCommand<CMDCopyResource>();
             copyRes->source          = _ssboStaging;
@@ -463,10 +481,26 @@ namespace LinaGX::Examples
             _renderer->SubmitCommandStreams(submit);
         }
 
+        // Update scene data
+        {
+            LINAGX_VECTOR3 camPos = {};
+            LINAGX_VECTOR4 camRot = {};
+            LINAGX_MAT4    eye    = {};
+            eye.InitLookAtRH(camPos, LINAGX_VECTOR3{0, 0, 1}, LINAGX_VECTOR3{0, 1, 0});
+
+            LINAGX_MAT4 projection = {};
+            projection.InitPerspectiveRH(45, _window->GetWidth() / _window->GetHeight(), 0.01f, 1000.0f);
+
+            GPUSceneData sceneData = {};
+            sceneData.viewProj     = eye * projection;
+
+            std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
+        }
+
         // Render pass begin
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight()};
+            Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
             CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;
@@ -477,71 +511,49 @@ namespace LinaGX::Examples
             beginRenderPass->scissors           = sc;
         }
 
-        // Bind buffers
-        {
-            CMDBindVertexBuffers* bind = _stream->AddCommand<CMDBindVertexBuffers>();
-            bind->slot                 = 0;
-            bind->resource             = _vertexBufferGPU;
-            bind->vertexSize           = sizeof(Vertex);
-            bind->offset               = 0;
-
-            CMDBindIndexBuffers* bindIndex = _stream->AddCommand<CMDBindIndexBuffers>();
-            bindIndex->resource            = _indexBufferGPU;
-            bindIndex->indexFormat         = IndexType::Uint32;
-            bindIndex->offset              = 0;
-        }
-
         // Set shader
         {
             CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram;
         }
 
-        // Bind the descriptor
+        // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
-            bindTxt->firstSet              = 0;
-            bindTxt->setCount              = 1;
-            bindTxt->descriptorSetHandles  = &_descriptorSet0;
+            uint16                 sets[2]  = {_descriptorSet0, _descriptorSet1};
+            CMDBindDescriptorSets* bindSets = _stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet              = 0;
+            bindSets->setCount              = 2;
+            bindSets->descriptorSetHandles  = sets;
         }
 
-        // Bind constnats.
+
+        // Per object, bind vertex buffers, push constants and draw.
         {
-            int         triangleIndex = 0;
-            ShaderStage stages[2]     = {ShaderStage::Fragment, ShaderStage::Vertex};
+            uint32 index = 0;
+            for (const auto& obj : _objects)
+            {
+                CMDBindVertexBuffers* vtx = _stream->AddCommand<CMDBindVertexBuffers>();
+                vtx->slot                 = 0;
+                vtx->resource             = obj.vertexBufferGPU;
+                vtx->vertexSize           = sizeof(Vertex);
+                vtx->offset               = 0;
 
-            // // Constant 1
-            CMDBindConstants* constant = _stream->AddCommand<CMDBindConstants>();
-            constant->data             = &triangleIndex;
-            constant->offset           = 0;
-            constant->size             = sizeof(int);
-            constant->stages           = &stages[0];
-            constant->stagesSize       = 2;
+                ShaderStage       constantsStage = ShaderStage::Vertex;
+                CMDBindConstants* constants      = _stream->AddCommand<CMDBindConstants>();
+                constants->size                  = sizeof(int);
+                constants->stages                = &constantsStage;
+                constants->stagesSize            = 1;
+                constants->offset                = 0;
+                constants->data                  = &index;
 
-            // Quad 1
-            CMDDrawIndexedInstanced* drawIndexed = _stream->AddCommand<CMDDrawIndexedInstanced>();
-            drawIndexed->baseVertexLocation      = 0;
-            drawIndexed->indexCountPerInstance   = 6;
-            drawIndexed->instanceCount           = 1;
-            drawIndexed->startIndexLocation      = 0;
-            drawIndexed->startInstanceLocation   = 0;
+                CMDDrawInstanced* draw       = _stream->AddCommand<CMDDrawInstanced>();
+                draw->instanceCount          = 1;
+                draw->startInstanceLocation  = 0;
+                draw->startVertexLocation    = 0;
+                draw->vertexCountPerInstance = static_cast<uint32>(obj.vertices.size());
 
-            // Constant 2
-            int               triangleIndex2 = 1;
-            CMDBindConstants* constant2      = _stream->AddCommand<CMDBindConstants>();
-            constant2->data                  = &triangleIndex2;
-            constant2->offset                = 0;
-            constant2->size                  = sizeof(int);
-            constant2->stages                = &stages[0];
-            constant2->stagesSize            = 2;
-
-            // // Quad 2
-            CMDDrawIndexedInstanced* drawIndexed2 = _stream->AddCommand<CMDDrawIndexedInstanced>();
-            drawIndexed2->baseVertexLocation      = 0;
-            drawIndexed2->indexCountPerInstance   = 6;
-            drawIndexed2->instanceCount           = 1;
-            drawIndexed2->startIndexLocation      = 0;
-            drawIndexed2->startInstanceLocation   = 0;
+                index++;
+            }
         }
 
         // End render pass

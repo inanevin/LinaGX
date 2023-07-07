@@ -157,7 +157,7 @@ namespace LinaGX
         {
             LINAGX_STRING outHLSL = "";
 
-            const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL);
+            const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL, outLayout);
 
             LINAGX_FREE(spv.ptr);
 
@@ -170,7 +170,7 @@ namespace LinaGX
         {
             LINAGX_STRING outMSL = "";
 
-            const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL);
+            const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
 
             LINAGX_FREE(spv.ptr);
 

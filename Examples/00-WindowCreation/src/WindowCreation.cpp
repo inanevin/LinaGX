@@ -38,8 +38,7 @@ namespace LinaGX::Examples
 #define MAIN_WINDOW_ID 0
 
     LinaGX::Renderer* _renderer = nullptr;
-    Window*           window    = nullptr;
-
+    Window*           _window   = nullptr;
 
     void Example::Initialize()
     {
@@ -73,8 +72,8 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREAITON & CALLBACKS
         {
-            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 600, WindowStyle::Borderless);
-            window->SetCallbackClose([this]() { m_isRunning = false; });
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 600, WindowStyle::Borderless);
+            _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
     }
 

@@ -35,6 +35,15 @@ SOFTWARE.
 
 namespace LinaGX
 {
+
+    LINAGX_MAT4 CalculateGlobalMatrix(ModelNode* node)
+    {
+        if (node->parent != nullptr)
+            return CalculateGlobalMatrix(node->parent) * node->localMatrix;
+
+        return node->localMatrix;
+    }
+
     void ProcessGLTF(tinygltf::Model& model, ModelData& outData)
     {
         outData.allNodes      = new ModelNode[model.nodes.size()];
@@ -50,8 +59,8 @@ namespace LinaGX
                 const auto&    gltfMat = model.materials[i];
                 ModelMaterial* mat     = outData.allMaterials + i;
                 mat->name              = gltfMat.name;
-                mat->metallicFactor    = gltfMat.pbrMetallicRoughness.metallicFactor;
-                mat->roughnessFactor   = gltfMat.pbrMetallicRoughness.roughnessFactor;
+                mat->metallicFactor    = static_cast<float>(gltfMat.pbrMetallicRoughness.metallicFactor);
+                mat->roughnessFactor   = static_cast<float>(gltfMat.pbrMetallicRoughness.roughnessFactor);
                 mat->emissive          = {static_cast<float>(gltfMat.emissiveFactor[0]), static_cast<float>(gltfMat.emissiveFactor[1]), static_cast<float>(gltfMat.emissiveFactor[2])};
                 mat->baseColor         = {static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[0]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[1]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[2]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[3])};
                 mat->alphaCutoff       = static_cast<float>(gltfMat.alphaCutoff);
@@ -77,33 +86,62 @@ namespace LinaGX
 
         if (!model.textures.empty())
         {
-            outData.allTextures      = new TextureBuffer[model.textures.size()];
+            outData.allTextures      = new ModelTexture[model.textures.size()];
             outData.allTexturesCount = static_cast<uint32>(model.textures.size());
 
             for (uint32 i = 0; i < outData.allTexturesCount; i++)
             {
-                TextureBuffer* buf        = outData.allTextures + i;
-                int            imageIndex = model.textures[i].source;
+                const auto&   gltfTexture = model.textures[i];
+                ModelTexture* texture     = outData.allTextures + i;
+                texture->name             = gltfTexture.name;
 
-                if (imageIndex != -1)
+                if (gltfTexture.source != -1)
                 {
-                    auto& image = model.images[imageIndex];
+                    auto& image = model.images[gltfTexture.source];
+                    LOGA((image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE), "Unsupported pixel type!");
 
-                    buf->pixels        = new unsigned char[image.image.size()];
-                    buf->width         = image.width;
-                    buf->height        = image.height;
-                    buf->bytesPerPixel = image.bits / 8 * image.component;
+                    texture->buffer.pixels        = new unsigned char[image.image.size()];
+                    texture->buffer.width         = image.width;
+                    texture->buffer.height        = image.height;
+                    texture->buffer.bytesPerPixel = image.bits / 8 * image.component;
 
-                    std::memcpy(buf->pixels, image.image.data(), image.image.size());
+                    std::memcpy(texture->buffer.pixels, image.image.data(), image.image.size());
                     const unsigned char* pixelData = image.image.data();
                 }
             }
         }
 
+        outData.allMeshes      = new ModelMesh[model.meshes.size()];
+        outData.allMeshesCount = static_cast<uint32>(model.meshes.size());
+
         for (size_t i = 0; i < model.nodes.size(); i++)
         {
             const auto& gltfNode = model.nodes[i];
             ModelNode*  node     = outData.allNodes + i;
+
+            if (!gltfNode.translation.empty())
+            {
+                node->position.x = static_cast<float>(gltfNode.translation[0]);
+                node->position.y = static_cast<float>(gltfNode.translation[1]);
+                node->position.z = static_cast<float>(gltfNode.translation[2]);
+            }
+
+            if (!gltfNode.scale.empty())
+            {
+                node->scale.x = static_cast<float>(gltfNode.scale[0]);
+                node->scale.y = static_cast<float>(gltfNode.scale[1]);
+                node->scale.z = static_cast<float>(gltfNode.scale[2]);
+            }
+
+            if (!gltfNode.rotation.empty())
+            {
+                node->quatRot.x = static_cast<float>(gltfNode.rotation[0]);
+                node->quatRot.y = static_cast<float>(gltfNode.rotation[1]);
+                node->quatRot.z = static_cast<float>(gltfNode.rotation[2]);
+                node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
+            }
+
+            node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
 
             if (!gltfNode.children.empty())
             {
@@ -120,7 +158,8 @@ namespace LinaGX
             if (gltfNode.mesh != -1)
             {
                 const auto& tgMesh         = model.meshes[gltfNode.mesh];
-                node->mesh                 = new ModelMesh();
+                node->mesh                 = outData.allMeshes + gltfNode.mesh;
+                node->mesh->node           = node;
                 node->mesh->name           = tgMesh.name;
                 node->mesh->primitiveCount = static_cast<uint32>(tgMesh.primitives.size());
                 node->mesh->primitives     = new ModelMeshPrimitive[tgMesh.primitives.size()];
@@ -138,6 +177,7 @@ namespace LinaGX
 
                     const size_t numVertices = vertexAccessor.count;
                     primitive->vertices.resize(numVertices);
+                    primitive->vertexCount = static_cast<uint32>(numVertices);
 
                     for (size_t i = 0; i < numVertices; ++i)
                     {
@@ -259,6 +299,10 @@ namespace LinaGX
         for (size_t i = 0; i < model.nodes.size(); i++)
         {
             ModelNode* node = outData.allNodes + i;
+
+            // Calculate all matrices.
+            node->globalMatrix = CalculateGlobalMatrix(node);
+
             if (node->parent == nullptr)
                 outData.rootNodes.push_back(node);
         }

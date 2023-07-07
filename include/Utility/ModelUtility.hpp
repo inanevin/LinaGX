@@ -50,6 +50,7 @@ namespace LinaGX
         LINAGX_VEC<LINAGX_VECTOR4> tangents;
         LINAGX_VEC<LINAGX_VECTOR4> colors;
         LINAGX_VEC<uint32>         indices;
+        uint32                     vertexCount = 0;
 
         inline void Clear()
         {
@@ -62,10 +63,13 @@ namespace LinaGX
         }
     };
 
+    struct ModelNode;
+
     struct ModelMesh
     {
         ModelMeshPrimitive* primitives     = nullptr;
         uint32              primitiveCount = 0;
+        ModelNode*          node           = nullptr;
         LINAGX_STRING       name           = "";
 
         ~ModelMesh()
@@ -83,6 +87,12 @@ namespace LinaGX
 
             primitives = nullptr;
         }
+    };
+
+    struct ModelTexture
+    {
+        TextureBuffer buffer;
+        LINAGX_STRING name = "";
     };
 
     struct ModelMaterial
@@ -105,11 +115,14 @@ namespace LinaGX
         ModelNode*             parent = nullptr;
         LINAGX_VEC<ModelNode*> children;
 
+        LINAGX_VECTOR3 position = {};
+        LINAGX_VECTOR3 scale    = {1.0f, 1.0f, 1.0f};
+        LINAGX_VECTOR4 quatRot  = {};
+        LINAGX_MAT4    globalMatrix;
+        LINAGX_MAT4    localMatrix;
+
         ~ModelNode()
         {
-            if (mesh != nullptr)
-                delete mesh;
-
             children.clear();
         }
     };
@@ -123,8 +136,11 @@ namespace LinaGX
         ModelMaterial* allMaterials      = nullptr;
         uint32         allMaterialsCount = 0;
 
-        TextureBuffer* allTextures      = nullptr;
-        uint32         allTexturesCount = 0;
+        ModelTexture* allTextures      = nullptr;
+        uint32        allTexturesCount = 0;
+
+        ModelMesh* allMeshes      = nullptr;
+        uint32     allMeshesCount = 0;
 
         ~ModelData()
         {
@@ -139,11 +155,14 @@ namespace LinaGX
             if (allMaterials != nullptr)
                 delete[] allMaterials;
 
+            if (allMeshes != nullptr)
+                delete[] allMeshes;
+
             if (allTextures != nullptr)
             {
                 for (uint32 i = 0; i < allTexturesCount; i++)
                 {
-                    delete[] allTextures[i].pixels;
+                    delete[] allTextures[i].buffer.pixels;
                 }
 
                 delete[] allTextures;
@@ -151,6 +170,7 @@ namespace LinaGX
 
             allNodes     = nullptr;
             allMaterials = nullptr;
+            allMeshes    = nullptr;
             allTextures  = nullptr;
             rootNodes.clear();
         }

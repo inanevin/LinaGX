@@ -68,10 +68,12 @@ namespace LinaGX
 
     struct DX12Shader
     {
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso      = NULL;
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig  = NULL;
-        Topology                                    topology = Topology::TriangleList;
-        bool                                        isValid  = false;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso              = NULL;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig          = NULL;
+        Topology                                    topology         = Topology::TriangleList;
+        bool                                        isValid          = false;
+        uint32                                      constantsSpace   = 0;
+        uint32                                      constantsBinding = 0;
         LINAGX_VEC<DX12RootParamInfo>               rootParams;
 
         DX12RootParamInfo* FindRootParam(DescriptorType type, uint32 binding, uint32 set)

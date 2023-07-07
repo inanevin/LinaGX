@@ -391,7 +391,9 @@ namespace LinaGX
 
     struct ShaderConstantBlock
     {
-        size_t                      size = 0;
+        size_t                      size    = 0;
+        uint32                      set     = 0;
+        uint32                      binding = 0;
         LINAGX_VEC<ShaderUBOMember> members;
         LINAGX_VEC<ShaderStage>     stages;
         LINAGX_STRING               name = "";
@@ -436,13 +438,14 @@ namespace LinaGX
 
     struct ShaderLayout
     {
-        LINAGX_VEC<ShaderStageInput>   vertexInputs;
-        LINAGX_VEC<ShaderUBO>          ubos;
-        LINAGX_VEC<ShaderSSBO>         ssbos;
-        LINAGX_VEC<ShaderSRVTexture2D> combinedImageSamplers;
-        LINAGX_VEC<ShaderSRVTexture2D> separateImages;
-        LINAGX_VEC<ShaderSampler>      samplers;
-        ShaderConstantBlock            constantBlock;
+        LINAGX_VEC<ShaderStageInput>           vertexInputs;
+        LINAGX_VEC<ShaderUBO>                  ubos;
+        LINAGX_VEC<ShaderSSBO>                 ssbos;
+        LINAGX_VEC<ShaderSRVTexture2D>         combinedImageSamplers;
+        LINAGX_VEC<ShaderSRVTexture2D>         separateImages;
+        LINAGX_VEC<ShaderSampler>              samplers;
+        LINAGX_MAP<uint32, LINAGX_VEC<uint32>> setsAndBindings;
+        ShaderConstantBlock                    constantBlock;
     };
 
     struct ShaderDesc

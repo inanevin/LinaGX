@@ -2376,7 +2376,7 @@ namespace LinaGX
         sets.resize(cmd->setCount);
 
         for (uint32 i = 0; i < cmd->setCount; i++)
-            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[0]).ptr;
+            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).ptr;
 
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), 0, nullptr);
     }

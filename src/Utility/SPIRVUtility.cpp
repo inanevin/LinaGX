@@ -544,6 +544,7 @@ namespace LinaGX
                 ShaderUBO ubo = {};
                 ubo.set       = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ubo.binding   = compiler.get_decoration(id, spv::DecorationBinding);
+                outLayout.setsAndBindings[ubo.set].push_back(ubo.binding);
 
                 auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const ShaderUBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
                 if (it != outLayout.ubos.end())
@@ -595,6 +596,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
+                outLayout.setsAndBindings[txt.set].push_back(txt.binding);
 
                 auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.combinedImageSamplers.end())
@@ -622,6 +624,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
+                outLayout.setsAndBindings[txt.set].push_back(txt.binding);
 
                 auto it = std::find_if(outLayout.separateImages.begin(), outLayout.separateImages.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.separateImages.end())
@@ -649,6 +652,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 sampler.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 sampler.binding = compiler.get_decoration(id, spv::DecorationBinding);
+                outLayout.setsAndBindings[sampler.set].push_back(sampler.binding);
 
                 auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const ShaderSampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
                 if (it != outLayout.samplers.end())
@@ -676,6 +680,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 ssbo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ssbo.binding = compiler.get_decoration(id, spv::DecorationBinding);
+                outLayout.setsAndBindings[ssbo.set].push_back(ssbo.binding);
 
                 auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const ShaderSSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
                 if (it != outLayout.ssbos.end())
@@ -690,12 +695,35 @@ namespace LinaGX
                 ssbo.name                         = compiler.get_name(resource.id);
                 outLayout.ssbos.push_back(ssbo);
             }
+
+            // If contains push constants
+            // Make sure we assign it to maxium set's maximum binding+1
+            if (outLayout.constantBlock.size != 0)
+            {
+                uint32 maxSet = 0;
+                for (const auto& [set, bindings] : outLayout.setsAndBindings)
+                {
+                    if (set > maxSet)
+                        maxSet = set;
+                }
+
+                uint32 maxBinding = 0;
+                for (const auto& binding : outLayout.setsAndBindings.at(maxSet))
+                {
+                    if (binding > maxBinding)
+                        maxBinding = binding;
+                }
+
+                outLayout.constantBlock.set     = maxSet;
+                outLayout.constantBlock.binding = maxBinding + 1;
+            }
         }
         return true;
     }
 
-    bool SPIRVUtility::SPV2HLSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out)
+    bool SPIRVUtility::SPV2HLSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, const ShaderLayout& layoutReflection)
     {
+
         try
         {
             spirv_cross::CompilerHLSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
@@ -706,6 +734,18 @@ namespace LinaGX
             options.shader_model = 60; // SM6_0
             compiler.set_hlsl_options(options);
             compiler.add_vertex_attribute_remap(attribs);
+
+            if (layoutReflection.constantBlock.size != 0)
+            {
+                std::vector<spirv_cross::RootConstants> constants;
+                spirv_cross::RootConstants              c;
+                c.start   = 0;
+                c.end     = layoutReflection.constantBlock.size;
+                c.binding = layoutReflection.constantBlock.binding;
+                c.space   = layoutReflection.constantBlock.set;
+                constants.push_back(c);
+                compiler.set_root_constant_layouts(constants);
+            }
 
             // Perform the conversion
             out = compiler.compile();
@@ -721,7 +761,7 @@ namespace LinaGX
         return true;
     }
 
-    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out)
+    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, const ShaderLayout& layoutReflection)
     {
         try
         {

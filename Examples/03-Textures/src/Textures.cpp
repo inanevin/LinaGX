@@ -39,7 +39,7 @@ namespace LinaGX::Examples
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
-    Window*           window     = nullptr;
+    Window*           _window     = nullptr;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -99,8 +99,8 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREAITON & CALLBACKS
         {
-            window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
-            window->SetCallbackClose([this]() { m_isRunning = false; });
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
         //******************* SHADER CREATION
@@ -139,18 +139,18 @@ namespace LinaGX::Examples
             _swapchain = _renderer->CreateSwapchain({
                 .x            = 0,
                 .y            = 0,
-                .width        = window->GetWidth(),
-                .height       = window->GetHeight(),
-                .window       = window->GetWindowHandle(),
-                .osHandle     = window->GetOSHandle(),
+                .width        = _window->GetWidth(),
+                .height       = _window->GetHeight(),
+                .window       = _window->GetWindowHandle(),
+                .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
                 .vsyncMode    = VsyncMode::None,
             });
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
-            window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
+            _window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
                 uint32 monitorW, monitorH = 0;
-                window->GetMonitorSize(monitorW, monitorH);
+                _window->GetMonitorSize(monitorW, monitorH);
 
                 SwapchainRecreateDesc resizeDesc = {
                     .swapchain    = _swapchain,
@@ -342,8 +342,8 @@ namespace LinaGX::Examples
 
         // Render pass begin
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = window->GetWidth(), .height = window->GetHeight()};
+            Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
             CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;

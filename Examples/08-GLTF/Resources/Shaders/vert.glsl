@@ -5,23 +5,27 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 uv;
 layout(location = 0) out vec2 outUV;
 
-struct TriangleProperties
+layout(set = 0, binding = 0) uniform SceneData
 {
-    vec4 color;
-    vec4 positionOffset;
+    mat4 viewProj;
+} scene;
+
+struct Object
+{
+    mat4 modelMatrix;
 };
 
-layout(std140, set = 0, binding = 1) readonly buffer TriangleData
+layout(std140, set = 1, binding = 0) readonly buffer ObjectData
 {
-    TriangleProperties triangles[];
-} triangleData;
+    Object objects[];
+} objectData;
 
 layout( push_constant ) uniform constants
 {
-	int triangleIndex;
+	int objectID;
 } Constants;
 
 void main() {
-    gl_Position = vec4(inPosition.x + triangleData.triangles[Constants.triangleIndex].positionOffset.x, inPosition.y + triangleData.triangles[Constants.triangleIndex].positionOffset.y, inPosition.z, 1.0);
+    gl_Position = scene.viewProj * objectData.objects[Constants.objectID].modelMatrix * vec4(inPosition, 1.0f);
     outUV = vec2(uv.x, uv.y);
 }

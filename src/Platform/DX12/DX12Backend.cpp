@@ -917,6 +917,9 @@ namespace LinaGX
 
             if (shaderDesc.layout.constantBlock.size != 0)
             {
+                shader.constantsSpace   = shaderDesc.layout.constantBlock.set;
+                shader.constantsBinding = shaderDesc.layout.constantBlock.binding;
+
                 const auto&             ct         = shaderDesc.layout.constantBlock;
                 CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -926,7 +929,8 @@ namespace LinaGX
                 DX12RootParamInfo paramInfo = {};
                 paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
                 paramInfo.reflectionType    = DescriptorType::ConstantBlock;
-                paramInfo.set = paramInfo.binding = 0;
+                paramInfo.set               = shader.constantsSpace;
+                paramInfo.binding           = shader.constantsBinding;
                 shader.rootParams.push_back(paramInfo);
 
                 uint32 totalConstants = 0;
@@ -935,7 +939,7 @@ namespace LinaGX
                     totalConstants += static_cast<uint32>(mem.size) / sizeof(uint32);
                 }
 
-                param.InitAsConstants(totalConstants, 0, 0, visibility);
+                param.InitAsConstants(totalConstants, shader.constantsBinding, shader.constantsSpace, visibility);
                 rootParameters.push_back(param);
             }
 
@@ -2357,7 +2361,7 @@ namespace LinaGX
         auto              list   = stream.lists[m_currentFrameIndex];
         auto&             shader = m_shaders.GetItemR(stream.boundShader);
 
-        DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::ConstantBlock, 0, 0);
+        DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::ConstantBlock, shader.constantsBinding, shader.constantsSpace);
         list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
     }
 
