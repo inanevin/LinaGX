@@ -31,7 +31,8 @@ SOFTWARE.
 #ifndef LINAGX_MODEL_UTILITY_HPP
 #define LINAGX_MODEL_UTILITY_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
+#include "Common/Math.hpp"
 
 namespace LinaGX
 {

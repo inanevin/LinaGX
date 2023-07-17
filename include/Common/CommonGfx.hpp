@@ -31,8 +31,7 @@ SOFTWARE.
 #ifndef Common_HPP
 #define Common_HPP
 
-#include "LinaGXExports.hpp"
-#include "Core/DataStructures.hpp"
+#include "CommonData.hpp"
 
 namespace LinaGX
 {

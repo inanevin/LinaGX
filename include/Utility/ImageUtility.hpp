@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_IMAGE_UTILITY_HPP
 #define LINAGX_IMAGE_UTILITY_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 namespace LinaGX
 {

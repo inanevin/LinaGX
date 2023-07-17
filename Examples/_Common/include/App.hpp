@@ -29,7 +29,7 @@ SOFTWARE.
 #ifndef APP_HPP
 #define APP_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 #include <iostream>
 #include <cstdarg>
 

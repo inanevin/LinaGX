@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_DX12_COMMON_HPP
 #define LINAGX_DX12_COMMON_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 #include "Platform/DX12/SDK/d3dx12.h"
 #include "Platform/DX12/SDK/d3d12shader.h"
 #include <dxc/dxcapi.h>

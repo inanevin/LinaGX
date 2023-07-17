@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_COMMANDS_HPP
 #define LINAGX_COMMANDS_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 namespace LinaGX
 {

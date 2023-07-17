@@ -26,29 +26,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+
+*/
+
 #pragma once
 
-#ifndef LINAGX_MATH_UTILITY_HPP
-#define LINAGX_MATH_UTILITY_HPP
-
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 namespace LinaGX
 {
+    Configuration         Config           = {};
+    GPUInformation        GPUInfo          = {};
+    PerformanceStatistics PerformanceStats = {};
 
-    extern LINAGX_API uint32 FloorLog2(uint32 val);
-
-    template <typename T>
-    inline constexpr T Max(const T& val1, const T& val2)
-    {
-        return val1 >= val2 ? val1 : val2;
-    }
-
-    template <typename T>
-    inline constexpr T Min(const T& val1, const T& val2)
-    {
-        return val1 <= val2 ? val1 : val2;
-    }
 } // namespace LinaGX
-
-#endif

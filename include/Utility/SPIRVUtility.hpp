@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_SPIRVUtility_HPP
 #define LINAGX_SPIRVUtility_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 #include "glslang/SPIRV/GlslangToSpv.h"
 
 namespace LinaGX

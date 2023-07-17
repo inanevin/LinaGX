@@ -29,8 +29,11 @@ SOFTWARE.
 /*
 NOTES:
 
-16 byte alignment per element in each struct for SSBO and UBOs.
-Projection matrices should produce depth for range 0.0f and 1.0f.
+- 16 byte alignment per element in each struct for SSBO and UBOs.
+
+- Projection matrices should produce depth for range 0.0f and 1.0f.
+
+- Only 1 type of PushConstants are supported.
 
 */
 
@@ -42,10 +45,10 @@ Projection matrices should produce depth for range 0.0f and 1.0f.
 #include "Core/Renderer.hpp"
 #include "Core/CommandStream.hpp"
 #include "Core/Commands.hpp"
+#include "Common/Math.hpp"
 #include "Utility/PlatformUtility.hpp"
 #include "Utility/ImageUtility.hpp"
 #include "Utility/ModelUtility.hpp"
-#include "Utility/MathUtility.hpp"
 
 namespace LinaGX
 {

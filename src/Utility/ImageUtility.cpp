@@ -29,7 +29,7 @@ SOFTWARE.
 #pragma once
 
 #include "Utility/ImageUtility.hpp"
-#include "Utility/MathUtility.hpp"
+#include "Common/Math.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION

@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_COMMAND_STREAM_HPP
 #define LINAGX_COMMAND_STREAM_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 namespace LinaGX
 {

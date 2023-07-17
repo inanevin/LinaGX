@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "Utility/PlatformUtility.hpp"
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 #include <sstream>
 #include <fstream>
 #include <codecvt>

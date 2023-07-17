@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_DX12HEAP_STAGING_HPP
 #define LINAGX_DX12HEAP_STAGING_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 #include "Platform/DX12/DX12Common.hpp"
 
 namespace LinaGX

@@ -1,6 +1,6 @@
-/*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+﻿/*
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,23 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include "Main.hpp"
+#include "GLTFSkinning.hpp"
 
-#include "Core/DataStructures.hpp"
+using namespace LinaGX::Examples;
 
-namespace LinaGX
+int main(int argc, char* argv[])
 {
-
-    uint32 FnvHash::fnvHash(const char* str)
-    {
-        const size_t length = strlen(str) + 1;
-        uint32       hash   = OFFSET_BASIS;
-        for (size_t i = 0; i < length; ++i)
-        {
-            hash ^= *str++;
-            hash *= FNV_PRIME;
-        }
-        return hash;
-    }
-
-} // namespace LinaGX
+    Example app;
+    app.Initialize();
+    app.Run();
+    return 0;
+}

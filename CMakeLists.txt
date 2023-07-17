@@ -38,8 +38,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 set(LinaGX_HEADERS
 include/LinaGX.hpp
 include/LinaGXExports.hpp
-include/Common/Common.hpp
-include/Core/DataStructures.hpp
+include/Common/CommonData.hpp
+include/Common/CommonGfx.hpp
+include/Common/Math.hpp
 include/Core/Backend.hpp
 include/Core/Renderer.hpp
 include/Core/CommandStream.hpp
@@ -49,7 +50,6 @@ include/Utility/SPIRVUtility.hpp
 include/Utility/PlatformUtility.hpp
 include/Utility/ImageUtility.hpp
 include/Utility/ModelUtility.hpp
-include/Utility/MathUtility.hpp
 include/Utility/stb/stb_image_write.h
 include/Utility/stb/stb_image_resize.h
 include/Utility/stb/stb_image.h
@@ -58,8 +58,9 @@ include/Utility/tinygltf/json.hpp
 )
 
 set(LinaGX_SOURCES
-src/Common/Common.cpp
-src/Core/DataStructures.cpp
+src/Common/CommonGfx.cpp
+src/Common/CommonData.cpp
+src/Common/Math.cpp
 src/Core/Backend.cpp
 src/Core/Renderer.cpp
 src/Core/CommandStream.cpp
@@ -67,7 +68,6 @@ src/Core/WindowManager.cpp
 src/Utility/SPIRVUtility.cpp
 src/Utility/ImageUtility.cpp
 src/Utility/ModelUtility.cpp
-src/Utility/MathUtility.cpp
 src/Utility/PlatformUtility.cpp
 )
 
@@ -204,6 +204,7 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/06-Constants)
 	add_subdirectory(Examples/07-SSBO)
 	add_subdirectory(Examples/08-GLTF)
+	add_subdirectory(Examples/09-GLTFSkinning)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()

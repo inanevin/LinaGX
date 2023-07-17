@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_WIN32WINDOW_HPP
 #define LINAGX_WIN32WINDOW_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 struct HWND__;
 struct HINSTANCE__;

@@ -1,6 +1,6 @@
 /*
-This file is a part of: LinaGX
-https://github.com/inanevin/LinaGX
+This file is a part of: LinaVG
+https://github.com/inanevin/LinaVG
 
 Author: Inan Evin
 http://www.inanevin.com
@@ -26,23 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-/*
-
-PushConstants are only supported as layout = 0, set = 0
-No other shader resource should occupy that binding.
-Only 1 type of PushConstants are supported.
-
-*/
-
-#pragma once
-
-#include "Common/Common.hpp"
-
+#ifndef MAIN_HPP
+#define MAIN_HPP
 
 namespace LinaGX
 {
-    Configuration         Config           = {};
-    GPUInformation        GPUInfo          = {};
-    PerformanceStatistics PerformanceStats = {};
+   namespace Examples
+   {
+    
+   }
+} // namespace LinaVG
 
-} // namespace LinaGX
+#endif

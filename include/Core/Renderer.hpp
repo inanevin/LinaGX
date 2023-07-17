@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_Renderer_HPP
 #define LINAGX_Renderer_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 #include "WindowManager.hpp"
 
 namespace LinaGX

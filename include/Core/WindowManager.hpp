@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_WINDOW_MANAGER_HPP
 #define LINAGX_WINDOW_MANAGER_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "Platform/Windows/Win32Window.hpp"

@@ -31,7 +31,7 @@ SOFTWARE.
 #ifndef LINAGX_Backend_HPP
 #define LINAGX_Backend_HPP
 
-#include "Common/Common.hpp"
+#include "Common/CommonGfx.hpp"
 
 namespace LinaGX
 {
