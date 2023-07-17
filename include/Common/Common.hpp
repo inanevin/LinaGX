@@ -370,23 +370,23 @@ namespace LinaGX
 
     struct ShaderStageInput
     {
-        LINAGX_STRING name;
-        uint32        location;
-        uint32        elements;
-        size_t        size;
-        Format        format;
-        size_t        offset;
+        LINAGX_STRING name     = "";
+        uint32        location = 0;
+        uint32        elements = 0;
+        size_t        size     = 0;
+        Format        format   = Format::UNDEFINED;
+        size_t        offset   = 0;
     };
 
     struct ShaderUBOMember
     {
         ShaderMemberType type;
-        size_t           size;
-        size_t           offset;
-        LINAGX_STRING    name;
-        uint32           elementSize;
-        size_t           arrayStride;
-        size_t           matrixStride;
+        size_t           size         = 0;
+        size_t           offset       = 0;
+        LINAGX_STRING    name         = "";
+        uint32           elementSize  = 0;
+        size_t           arrayStride  = 0;
+        size_t           matrixStride = 0;
     };
 
     struct ShaderConstantBlock

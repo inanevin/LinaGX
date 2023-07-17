@@ -35,6 +35,7 @@ SOFTWARE.
 
 namespace LinaGX
 {
+
     extern LINAGX_API uint32 FloorLog2(uint32 val);
 
     template <typename T>

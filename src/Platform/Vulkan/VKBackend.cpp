@@ -2132,8 +2132,8 @@ namespace LinaGX
         }
 
         VkClearValue clearValues[2];
-        clearValues[0].color              = {begin->clearColor[0], begin->clearColor[1], begin->clearColor[2], begin->clearColor[3]};
-        clearValues[1].depthStencil.depth = 0.0f;
+        clearValues[0].color        = {begin->clearColor[0], begin->clearColor[1], begin->clearColor[2], begin->clearColor[3]};
+        clearValues[1].depthStencil = {1.0f, 0};
 
         VkRenderingAttachmentInfo colorAttachment = VkRenderingAttachmentInfo{};
         colorAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -2156,7 +2156,7 @@ namespace LinaGX
         depthAttachment.resolveImageView          = nullptr;
         depthAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.loadOp                    = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.clearValue                = clearValues[1];
 
         CMDSetViewport interVP = {};

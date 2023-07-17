@@ -30,6 +30,7 @@ SOFTWARE.
 NOTES:
 
 16 byte alignment per element in each struct for SSBO and UBOs.
+Projection matrices should produce depth for range 0.0f and 1.0f.
 
 */
 
@@ -44,6 +45,7 @@ NOTES:
 #include "Utility/PlatformUtility.hpp"
 #include "Utility/ImageUtility.hpp"
 #include "Utility/ModelUtility.hpp"
+#include "Utility/MathUtility.hpp"
 
 namespace LinaGX
 {

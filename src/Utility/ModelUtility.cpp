@@ -35,8 +35,7 @@ SOFTWARE.
 
 namespace LinaGX
 {
-
-    LINAGX_MAT4 CalculateGlobalMatrix(ModelNode* node)
+    Matrix4 CalculateGlobalMatrix(ModelNode* node)
     {
         if (node->parent != nullptr)
             return CalculateGlobalMatrix(node->parent) * node->localMatrix;
@@ -119,29 +118,37 @@ namespace LinaGX
             const auto& gltfNode = model.nodes[i];
             ModelNode*  node     = outData.allNodes + i;
 
-            if (!gltfNode.translation.empty())
+            if (!gltfNode.matrix.empty())
             {
-                node->position.x = static_cast<float>(gltfNode.translation[0]);
-                node->position.y = static_cast<float>(gltfNode.translation[1]);
-                node->position.z = static_cast<float>(gltfNode.translation[2]);
+                const uint32 matSz = static_cast<uint32>(gltfNode.matrix.size());
+                for (uint32 j = 0; j < matSz; j++)
+                    node->localMatrix.values[j] = static_cast<float>(gltfNode.matrix[j]);
             }
-
-            if (!gltfNode.scale.empty())
+            else
             {
-                node->scale.x = static_cast<float>(gltfNode.scale[0]);
-                node->scale.y = static_cast<float>(gltfNode.scale[1]);
-                node->scale.z = static_cast<float>(gltfNode.scale[2]);
-            }
+                if (!gltfNode.translation.empty())
+                {
+                    node->position.x = static_cast<float>(gltfNode.translation[0]);
+                    node->position.y = static_cast<float>(gltfNode.translation[1]);
+                    node->position.z = static_cast<float>(gltfNode.translation[2]);
+                }
 
-            if (!gltfNode.rotation.empty())
-            {
-                node->quatRot.x = static_cast<float>(gltfNode.rotation[0]);
-                node->quatRot.y = static_cast<float>(gltfNode.rotation[1]);
-                node->quatRot.z = static_cast<float>(gltfNode.rotation[2]);
-                node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
-            }
+                if (!gltfNode.scale.empty())
+                {
+                    node->scale.x = static_cast<float>(gltfNode.scale[0]);
+                    node->scale.y = static_cast<float>(gltfNode.scale[1]);
+                    node->scale.z = static_cast<float>(gltfNode.scale[2]);
+                }
 
-            node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
+                if (!gltfNode.rotation.empty())
+                {
+                    node->quatRot.x = static_cast<float>(gltfNode.rotation[0]);
+                    node->quatRot.y = static_cast<float>(gltfNode.rotation[1]);
+                    node->quatRot.z = static_cast<float>(gltfNode.rotation[2]);
+                    node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
+                }
+                node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
+            }
 
             if (!gltfNode.children.empty())
             {
@@ -181,11 +188,11 @@ namespace LinaGX
 
                     for (size_t i = 0; i < numVertices; ++i)
                     {
-                        const float*    rawFloatData = reinterpret_cast<const float*>(vertexBuffer.data.data() + vertexBufferView.byteOffset + i * vertexBufferView.byteStride);
-                        LINAGX_VECTOR3& position     = primitive->vertices[i];
-                        position.x                   = rawFloatData[0];
-                        position.y                   = rawFloatData[1];
-                        position.z                   = rawFloatData[2];
+                        const float* rawFloatData = reinterpret_cast<const float*>(vertexBuffer.data.data() + vertexBufferView.byteOffset + i * vertexBufferView.byteStride);
+                        Vector3&     position     = primitive->vertices[i];
+                        position.x                = rawFloatData[0];
+                        position.y                = rawFloatData[1];
+                        position.z                = rawFloatData[2];
                     }
 
                     if (tgPrimitive.indices != -1)
@@ -218,11 +225,11 @@ namespace LinaGX
 
                         for (size_t i = 0; i < numNormals; ++i)
                         {
-                            const float*    rawFloatData = reinterpret_cast<const float*>(normalsBuffer.data.data() + normalsBufferView.byteOffset + i * normalsBufferView.byteStride);
-                            LINAGX_VECTOR3& normal       = primitive->normals[i];
-                            normal.x                     = rawFloatData[0];
-                            normal.y                     = rawFloatData[1];
-                            normal.z                     = rawFloatData[2];
+                            const float* rawFloatData = reinterpret_cast<const float*>(normalsBuffer.data.data() + normalsBufferView.byteOffset + i * normalsBufferView.byteStride);
+                            Vector3&     normal       = primitive->normals[i];
+                            normal.x                  = rawFloatData[0];
+                            normal.y                  = rawFloatData[1];
+                            normal.z                  = rawFloatData[2];
                         }
                     }
 
@@ -239,12 +246,12 @@ namespace LinaGX
 
                         for (size_t i = 0; i < numColors; ++i)
                         {
-                            const float*    rawFloatData = reinterpret_cast<const float*>(colorsBuffer.data.data() + colorsBufferView.byteOffset + i * colorsBufferView.byteStride);
-                            LINAGX_VECTOR4& color        = primitive->colors[i];
-                            color.x                      = rawFloatData[0];
-                            color.y                      = rawFloatData[1];
-                            color.z                      = rawFloatData[2];
-                            color.w                      = rawFloatData[3];
+                            const float* rawFloatData = reinterpret_cast<const float*>(colorsBuffer.data.data() + colorsBufferView.byteOffset + i * colorsBufferView.byteStride);
+                            Vector4&     color        = primitive->colors[i];
+                            color.x                   = rawFloatData[0];
+                            color.y                   = rawFloatData[1];
+                            color.z                   = rawFloatData[2];
+                            color.w                   = rawFloatData[3];
                         }
                     }
 
@@ -261,12 +268,12 @@ namespace LinaGX
 
                         for (size_t i = 0; i < numTangents; ++i)
                         {
-                            const float*    rawFloatData = reinterpret_cast<const float*>(tangentsBuffer.data.data() + tangentsBufferView.byteOffset + i * tangentsBufferView.byteStride);
-                            LINAGX_VECTOR4& tangent      = primitive->tangents[i];
-                            tangent.x                    = rawFloatData[0];
-                            tangent.y                    = rawFloatData[1];
-                            tangent.z                    = rawFloatData[2];
-                            tangent.w                    = rawFloatData[3];
+                            const float* rawFloatData = reinterpret_cast<const float*>(tangentsBuffer.data.data() + tangentsBufferView.byteOffset + i * tangentsBufferView.byteStride);
+                            Vector4&     tangent      = primitive->tangents[i];
+                            tangent.x                 = rawFloatData[0];
+                            tangent.y                 = rawFloatData[1];
+                            tangent.z                 = rawFloatData[2];
+                            tangent.w                 = rawFloatData[3];
                         }
                     }
 
@@ -283,11 +290,10 @@ namespace LinaGX
 
                         for (size_t i = 0; i < numCoords; ++i)
                         {
-                            const float*    rawFloatData = reinterpret_cast<const float*>(texcoordBuffer.data.data() + texcoordBufferView.byteOffset + i * texcoordBufferView.byteStride);
-                            LINAGX_VECTOR2& coord        = primitive->texCoords[i];
-                            coord.x                      = rawFloatData[0];
-                            coord.y                      = rawFloatData[1];
-                            int a                        = 5;
+                            const float* rawFloatData = reinterpret_cast<const float*>(texcoordBuffer.data.data() + texcoordBufferView.byteOffset + i * texcoordBufferView.byteStride);
+                            Vector2&     coord        = primitive->texCoords[i];
+                            coord.x                   = rawFloatData[0];
+                            coord.y                   = rawFloatData[1];
                         }
                     }
 

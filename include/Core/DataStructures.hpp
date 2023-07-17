@@ -98,7 +98,9 @@ namespace LinaGX
 #endif
 #endif
 
-#ifndef LINAGX_VECTOR3
+#define DEG2RAD(X) X * 0.0174533
+#define LPI        3.14159265359f
+
     struct Vector3
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
@@ -137,18 +139,11 @@ namespace LinaGX
         }
     };
 
-#define LINAGX_VECTOR3 Vector3
-#endif
-
-#ifndef LINAGX_VECTOR2
     struct Vector2
     {
         float x = 0.0f, y = 0.0f;
     };
-#define LINAGX_VECTOR2 Vector2
-#endif
 
-#ifndef LINAGX_VECTOR4
     struct Vector4
     {
         float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
@@ -171,9 +166,51 @@ namespace LinaGX
             norm.Normalize();
             return norm;
         }
+
+        Vector3 Quat2Euler()
+        {
+            Vector3 euler;
+
+            // Roll (X-axis rotation)
+            float sinr_cosp = 2 * (w * x + y * z);
+            float cosr_cosp = 1 - 2 * (x * x + y * y);
+            euler.x         = std::atan2(sinr_cosp, cosr_cosp);
+
+            // Pitch (Y-axis rotation)
+            float sinp = 2 * (w * y - z * x);
+            if (std::abs(sinp) >= 1)
+                euler.y = std::copysign(LPI / 2, sinp); // Use 90 degrees if out of range
+            else
+                euler.y = std::asin(sinp);
+
+            // Yaw (Z-axis rotation)
+            float siny_cosp = 2 * (w * z + x * y);
+            float cosy_cosp = 1 - 2 * (y * y + z * z);
+            euler.z         = std::atan2(siny_cosp, cosy_cosp);
+
+            return euler;
+        }
+
+        Vector4 Euler2Quat(const Vector3& euler)
+        {
+            Vector4 quaternion;
+
+            // Abbreviations for the various angular functions
+            float cy = cos(euler.z * 0.5f);
+            float sy = sin(euler.z * 0.5f);
+            float cp = cos(euler.y * 0.5f);
+            float sp = sin(euler.y * 0.5f);
+            float cr = cos(euler.x * 0.5f);
+            float sr = sin(euler.x * 0.5f);
+
+            quaternion.w = cr * cp * cy + sr * sp * sy;
+            quaternion.x = sr * cp * cy - cr * sp * sy;
+            quaternion.y = cr * sp * cy + sr * cp * sy;
+            quaternion.z = cr * cp * sy - sr * sp * cy;
+
+            return quaternion;
+        }
     };
-#define LINAGX_VECTOR4 Vector4
-#endif
 
 #ifndef LINAGX_VEC
 #define LINAGX_VEC std::vector
@@ -211,15 +248,13 @@ namespace LinaGX
 #define LINAGX_FREE(...) free(__VA_ARGS__)
 #endif
 
-#ifndef LINAGX_MAT4
-
-    struct Mat4
+    struct Matrix4
     {
-        float values[16];
+        float values[16] = {0.0f};
 
-        Mat4 operator*(const Mat4& other) const
+        Matrix4 operator*(const Matrix4& other) const
         {
-            Mat4 result;
+            Matrix4 result;
             for (int row = 0; row < 4; ++row)
             {
                 for (int col = 0; col < 4; ++col)
@@ -234,9 +269,9 @@ namespace LinaGX
             return result;
         }
 
-        Mat4 Transpose() const
+        Matrix4 Transpose() const
         {
-            Mat4 result;
+            Matrix4 result;
             for (int row = 0; row < 4; ++row)
             {
                 for (int col = 0; col < 4; ++col)
@@ -273,9 +308,9 @@ namespace LinaGX
             return sign * determinant;
         }
 
-        Mat4 Inverse() const
+        Matrix4 Inverse() const
         {
-            Mat4 result;
+            Matrix4 result;
             // This is a very simplified inversion for 4x4 matrices,
             // and doesn't handle cases where the matrix is singular or near-singular
             float determinant = 0.0f;
@@ -291,18 +326,18 @@ namespace LinaGX
             return result;
         }
 
-        Mat4 QuaternionToMat4(const LINAGX_VECTOR4& q) const
+        Matrix4 QuaternionToMatrix4(const Vector4& q) const
         {
-            Mat4  result;
-            float xx = q.x * q.x;
-            float yy = q.y * q.y;
-            float zz = q.z * q.z;
-            float xy = q.x * q.y;
-            float xz = q.x * q.z;
-            float yz = q.y * q.z;
-            float wx = q.w * q.x;
-            float wy = q.w * q.y;
-            float wz = q.w * q.z;
+            Matrix4 result;
+            float   xx = q.x * q.x;
+            float   yy = q.y * q.y;
+            float   zz = q.z * q.z;
+            float   xy = q.x * q.y;
+            float   xz = q.x * q.z;
+            float   yz = q.y * q.z;
+            float   wx = q.w * q.x;
+            float   wy = q.w * q.y;
+            float   wz = q.w * q.z;
 
             result.values[0]  = 1.0f - 2.0f * (yy + zz);
             result.values[1]  = 2.0f * (xy - wz);
@@ -324,20 +359,20 @@ namespace LinaGX
             return result;
         }
 
-        void InitTranslationRotationScale(const LINAGX_VECTOR3& translation, const LINAGX_VECTOR4& quaternionRotation, const LINAGX_VECTOR3& scale)
+        void InitTranslationRotationScale(const Vector3& translation, const Vector4& quaternionRotation, const Vector3& scale)
         {
             // Compute rotation matrix from quaternion
-            Mat4 rotation = QuaternionToMat4(quaternionRotation.Normalized());
+            Matrix4 rotation = QuaternionToMatrix4(quaternionRotation.Normalized());
 
             // Create scale matrix
-            Mat4 scaleMatrix;
+            Matrix4 scaleMatrix;
             scaleMatrix.values[0]  = scale.x;
             scaleMatrix.values[5]  = scale.y;
             scaleMatrix.values[10] = scale.z;
             scaleMatrix.values[15] = 1.0f;
 
             // Create translation matrix
-            Mat4 translationMatrix;
+            Matrix4 translationMatrix;
             translationMatrix.values[0]  = 1.0f;
             translationMatrix.values[5]  = 1.0f;
             translationMatrix.values[10] = 1.0f;
@@ -350,11 +385,11 @@ namespace LinaGX
             *this = translationMatrix * rotation * scaleMatrix;
         }
 
-        void InitLookAtRH(const LINAGX_VECTOR3& eye, const LINAGX_VECTOR3& center, const LINAGX_VECTOR3& up)
+        void InitLookAtRH(const Vector3& eye, const Vector3& center, const Vector3& up)
         {
-            LINAGX_VECTOR3 f = (center - eye).Normalized();
-            LINAGX_VECTOR3 r = up.Cross(f).Normalized();
-            LINAGX_VECTOR3 u = f.Cross(r).Normalized();
+            Vector3 f = (center - eye).Normalized();
+            Vector3 r = up.Cross(f).Normalized();
+            Vector3 u = f.Cross(r).Normalized();
 
             values[0]  = r.x;
             values[1]  = r.y;
@@ -388,18 +423,14 @@ namespace LinaGX
             values[7]  = 0.0f;
             values[8]  = 0.0f;
             values[9]  = 0.0f;
-            values[10] = (farZ + nearZ) / (nearZ - farZ);
-            values[11] = (2.0f * farZ * nearZ) / (nearZ - farZ);
+            values[10] = farZ / (nearZ - farZ);
+            values[11] = (farZ * nearZ) / (nearZ - farZ);
             values[12] = 0.0f;
             values[13] = 0.0f;
             values[14] = -1.0f;
             values[15] = 0.0f;
         }
     };
-
-#define LINAGX_MAT4 Mat4
-
-#endif
 
 #define ALIGN_SIZE_POW(sizeToAlign, PowerOfTwo) (((sizeToAlign) + (PowerOfTwo)-1) & ~((PowerOfTwo)-1))
 #define ALIGN_SIZE(sizeToAlign, Alignment)      (sizeToAlign + Alignment - 1) - sizeToAlign % Alignment;

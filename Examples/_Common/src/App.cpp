@@ -49,6 +49,8 @@ namespace LinaGX::Examples
             auto duration       = std::chrono::duration_cast<std::chrono::microseconds>(now - prev);
             prev                = now;
             m_deltaMicroseconds = duration.count();
+            m_deltaSeconds      = static_cast<float>(m_deltaMicroseconds) / 1000000.0f;
+            m_elapsedSeconds += m_deltaSeconds;
 
             OnTick();
 

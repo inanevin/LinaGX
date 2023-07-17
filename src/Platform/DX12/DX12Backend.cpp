@@ -2136,8 +2136,8 @@ namespace LinaGX
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
         auto                list  = stream.lists[m_currentFrameIndex];
 
-        int32 txtIndex   = begin->colorTexture;
-        int32 depthIndex = begin->depthTexture;
+        uint32 txtIndex   = begin->colorTexture;
+        uint32 depthIndex = begin->depthTexture;
 
         if (begin->isSwapchain)
         {
@@ -2171,6 +2171,8 @@ namespace LinaGX
         interVP.y              = begin->viewport.x;
         interVP.width          = begin->viewport.width;
         interVP.height         = begin->viewport.height;
+        interVP.minDepth       = 0.0f;
+        interVP.maxDepth       = 1.0f;
         interSC.x              = begin->scissors.x;
         interSC.y              = begin->scissors.y;
         interSC.width          = begin->scissors.width;

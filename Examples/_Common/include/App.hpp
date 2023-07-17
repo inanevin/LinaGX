@@ -76,6 +76,8 @@ namespace LinaGX
             bool   m_isRunning         = false;
             uint64 m_deltaMicroseconds = 0;
             uint64 m_framesPerSecond   = 0;
+            float  m_deltaSeconds      = 0.0f;
+            float  m_elapsedSeconds    = 0.0f;
         };
 
     } // namespace Examples

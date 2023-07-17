@@ -101,7 +101,7 @@ namespace LinaGX::Examples
             _renderer->Initialize(initInfo);
         }
 
-        //*******************  WINDOW CREAITON & CALLBACKS
+        //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });

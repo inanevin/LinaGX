@@ -43,13 +43,13 @@ namespace LinaGX::Examples
 
     struct Vertex
     {
-        LINAGX_VECTOR3 position = {};
-        LINAGX_VECTOR2 uv       = {};
+        Vector3 position = {};
+        Vector2 uv       = {};
     };
 
     struct Object
     {
-        LINAGX_MAT4        modelMatrix;
+        Matrix4            modelMatrix;
         LINAGX_VEC<Vertex> vertices;
 
         uint32 vertexBufferStaging = 0;
@@ -58,12 +58,12 @@ namespace LinaGX::Examples
 
     struct GPUSceneData
     {
-        LINAGX_MAT4 viewProj;
+        Matrix4 viewProj;
     };
 
     struct GPUObjectData
     {
-        LINAGX_MAT4 modelMatrix;
+        Matrix4 modelMatrix;
     };
 
     // Shaders.
@@ -103,7 +103,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -123,7 +123,7 @@ namespace LinaGX::Examples
             _renderer->Initialize(initInfo);
         }
 
-        //*******************  WINDOW CREAITON & CALLBACKS
+        //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
@@ -149,6 +149,9 @@ namespace LinaGX::Examples
                 .polygonMode     = PolygonMode::Fill,
                 .cullMode        = CullMode::None,
                 .frontFace       = FrontFace::CCW,
+                .depthTest       = true,
+                .depthWrite      = true,
+                .depthCompare    = CompareOp::Less,
                 .topology        = Topology::TriangleList,
                 .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
             };
@@ -221,7 +224,7 @@ namespace LinaGX::Examples
 
             for (auto& obj : _objects)
             {
-                const uint32 vertexBufferSize = sizeof(Vertex) * obj.vertices.size();
+                const uint32 vertexBufferSize = static_cast<uint32>(sizeof(Vertex) * obj.vertices.size());
 
                 ResourceDesc vbDesc = ResourceDesc{
                     .size          = vertexBufferSize,
@@ -456,7 +459,12 @@ namespace LinaGX::Examples
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
-                objectData[i].modelMatrix = _objects[i].modelMatrix;
+                Matrix4 mat;
+                mat = _objects[i].modelMatrix;
+                Vector3 euler(0, m_elapsedSeconds, 0);
+                Vector4 rot;
+                mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
+                objectData[i].modelMatrix = mat;
             }
 
             auto sz = sizeof(GPUObjectData) * _objects.size();
@@ -483,16 +491,15 @@ namespace LinaGX::Examples
 
         // Update scene data
         {
-            LINAGX_VECTOR3 camPos = {};
-            LINAGX_VECTOR4 camRot = {};
-            LINAGX_MAT4    eye    = {};
-            eye.InitLookAtRH(camPos, LINAGX_VECTOR3{0, 0, 1}, LINAGX_VECTOR3{0, 1, 0});
+            Vector3 camPos = {0.0f, 0.0f, 200.0f};
+            Matrix4 eye    = {};
+            eye.InitLookAtRH(camPos, Vector3{0, 0, 0}, Vector3{0, 1, 0});
 
-            LINAGX_MAT4 projection = {};
-            projection.InitPerspectiveRH(45, _window->GetWidth() / _window->GetHeight(), 0.01f, 1000.0f);
+            Matrix4 projection = {};
+            projection.InitPerspectiveRH(DEG2RAD(45.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 2000.0f);
 
             GPUSceneData sceneData = {};
-            sceneData.viewProj     = eye * projection;
+            sceneData.viewProj     = projection * eye;
 
             std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
         }
@@ -526,7 +533,6 @@ namespace LinaGX::Examples
             bindSets->descriptorSetHandles  = sets;
         }
 
-
         // Per object, bind vertex buffers, push constants and draw.
         {
             uint32 index = 0;
@@ -551,8 +557,6 @@ namespace LinaGX::Examples
                 draw->startInstanceLocation  = 0;
                 draw->startVertexLocation    = 0;
                 draw->vertexCountPerInstance = static_cast<uint32>(obj.vertices.size());
-
-                index++;
             }
         }
 

@@ -740,7 +740,7 @@ namespace LinaGX
                 std::vector<spirv_cross::RootConstants> constants;
                 spirv_cross::RootConstants              c;
                 c.start   = 0;
-                c.end     = layoutReflection.constantBlock.size;
+                c.end     = static_cast<uint32>(layoutReflection.constantBlock.size);
                 c.binding = layoutReflection.constantBlock.binding;
                 c.space   = layoutReflection.constantBlock.set;
                 constants.push_back(c);
