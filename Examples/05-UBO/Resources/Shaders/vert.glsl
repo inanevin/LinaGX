@@ -4,7 +4,7 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 uv;
 layout(location = 0) out vec2 outUV;
 
-layout(set = 0, binding = 1) uniform UBO {
+layout(set = 1, binding = 0) uniform UBO {
 float time;
 } ubo[2];
 

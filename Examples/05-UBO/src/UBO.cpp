@@ -35,11 +35,12 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MAIN_WINDOW_ID 0
+#define MAIN_WINDOW_ID   0
+#define FRAMES_IN_FLIGHT 2
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
-    Window*           _window     = nullptr;
+    Window*           _window    = nullptr;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -49,17 +50,24 @@ namespace LinaGX::Examples
     LinaGX::CommandStream* _copyStream = nullptr;
 
     // Resources
-    uint32 _vertexBufferStaging    = 0;
-    uint32 _vertexBufferGPU        = 0;
-    uint32 _indexBufferStaging     = 0;
-    uint32 _indexBufferGPU         = 0;
-    uint32 _textureGPU             = 0;
-    uint32 _sampler                = 0;
-    uint16 _descriptorSet0         = 0;
-    uint32 _cpuResourceUBO         = 0;
-    uint32 _cpuResourceUBO2        = 0;
-    uint8* _cpuResourceUBOMapping  = nullptr;
-    uint8* _cpuResourceUBOMapping2 = nullptr;
+    uint32 _vertexBufferStaging  = 0;
+    uint32 _vertexBufferGPU      = 0;
+    uint32 _indexBufferStaging   = 0;
+    uint32 _indexBufferGPU       = 0;
+    uint32 _textureGPU           = 0;
+    uint32 _sampler              = 0;
+    uint16 _descriptorSetTexture = 0;
+
+    struct PerFrameData
+    {
+        uint16 descriptorSetUBO = 0;
+        uint32 uboResource0     = 0;
+        uint32 uboResource1     = 0;
+        uint8* uboMapping0      = nullptr;
+        uint8* uboMapping1      = nullptr;
+    };
+
+    PerFrameData _pfd[FRAMES_IN_FLIGHT];
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -90,7 +98,7 @@ namespace LinaGX::Examples
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
                 .gpu               = PreferredGPUType::Integrated,
-                .framesInFlight    = 2,
+                .framesInFlight    = FRAMES_IN_FLIGHT,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
                 .rtColorFormat     = Format::R8G8B8A8_SRGB,
@@ -320,39 +328,53 @@ namespace LinaGX::Examples
                 .debugName     = "UBO",
             };
 
-            _cpuResourceUBO  = _renderer->CreateResource(desc);
-            _cpuResourceUBO2 = _renderer->CreateResource(desc);
-            _renderer->MapResource(_cpuResourceUBO, _cpuResourceUBOMapping);
-            _renderer->MapResource(_cpuResourceUBO2, _cpuResourceUBOMapping2);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                _pfd[i].uboResource0 = _renderer->CreateResource(desc);
+                _pfd[i].uboResource1 = _renderer->CreateResource(desc);
+                _renderer->MapResource(_pfd[i].uboResource0, _pfd[i].uboMapping0);
+                _renderer->MapResource(_pfd[i].uboResource1, _pfd[i].uboMapping1);
+            }
         }
 
         //******************* DESCRIPTOR SET
         {
-            DescriptorBinding bindings[2];
 
-            bindings[0] = {
+            DescriptorBinding set0Bindings[1];
+
+            set0Bindings[0] = {
                 .binding         = 0,
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
                 .stages          = {ShaderStage::Fragment},
             };
 
-            bindings[1] = {
-                .binding         = 1,
+            DescriptorSetDesc set0Desc = {
+                .bindings      = &set0Bindings[0],
+                .bindingsCount = 1,
+            };
+
+            _descriptorSetTexture = _renderer->CreateDescriptorSet(set0Desc);
+
+            DescriptorBinding set1Bindings[1];
+
+            set1Bindings[0] = {
+                .binding         = 0,
                 .descriptorCount = 2,
                 .type            = DescriptorType::UBO,
                 .stages          = {ShaderStage::Vertex},
             };
 
-            DescriptorSetDesc desc = {
-                .bindings      = &bindings[0],
-                .bindingsCount = 2,
+            DescriptorSetDesc set1Desc = {
+                .bindings      = &set1Bindings[0],
+                .bindingsCount = 1,
             };
 
-            _descriptorSet0 = _renderer->CreateDescriptorSet(desc);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                _pfd[i].descriptorSetUBO = _renderer->CreateDescriptorSet(set1Desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
-                .setHandle       = _descriptorSet0,
+                .setHandle       = _descriptorSetTexture,
                 .binding         = 0,
                 .descriptorCount = 1,
                 .textures        = &_textureGPU,
@@ -362,17 +384,20 @@ namespace LinaGX::Examples
 
             _renderer->DescriptorUpdateImage(imgUpdate);
 
-            uint32 resources[2] = {_cpuResourceUBO, _cpuResourceUBO2};
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                uint32 resources[2] = {_pfd[i].uboResource0, _pfd[i].uboResource1};
 
-            DescriptorUpdateBufferDesc bufferDesc = {
-                .setHandle       = _descriptorSet0,
-                .binding         = 1,
-                .descriptorCount = 2,
-                .resources       = &resources[0],
-                .descriptorType  = DescriptorType::UBO,
-            };
+                DescriptorUpdateBufferDesc bufferDesc = {
+                    .setHandle       = _pfd[i].descriptorSetUBO,
+                    .binding         = 0,
+                    .descriptorCount = 2,
+                    .resources       = &resources[0],
+                    .descriptorType  = DescriptorType::UBO,
+                };
 
-            _renderer->DescriptorUpdateBuffer(bufferDesc);
+                _renderer->DescriptorUpdateBuffer(bufferDesc);
+            }
         }
     }
 
@@ -385,9 +410,15 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
-        _renderer->DestroyResource(_cpuResourceUBO);
-        _renderer->DestroyResource(_cpuResourceUBO2);
-        _renderer->DestroyDescriptorSet(_descriptorSet0);
+
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        {
+            _renderer->DestroyDescriptorSet(_pfd[i].descriptorSetUBO);
+            _renderer->DestroyResource(_pfd[i].uboResource0);
+            _renderer->DestroyResource(_pfd[i].uboResource1);
+        }
+
+        _renderer->DestroyDescriptorSet(_descriptorSetTexture);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_textureGPU);
         _renderer->DestroySampler(_sampler);
@@ -411,13 +442,15 @@ namespace LinaGX::Examples
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
 
+        auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
+
         // Update mapped UBO data.
         {
             static float time = 0.0f;
             time += (float)(m_deltaMicroseconds * 1e-6);
             float time2 = time * 0.01f;
-            std::memcpy(_cpuResourceUBOMapping, &time, sizeof(float));
-            std::memcpy(_cpuResourceUBOMapping2, &time2, sizeof(float));
+            std::memcpy(currentFrame.uboMapping0, &time, sizeof(float));
+            std::memcpy(currentFrame.uboMapping1, &time2, sizeof(float));
         }
 
         // Render pass begin
@@ -456,10 +489,11 @@ namespace LinaGX::Examples
 
         // Bind the descriptor
         {
-            CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
-            bindTxt->firstSet              = 0;
-            bindTxt->setCount              = 1;
-            bindTxt->descriptorSetHandles  = &_descriptorSet0;
+            CMDBindDescriptorSets* bindTxt    = _stream->AddCommand<CMDBindDescriptorSets>();
+            uint16                 handles[2] = {_descriptorSetTexture, currentFrame.descriptorSetUBO};
+            bindTxt->firstSet                 = 0;
+            bindTxt->setCount                 = 2;
+            bindTxt->descriptorSetHandles     = &handles[0];
         }
 
         // Draw the triangle
