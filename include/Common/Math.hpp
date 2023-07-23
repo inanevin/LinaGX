@@ -83,6 +83,11 @@ namespace LinaGX
         Vector4 Euler2Quat(const Vector3& euler);
     };
 
+    struct Vector4ui16
+    {
+        uint16 x = 0, y = 0, z = 0, w = 0;
+    };
+
     struct Matrix4
     {
         float values[16] = {0.0f};

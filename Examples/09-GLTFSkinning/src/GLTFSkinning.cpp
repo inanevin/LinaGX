@@ -43,13 +43,17 @@ namespace LinaGX::Examples
 
     struct Vertex
     {
-        Vector3 position = {};
-        Vector2 uv       = {};
+        Vector3 position      = {};
+        Vector2 uv            = {};
+        Vector4 inBoneIndices = {};
+        Vector4 inBoneWeights = {};
     };
 
     struct Object
     {
         Matrix4            modelMatrix;
+        LinaGX::ModelSkin* skin = nullptr;
+
         LINAGX_VEC<Vertex> vertices;
 
         uint32 vertexBufferStaging = 0;
@@ -64,6 +68,7 @@ namespace LinaGX::Examples
     struct GPUObjectData
     {
         Matrix4 modelMatrix;
+        Matrix4 bones[31] = {};
     };
 
     // Shaders.
@@ -125,7 +130,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF Skinning", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -201,23 +206,33 @@ namespace LinaGX::Examples
         {
             LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", _modelData);
 
-            _objects.resize(_modelData.allMeshesCount);
-
-            for (uint32 i = 0; i < _modelData.allMeshesCount; i++)
+            for (uint32 i = 0; i < _modelData.allNodesCount; i++)
             {
-                ModelMesh* mesh         = _modelData.allMeshes + i;
-                _objects[i].modelMatrix = mesh->node->globalMatrix;
+                ModelNode* node = _modelData.allNodes + i;
 
-                for (uint32 j = 0; j < mesh->primitiveCount; j++)
+                if (node->mesh != nullptr)
                 {
-                    ModelMeshPrimitive* prim = mesh->primitives + j;
+                    _objects.push_back({});
+                    Object& obj     = _objects[_objects.size() - 1];
+                    obj.modelMatrix = node->globalMatrix;
+                    obj.skin        = node->skin;
 
-                    for (uint32 k = 0; k < prim->vertexCount; k++)
+                    for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
                     {
-                        Vertex vtx   = {};
-                        vtx.position = prim->vertices[k];
-                        vtx.uv       = prim->texCoords[k];
-                        _objects[i].vertices.push_back(vtx);
+                        ModelMeshPrimitive* prim = node->mesh->primitives + j;
+
+                        for (uint32 k = 0; k < prim->vertexCount; k++)
+                        {
+                            Vertex vtx          = {};
+                            vtx.position        = prim->positions[k];
+                            vtx.uv              = prim->texCoords[k];
+                            vtx.inBoneWeights   = prim->weights[k];
+                            vtx.inBoneIndices.x = static_cast<float>(prim->joints[k].x);
+                            vtx.inBoneIndices.y = static_cast<float>(prim->joints[k].y);
+                            vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
+                            vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
+                            obj.vertices.push_back(vtx);
+                        }
                     }
                 }
             }
@@ -304,9 +319,6 @@ namespace LinaGX::Examples
             // Not needed anymore.
             for (auto& obj : _objects)
                 _renderer->DestroyResource(obj.vertexBufferStaging);
-
-            // Done with whole model.
-            _modelData.Clear();
         }
 
         //*******************  SSBO
@@ -459,13 +471,28 @@ namespace LinaGX::Examples
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
-                Matrix4 mat;
-                mat = _objects[i].modelMatrix;
+                const auto& targetObj = _objects[i];
+
                 Vector3 euler(0, m_elapsedSeconds, 0);
                 Vector4 rot;
+
+                Matrix4 mat;
                 mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
                 objectData[i].modelMatrix = mat;
+
+                if (targetObj.skin != nullptr)
+                {
+                    auto inv = targetObj.skin->rootJoint->globalMatrix.Inverse();
+
+                    uint32 k = 0;
+                    for (auto joint : targetObj.skin->joints)
+                    {
+                        objectData[i].bones[k] = inv * joint->globalMatrix * joint->inverseBindMatrix;
+                        k++;
+                    }
+                }
             }
+
 
             auto sz = sizeof(GPUObjectData) * _objects.size();
             std::memcpy(_ssboMapping, objectData.data(), sz);
@@ -491,7 +518,7 @@ namespace LinaGX::Examples
 
         // Update scene data
         {
-            Vector3 camPos = {0.0f, 0.0f, 200.0f};
+            Vector3 camPos = {45.0f, 0.0f, 200.0f};
             Matrix4 eye    = {};
             eye.InitLookAtRH(camPos, Vector3{0, 0, 0}, Vector3{0, 1, 0});
 
@@ -499,7 +526,7 @@ namespace LinaGX::Examples
             projection.InitPerspectiveRH(DEG2RAD(45.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 2000.0f);
 
             GPUSceneData sceneData = {};
-            sceneData.viewProj     = projection * eye;
+            sceneData.viewProj     = eye * projection;
 
             std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
         }

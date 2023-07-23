@@ -29,6 +29,7 @@ SOFTWARE.
 #pragma once
 
 #include "Common/Math.hpp"
+#include "Common/CommonGfx.hpp"
 
 namespace LinaGX
 {
@@ -187,6 +188,7 @@ namespace LinaGX
                 rowCount++;
             }
         }
+
         float determinant = miniDet[0] * (miniDet[4] * miniDet[8] - miniDet[7] * miniDet[5]) - miniDet[1] * (miniDet[3] * miniDet[8] - miniDet[5] * miniDet[6]) + miniDet[2] * (miniDet[3] * miniDet[7] - miniDet[4] * miniDet[6]);
         int   sign        = ((row + col) % 2 == 0) ? 1 : -1;
         return sign * determinant;
@@ -195,18 +197,31 @@ namespace LinaGX
     Matrix4 Matrix4::Inverse() const
     {
         Matrix4 result;
-        // This is a very simplified inversion for 4x4 matrices,
-        // and doesn't handle cases where the matrix is singular or near-singular
+
+        // Compute the determinant
         float determinant = 0.0f;
-        for (int i = 0; i < 4; i++)
-            determinant += values[0 * 4 + i] * Cofactor(0, i);
-        for (int row = 0; row < 4; row++)
+        for (int i = 0; i < 4; ++i)
         {
-            for (int col = 0; col < 4; col++)
+            determinant += values[0 * 4 + i] * Cofactor(0, i);
+        }
+
+        // Check if the determinant is zero (with some tolerance)
+        if (abs(determinant) < 1e-6)
+        {
+            // The matrix is singular
+            LOGE("Cannot invert a singular matrix.");
+        }
+
+        // Compute the adjugate matrix and divide by the determinant
+        for (int row = 0; row < 4; ++row)
+        {
+            for (int col = 0; col < 4; ++col)
             {
-                result.values[col * 4 + row] = Cofactor(row, col) / determinant;
+                // Cofactor includes (-1)^(row+col) factor
+                result.values[col * 4 + row] = pow(-1, row + col) * Cofactor(row, col) / determinant;
             }
         }
+
         return result;
     }
 
@@ -224,20 +239,20 @@ namespace LinaGX
         float   wz = q.w * q.z;
 
         result.values[0]  = 1.0f - 2.0f * (yy + zz);
-        result.values[1]  = 2.0f * (xy - wz);
-        result.values[2]  = 2.0f * (xz + wy);
-        result.values[3]  = 0.0f;
-        result.values[4]  = 2.0f * (xy + wz);
-        result.values[5]  = 1.0f - 2.0f * (xx + zz);
-        result.values[6]  = 2.0f * (yz - wx);
-        result.values[7]  = 0.0f;
-        result.values[8]  = 2.0f * (xz - wy);
-        result.values[9]  = 2.0f * (yz + wx);
-        result.values[10] = 1.0f - 2.0f * (xx + yy);
-        result.values[11] = 0.0f;
+        result.values[4]  = 2.0f * (xy - wz);
+        result.values[8]  = 2.0f * (xz + wy);
         result.values[12] = 0.0f;
+        result.values[1]  = 2.0f * (xy + wz);
+        result.values[5]  = 1.0f - 2.0f * (xx + zz);
+        result.values[9]  = 2.0f * (yz - wx);
         result.values[13] = 0.0f;
+        result.values[2]  = 2.0f * (xz - wy);
+        result.values[6]  = 2.0f * (yz + wx);
+        result.values[10] = 1.0f - 2.0f * (xx + yy);
         result.values[14] = 0.0f;
+        result.values[3]  = 0.0f;
+        result.values[7]  = 0.0f;
+        result.values[11] = 0.0f;
         result.values[15] = 1.0f;
 
         return result;
@@ -276,42 +291,45 @@ namespace LinaGX
         Vector3 u = f.Cross(r).Normalized();
 
         values[0]  = r.x;
-        values[1]  = r.y;
-        values[2]  = r.z;
-        values[3]  = -r.Dot(eye);
-        values[4]  = u.x;
+        values[4]  = r.y;
+        values[8]  = r.z;
+        values[12] = -r.Dot(eye);
+        values[1]  = u.x;
         values[5]  = u.y;
-        values[6]  = u.z;
-        values[7]  = -u.Dot(eye);
-        values[8]  = -f.x;
-        values[9]  = -f.y;
+        values[9]  = u.z;
+        values[13] = -u.Dot(eye);
+        values[2]  = -f.x;
+        values[6]  = -f.y;
         values[10] = -f.z;
-        values[11] = f.Dot(eye);
-        values[12] = 0.0f;
-        values[13] = 0.0f;
-        values[14] = 0.0f;
+        values[14] = f.Dot(eye);
+        values[3]  = 0.0f;
+        values[7]  = 0.0f;
+        values[11] = 0.0f;
         values[15] = 1.0f;
     }
 
     void Matrix4::InitPerspectiveRH(float halfFov, float aspect, float nearZ, float farZ)
     {
-        float tangentHalfFov = tan(halfFov);
+        const float tanHalfFovy = tan(halfFov);
 
-        values[0]  = 1.0f / (tangentHalfFov * aspect);
-        values[1]  = 0.0f;
-        values[2]  = 0.0f;
-        values[3]  = 0.0f;
-        values[4]  = 0.0f;
-        values[5]  = 1.0f / tangentHalfFov;
-        values[6]  = 0.0f;
-        values[7]  = 0.0f;
+        values[0] = 1.0f / (aspect * tanHalfFovy);
+        values[1] = 0.0f;
+        values[2] = 0.0f;
+        values[3] = 0.0f;
+
+        values[4] = 0.0f;
+        values[5] = 1.0f / tanHalfFovy;
+        values[6] = 0.0f;
+        values[7] = 0.0f;
+
         values[8]  = 0.0f;
         values[9]  = 0.0f;
         values[10] = farZ / (nearZ - farZ);
-        values[11] = (farZ * nearZ) / (nearZ - farZ);
+        values[11] = -1.0f;
+
         values[12] = 0.0f;
         values[13] = 0.0f;
-        values[14] = -1.0f;
+        values[14] = (farZ * nearZ) / (nearZ - farZ);
         values[15] = 0.0f;
     }
 

@@ -108,7 +108,6 @@ namespace LinaGX::Examples
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
-
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
                 .gpu               = PreferredGPUType::Integrated,
@@ -201,23 +200,27 @@ namespace LinaGX::Examples
         {
             LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", _modelData);
 
-            _objects.resize(_modelData.allMeshesCount);
-
-            for (uint32 i = 0; i < _modelData.allMeshesCount; i++)
+            for (uint32 i = 0; i < _modelData.allNodesCount; i++)
             {
-                ModelMesh* mesh         = _modelData.allMeshes + i;
-                _objects[i].modelMatrix = mesh->node->globalMatrix;
+                ModelNode* node = _modelData.allNodes + i;
 
-                for (uint32 j = 0; j < mesh->primitiveCount; j++)
+                if (node->mesh != nullptr)
                 {
-                    ModelMeshPrimitive* prim = mesh->primitives + j;
+                    _objects.push_back({});
+                    Object& obj     = _objects[_objects.size() - 1];
+                    obj.modelMatrix = node->globalMatrix;
 
-                    for (uint32 k = 0; k < prim->vertexCount; k++)
+                    for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
                     {
-                        Vertex vtx   = {};
-                        vtx.position = prim->vertices[k];
-                        vtx.uv       = prim->texCoords[k];
-                        _objects[i].vertices.push_back(vtx);
+                        ModelMeshPrimitive* prim = node->mesh->primitives + j;
+
+                        for (uint32 k = 0; k < prim->vertexCount; k++)
+                        {
+                            Vertex vtx   = {};
+                            vtx.position = prim->positions[k];
+                            vtx.uv       = prim->texCoords[k];
+                            obj.vertices.push_back(vtx);
+                        }
                     }
                 }
             }
@@ -459,10 +462,9 @@ namespace LinaGX::Examples
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
-                Matrix4 mat;
-                mat = _objects[i].modelMatrix;
                 Vector3 euler(0, m_elapsedSeconds, 0);
                 Vector4 rot;
+                Matrix4 mat;
                 mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
                 objectData[i].modelMatrix = mat;
             }
@@ -499,7 +501,7 @@ namespace LinaGX::Examples
             projection.InitPerspectiveRH(DEG2RAD(45.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 2000.0f);
 
             GPUSceneData sceneData = {};
-            sceneData.viewProj     = projection * eye;
+            sceneData.viewProj     = eye * projection;
 
             std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
         }

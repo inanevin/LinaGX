@@ -117,11 +117,13 @@ namespace LinaGX
         {
             const auto& gltfNode = model.nodes[i];
             ModelNode*  node     = outData.allNodes + i;
+            node->name           = gltfNode.name.c_str();
 
             if (!gltfNode.matrix.empty())
             {
-                const uint32 matSz = static_cast<uint32>(gltfNode.matrix.size());
-                for (uint32 j = 0; j < matSz; j++)
+                LOGA(gltfNode.matrix.size() == 16, "Unsupported matrix type!");
+
+                for (uint32 j = 0; j < 16; j++)
                     node->localMatrix.values[j] = static_cast<float>(gltfNode.matrix[j]);
             }
             else
@@ -147,6 +149,7 @@ namespace LinaGX
                     node->quatRot.z = static_cast<float>(gltfNode.rotation[2]);
                     node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
                 }
+
                 node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
             }
 
@@ -183,13 +186,14 @@ namespace LinaGX
                     LOGA((vertexAccessor.type == TINYGLTF_TYPE_VEC3 && vertexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
 
                     const size_t numVertices = vertexAccessor.count;
-                    primitive->vertices.resize(numVertices);
+                    primitive->positions.resize(numVertices);
                     primitive->vertexCount = static_cast<uint32>(numVertices);
 
-                    for (size_t i = 0; i < numVertices; ++i)
+                    for (size_t j = 0; j < numVertices; ++j)
                     {
-                        const float* rawFloatData = reinterpret_cast<const float*>(vertexBuffer.data.data() + vertexBufferView.byteOffset + i * vertexBufferView.byteStride);
-                        Vector3&     position     = primitive->vertices[i];
+                        const size_t stride       = vertexBufferView.byteStride == 0 ? sizeof(float) * 3 : vertexBufferView.byteStride;
+                        const float* rawFloatData = reinterpret_cast<const float*>(vertexBuffer.data.data() + vertexAccessor.byteOffset + vertexBufferView.byteOffset + j * stride);
+                        Vector3&     position     = primitive->positions[j];
                         position.x                = rawFloatData[0];
                         position.y                = rawFloatData[1];
                         position.z                = rawFloatData[2];
@@ -204,10 +208,11 @@ namespace LinaGX
 
                         const size_t numIndices = indexBufferView.byteLength / indexBufferView.byteStride;
                         primitive->indices.resize(numIndices);
-                        for (size_t i = 0; i < numIndices; i++)
+                        for (size_t j = 0; j < numIndices; j++)
                         {
-                            const uint32* rawData = reinterpret_cast<const uint32*>(indexBuffer.data.data() + indexBufferView.byteOffset + i * indexBufferView.byteStride);
-                            uint32&       index   = primitive->indices[i];
+                            const size_t  stride  = indexBufferView.byteStride == 0 ? sizeof(int) : indexBufferView.byteStride;
+                            const uint32* rawData = reinterpret_cast<const uint32*>(indexBuffer.data.data() + indexAccessor.byteOffset + indexBufferView.byteOffset + j * stride);
+                            uint32&       index   = primitive->indices[j];
                             index                 = rawData[0];
                         }
                     }
@@ -223,10 +228,11 @@ namespace LinaGX
                         const size_t numNormals = normalsAccessor.count;
                         primitive->normals.resize(numNormals);
 
-                        for (size_t i = 0; i < numNormals; ++i)
+                        for (size_t j = 0; j < numNormals; ++j)
                         {
-                            const float* rawFloatData = reinterpret_cast<const float*>(normalsBuffer.data.data() + normalsBufferView.byteOffset + i * normalsBufferView.byteStride);
-                            Vector3&     normal       = primitive->normals[i];
+                            const size_t stride       = normalsBufferView.byteStride == 0 ? sizeof(float) * 3 : normalsBufferView.byteStride;
+                            const float* rawFloatData = reinterpret_cast<const float*>(normalsBuffer.data.data() + normalsAccessor.byteOffset + normalsBufferView.byteOffset + j * stride);
+                            Vector3&     normal       = primitive->normals[j];
                             normal.x                  = rawFloatData[0];
                             normal.y                  = rawFloatData[1];
                             normal.z                  = rawFloatData[2];
@@ -244,10 +250,11 @@ namespace LinaGX
                         const size_t numColors = colorsAccessor.count;
                         primitive->colors.resize(numColors);
 
-                        for (size_t i = 0; i < numColors; ++i)
+                        for (size_t j = 0; j < numColors; ++j)
                         {
-                            const float* rawFloatData = reinterpret_cast<const float*>(colorsBuffer.data.data() + colorsBufferView.byteOffset + i * colorsBufferView.byteStride);
-                            Vector4&     color        = primitive->colors[i];
+                            const size_t stride       = colorsBufferView.byteStride == 0 ? sizeof(float) * 4 : colorsBufferView.byteStride;
+                            const float* rawFloatData = reinterpret_cast<const float*>(colorsBuffer.data.data() + colorsAccessor.byteOffset + colorsBufferView.byteOffset + j * stride);
+                            Vector4&     color        = primitive->colors[j];
                             color.x                   = rawFloatData[0];
                             color.y                   = rawFloatData[1];
                             color.z                   = rawFloatData[2];
@@ -266,10 +273,11 @@ namespace LinaGX
                         const size_t numTangents = tangentsAccessor.count;
                         primitive->tangents.resize(numTangents);
 
-                        for (size_t i = 0; i < numTangents; ++i)
+                        for (size_t j = 0; j < numTangents; ++j)
                         {
-                            const float* rawFloatData = reinterpret_cast<const float*>(tangentsBuffer.data.data() + tangentsBufferView.byteOffset + i * tangentsBufferView.byteStride);
-                            Vector4&     tangent      = primitive->tangents[i];
+                            const size_t stride       = tangentsBufferView.byteStride == 0 ? sizeof(float) * 4 : tangentsBufferView.byteStride;
+                            const float* rawFloatData = reinterpret_cast<const float*>(tangentsBuffer.data.data() + tangentsAccessor.byteOffset + tangentsBufferView.byteOffset + j * stride);
+                            Vector4&     tangent      = primitive->tangents[j];
                             tangent.x                 = rawFloatData[0];
                             tangent.y                 = rawFloatData[1];
                             tangent.z                 = rawFloatData[2];
@@ -288,17 +296,87 @@ namespace LinaGX
                         const size_t numCoords = texcoordAccessor.count;
                         primitive->texCoords.resize(numCoords);
 
-                        for (size_t i = 0; i < numCoords; ++i)
+                        for (size_t j = 0; j < numCoords; ++j)
                         {
-                            const float* rawFloatData = reinterpret_cast<const float*>(texcoordBuffer.data.data() + texcoordBufferView.byteOffset + i * texcoordBufferView.byteStride);
-                            Vector2&     coord        = primitive->texCoords[i];
+                            const size_t stride       = texcoordBufferView.byteStride == 0 ? sizeof(float) * 2 : texcoordBufferView.byteStride;
+                            const float* rawFloatData = reinterpret_cast<const float*>(texcoordBuffer.data.data() + texcoordAccessor.byteOffset + texcoordBufferView.byteOffset + j * stride);
+                            Vector2&     coord        = primitive->texCoords[j];
                             coord.x                   = rawFloatData[0];
                             coord.y                   = rawFloatData[1];
                         }
                     }
 
+                    auto joints0 = tgPrimitive.attributes.find("JOINTS_0");
+                    if (joints0 != tgPrimitive.attributes.end())
+                    {
+                        const tinygltf::Accessor&   jointsAccessor   = model.accessors[joints0->second];
+                        const tinygltf::BufferView& jointsBufferView = model.bufferViews[jointsAccessor.bufferView];
+                        const tinygltf::Buffer&     jointsBuffer     = model.buffers[jointsBufferView.buffer];
+                        LOGA((jointsAccessor.type == TINYGLTF_TYPE_VEC4 && jointsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT), "Unsupported component type!");
+
+                        const size_t numJoints = jointsAccessor.count;
+                        primitive->joints.resize(numJoints);
+
+                        for (size_t j = 0; j < numJoints; j++)
+                        {
+                            const size_t  stride  = jointsBufferView.byteStride == 0 ? sizeof(uint16) * 4 : jointsBufferView.byteStride;
+                            const uint16* rawData = reinterpret_cast<const uint16*>(jointsBuffer.data.data() + jointsAccessor.byteOffset + jointsBufferView.byteOffset + j * stride);
+                            primitive->joints[j]  = {rawData[0], rawData[1], rawData[2], rawData[3]};
+                        }
+                    }
+
+                    auto weights0 = tgPrimitive.attributes.find("WEIGHTS_0");
+                    if (weights0 != tgPrimitive.attributes.end())
+                    {
+                        const tinygltf::Accessor&   weightsAccessor   = model.accessors[weights0->second];
+                        const tinygltf::BufferView& weightsBufferView = model.bufferViews[weightsAccessor.bufferView];
+                        const tinygltf::Buffer&     weightsBuffer     = model.buffers[weightsBufferView.buffer];
+                        LOGA((weightsAccessor.type == TINYGLTF_TYPE_VEC4 && weightsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
+
+                        const size_t numWeights = weightsAccessor.count;
+                        primitive->weights.resize(numWeights);
+
+                        for (size_t j = 0; j < numWeights; ++j)
+                        {
+                            const size_t stride   = weightsBufferView.byteStride == 0 ? sizeof(float) * 4 : weightsBufferView.byteStride;
+                            const float* rawData  = reinterpret_cast<const float*>(weightsBuffer.data.data() + weightsAccessor.byteOffset + weightsBufferView.byteOffset + j * stride);
+                            primitive->weights[j] = {rawData[0], rawData[1], rawData[2], rawData[3]};
+                        }
+                    }
+
                     primitiveIndex++;
                 }
+            }
+        }
+
+        outData.allSkins      = new ModelSkin[model.skins.size()];
+        outData.allSkinsCount = static_cast<uint32>(model.skins.size());
+
+        for (size_t i = 0; i < model.skins.size(); i++)
+        {
+            const auto& gltfSkin = model.skins[i];
+            ModelSkin*  skin     = outData.allSkins + i;
+
+            skin->joints.resize(gltfSkin.joints.size());
+
+            for (size_t j = 0; j < gltfSkin.joints.size(); j++)
+                skin->joints[j] = outData.allNodes + gltfSkin.joints[j];
+
+            skin->rootJoint = outData.allNodes + gltfSkin.skeleton;
+
+            const tinygltf::Accessor&   inverseBindMatricesAccessor = model.accessors[gltfSkin.inverseBindMatrices];
+            const tinygltf::BufferView& inverseBindMatricesView     = model.bufferViews[inverseBindMatricesAccessor.bufferView];
+            const tinygltf::Buffer&     inverseBindMatricesBuffer   = model.buffers[inverseBindMatricesView.buffer];
+            const size_t                count                       = inverseBindMatricesAccessor.count;
+            LOGA((inverseBindMatricesAccessor.type == TINYGLTF_TYPE_MAT4 && inverseBindMatricesAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
+
+            for (size_t j = 0; j < count; j++)
+            {
+                const size_t stride       = inverseBindMatricesView.byteStride == 0 ? sizeof(float) * 16 : inverseBindMatricesView.byteStride;
+                const float* rawFloatData = reinterpret_cast<const float*>(inverseBindMatricesBuffer.data.data() + inverseBindMatricesAccessor.byteOffset + inverseBindMatricesView.byteOffset + j * stride);
+
+                for (size_t k = 0; k < 16; k++)
+                    skin->joints[j]->inverseBindMatrix.values[k] = rawFloatData[k];
             }
         }
 
@@ -309,6 +387,11 @@ namespace LinaGX
             // Calculate all matrices.
             node->globalMatrix = CalculateGlobalMatrix(node);
 
+            // Assign skin.
+            if (model.nodes[i].skin != -1)
+                node->skin = outData.allSkins + model.nodes[i].skin;
+
+            // Assign roots.
             if (node->parent == nullptr)
                 outData.rootNodes.push_back(node);
         }

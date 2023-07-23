@@ -45,22 +45,26 @@ namespace LinaGX
 
     struct ModelMeshPrimitive
     {
-        LINAGX_VEC<Vector2> texCoords;
-        LINAGX_VEC<Vector3> vertices;
-        LINAGX_VEC<Vector3> normals;
-        LINAGX_VEC<Vector4> tangents;
-        LINAGX_VEC<Vector4> colors;
-        LINAGX_VEC<uint32>  indices;
-        uint32              vertexCount = 0;
+        LINAGX_VEC<Vector2>     texCoords;
+        LINAGX_VEC<Vector3>     positions;
+        LINAGX_VEC<Vector3>     normals;
+        LINAGX_VEC<Vector4>     tangents;
+        LINAGX_VEC<Vector4>     colors;
+        LINAGX_VEC<uint32>      indices;
+        LINAGX_VEC<Vector4ui16> joints;
+        LINAGX_VEC<Vector4>     weights;
+        uint32                  vertexCount = 0;
 
         inline void Clear()
         {
             texCoords.clear();
-            vertices.clear();
+            positions.clear();
             normals.clear();
             tangents.clear();
             colors.clear();
             indices.clear();
+            joints.clear();
+            weights.clear();
         }
     };
 
@@ -109,11 +113,15 @@ namespace LinaGX
         bool                              isOpaque        = true;
     };
 
+    struct ModelSkin;
+
     struct ModelNode
     {
     public:
         ModelMesh*             mesh   = nullptr;
+        ModelSkin*             skin   = nullptr;
         ModelNode*             parent = nullptr;
+        LINAGX_STRING          name   = "";
         LINAGX_VEC<ModelNode*> children;
 
         Vector3 position = {};
@@ -121,10 +129,22 @@ namespace LinaGX
         Vector4 quatRot  = {};
         Matrix4 globalMatrix;
         Matrix4 localMatrix;
+        Matrix4 inverseBindMatrix;
 
         ~ModelNode()
         {
             children.clear();
+        }
+    };
+
+    struct ModelSkin
+    {
+        ModelNode*             rootJoint = nullptr;
+        LINAGX_VEC<ModelNode*> joints;
+
+        ~ModelSkin()
+        {
+            joints.clear();
         }
     };
 
@@ -143,6 +163,9 @@ namespace LinaGX
         ModelMesh* allMeshes      = nullptr;
         uint32     allMeshesCount = 0;
 
+        ModelSkin* allSkins      = nullptr;
+        uint32     allSkinsCount = 0;
+
         ~ModelData()
         {
             Clear();
@@ -159,6 +182,9 @@ namespace LinaGX
             if (allMeshes != nullptr)
                 delete[] allMeshes;
 
+            if (allSkins != nullptr)
+                delete[] allSkins;
+
             if (allTextures != nullptr)
             {
                 for (uint32 i = 0; i < allTexturesCount; i++)
@@ -173,6 +199,7 @@ namespace LinaGX
             allMaterials = nullptr;
             allMeshes    = nullptr;
             allTextures  = nullptr;
+            allSkins     = nullptr;
             rootNodes.clear();
         }
     };

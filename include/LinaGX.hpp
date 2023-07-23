@@ -35,6 +35,8 @@ NOTES:
 
 - Only 1 type of PushConstants are supported.
 
+- All matrices and their operations are column-major.
+
 */
 
 #pragma once
