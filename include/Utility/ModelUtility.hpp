@@ -136,6 +136,7 @@ namespace LinaGX
     struct ModelNode
     {
     public:
+        uint32                 index  = 0;
         ModelMesh*             mesh   = nullptr;
         ModelSkin*             skin   = nullptr;
         ModelNode*             parent = nullptr;

@@ -518,13 +518,13 @@ namespace LinaGX::Examples
     {
         outjointMatrices.resize(skin->joints.size(), Matrix4::Identity());
 
-        uint32 i = 0;
+        uint32 jointIndex = 0;
         for (const auto& j : skin->joints)
         {
-            outjointMatrices[i] = j->globalMatrix;
-            i++;
+            outjointMatrices[jointIndex].InitTranslationRotationScale(skin->joints[jointIndex]->position, skin->joints[jointIndex]->quatRot, skin->joints[jointIndex]->scale);
+            jointIndex++;
         }
-        return;
+
         for (const auto& channel : anim->channels)
         {
             int jointIndex = -1;
@@ -546,17 +546,25 @@ namespace LinaGX::Examples
 
             if (channel.targetProperty == GLTFAnimationProperty::Position)
             {
-                outjointMatrices[jointIndex] = Matrix4::Translate(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
+                // outjointMatrices[jointIndex] = Matrix4::Translate(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
             }
             else if (channel.targetProperty == GLTFAnimationProperty::Rotation)
             {
-                outjointMatrices[jointIndex] = Matrix4::Rotate(outjointMatrices[jointIndex], Vector4(result.x, result.y, result.z, result.w));
+                // outjointMatrices[jointIndex] = Matrix4::Rotate(outjointMatrices[jointIndex], Vector4(result.x, result.y, result.z, result.w));
             }
             else if (channel.targetProperty == GLTFAnimationProperty::Scale)
             {
-                // outjointMatrices[jointIndex] = Matrix4::Scale(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
+                //  outjointMatrices[jointIndex] = Matrix4::Scale(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
             }
         }
+    }
+
+    Matrix4 CalculateGlobalMatrix(LinaGX::ModelNode* node)
+    {
+        if (node->parent != nullptr)
+            return node->localMatrix * CalculateGlobalMatrix(node->parent);
+
+        return node->localMatrix;
     }
 
     void Example::OnTick()
@@ -579,22 +587,31 @@ namespace LinaGX::Examples
             if (time > 3.0f)
                 time = 0.0f;
 
+            LINAGX_VEC<Matrix4> jointPoseMatrices;
+            SampleAnimation(_modelData.allSkins, _modelData.allAnimations, time, jointPoseMatrices);
+
+            for (size_t i = 0; i < _modelData.allSkins->joints.size(); i++)
+            {
+                // _modelData.allSkins->joints[i]->localMatrix = jointPoseMatrices[i];
+            }
+
             LINAGX_VEC<Matrix4> jointGlobalMatrices;
-            SampleAnimation(_modelData.allSkins, _modelData.allAnimations, time, jointGlobalMatrices);
+            jointGlobalMatrices.resize(jointPoseMatrices.size());
+
+            for (size_t i = 0; i < _modelData.allSkins->joints.size(); i++)
+            {
+                // jointGlobalMatrices[i] = CalculateGlobalMatrix(_modelData.allSkins->joints[i]);
+            }
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
                 const auto& targetObj = _objects[i];
 
-                Vector3 euler(0, 0, 0);
+                Vector3 euler(0, m_elapsedSeconds, 0);
                 Vector4 rot;
 
                 Matrix4 mat = Matrix4::Identity();
-                // mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
-
-                euler = {0, DEG2RAD(m_elapsedSeconds * 100.0f), 0};
-                mat   = Matrix4::Scale(mat, {1.5f, 1.5f, 1.5f});
-                mat   = Matrix4::Rotate(mat, rot.Euler2Quat(euler));
+                mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
 
                 objectData[i].modelMatrix = mat;
 
@@ -603,7 +620,16 @@ namespace LinaGX::Examples
                 uint32 k = 0;
                 for (auto joint : _modelData.allSkins->joints)
                 {
-                    objectData[i].bones[k] = inv * joint->globalMatrix * joint->inverseBindMatrix;
+
+                    if (joint->name.compare("b_Hip_01") == 0)
+                    {
+                        joint->localMatrix.InitTranslationRotationScale(joint->position, joint->quatRot, joint->scale);
+                        joint->localMatrix = Matrix4::Translate(joint->localMatrix, {0.0f, 15.0f, 0.0f});
+                    }
+
+                    auto matrix = CalculateGlobalMatrix(joint);
+
+                    objectData[i].bones[k] = inv * matrix * joint->inverseBindMatrix;
                     k++;
                 }
             }

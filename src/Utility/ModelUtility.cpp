@@ -150,12 +150,12 @@ namespace LinaGX
                     node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
                 }
 
-                node->localMatrix = Matrix4::Identity();
-                node->localMatrix = Matrix4::Translate(node->localMatrix, node->position);
-                node->localMatrix = Matrix4::Rotate(node->localMatrix, node->quatRot);
-                node->localMatrix = Matrix4::Scale(node->localMatrix, node->scale);
+                // node->localMatrix = Matrix4::Identity();
+                // node->localMatrix = Matrix4::Translate(node->localMatrix, node->position);
+                // node->localMatrix = Matrix4::Rotate(node->localMatrix, node->quatRot);
+                // node->localMatrix = Matrix4::Scale(node->localMatrix, node->scale);
 
-                // node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
+                node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
             }
 
             if (!gltfNode.children.empty())
@@ -388,6 +388,7 @@ namespace LinaGX
         for (size_t i = 0; i < model.nodes.size(); i++)
         {
             ModelNode* node = outData.allNodes + i;
+            node->index     = static_cast<uint32>(i);
 
             // Calculate all matrices.
             node->globalMatrix = CalculateGlobalMatrix(node);
@@ -480,7 +481,6 @@ namespace LinaGX
                 }
             }
         }
-        int a = 5;
     }
 
     LINAGX_API void LoadGLTFBinary(const char* path, ModelData& outData)
