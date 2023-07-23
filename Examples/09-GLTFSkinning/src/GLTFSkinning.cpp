@@ -51,8 +51,7 @@ namespace LinaGX::Examples
 
     struct Object
     {
-        Matrix4            modelMatrix;
-        LinaGX::ModelSkin* skin = nullptr;
+        Matrix4 modelMatrix;
 
         LINAGX_VEC<Vertex> vertices;
 
@@ -215,7 +214,6 @@ namespace LinaGX::Examples
                     _objects.push_back({});
                     Object& obj     = _objects[_objects.size() - 1];
                     obj.modelMatrix = node->globalMatrix;
-                    obj.skin        = node->skin;
 
                     for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
                     {
@@ -456,6 +454,111 @@ namespace LinaGX::Examples
         App::Shutdown();
     }
 
+    Vector4 InterpolateKeyframes(const ModelAnimationChannel& channel, float time)
+    {
+        // Find the two keyframes we need to interpolate between.
+        int index1 = -1;
+        int index2 = -1;
+        for (int i = 0; i < channel.keyframeTimes.size(); ++i)
+        {
+            if (time < channel.keyframeTimes[i])
+            {
+                index2 = i;
+                if (i > 0)
+                {
+                    index1 = i - 1;
+                }
+                break;
+            }
+        }
+
+        // If time is after the last keyframe, use the last keyframe value.
+        if (index1 == -1)
+        {
+            index1 = index2 = channel.keyframeTimes.size() - 1;
+        }
+
+        // Extract the keyframe values.
+        Vector4 value1, value2;
+
+        if (channel.targetProperty == GLTFAnimationProperty::Rotation)
+        {
+            value1.x = channel.values[index1 * 4 + 0];
+            value1.y = channel.values[index1 * 4 + 1];
+            value1.z = channel.values[index1 * 4 + 2];
+            value1.w = channel.values[index1 * 4 + 3];
+
+            value2.x = channel.values[index2 * 4 + 0];
+            value2.y = channel.values[index2 * 4 + 1];
+            value2.z = channel.values[index2 * 4 + 2];
+            value2.w = channel.values[index2 * 4 + 3];
+        }
+        else
+        {
+            value1.x = channel.values[index1 * 3 + 0];
+            value1.y = channel.values[index1 * 3 + 1];
+            value1.z = channel.values[index1 * 3 + 2];
+
+            value2.x = channel.values[index2 * 3 + 0];
+            value2.y = channel.values[index2 * 3 + 1];
+            value2.z = channel.values[index2 * 3 + 2];
+        }
+
+        // Perform the interpolation.
+        float alpha = 0.0f;
+        if (index1 != index2)
+        {
+            alpha = (time - channel.keyframeTimes[index1]) / (channel.keyframeTimes[index2] - channel.keyframeTimes[index1]);
+        }
+
+        return Vector4::Lerp(value1, value2, alpha);
+    }
+
+    void SampleAnimation(LinaGX::ModelSkin* skin, LinaGX::ModelAnimation* anim, float time, LINAGX_VEC<Matrix4>& outjointMatrices)
+    {
+        outjointMatrices.resize(skin->joints.size(), Matrix4::Identity());
+
+        uint32 i = 0;
+        for (const auto& j : skin->joints)
+        {
+            outjointMatrices[i] = j->globalMatrix;
+            i++;
+        }
+        return;
+        for (const auto& channel : anim->channels)
+        {
+            int jointIndex = -1;
+            for (int i = 0; i < skin->joints.size(); ++i)
+            {
+                if (skin->joints[i] == channel.targetNode)
+                {
+                    jointIndex = i;
+                    break;
+                }
+            }
+
+            // If the joint wasn't found, continue to the next channel.
+            if (jointIndex == -1)
+                continue;
+
+            // Interpolate the channel's keyframes.
+            Vector4 result = InterpolateKeyframes(channel, time);
+
+            if (channel.targetProperty == GLTFAnimationProperty::Position)
+            {
+                outjointMatrices[jointIndex] = Matrix4::Translate(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
+            }
+            else if (channel.targetProperty == GLTFAnimationProperty::Rotation)
+            {
+                outjointMatrices[jointIndex] = Matrix4::Rotate(outjointMatrices[jointIndex], Vector4(result.x, result.y, result.z, result.w));
+            }
+            else if (channel.targetProperty == GLTFAnimationProperty::Scale)
+            {
+                // outjointMatrices[jointIndex] = Matrix4::Scale(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
+            }
+        }
+    }
+
     void Example::OnTick()
     {
         // Check for window inputs.
@@ -469,30 +572,41 @@ namespace LinaGX::Examples
             LINAGX_VEC<GPUObjectData> objectData;
             objectData.resize(_objects.size());
 
+            static float time = 0.0f;
+
+            time += m_deltaSeconds;
+
+            if (time > 3.0f)
+                time = 0.0f;
+
+            LINAGX_VEC<Matrix4> jointGlobalMatrices;
+            SampleAnimation(_modelData.allSkins, _modelData.allAnimations, time, jointGlobalMatrices);
+
             for (size_t i = 0; i < _objects.size(); i++)
             {
                 const auto& targetObj = _objects[i];
 
-                Vector3 euler(0, m_elapsedSeconds, 0);
+                Vector3 euler(0, 0, 0);
                 Vector4 rot;
 
-                Matrix4 mat;
-                mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
+                Matrix4 mat = Matrix4::Identity();
+                // mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
+
+                euler = {0, DEG2RAD(m_elapsedSeconds * 100.0f), 0};
+                mat   = Matrix4::Scale(mat, {1.5f, 1.5f, 1.5f});
+                mat   = Matrix4::Rotate(mat, rot.Euler2Quat(euler));
+
                 objectData[i].modelMatrix = mat;
 
-                if (targetObj.skin != nullptr)
-                {
-                    auto inv = targetObj.skin->rootJoint->globalMatrix.Inverse();
+                auto inv = _modelData.allSkins->rootJoint->globalMatrix.Inverse();
 
-                    uint32 k = 0;
-                    for (auto joint : targetObj.skin->joints)
-                    {
-                        objectData[i].bones[k] = inv * joint->globalMatrix * joint->inverseBindMatrix;
-                        k++;
-                    }
+                uint32 k = 0;
+                for (auto joint : _modelData.allSkins->joints)
+                {
+                    objectData[i].bones[k] = inv * joint->globalMatrix * joint->inverseBindMatrix;
+                    k++;
                 }
             }
-
 
             auto sz = sizeof(GPUObjectData) * _objects.size();
             std::memcpy(_ssboMapping, objectData.data(), sz);
@@ -518,7 +632,7 @@ namespace LinaGX::Examples
 
         // Update scene data
         {
-            Vector3 camPos = {45.0f, 0.0f, 200.0f};
+            Vector3 camPos = {0, 0.0f, 200.0f};
             Matrix4 eye    = {};
             eye.InitLookAtRH(camPos, Vector3{0, 0, 0}, Vector3{0, 1, 0});
 

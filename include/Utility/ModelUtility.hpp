@@ -37,11 +37,29 @@ SOFTWARE.
 namespace LinaGX
 {
 
-#define LINAGX_TEXTURE_BASECOLOR          "BaseColor"
-#define LINAGX_TEXTURE_NORMAL             "Normal"
-#define LINAGX_TEXTURE_OCCLUSION          "Occlusion"
-#define LINAGX_TEXTURE_EMISSIVE           "Emissive"
-#define LINAGX_TEXTURE_METALLIC_ROUGHNESS "MetallicRoughness"
+    enum class GLTFTextureType
+    {
+        BaseColor,
+        Normal,
+        Occlusion,
+        Emissive,
+        MetallicRoughness,
+    };
+
+    enum class GLTFAnimationProperty
+    {
+        Position,
+        Rotation,
+        Scale,
+        Weights
+    };
+
+    enum class GLTFInterpolation
+    {
+        Linear,
+        Step,
+        CubicSpline,
+    };
 
     struct ModelMeshPrimitive
     {
@@ -102,15 +120,15 @@ namespace LinaGX
 
     struct ModelMaterial
     {
-        LINAGX_STRING                     name      = "";
-        Vector4                           baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
-        Vector3                           emissive  = {1.0f, 1.0f, 1.0f};
-        LINAGX_MAP<LINAGX_STRING, uint32> textureIndices;
-        float                             metallicFactor  = 0.0f;
-        float                             roughnessFactor = 0.0f;
-        float                             alphaCutoff     = 0.0f;
-        bool                              doubleSided     = false;
-        bool                              isOpaque        = true;
+        LINAGX_STRING                       name      = "";
+        Vector4                             baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        Vector3                             emissive  = {1.0f, 1.0f, 1.0f};
+        LINAGX_MAP<GLTFTextureType, uint32> textureIndices;
+        float                               metallicFactor  = 0.0f;
+        float                               roughnessFactor = 0.0f;
+        float                               alphaCutoff     = 0.0f;
+        bool                                doubleSided     = false;
+        bool                                isOpaque        = true;
     };
 
     struct ModelSkin;
@@ -148,30 +166,39 @@ namespace LinaGX
         }
     };
 
+    struct ModelAnimationChannel
+    {
+        GLTFAnimationProperty targetProperty = GLTFAnimationProperty::Position;
+        GLTFInterpolation     interpolation  = GLTFInterpolation::Linear;
+        ModelNode*            targetNode     = nullptr;
+        LINAGX_VEC<float>     keyframeTimes  = {};
+        LINAGX_VEC<float>     values         = {};
+    };
+
+    struct ModelAnimation
+    {
+        LINAGX_STRING                     name = "";
+        LINAGX_VEC<ModelAnimationChannel> channels;
+    };
+
     struct ModelData
     {
-        ModelNode*             allNodes      = nullptr;
-        uint32                 allNodesCount = 0;
         LINAGX_VEC<ModelNode*> rootNodes;
 
-        ModelMaterial* allMaterials      = nullptr;
-        uint32         allMaterialsCount = 0;
-
-        ModelTexture* allTextures      = nullptr;
-        uint32        allTexturesCount = 0;
-
-        ModelMesh* allMeshes      = nullptr;
-        uint32     allMeshesCount = 0;
-
-        ModelSkin* allSkins      = nullptr;
-        uint32     allSkinsCount = 0;
+        ModelNode*      allNodes           = nullptr;
+        uint32          allNodesCount      = 0;
+        ModelMaterial*  allMaterials       = nullptr;
+        uint32          allMaterialsCount  = 0;
+        ModelTexture*   allTextures        = nullptr;
+        uint32          allTexturesCount   = 0;
+        ModelMesh*      allMeshes          = nullptr;
+        uint32          allMeshesCount     = 0;
+        ModelSkin*      allSkins           = nullptr;
+        uint32          allSkinsCount      = 0;
+        ModelAnimation* allAnimations      = nullptr;
+        uint32          allAnimationsCount = 0;
 
         ~ModelData()
-        {
-            Clear();
-        }
-
-        void Clear()
         {
             if (allNodes != nullptr)
                 delete[] allNodes;
@@ -185,6 +212,9 @@ namespace LinaGX
             if (allSkins != nullptr)
                 delete[] allSkins;
 
+            if (allAnimations != nullptr)
+                delete[] allAnimations;
+
             if (allTextures != nullptr)
             {
                 for (uint32 i = 0; i < allTexturesCount; i++)
@@ -195,11 +225,12 @@ namespace LinaGX
                 delete[] allTextures;
             }
 
-            allNodes     = nullptr;
-            allMaterials = nullptr;
-            allMeshes    = nullptr;
-            allTextures  = nullptr;
-            allSkins     = nullptr;
+            allNodes      = nullptr;
+            allMaterials  = nullptr;
+            allMeshes     = nullptr;
+            allTextures   = nullptr;
+            allSkins      = nullptr;
+            allAnimations = nullptr;
             rootNodes.clear();
         }
     };

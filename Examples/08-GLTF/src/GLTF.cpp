@@ -307,9 +307,6 @@ namespace LinaGX::Examples
             // Not needed anymore.
             for (auto& obj : _objects)
                 _renderer->DestroyResource(obj.vertexBufferStaging);
-
-            // Done with whole model.
-            _modelData.Clear();
         }
 
         //*******************  SSBO

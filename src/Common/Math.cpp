@@ -91,6 +91,16 @@ namespace LinaGX
         return norm;
     }
 
+    Vector4 Vector4::Lerp(const Vector4& start, const Vector4& end, float t)
+    {
+        Vector4 result;
+        result.x = start.x + (end.x - start.x) * t;
+        result.y = start.y + (end.y - start.y) * t;
+        result.z = start.z + (end.z - start.z) * t;
+        result.w = start.w + (end.w - start.w) * t;
+        return result;
+    }
+
     void Vector4::Normalize()
     {
         float magnitude = sqrt(x * x + y * y + z * z + w * w);
@@ -152,6 +162,64 @@ namespace LinaGX
         quaternion.z = cr * cp * sy - sr * sp * cy;
 
         return quaternion;
+    }
+
+    Matrix4 Matrix4::Identity()
+    {
+        Matrix4 identity;
+
+        identity.values[0]  = 1.0f;
+        identity.values[5]  = 1.0f;
+        identity.values[10] = 1.0f;
+        identity.values[15] = 1.0f;
+
+        return identity;
+    }
+
+    Matrix4 Matrix4::Translate(const Matrix4& in, const Vector3& translation)
+    {
+        Matrix4 res = Matrix4::Identity();
+
+        res.values[12] = translation.x;
+        res.values[13] = translation.y;
+        res.values[14] = translation.z;
+
+        return in * res;
+    }
+
+    Matrix4 Matrix4::Scale(const Matrix4& in, const Vector3& scale)
+    {
+        Matrix4 res = Matrix4::Identity();
+
+        res.values[0]  = scale.x;
+        res.values[5]  = scale.y;
+        res.values[10] = scale.z;
+
+        // Assuming you have implemented matrix multiplication
+        return in * res;
+    }
+
+    Matrix4 Matrix4::Rotate(const Matrix4& matrix, const Vector4& rot)
+    {
+        Matrix4 rotation;
+
+        float qx = rot.x, qy = rot.y, qz = rot.z, qw = rot.w;
+
+        rotation.values[0] = 1 - 2 * qy * qy - 2 * qz * qz;
+        rotation.values[1] = 2 * qx * qy - 2 * qz * qw;
+        rotation.values[2] = 2 * qx * qz + 2 * qy * qw;
+
+        rotation.values[4] = 2 * qx * qy + 2 * qz * qw;
+        rotation.values[5] = 1 - 2 * qx * qx - 2 * qz * qz;
+        rotation.values[6] = 2 * qy * qz - 2 * qx * qw;
+
+        rotation.values[8]  = 2 * qx * qz - 2 * qy * qw;
+        rotation.values[9]  = 2 * qy * qz + 2 * qx * qw;
+        rotation.values[10] = 1 - 2 * qx * qx - 2 * qy * qy;
+
+        rotation.values[15] = 1.0f;
+
+        return matrix * rotation;
     }
 
     Matrix4 Matrix4::Transpose() const
@@ -281,7 +349,7 @@ namespace LinaGX
         translationMatrix.values[15] = 1.0f;
 
         // Compute model matrix
-        *this = translationMatrix * rotation * scaleMatrix;
+        *this = scaleMatrix * rotation * translationMatrix;
     }
 
     void Matrix4::InitLookAtRH(const Vector3& eye, const Vector3& center, const Vector3& up)

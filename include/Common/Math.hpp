@@ -77,6 +77,8 @@ namespace LinaGX
     {
         float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
 
+        static Vector4 Lerp(const Vector4& start, const Vector4& end, float t);
+
         void    Normalize();
         Vector4 Normalized() const;
         Vector3 Quat2Euler();
@@ -108,6 +110,11 @@ namespace LinaGX
             }
             return result;
         }
+
+        static Matrix4 Identity();
+        static Matrix4 Translate(const Matrix4& in, const Vector3& translation);
+        static Matrix4 Rotate(const Matrix4& in, const Vector4& rotation);
+        static Matrix4 Scale(const Matrix4& in, const Vector3& scale);
 
         Matrix4 Transpose() const;
         float   Cofactor(int row, int col) const;

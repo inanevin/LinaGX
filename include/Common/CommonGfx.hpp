@@ -645,7 +645,7 @@ namespace LinaGX
         Config.infoCallback(__VA_ARGS__);
 
 #define LOGA(condition, ...)                \
-    if (!condition && Config.errorCallback) \
+    if (!(condition) && Config.errorCallback) \
         Config.errorCallback(__VA_ARGS__);  \
     _ASSERT(condition);
 

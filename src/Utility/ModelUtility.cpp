@@ -38,7 +38,7 @@ namespace LinaGX
     Matrix4 CalculateGlobalMatrix(ModelNode* node)
     {
         if (node->parent != nullptr)
-            return CalculateGlobalMatrix(node->parent) * node->localMatrix;
+            return node->localMatrix * CalculateGlobalMatrix(node->parent);
 
         return node->localMatrix;
     }
@@ -67,19 +67,19 @@ namespace LinaGX
                 mat->doubleSided       = gltfMat.doubleSided;
 
                 if (gltfMat.emissiveTexture.index != -1)
-                    mat->textureIndices[LINAGX_TEXTURE_EMISSIVE] = gltfMat.emissiveTexture.index;
+                    mat->textureIndices[GLTFTextureType::Emissive] = gltfMat.emissiveTexture.index;
 
                 if (gltfMat.normalTexture.index != -1)
-                    mat->textureIndices[LINAGX_TEXTURE_NORMAL] = gltfMat.normalTexture.index;
+                    mat->textureIndices[GLTFTextureType::Normal] = gltfMat.normalTexture.index;
 
                 if (gltfMat.occlusionTexture.index != -1)
-                    mat->textureIndices[LINAGX_TEXTURE_OCCLUSION] = gltfMat.occlusionTexture.index;
+                    mat->textureIndices[GLTFTextureType::Occlusion] = gltfMat.occlusionTexture.index;
 
                 if (gltfMat.pbrMetallicRoughness.baseColorTexture.index != -1)
-                    mat->textureIndices[LINAGX_TEXTURE_BASECOLOR] = gltfMat.pbrMetallicRoughness.baseColorTexture.index;
+                    mat->textureIndices[GLTFTextureType::BaseColor] = gltfMat.pbrMetallicRoughness.baseColorTexture.index;
 
                 if (gltfMat.pbrMetallicRoughness.metallicRoughnessTexture.index != -1)
-                    mat->textureIndices[LINAGX_TEXTURE_METALLIC_ROUGHNESS] = gltfMat.pbrMetallicRoughness.metallicRoughnessTexture.index;
+                    mat->textureIndices[GLTFTextureType::MetallicRoughness] = gltfMat.pbrMetallicRoughness.metallicRoughnessTexture.index;
             }
         }
 
@@ -150,7 +150,12 @@ namespace LinaGX
                     node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
                 }
 
-                node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
+                node->localMatrix = Matrix4::Identity();
+                node->localMatrix = Matrix4::Translate(node->localMatrix, node->position);
+                node->localMatrix = Matrix4::Rotate(node->localMatrix, node->quatRot);
+                node->localMatrix = Matrix4::Scale(node->localMatrix, node->scale);
+
+                // node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
             }
 
             if (!gltfNode.children.empty())
@@ -395,6 +400,87 @@ namespace LinaGX
             if (node->parent == nullptr)
                 outData.rootNodes.push_back(node);
         }
+
+        outData.allAnimations      = new ModelAnimation[model.animations.size()];
+        outData.allAnimationsCount = static_cast<uint32>(model.animations.size());
+
+        for (size_t i = 0; i < model.animations.size(); i++)
+        {
+            ModelAnimation*            anim          = outData.allAnimations + i;
+            const tinygltf::Animation& gltfAnimation = model.animations[i];
+            anim->name                               = gltfAnimation.name;
+
+            for (const auto& ch : gltfAnimation.channels)
+            {
+                anim->channels.push_back({});
+                ModelAnimationChannel& channel = anim->channels[anim->channels.size() - 1];
+                channel.targetNode             = outData.allNodes + ch.target_node;
+
+                if (ch.target_path.compare("translation") == 0)
+                    channel.targetProperty = GLTFAnimationProperty::Position;
+                else if (ch.target_path.compare("rotation") == 0)
+                    channel.targetProperty = GLTFAnimationProperty::Rotation;
+                else if (ch.target_path.compare("scale") == 0)
+                    channel.targetProperty = GLTFAnimationProperty::Scale;
+                else if (ch.target_path.compare("weights") == 0)
+                    channel.targetProperty = GLTFAnimationProperty::Weights;
+
+                const tinygltf::AnimationSampler sampler = gltfAnimation.samplers[ch.sampler];
+
+                if (sampler.interpolation.compare("LINEAR") == 0)
+                    channel.interpolation = GLTFInterpolation::Linear;
+                else if (sampler.interpolation.compare("STEP") == 0)
+                    channel.interpolation = GLTFInterpolation::Step;
+                else if (sampler.interpolation.compare("CUBICSPLINE") == 0)
+                    channel.interpolation = GLTFInterpolation::CubicSpline;
+
+                const tinygltf::Accessor&   inputAccessor  = model.accessors[sampler.input];
+                const tinygltf::BufferView& inputView      = model.bufferViews[inputAccessor.bufferView];
+                const tinygltf::Buffer&     inputBuffer    = model.buffers[inputView.buffer];
+                const tinygltf::Accessor&   outputAccessor = model.accessors[sampler.output];
+                const tinygltf::BufferView& outputView     = model.bufferViews[outputAccessor.bufferView];
+                const tinygltf::Buffer&     outputBuffer   = model.buffers[outputView.buffer];
+
+                LOGA((inputAccessor.type == TINYGLTF_TYPE_SCALAR && inputAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
+                LOGA(outputAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT, "Unsupported component type!");
+
+                const size_t inputCount  = inputAccessor.count;
+                const size_t outputCount = outputAccessor.count;
+                LOGA(inputCount == outputCount, "Input & output counts do not match!");
+
+                channel.keyframeTimes.resize(inputCount);
+
+                for (size_t j = 0; j < inputCount; j++)
+                {
+                    const size_t stride       = inputView.byteStride == 0 ? sizeof(float) : inputView.byteStride;
+                    const float* rawFloatData = reinterpret_cast<const float*>(inputBuffer.data.data() + inputAccessor.byteOffset + inputView.byteOffset + j * stride);
+                    channel.keyframeTimes[j]  = rawFloatData[0];
+                }
+
+                const float* rawFloatData = reinterpret_cast<const float*>(outputBuffer.data.data() + outputAccessor.byteOffset + outputView.byteOffset);
+
+                // TODO
+                const uint32 numMorphTargets = 1;
+
+                switch (channel.targetProperty)
+                {
+                case GLTFAnimationProperty::Position:
+                case GLTFAnimationProperty::Scale:
+                    channel.values.assign(rawFloatData, rawFloatData + outputCount * 3);
+                    break;
+                case GLTFAnimationProperty::Rotation:
+                    channel.values.assign(rawFloatData, rawFloatData + outputCount * 4);
+                    break;
+                case GLTFAnimationProperty::Weights:
+                    channel.values.assign(rawFloatData, rawFloatData + outputCount * numMorphTargets);
+                    break;
+                default:
+                    // Handle error
+                    break;
+                }
+            }
+        }
+        int a = 5;
     }
 
     LINAGX_API void LoadGLTFBinary(const char* path, ModelData& outData)
