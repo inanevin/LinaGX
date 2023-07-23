@@ -63,17 +63,17 @@ namespace LinaGX
         return (val == 0) ? 0 : pos;
     }
 
-    Vector3 Vector3::Cross(const Vector3& other) const
+    LGXVector3 LGXVector3::Cross(const LGXVector3& other) const
     {
         return {y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x};
     }
 
-    float Vector3::Dot(const Vector3& other) const
+    float LGXVector3::Dot(const LGXVector3& other) const
     {
         return x * other.x + y * other.y + z * other.z;
     }
 
-    void Vector3::Normalize()
+    void LGXVector3::Normalize()
     {
         float magnitude = sqrt(x * x + y * y + z * z);
         if (magnitude > 0.0f)
@@ -84,16 +84,16 @@ namespace LinaGX
         }
     }
 
-    Vector3 Vector3::Normalized() const
+    LGXVector3 LGXVector3::Normalized() const
     {
-        Vector3 norm = *this;
+        LGXVector3 norm = *this;
         norm.Normalize();
         return norm;
     }
 
-    Vector4 Vector4::Lerp(const Vector4& start, const Vector4& end, float t)
+    LGXVector4 LGXVector4::Lerp(const LGXVector4& start, const LGXVector4& end, float t)
     {
-        Vector4 result;
+        LGXVector4 result;
         result.x = start.x + (end.x - start.x) * t;
         result.y = start.y + (end.y - start.y) * t;
         result.z = start.z + (end.z - start.z) * t;
@@ -101,7 +101,7 @@ namespace LinaGX
         return result;
     }
 
-    void Vector4::Normalize()
+    void LGXVector4::Normalize()
     {
         float magnitude = sqrt(x * x + y * y + z * z + w * w);
         if (magnitude > 0.0f)
@@ -113,16 +113,16 @@ namespace LinaGX
         }
     }
 
-    Vector4 Vector4::Normalized() const
+    LGXVector4 LGXVector4::Normalized() const
     {
-        Vector4 norm = *this;
+        LGXVector4 norm = *this;
         norm.Normalize();
         return norm;
     }
 
-    Vector3 Vector4::Quat2Euler()
+    LGXVector3 LGXVector4::Quat2Euler()
     {
-        Vector3 euler;
+        LGXVector3 euler;
 
         // Roll (X-axis rotation)
         float sinr_cosp = 2 * (w * x + y * z);
@@ -144,9 +144,9 @@ namespace LinaGX
         return euler;
     }
 
-    Vector4 Vector4::Euler2Quat(const Vector3& euler)
+    LGXVector4 LGXVector4::Euler2Quat(const LGXVector3& euler)
     {
-        Vector4 quaternion;
+        LGXVector4 quaternion;
 
         // Abbreviations for the various angular functions
         float cy = cos(euler.z * 0.5f);
@@ -164,9 +164,9 @@ namespace LinaGX
         return quaternion;
     }
 
-    Matrix4 Matrix4::Identity()
+    LGXMatrix4 LGXMatrix4::Identity()
     {
-        Matrix4 identity;
+        LGXMatrix4 identity;
 
         identity.values[0]  = 1.0f;
         identity.values[5]  = 1.0f;
@@ -176,9 +176,9 @@ namespace LinaGX
         return identity;
     }
 
-    Matrix4 Matrix4::Translate(const Matrix4& in, const Vector3& translation)
+    LGXMatrix4 LGXMatrix4::Translate(const LGXMatrix4& in, const LGXVector3& translation)
     {
-        Matrix4 res = Matrix4::Identity();
+        LGXMatrix4 res = LGXMatrix4::Identity();
 
         res.values[12] = translation.x;
         res.values[13] = translation.y;
@@ -187,9 +187,9 @@ namespace LinaGX
         return in * res;
     }
 
-    Matrix4 Matrix4::Scale(const Matrix4& in, const Vector3& scale)
+    LGXMatrix4 LGXMatrix4::Scale(const LGXMatrix4& in, const LGXVector3& scale)
     {
-        Matrix4 res = Matrix4::Identity();
+        LGXMatrix4 res = LGXMatrix4::Identity();
 
         res.values[0]  = scale.x;
         res.values[5]  = scale.y;
@@ -199,9 +199,9 @@ namespace LinaGX
         return in * res;
     }
 
-    Matrix4 Matrix4::Rotate(const Matrix4& matrix, const Vector4& rot)
+    LGXMatrix4 LGXMatrix4::Rotate(const LGXMatrix4& matrix, const LGXVector4& rot)
     {
-        Matrix4 rotation;
+        LGXMatrix4 rotation;
 
         float qx = rot.x, qy = rot.y, qz = rot.z, qw = rot.w;
 
@@ -222,9 +222,9 @@ namespace LinaGX
         return matrix * rotation;
     }
 
-    Matrix4 Matrix4::Transpose() const
+    LGXMatrix4 LGXMatrix4::Transpose() const
     {
-        Matrix4 result;
+        LGXMatrix4 result;
         for (int row = 0; row < 4; ++row)
         {
             for (int col = 0; col < 4; ++col)
@@ -235,7 +235,7 @@ namespace LinaGX
         return result;
     }
 
-    float Matrix4::Cofactor(int row, int col) const
+    float LGXMatrix4::Cofactor(int row, int col) const
     {
         float miniDet[9];
         int   colCount = 0, rowCount = 0;
@@ -262,9 +262,9 @@ namespace LinaGX
         return sign * determinant;
     }
 
-    Matrix4 Matrix4::Inverse() const
+    LGXMatrix4 LGXMatrix4::Inverse() const
     {
-        Matrix4 result;
+        LGXMatrix4 result;
 
         // Compute the determinant
         float determinant = 0.0f;
@@ -293,9 +293,9 @@ namespace LinaGX
         return result;
     }
 
-    Matrix4 Matrix4::QuaternionToMatrix4(const Vector4& q) const
+    LGXMatrix4 LGXMatrix4::QuaternionToLGXMatrix4(const LGXVector4& q) const
     {
-        Matrix4 result;
+        LGXMatrix4 result;
         float   xx = q.x * q.x;
         float   yy = q.y * q.y;
         float   zz = q.z * q.z;
@@ -326,20 +326,20 @@ namespace LinaGX
         return result;
     }
 
-    void Matrix4::InitTranslationRotationScale(const Vector3& translation, const Vector4& quaternionRotation, const Vector3& scale)
+    void LGXMatrix4::InitTranslationRotationScale(const LGXVector3& translation, const LGXVector4& quaternionRotation, const LGXVector3& scale)
     {
         // Compute rotation matrix from quaternion
-        Matrix4 rotation = QuaternionToMatrix4(quaternionRotation.Normalized());
+        LGXMatrix4 rotation = QuaternionToLGXMatrix4(quaternionRotation.Normalized());
 
         // Create scale matrix
-        Matrix4 scaleMatrix;
+        LGXMatrix4 scaleMatrix;
         scaleMatrix.values[0]  = scale.x;
         scaleMatrix.values[5]  = scale.y;
         scaleMatrix.values[10] = scale.z;
         scaleMatrix.values[15] = 1.0f;
 
         // Create translation matrix
-        Matrix4 translationMatrix;
+        LGXMatrix4 translationMatrix;
         translationMatrix.values[0]  = 1.0f;
         translationMatrix.values[5]  = 1.0f;
         translationMatrix.values[10] = 1.0f;
@@ -352,11 +352,11 @@ namespace LinaGX
         *this = scaleMatrix * rotation * translationMatrix;
     }
 
-    void Matrix4::InitLookAtRH(const Vector3& eye, const Vector3& center, const Vector3& up)
+    void LGXMatrix4::InitLookAtRH(const LGXVector3& eye, const LGXVector3& center, const LGXVector3& up)
     {
-        Vector3 f = (center - eye).Normalized();
-        Vector3 r = up.Cross(f).Normalized();
-        Vector3 u = f.Cross(r).Normalized();
+        LGXVector3 f = (center - eye).Normalized();
+        LGXVector3 r = up.Cross(f).Normalized();
+        LGXVector3 u = f.Cross(r).Normalized();
 
         values[0]  = r.x;
         values[4]  = r.y;
@@ -376,7 +376,7 @@ namespace LinaGX
         values[15] = 1.0f;
     }
 
-    void Matrix4::InitPerspectiveRH(float halfFov, float aspect, float nearZ, float farZ)
+    void LGXMatrix4::InitPerspectiveRH(float halfFov, float aspect, float nearZ, float farZ)
     {
         const float tanHalfFovy = tan(halfFov);
 

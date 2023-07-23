@@ -39,7 +39,7 @@ namespace LinaGX::Examples
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
-    Window*           _window     = nullptr;
+    Window*           _window    = nullptr;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -108,7 +108,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -502,7 +502,7 @@ namespace LinaGX::Examples
         // Bind constants & draw.
         {
             int         quadIndex = 0;
-            ShaderStage stages[2]     = {ShaderStage::Fragment, ShaderStage::Vertex};
+            ShaderStage stages[2] = {ShaderStage::Fragment, ShaderStage::Vertex};
 
             // Constant 1
             CMDBindConstants* constant = _stream->AddCommand<CMDBindConstants>();
@@ -522,12 +522,12 @@ namespace LinaGX::Examples
 
             // Constant 2
             int               quadIndex2 = 1;
-            CMDBindConstants* constant2      = _stream->AddCommand<CMDBindConstants>();
-            constant2->data                  = &quadIndex2;
-            constant2->offset                = 0;
-            constant2->size                  = sizeof(int);
-            constant2->stages                = &stages[0];
-            constant2->stagesSize            = 2;
+            CMDBindConstants* constant2  = _stream->AddCommand<CMDBindConstants>();
+            constant2->data              = &quadIndex2;
+            constant2->offset            = 0;
+            constant2->size              = sizeof(int);
+            constant2->stages            = &stages[0];
+            constant2->stagesSize        = 2;
 
             // // Quad 2
             CMDDrawIndexedInstanced* drawIndexed2 = _stream->AddCommand<CMDDrawIndexedInstanced>();

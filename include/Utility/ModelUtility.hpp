@@ -63,15 +63,15 @@ namespace LinaGX
 
     struct ModelMeshPrimitive
     {
-        LINAGX_VEC<Vector2>     texCoords;
-        LINAGX_VEC<Vector3>     positions;
-        LINAGX_VEC<Vector3>     normals;
-        LINAGX_VEC<Vector4>     tangents;
-        LINAGX_VEC<Vector4>     colors;
-        LINAGX_VEC<uint32>      indices;
-        LINAGX_VEC<Vector4ui16> joints;
-        LINAGX_VEC<Vector4>     weights;
-        uint32                  vertexCount = 0;
+        LINAGX_VEC<LGXVector2>     texCoords;
+        LINAGX_VEC<LGXVector3>     positions;
+        LINAGX_VEC<LGXVector3>     normals;
+        LINAGX_VEC<LGXVector4>     tangents;
+        LINAGX_VEC<LGXVector4>     colors;
+        LINAGX_VEC<uint32>         indices;
+        LINAGX_VEC<LGXVector4ui16> joints;
+        LINAGX_VEC<LGXVector4>     weights;
+        uint32                     vertexCount = 0;
 
         inline void Clear()
         {
@@ -121,8 +121,8 @@ namespace LinaGX
     struct ModelMaterial
     {
         LINAGX_STRING                       name      = "";
-        Vector4                             baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
-        Vector3                             emissive  = {1.0f, 1.0f, 1.0f};
+        LGXVector4                          baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        LGXVector3                          emissive  = {1.0f, 1.0f, 1.0f};
         LINAGX_MAP<GLTFTextureType, uint32> textureIndices;
         float                               metallicFactor  = 0.0f;
         float                               roughnessFactor = 0.0f;
@@ -143,12 +143,11 @@ namespace LinaGX
         LINAGX_STRING          name   = "";
         LINAGX_VEC<ModelNode*> children;
 
-        Vector3 position = {};
-        Vector3 scale    = {1.0f, 1.0f, 1.0f};
-        Vector4 quatRot  = {};
-        Matrix4 globalMatrix;
-        Matrix4 localMatrix;
-        Matrix4 inverseBindMatrix;
+        LINAGX_VEC<float> localMatrix;
+        LINAGX_VEC<float> inverseBindMatrix;
+        LGXVector3        position = {};
+        LGXVector3        scale    = {1.0f, 1.0f, 1.0f};
+        LGXVector4        quatRot  = {0.0f, 0.0f, 0.0f, 1.0f};
 
         ~ModelNode()
         {
@@ -180,6 +179,7 @@ namespace LinaGX
     {
         LINAGX_STRING                     name = "";
         LINAGX_VEC<ModelAnimationChannel> channels;
+        float                             duration = 0.0f;
     };
 
     struct ModelData

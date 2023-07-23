@@ -31,6 +31,10 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace LinaGX::Examples
 {
@@ -43,16 +47,14 @@ namespace LinaGX::Examples
 
     struct Vertex
     {
-        Vector3 position      = {};
-        Vector2 uv            = {};
-        Vector4 inBoneIndices = {};
-        Vector4 inBoneWeights = {};
+        LGXVector3 position      = {};
+        LGXVector2 uv            = {};
+        LGXVector4 inBoneIndices = {};
+        LGXVector4 inBoneWeights = {};
     };
 
     struct Object
     {
-        Matrix4 modelMatrix;
-
         LINAGX_VEC<Vertex> vertices;
 
         uint32 vertexBufferStaging = 0;
@@ -61,13 +63,13 @@ namespace LinaGX::Examples
 
     struct GPUSceneData
     {
-        Matrix4 viewProj;
+        glm::mat4 viewProj;
     };
 
     struct GPUObjectData
     {
-        Matrix4 modelMatrix;
-        Matrix4 bones[31] = {};
+        glm::mat4 modelMatrix;
+        glm::mat4 bones[31] = {};
     };
 
     // Shaders.
@@ -107,7 +109,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -212,8 +214,7 @@ namespace LinaGX::Examples
                 if (node->mesh != nullptr)
                 {
                     _objects.push_back({});
-                    Object& obj     = _objects[_objects.size() - 1];
-                    obj.modelMatrix = node->globalMatrix;
+                    Object& obj = _objects[_objects.size() - 1];
 
                     for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
                     {
@@ -454,7 +455,7 @@ namespace LinaGX::Examples
         App::Shutdown();
     }
 
-    Vector4 InterpolateKeyframes(const ModelAnimationChannel& channel, float time)
+    LGXVector4 InterpolateKeyframes(const ModelAnimationChannel& channel, float time)
     {
         // Find the two keyframes we need to interpolate between.
         int index1 = -1;
@@ -479,7 +480,7 @@ namespace LinaGX::Examples
         }
 
         // Extract the keyframe values.
-        Vector4 value1, value2;
+        LGXVector4 value1, value2;
 
         if (channel.targetProperty == GLTFAnimationProperty::Rotation)
         {
@@ -511,20 +512,13 @@ namespace LinaGX::Examples
             alpha = (time - channel.keyframeTimes[index1]) / (channel.keyframeTimes[index2] - channel.keyframeTimes[index1]);
         }
 
-        return Vector4::Lerp(value1, value2, alpha);
+        return LGXVector4::Lerp(value1, value2, alpha);
     }
 
-    void SampleAnimation(LinaGX::ModelSkin* skin, LinaGX::ModelAnimation* anim, float time, LINAGX_VEC<Matrix4>& outjointMatrices)
+    void SampleAnimation(LinaGX::ModelSkin* skin, LinaGX::ModelAnimation* anim, float time)
     {
-        outjointMatrices.resize(skin->joints.size(), Matrix4::Identity());
-
-        uint32 jointIndex = 0;
-        for (const auto& j : skin->joints)
-        {
-            outjointMatrices[jointIndex].InitTranslationRotationScale(skin->joints[jointIndex]->position, skin->joints[jointIndex]->quatRot, skin->joints[jointIndex]->scale);
-            jointIndex++;
-        }
-
+        // Very naive animation sampling
+        // Simply linear-interpolate pos/rot/scale.
         for (const auto& channel : anim->channels)
         {
             int jointIndex = -1;
@@ -537,34 +531,44 @@ namespace LinaGX::Examples
                 }
             }
 
-            // If the joint wasn't found, continue to the next channel.
             if (jointIndex == -1)
                 continue;
 
-            // Interpolate the channel's keyframes.
-            Vector4 result = InterpolateKeyframes(channel, time);
+            LGXVector4 result = InterpolateKeyframes(channel, time);
 
             if (channel.targetProperty == GLTFAnimationProperty::Position)
             {
-                // outjointMatrices[jointIndex] = Matrix4::Translate(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
+                skin->joints[jointIndex]->position = {result.x, result.y, result.z};
             }
             else if (channel.targetProperty == GLTFAnimationProperty::Rotation)
             {
-                // outjointMatrices[jointIndex] = Matrix4::Rotate(outjointMatrices[jointIndex], Vector4(result.x, result.y, result.z, result.w));
+                skin->joints[jointIndex]->quatRot = {result.x, result.y, result.z, result.w};
             }
             else if (channel.targetProperty == GLTFAnimationProperty::Scale)
             {
-                //  outjointMatrices[jointIndex] = Matrix4::Scale(outjointMatrices[jointIndex], Vector3(result.x, result.y, result.z));
+                skin->joints[jointIndex]->scale = {result.x, result.y, result.z};
             }
         }
     }
 
-    Matrix4 CalculateGlobalMatrix(LinaGX::ModelNode* node)
+    glm::mat4 TranslateRotateScale(const LGXVector3& pos, const LGXVector4& rot, const LGXVector3& scale)
     {
-        if (node->parent != nullptr)
-            return node->localMatrix * CalculateGlobalMatrix(node->parent);
+        glm::vec3 p     = glm::vec3(pos.x, pos.y, pos.z);
+        glm::vec3 s     = glm::vec3(scale.x, scale.y, scale.z);
+        glm::quat r     = glm::quat(rot.w, rot.x, rot.y, rot.z);
+        glm::mat4 model = glm::mat4(1.0f);
+        model           = glm::translate(model, p);
+        model *= glm::mat4_cast(r);
+        model = glm::scale(model, s);
+        return model;
+    }
 
-        return node->localMatrix;
+    glm::mat4 CalculateGlobalMatrix(LinaGX::ModelNode* node)
+    {
+        const glm::mat4 nodeLocal = node->localMatrix.empty() ? TranslateRotateScale(node->position, node->quatRot, node->scale) : glm::make_mat4(node->localMatrix.data());
+        if (node->parent != nullptr)
+            return CalculateGlobalMatrix(node->parent) * nodeLocal;
+        return nodeLocal;
     }
 
     void Example::OnTick()
@@ -575,61 +579,42 @@ namespace LinaGX::Examples
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
 
+        // Sample animation
+        {
+            auto         targetAnimation = _modelData.allAnimations + 0;
+            static float time            = 0.0f;
+            time += m_deltaSeconds;
+            if (time > targetAnimation->duration)
+                time = 0.0f;
+            SampleAnimation(_modelData.allSkins, targetAnimation, time);
+        }
+
         // Copy SSBO data on copy queue
         {
             LINAGX_VEC<GPUObjectData> objectData;
             objectData.resize(_objects.size());
 
-            static float time = 0.0f;
-
-            time += m_deltaSeconds;
-
-            if (time > 3.0f)
-                time = 0.0f;
-
-            LINAGX_VEC<Matrix4> jointPoseMatrices;
-            SampleAnimation(_modelData.allSkins, _modelData.allAnimations, time, jointPoseMatrices);
-
-            for (size_t i = 0; i < _modelData.allSkins->joints.size(); i++)
-            {
-                // _modelData.allSkins->joints[i]->localMatrix = jointPoseMatrices[i];
-            }
-
-            LINAGX_VEC<Matrix4> jointGlobalMatrices;
-            jointGlobalMatrices.resize(jointPoseMatrices.size());
-
-            for (size_t i = 0; i < _modelData.allSkins->joints.size(); i++)
-            {
-                // jointGlobalMatrices[i] = CalculateGlobalMatrix(_modelData.allSkins->joints[i]);
-            }
+            // Inverse root-global matrix.
+            auto            root       = _modelData.allSkins->rootJoint;
+            const glm::mat4 rootGlobal = CalculateGlobalMatrix(root);
+            const glm::mat4 inv        = glm::inverse(rootGlobal);
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
-                const auto& targetObj = _objects[i];
-
-                Vector3 euler(0, m_elapsedSeconds, 0);
-                Vector4 rot;
-
-                Matrix4 mat = Matrix4::Identity();
-                mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
-
+                // Model.
+                glm::mat4 mat             = glm::mat4(1.0f);
+                glm::quat q               = glm::quat(glm::vec3(0.0f, DEG2RAD(45.0f), 0.0f));
+                mat                       = TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {1.0f, 1.0f, 1.0f});
                 objectData[i].modelMatrix = mat;
 
-                auto inv = _modelData.allSkins->rootJoint->globalMatrix.Inverse();
-
+                // Assign all skinning matrices.
+                // This is a very basic implementation of skinned animations
                 uint32 k = 0;
                 for (auto joint : _modelData.allSkins->joints)
                 {
-
-                    if (joint->name.compare("b_Hip_01") == 0)
-                    {
-                        joint->localMatrix.InitTranslationRotationScale(joint->position, joint->quatRot, joint->scale);
-                        joint->localMatrix = Matrix4::Translate(joint->localMatrix, {0.0f, 15.0f, 0.0f});
-                    }
-
-                    auto matrix = CalculateGlobalMatrix(joint);
-
-                    objectData[i].bones[k] = inv * matrix * joint->inverseBindMatrix;
+                    const glm::mat4 jointGlobal = CalculateGlobalMatrix(joint);
+                    const glm::mat4 inverseBind = glm::make_mat4(joint->inverseBindMatrix.data());
+                    objectData[i].bones[k]      = inv * jointGlobal * inverseBind;
                     k++;
                 }
             }
@@ -658,16 +643,10 @@ namespace LinaGX::Examples
 
         // Update scene data
         {
-            Vector3 camPos = {0, 0.0f, 200.0f};
-            Matrix4 eye    = {};
-            eye.InitLookAtRH(camPos, Vector3{0, 0, 0}, Vector3{0, 1, 0});
-
-            Matrix4 projection = {};
-            projection.InitPerspectiveRH(DEG2RAD(45.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 2000.0f);
-
-            GPUSceneData sceneData = {};
-            sceneData.viewProj     = eye * projection;
-
+            const glm::mat4 eye        = glm::lookAt(glm::vec3(0.0f, 0.0f, 200.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 1000.0f);
+            GPUSceneData    sceneData  = {};
+            sceneData.viewProj         = projection * eye;
             std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
         }
 

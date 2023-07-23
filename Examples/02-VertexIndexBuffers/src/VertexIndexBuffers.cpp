@@ -96,7 +96,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 600, WindowStyle::Windowed);
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Vertex Index Buffers", 0, 0, 800, 600, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 

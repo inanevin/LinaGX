@@ -53,50 +53,50 @@ namespace LinaGX
         return val1 <= val2 ? val1 : val2;
     }
 
-    struct Vector3
+    struct LGXVector3
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
 
-        Vector3 operator-(const Vector3& other) const
+        LGXVector3 operator-(const LGXVector3& other) const
         {
             return {x - other.x, y - other.y, z - other.z};
         }
 
-        Vector3 Cross(const Vector3& other) const;
-        float   Dot(const Vector3& other) const;
+        LGXVector3 Cross(const LGXVector3& other) const;
+        float   Dot(const LGXVector3& other) const;
         void    Normalize();
-        Vector3 Normalized() const;
+        LGXVector3 Normalized() const;
     };
 
-    struct Vector2
+    struct LGXVector2
     {
         float x = 0.0f, y = 0.0f;
     };
 
-    struct Vector4
+    struct LGXVector4
     {
         float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
 
-        static Vector4 Lerp(const Vector4& start, const Vector4& end, float t);
+        static LGXVector4 Lerp(const LGXVector4& start, const LGXVector4& end, float t);
 
         void    Normalize();
-        Vector4 Normalized() const;
-        Vector3 Quat2Euler();
-        Vector4 Euler2Quat(const Vector3& euler);
+        LGXVector4 Normalized() const;
+        LGXVector3 Quat2Euler();
+        LGXVector4 Euler2Quat(const LGXVector3& euler);
     };
 
-    struct Vector4ui16
+    struct LGXVector4ui16
     {
         uint16 x = 0, y = 0, z = 0, w = 0;
     };
 
-    struct Matrix4
+    struct LGXMatrix4
     {
         float values[16] = {0.0f};
 
-        Matrix4 operator*(const Matrix4& other) const
+        LGXMatrix4 operator*(const LGXMatrix4& other) const
         {
-            Matrix4 result;
+            LGXMatrix4 result;
             for (int row = 0; row < 4; ++row)
             {
                 for (int col = 0; col < 4; ++col)
@@ -111,17 +111,17 @@ namespace LinaGX
             return result;
         }
 
-        static Matrix4 Identity();
-        static Matrix4 Translate(const Matrix4& in, const Vector3& translation);
-        static Matrix4 Rotate(const Matrix4& in, const Vector4& rotation);
-        static Matrix4 Scale(const Matrix4& in, const Vector3& scale);
+        static LGXMatrix4 Identity();
+        static LGXMatrix4 Translate(const LGXMatrix4& in, const LGXVector3& translation);
+        static LGXMatrix4 Rotate(const LGXMatrix4& in, const LGXVector4& rotation);
+        static LGXMatrix4 Scale(const LGXMatrix4& in, const LGXVector3& scale);
 
-        Matrix4 Transpose() const;
+        LGXMatrix4 Transpose() const;
         float   Cofactor(int row, int col) const;
-        Matrix4 Inverse() const;
-        Matrix4 QuaternionToMatrix4(const Vector4& q) const;
-        void    InitTranslationRotationScale(const Vector3& translation, const Vector4& quaternionRotation, const Vector3& scale);
-        void    InitLookAtRH(const Vector3& eye, const Vector3& center, const Vector3& up);
+        LGXMatrix4 Inverse() const;
+        LGXMatrix4 QuaternionToLGXMatrix4(const LGXVector4& q) const;
+        void    InitTranslationRotationScale(const LGXVector3& translation, const LGXVector4& quaternionRotation, const LGXVector3& scale);
+        void    InitLookAtRH(const LGXVector3& eye, const LGXVector3& center, const LGXVector3& up);
         void    InitPerspectiveRH(float halfFov, float aspect, float nearZ, float farZ);
     };
 } // namespace LinaGX

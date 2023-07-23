@@ -35,14 +35,6 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Matrix4 CalculateGlobalMatrix(ModelNode* node)
-    {
-        if (node->parent != nullptr)
-            return node->localMatrix * CalculateGlobalMatrix(node->parent);
-
-        return node->localMatrix;
-    }
-
     void ProcessGLTF(tinygltf::Model& model, ModelData& outData)
     {
         outData.allNodes      = new ModelNode[model.nodes.size()];
@@ -123,8 +115,10 @@ namespace LinaGX
             {
                 LOGA(gltfNode.matrix.size() == 16, "Unsupported matrix type!");
 
+                node->localMatrix.resize(16);
+
                 for (uint32 j = 0; j < 16; j++)
-                    node->localMatrix.values[j] = static_cast<float>(gltfNode.matrix[j]);
+                    node->localMatrix[j] = static_cast<float>(gltfNode.matrix[j]);
             }
             else
             {
@@ -149,13 +143,6 @@ namespace LinaGX
                     node->quatRot.z = static_cast<float>(gltfNode.rotation[2]);
                     node->quatRot.w = static_cast<float>(gltfNode.rotation[3]);
                 }
-
-                // node->localMatrix = Matrix4::Identity();
-                // node->localMatrix = Matrix4::Translate(node->localMatrix, node->position);
-                // node->localMatrix = Matrix4::Rotate(node->localMatrix, node->quatRot);
-                // node->localMatrix = Matrix4::Scale(node->localMatrix, node->scale);
-
-                node->localMatrix.InitTranslationRotationScale(node->position, node->quatRot, node->scale);
             }
 
             if (!gltfNode.children.empty())
@@ -198,7 +185,7 @@ namespace LinaGX
                     {
                         const size_t stride       = vertexBufferView.byteStride == 0 ? sizeof(float) * 3 : vertexBufferView.byteStride;
                         const float* rawFloatData = reinterpret_cast<const float*>(vertexBuffer.data.data() + vertexAccessor.byteOffset + vertexBufferView.byteOffset + j * stride);
-                        Vector3&     position     = primitive->positions[j];
+                        LGXVector3&  position     = primitive->positions[j];
                         position.x                = rawFloatData[0];
                         position.y                = rawFloatData[1];
                         position.z                = rawFloatData[2];
@@ -237,7 +224,7 @@ namespace LinaGX
                         {
                             const size_t stride       = normalsBufferView.byteStride == 0 ? sizeof(float) * 3 : normalsBufferView.byteStride;
                             const float* rawFloatData = reinterpret_cast<const float*>(normalsBuffer.data.data() + normalsAccessor.byteOffset + normalsBufferView.byteOffset + j * stride);
-                            Vector3&     normal       = primitive->normals[j];
+                            LGXVector3&  normal       = primitive->normals[j];
                             normal.x                  = rawFloatData[0];
                             normal.y                  = rawFloatData[1];
                             normal.z                  = rawFloatData[2];
@@ -259,7 +246,7 @@ namespace LinaGX
                         {
                             const size_t stride       = colorsBufferView.byteStride == 0 ? sizeof(float) * 4 : colorsBufferView.byteStride;
                             const float* rawFloatData = reinterpret_cast<const float*>(colorsBuffer.data.data() + colorsAccessor.byteOffset + colorsBufferView.byteOffset + j * stride);
-                            Vector4&     color        = primitive->colors[j];
+                            LGXVector4&  color        = primitive->colors[j];
                             color.x                   = rawFloatData[0];
                             color.y                   = rawFloatData[1];
                             color.z                   = rawFloatData[2];
@@ -282,7 +269,7 @@ namespace LinaGX
                         {
                             const size_t stride       = tangentsBufferView.byteStride == 0 ? sizeof(float) * 4 : tangentsBufferView.byteStride;
                             const float* rawFloatData = reinterpret_cast<const float*>(tangentsBuffer.data.data() + tangentsAccessor.byteOffset + tangentsBufferView.byteOffset + j * stride);
-                            Vector4&     tangent      = primitive->tangents[j];
+                            LGXVector4&  tangent      = primitive->tangents[j];
                             tangent.x                 = rawFloatData[0];
                             tangent.y                 = rawFloatData[1];
                             tangent.z                 = rawFloatData[2];
@@ -305,7 +292,7 @@ namespace LinaGX
                         {
                             const size_t stride       = texcoordBufferView.byteStride == 0 ? sizeof(float) * 2 : texcoordBufferView.byteStride;
                             const float* rawFloatData = reinterpret_cast<const float*>(texcoordBuffer.data.data() + texcoordAccessor.byteOffset + texcoordBufferView.byteOffset + j * stride);
-                            Vector2&     coord        = primitive->texCoords[j];
+                            LGXVector2&  coord        = primitive->texCoords[j];
                             coord.x                   = rawFloatData[0];
                             coord.y                   = rawFloatData[1];
                         }
@@ -380,8 +367,10 @@ namespace LinaGX
                 const size_t stride       = inverseBindMatricesView.byteStride == 0 ? sizeof(float) * 16 : inverseBindMatricesView.byteStride;
                 const float* rawFloatData = reinterpret_cast<const float*>(inverseBindMatricesBuffer.data.data() + inverseBindMatricesAccessor.byteOffset + inverseBindMatricesView.byteOffset + j * stride);
 
+                skin->joints[j]->inverseBindMatrix.resize(16);
+
                 for (size_t k = 0; k < 16; k++)
-                    skin->joints[j]->inverseBindMatrix.values[k] = rawFloatData[k];
+                    skin->joints[j]->inverseBindMatrix[k] = rawFloatData[k];
             }
         }
 
@@ -389,9 +378,6 @@ namespace LinaGX
         {
             ModelNode* node = outData.allNodes + i;
             node->index     = static_cast<uint32>(i);
-
-            // Calculate all matrices.
-            node->globalMatrix = CalculateGlobalMatrix(node);
 
             // Assign skin.
             if (model.nodes[i].skin != -1)
@@ -457,6 +443,8 @@ namespace LinaGX
                     const float* rawFloatData = reinterpret_cast<const float*>(inputBuffer.data.data() + inputAccessor.byteOffset + inputView.byteOffset + j * stride);
                     channel.keyframeTimes[j]  = rawFloatData[0];
                 }
+
+                anim->duration = Max(anim->duration, channel.keyframeTimes[channel.keyframeTimes.size() - 1]);
 
                 const float* rawFloatData = reinterpret_cast<const float*>(outputBuffer.data.data() + outputAccessor.byteOffset + outputView.byteOffset);
 

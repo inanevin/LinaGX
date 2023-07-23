@@ -61,6 +61,8 @@ target_link_libraries(${PROJECT_NAME}
 PUBLIC Lina::GX
 )
 
+include(_Vendor/glm/link.cmake)
+link_glm()
 
 #--------------------------------------------------------------------
 # Folder structuring in visual studio

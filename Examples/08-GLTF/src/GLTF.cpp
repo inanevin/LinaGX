@@ -31,6 +31,8 @@ SOFTWARE.
 #include "LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace LinaGX::Examples
 {
@@ -43,13 +45,12 @@ namespace LinaGX::Examples
 
     struct Vertex
     {
-        Vector3 position = {};
-        Vector2 uv       = {};
+        LGXVector3 position = {};
+        LGXVector2 uv       = {};
     };
 
     struct Object
     {
-        Matrix4            modelMatrix;
         LINAGX_VEC<Vertex> vertices;
 
         uint32 vertexBufferStaging = 0;
@@ -58,12 +59,12 @@ namespace LinaGX::Examples
 
     struct GPUSceneData
     {
-        Matrix4 viewProj;
+        glm::mat4 viewProj;
     };
 
     struct GPUObjectData
     {
-        Matrix4 modelMatrix;
+        glm::mat4 modelMatrix;
     };
 
     // Shaders.
@@ -124,7 +125,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Introduction", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -207,8 +208,7 @@ namespace LinaGX::Examples
                 if (node->mesh != nullptr)
                 {
                     _objects.push_back({});
-                    Object& obj     = _objects[_objects.size() - 1];
-                    obj.modelMatrix = node->globalMatrix;
+                    Object& obj = _objects[_objects.size() - 1];
 
                     for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
                     {
@@ -459,10 +459,8 @@ namespace LinaGX::Examples
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
-                Vector3 euler(0, m_elapsedSeconds, 0);
-                Vector4 rot;
-                Matrix4 mat;
-                mat.InitTranslationRotationScale({0.0f, 0.0f, 0.f}, rot.Euler2Quat(euler), {1.0f, 1.0f, 1.0f});
+                glm::mat4  mat = glm::mat4(1.0f);
+                mat = glm::rotate(mat, m_elapsedSeconds, glm::vec3(0.0f, 1.0f, 0.0f));
                 objectData[i].modelMatrix = mat;
             }
 
@@ -490,16 +488,10 @@ namespace LinaGX::Examples
 
         // Update scene data
         {
-            Vector3 camPos = {0.0f, 0.0f, 200.0f};
-            Matrix4 eye    = {};
-            eye.InitLookAtRH(camPos, Vector3{0, 0, 0}, Vector3{0, 1, 0});
-
-            Matrix4 projection = {};
-            projection.InitPerspectiveRH(DEG2RAD(45.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 2000.0f);
-
-            GPUSceneData sceneData = {};
-            sceneData.viewProj     = eye * projection;
-
+            const glm::mat4 eye        = glm::lookAt(glm::vec3(0.0f, 0.0f, 200.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 1000.0f);
+            GPUSceneData    sceneData  = {};
+            sceneData.viewProj         = projection * eye;
             std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
         }
 
