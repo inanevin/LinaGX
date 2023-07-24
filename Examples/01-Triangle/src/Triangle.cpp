@@ -61,19 +61,18 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
 
             LinaGX::InitInfo initInfo = InitInfo{
-                .api               = api,
-                .gpu               = PreferredGPUType::Integrated,
-                .framesInFlight    = 2,
-                .backbufferCount   = 2,
-                .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
-                .rtDepthFormat     = Format::D32_SFLOAT,
+                .api                   = api,
+                .gpu                   = PreferredGPUType::Integrated,
+                .framesInFlight        = 2,
+                .backbufferCount       = 2,
+                .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
             };
 
             _renderer = new LinaGX::Renderer();
@@ -101,13 +100,14 @@ namespace LinaGX::Examples
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
-                .layout          = outLayout,
-                .polygonMode     = PolygonMode::Fill,
-                .cullMode        = CullMode::None,
-                .frontFace       = FrontFace::CCW,
-                .topology        = Topology::TriangleList,
-                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
+                .stages                = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
+                .layout                = outLayout,
+                .polygonMode           = PolygonMode::Fill,
+                .cullMode              = CullMode::None,
+                .frontFace             = FrontFace::CCW,
+                .topology              = Topology::TriangleList,
+                .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
             _shaderProgram = _renderer->CreateShader(shaderDesc);
 
@@ -120,6 +120,7 @@ namespace LinaGX::Examples
         {
             // Create a swapchain for main window.
             _swapchain = _renderer->CreateSwapchain({
+                .format       = Format::B8G8R8A8_UNORM,
                 .x            = 0,
                 .y            = 0,
                 .width        = _window->GetWidth(),
@@ -148,7 +149,7 @@ namespace LinaGX::Examples
             // Create command stream to record draw calls.
             _stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
         }
-    }
+    } // namespace LinaGX::Examples
 
     void Example::Shutdown()
     {

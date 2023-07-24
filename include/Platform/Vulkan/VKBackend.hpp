@@ -76,6 +76,7 @@ namespace LinaGX
         uint32                  width       = 0;
         uint32                  height      = 0;
         VkFormat                format      = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
+        Format                  depthFormat = Format::D32_SFLOAT;
         VkSwapchainKHR          ptr         = nullptr;
         VkSurfaceKHR            surface     = nullptr;
         VkPresentModeKHR        presentMode = VK_PRESENT_MODE_FIFO_KHR;

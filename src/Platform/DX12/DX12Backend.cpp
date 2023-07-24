@@ -500,7 +500,7 @@ namespace LinaGX
         swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
-        swapchainDesc.Format                = GetDXFormat(m_initInfo.rtSwapchainFormat);
+        swapchainDesc.Format                = GetDXFormat(desc.format);
         swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchainDesc.SampleDesc.Count      = 1;
@@ -527,6 +527,8 @@ namespace LinaGX
             swp.width         = desc.width;
             swp.height        = desc.height;
             swp.vsync         = desc.vsyncMode;
+            swp.format        = desc.format;
+            swp.depthFormat   = desc.depthFormat;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
             LOGT("Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
@@ -550,13 +552,13 @@ namespace LinaGX
                     }
 
                     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-                    rtvDesc.Format                        = GetDXFormat(m_initInfo.rtSwapchainFormat);
+                    rtvDesc.Format                        = GetDXFormat(desc.format);
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                     m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
                     swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
 
                     Texture2DDesc depthDesc      = {};
-                    depthDesc.format             = m_initInfo.rtDepthFormat;
+                    depthDesc.format             = desc.depthFormat;
                     depthDesc.width              = desc.width;
                     depthDesc.height             = desc.height;
                     depthDesc.mipLevels          = 1;
@@ -648,13 +650,13 @@ namespace LinaGX
                 }
 
                 D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-                rtvDesc.Format                        = GetDXFormat(m_initInfo.rtSwapchainFormat);
+                rtvDesc.Format                        = GetDXFormat(swp.format);
                 rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                 m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
                 swp.colorTextures[i] = m_texture2Ds.AddItem(color);
 
                 Texture2DDesc depthDesc      = {};
-                depthDesc.format             = m_initInfo.rtDepthFormat;
+                depthDesc.format             = swp.depthFormat;
                 depthDesc.width              = desc.width;
                 depthDesc.height             = desc.height;
                 depthDesc.mipLevels          = 1;
@@ -1019,8 +1021,8 @@ namespace LinaGX
         psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
-        psoDesc.RTVFormats[0]                             = GetDXFormat(m_initInfo.rtSwapchainFormat);
-        psoDesc.DSVFormat                                 = GetDXFormat(m_initInfo.rtDepthFormat);
+        psoDesc.RTVFormats[0]                             = GetDXFormat(shaderDesc.colorAttachmentFormat);
+        psoDesc.DSVFormat                                 = GetDXFormat(shaderDesc.depthAttachmentFormat);
 
         for (const auto& [stg, blob] : shaderDesc.stages)
         {
@@ -1790,8 +1792,7 @@ namespace LinaGX
                         GPUInfo.supportedImageFormats.push_back(lgxFormat);
                 }
 
-                LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
-                for (auto& f : requiredFormats)
+                for (auto& f : m_initInfo.checkForFormatSupport)
                 {
                     auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
                     if (it == GPUInfo.supportedImageFormats.end())
@@ -2160,8 +2161,8 @@ namespace LinaGX
             list->ResourceBarrier(1, &transition);
         }
 
-        CD3DX12_CLEAR_VALUE clearValue{GetDXFormat(begin->isSwapchain ? m_initInfo.rtSwapchainFormat : colorTxt.desc.format), begin->clearColor};
-        CD3DX12_CLEAR_VALUE clearDepth{GetDXFormat(m_initInfo.rtDepthFormat), 1.0f, 0};
+        CD3DX12_CLEAR_VALUE clearValue{GetDXFormat(colorTxt.desc.format), begin->clearColor};
+        CD3DX12_CLEAR_VALUE clearDepth{GetDXFormat(depthTxt.desc.format), 1.0f, 0};
 
         D3D12_RENDER_PASS_BEGINNING_ACCESS   colorBegin{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
         D3D12_RENDER_PASS_ENDING_ACCESS      colorEnd{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};

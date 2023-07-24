@@ -74,8 +74,9 @@ namespace LinaGX::Examples
     };
 
     // Shaders.
-    uint16 _shaderProgram     = 0;
-    uint16 _quadShaderProgram = 0;
+    uint16 _shaderProgramColorPass = 0;
+    uint16 _shaderProgramFinalPass = 0;
+    uint16 _quadShaderProgram      = 0;
 
     // Streams.
     LinaGX::CommandStream* _stream     = nullptr;
@@ -131,12 +132,11 @@ namespace LinaGX::Examples
 #endif
 
             LinaGX::InitInfo initInfo = InitInfo{
-                .api               = api,
-                .gpu               = PreferredGPUType::Integrated,
-                .framesInFlight    = FRAMES_IN_FLIGHT,
-                .backbufferCount   = 2,
-                .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
-                .rtDepthFormat     = Format::D32_SFLOAT,
+                .api                   = api,
+                .gpu                   = PreferredGPUType::Integrated,
+                .framesInFlight        = FRAMES_IN_FLIGHT,
+                .backbufferCount       = 2,
+                .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT, Format::R8G8B8A8_SRGB},
             };
 
             _renderer = new LinaGX::Renderer();
@@ -145,7 +145,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF Skinning", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF Render Target", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -164,18 +164,23 @@ namespace LinaGX::Examples
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
-                .layout          = outLayout,
-                .polygonMode     = PolygonMode::Fill,
-                .cullMode        = CullMode::None,
-                .frontFace       = FrontFace::CCW,
-                .depthTest       = true,
-                .depthWrite      = true,
-                .depthCompare    = CompareOp::Less,
-                .topology        = Topology::TriangleList,
-                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
+                .stages                = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .colorAttachmentFormat = Format::R8G8B8A8_SRGB,
+                .depthAttachmentFormat = Format::D32_SFLOAT,
+                .layout                = outLayout,
+                .polygonMode           = PolygonMode::Fill,
+                .cullMode              = CullMode::Back,
+                .frontFace             = FrontFace::CCW,
+                .depthTest             = true,
+                .depthWrite            = true,
+                .depthCompare          = CompareOp::Less,
+                .topology              = Topology::TriangleList,
+                .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
-            _shaderProgram = _renderer->CreateShader(shaderDesc);
+            _shaderProgramColorPass = _renderer->CreateShader(shaderDesc);
+
+            shaderDesc.colorAttachmentFormat = Format::B8G8R8A8_UNORM;
+            _shaderProgramFinalPass          = _renderer->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
             free(vertexBlob.ptr);
@@ -197,16 +202,18 @@ namespace LinaGX::Examples
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
-                .layout          = outLayout,
-                .polygonMode     = PolygonMode::Fill,
-                .cullMode        = CullMode::None,
-                .frontFace       = FrontFace::CCW,
-                .depthTest       = true,
-                .depthWrite      = true,
-                .depthCompare    = CompareOp::Less,
-                .topology        = Topology::TriangleList,
-                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
+                .stages                = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
+                .depthAttachmentFormat = Format::D32_SFLOAT,
+                .layout                = outLayout,
+                .polygonMode           = PolygonMode::Fill,
+                .cullMode              = CullMode::None,
+                .frontFace             = FrontFace::CCW,
+                .depthTest             = true,
+                .depthWrite            = true,
+                .depthCompare          = CompareOp::Less,
+                .topology              = Topology::TriangleList,
+                .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
 
             _quadShaderProgram = _renderer->CreateShader(shaderDesc);
@@ -222,7 +229,7 @@ namespace LinaGX::Examples
                 .width     = _window->GetWidth(),
                 .height    = _window->GetHeight(),
                 .mipLevels = 1,
-                .format    = Format::B8G8R8A8_UNORM,
+                .format    = Format::R8G8B8A8_SRGB,
                 .debugName = "LinaGXRTTexture",
             };
 
@@ -245,6 +252,8 @@ namespace LinaGX::Examples
         {
             // Create a swapchain for main window.
             _swapchain = _renderer->CreateSwapchain({
+                .format       = Format::B8G8R8A8_UNORM,
+                .depthFormat  = Format::D32_SFLOAT,
                 .x            = 0,
                 .y            = 0,
                 .width        = _window->GetWidth(),
@@ -571,7 +580,8 @@ namespace LinaGX::Examples
         _renderer->DestroyTexture2D(_baseColorGPU);
         _renderer->DestroySampler(_sampler);
         _renderer->DestroySwapchain(_swapchain);
-        _renderer->DestroyShader(_shaderProgram);
+        _renderer->DestroyShader(_shaderProgramColorPass);
+        _renderer->DestroyShader(_shaderProgramFinalPass);
         _renderer->DestroyShader(_quadShaderProgram);
         _renderer->DestroyCommandStream(_stream);
         _renderer->DestroyCommandStream(_copyStream);
@@ -798,7 +808,7 @@ namespace LinaGX::Examples
         // Set shader
         {
             CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
-            bindPipeline->shader          = _shaderProgram;
+            bindPipeline->shader          = _shaderProgramColorPass;
         }
 
         // Bind the descriptors
@@ -869,7 +879,7 @@ namespace LinaGX::Examples
         // Set shader
         {
             CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
-            bindPipeline->shader          = _shaderProgram;
+            bindPipeline->shader          = _shaderProgramFinalPass;
         }
 
         // Bind the descriptors

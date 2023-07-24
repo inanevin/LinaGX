@@ -47,8 +47,10 @@ namespace LinaGX
 
     struct DX12Swapchain
     {
-        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr     = NULL;
-        bool                                    isValid = false;
+        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr         = NULL;
+        bool                                    isValid     = false;
+        Format                                  format      = Format::B8G8R8A8_UNORM;
+        Format                                  depthFormat = Format::D32_SFLOAT;
         LINAGX_VEC<uint32>                      colorTextures;
         LINAGX_VEC<uint32>                      depthTextures;
         uint32                                  width       = 0;

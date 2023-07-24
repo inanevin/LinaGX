@@ -336,6 +336,8 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
+        Format    format       = Format::B8G8R8A8_UNORM;
+        Format    depthFormat  = Format::D32_SFLOAT;
         uint32    x            = 0;
         uint32    y            = 0;
         uint32    width        = 0;
@@ -450,18 +452,20 @@ namespace LinaGX
     struct ShaderDesc
     {
         LINAGX_MAP<ShaderStage, DataBlob> stages;
-        ShaderLayout                      layout              = {};
-        PolygonMode                       polygonMode         = PolygonMode::Fill;
-        CullMode                          cullMode            = CullMode::None;
-        FrontFace                         frontFace           = FrontFace::CW;
-        bool                              depthTest           = false;
-        bool                              depthWrite          = false;
-        CompareOp                         depthCompare        = CompareOp::LEqual;
-        Topology                          topology            = Topology::TriangleList;
-        ColorBlendAttachment              blendAttachment     = {};
-        bool                              blendLogicOpEnabled = false;
-        LogicOp                           blendLogicOp        = LogicOp::Copy;
-        const char*                       debugName           = "LinaGXShader";
+        Format                            colorAttachmentFormat = Format::B8G8R8A8_UNORM;
+        Format                            depthAttachmentFormat = Format::D32_SFLOAT;
+        ShaderLayout                      layout                = {};
+        PolygonMode                       polygonMode           = PolygonMode::Fill;
+        CullMode                          cullMode              = CullMode::None;
+        FrontFace                         frontFace             = FrontFace::CW;
+        bool                              depthTest             = false;
+        bool                              depthWrite            = false;
+        CompareOp                         depthCompare          = CompareOp::LEqual;
+        Topology                          topology              = Topology::TriangleList;
+        ColorBlendAttachment              blendAttachment       = {};
+        bool                              blendLogicOpEnabled   = false;
+        LogicOp                           blendLogicOp          = LogicOp::Copy;
+        const char*                       debugName             = "LinaGXShader";
     };
 
     struct Viewport
@@ -615,14 +619,13 @@ namespace LinaGX
 
     struct InitInfo
     {
-        BackendAPI       api               = BackendAPI::Vulkan;
-        PreferredGPUType gpu               = PreferredGPUType::Discrete;
-        const char*      appName           = "LinaGX App";
-        uint32           framesInFlight    = 2;
-        uint32           backbufferCount   = 2;
-        GPULimits        gpuLimits         = {};
-        Format           rtSwapchainFormat = Format::B8G8R8A8_UNORM;
-        Format           rtDepthFormat     = Format::D32_SFLOAT;
+        BackendAPI         api             = BackendAPI::Vulkan;
+        PreferredGPUType   gpu             = PreferredGPUType::Discrete;
+        const char*        appName         = "LinaGX App";
+        uint32             framesInFlight  = 2;
+        uint32             backbufferCount = 2;
+        GPULimits          gpuLimits       = {};
+        LINAGX_VEC<Format> checkForFormatSupport;
     };
 
     extern LINAGX_API Configuration         Config;
@@ -643,9 +646,9 @@ namespace LinaGX
     if (Config.infoCallback && Config.logLevel == LogLevel::Verbose) \
         Config.infoCallback(__VA_ARGS__);
 
-#define LOGA(condition, ...)                \
+#define LOGA(condition, ...)                  \
     if (!(condition) && Config.errorCallback) \
-        Config.errorCallback(__VA_ARGS__);  \
+        Config.errorCallback(__VA_ARGS__);    \
     _ASSERT(condition);
 
     typedef std::function<void()>               CallbackNoArg;

@@ -61,8 +61,6 @@ namespace LinaGX::Examples
                 .gpu               = PreferredGPUType::Integrated,
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
-                .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
-                .rtDepthFormat     = Format::D32_SFLOAT,
             };
 
             _renderer = new LinaGX::Renderer();

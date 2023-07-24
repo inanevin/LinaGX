@@ -636,7 +636,7 @@ namespace LinaGX
 
         VkPresentModeKHR presentMode = GetVKPresentMode(desc.vsyncMode);
 
-        VkFormat              swpFormat = GetVKFormat(m_initInfo.rtSwapchainFormat);
+        VkFormat              swpFormat = GetVKFormat(desc.format);
         vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
         swapchainBuilder = swapchainBuilder
                                //.use_default_format_selection()
@@ -648,6 +648,7 @@ namespace LinaGX
         vkb::Swapchain vkbSwapchain = swapchainBuilder.build().value();
         swp.ptr                     = vkbSwapchain.swapchain;
         swp.format                  = vkbSwapchain.image_format;
+        swp.depthFormat             = desc.depthFormat;
         swp.imgs                    = vkbSwapchain.get_images().value();
         swp.views                   = vkbSwapchain.get_image_views().value();
         swp.surface                 = surface;
@@ -664,7 +665,7 @@ namespace LinaGX
         for (const auto& img : swp.imgs)
         {
             Texture2DDesc depthDesc      = {};
-            depthDesc.format             = m_initInfo.rtDepthFormat;
+            depthDesc.format             = desc.depthFormat;
             depthDesc.width              = swp.width;
             depthDesc.height             = swp.height;
             depthDesc.mipLevels          = 1;
@@ -754,7 +755,7 @@ namespace LinaGX
             swp.imgs.push_back(img);
 
             Texture2DDesc depthDesc      = {};
-            depthDesc.format             = m_initInfo.rtDepthFormat;
+            depthDesc.format             = swp.depthFormat;
             depthDesc.width              = swp.width;
             depthDesc.height             = swp.height;
             depthDesc.mipLevels          = 1;
@@ -813,7 +814,7 @@ namespace LinaGX
 
         for (auto& [stage, blob] : shaderDesc.stages)
         {
-            auto& ptr = shader.modules[stage];
+            auto&                    ptr          = shader.modules[stage];
             VkShaderModuleCreateInfo shaderModule = VkShaderModuleCreateInfo{};
             shaderModule.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             shaderModule.pNext                    = nullptr;
@@ -1005,12 +1006,12 @@ namespace LinaGX
         VkResult res                                  = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, m_allocator, &shader.ptrLayout);
         VK_CHECK_RESULT(res, "Failed creating pipeline layout!");
 
-        VkFormat                         swapchainFormat             = GetVKFormat(m_initInfo.rtSwapchainFormat);
+        VkFormat                         attFormat                   = GetVKFormat(shaderDesc.colorAttachmentFormat);
         VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {};
         pipelineRenderingCreateInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
         pipelineRenderingCreateInfo.colorAttachmentCount             = 1;
-        pipelineRenderingCreateInfo.pColorAttachmentFormats          = &swapchainFormat;
-        pipelineRenderingCreateInfo.depthAttachmentFormat            = GetVKFormat(m_initInfo.rtDepthFormat);
+        pipelineRenderingCreateInfo.pColorAttachmentFormats          = &attFormat;
+        pipelineRenderingCreateInfo.depthAttachmentFormat            = GetVKFormat(shaderDesc.depthAttachmentFormat);
 
         // Actual pipeline.
         // Actual pipeline.
@@ -1804,8 +1805,7 @@ namespace LinaGX
                 }
             }
 
-            LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
-            for (auto& f : requiredFormats)
+            for (auto& f : m_initInfo.checkForFormatSupport)
             {
                 auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
                 if (it == GPUInfo.supportedImageFormats.end())
