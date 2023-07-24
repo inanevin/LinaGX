@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "GLTFSkinning.hpp"
+#include "RenderTarget.hpp"
 
 using namespace LinaGX::Examples;
 

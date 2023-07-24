@@ -10,7 +10,7 @@ struct TriangleProperties
     vec4 positionOffset;
 };
 
-layout(std140, set = 0, binding = 1) readonly buffer TriangleData
+layout(std140, set = 1, binding = 0) readonly buffer TriangleData
 {
     TriangleProperties triangles[];
 } triangleData;

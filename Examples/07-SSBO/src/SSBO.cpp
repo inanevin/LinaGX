@@ -35,7 +35,8 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MAIN_WINDOW_ID 0
+#define MAIN_WINDOW_ID   0
+#define FRAMES_IN_FLIGHT 2
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
@@ -49,16 +50,23 @@ namespace LinaGX::Examples
     LinaGX::CommandStream* _copyStream = nullptr;
 
     // Resources
-    uint32 _vertexBufferStaging = 0;
-    uint32 _vertexBufferGPU     = 0;
-    uint32 _indexBufferStaging  = 0;
-    uint32 _indexBufferGPU      = 0;
-    uint32 _textureGPU          = 0;
-    uint32 _sampler             = 0;
-    uint16 _descriptorSet0      = 0;
-    uint32 _ssboStaging         = 0;
-    uint32 _ssboGPU             = 0;
-    uint8* _ssboMapping         = nullptr;
+    uint32 _vertexBufferStaging  = 0;
+    uint32 _vertexBufferGPU      = 0;
+    uint32 _indexBufferStaging   = 0;
+    uint32 _indexBufferGPU       = 0;
+    uint32 _textureGPU           = 0;
+    uint32 _sampler              = 0;
+    uint16 _descriptorSetTexture = 0;
+
+    struct PerFrameData
+    {
+        uint16 ssboSet     = 0;
+        uint32 ssboStaging = 0;
+        uint32 ssboGPU     = 0;
+        uint8* ssboMapping = nullptr;
+    };
+
+    PerFrameData _pfd[FRAMES_IN_FLIGHT];
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -95,7 +103,7 @@ namespace LinaGX::Examples
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
                 .gpu               = PreferredGPUType::Integrated,
-                .framesInFlight    = 2,
+                .framesInFlight    = FRAMES_IN_FLIGHT,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
                 .rtColorFormat     = Format::R8G8B8A8_SRGB,
@@ -325,40 +333,37 @@ namespace LinaGX::Examples
                 .debugName     = "SSBO",
             };
 
-            _ssboStaging = _renderer->CreateResource(desc);
-            _renderer->MapResource(_ssboStaging, _ssboMapping);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                desc.heapType       = ResourceHeap::StagingHeap;
+                _pfd[i].ssboStaging = _renderer->CreateResource(desc);
+                _renderer->MapResource(_pfd[i].ssboStaging, _pfd[i].ssboMapping);
 
-            desc.heapType = ResourceHeap::GPUOnly;
-            _ssboGPU      = _renderer->CreateResource(desc);
+                desc.heapType   = ResourceHeap::GPUOnly;
+                _pfd[i].ssboGPU = _renderer->CreateResource(desc);
+            }
         }
 
         //*******************  DESCRIPTOR SET
         {
-            DescriptorBinding bindings[2];
+            DescriptorBinding set0Bindings[1];
 
-            bindings[0] = {
+            set0Bindings[0] = {
                 .binding         = 0,
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
                 .stages          = {ShaderStage::Fragment},
             };
 
-            bindings[1] = {
-                .binding         = 1,
-                .descriptorCount = 1,
-                .type            = DescriptorType::SSBO,
-                .stages          = {ShaderStage::Vertex, ShaderStage::Fragment},
-            };
-
             DescriptorSetDesc desc = {
-                .bindings      = &bindings[0],
-                .bindingsCount = 2,
+                .bindings      = &set0Bindings[0],
+                .bindingsCount = 1,
             };
 
-            _descriptorSet0 = _renderer->CreateDescriptorSet(desc);
+            _descriptorSetTexture = _renderer->CreateDescriptorSet(desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
-                .setHandle       = _descriptorSet0,
+                .setHandle       = _descriptorSetTexture,
                 .binding         = 0,
                 .descriptorCount = 1,
                 .textures        = &_textureGPU,
@@ -368,15 +373,34 @@ namespace LinaGX::Examples
 
             _renderer->DescriptorUpdateImage(imgUpdate);
 
-            DescriptorUpdateBufferDesc bufferDesc = {
-                .setHandle       = _descriptorSet0,
-                .binding         = 1,
+            DescriptorBinding ssboBindings[1];
+
+            ssboBindings[0] = {
+                .binding         = 0,
                 .descriptorCount = 1,
-                .resources       = &_ssboGPU,
-                .descriptorType  = DescriptorType::SSBO,
+                .type            = DescriptorType::SSBO,
+                .stages          = {ShaderStage::Vertex, ShaderStage::Fragment},
             };
 
-            _renderer->DescriptorUpdateBuffer(bufferDesc);
+            DescriptorSetDesc ssboDesc = {
+                .bindings      = &ssboBindings[0],
+                .bindingsCount = 1,
+            };
+
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                _pfd[i].ssboSet = _renderer->CreateDescriptorSet(ssboDesc);
+
+                DescriptorUpdateBufferDesc bufferDesc = {
+                    .setHandle       = _pfd[i].ssboSet,
+                    .binding         = 0,
+                    .descriptorCount = 1,
+                    .resources       = &_pfd[i].ssboGPU,
+                    .descriptorType  = DescriptorType::SSBO,
+                };
+
+                _renderer->DescriptorUpdateBuffer(bufferDesc);
+            }
         }
     }
 
@@ -389,9 +413,13 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
-        _renderer->DestroyResource(_ssboStaging);
-        _renderer->DestroyResource(_ssboGPU);
-        _renderer->DestroyDescriptorSet(_descriptorSet0);
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        {
+            _renderer->DestroyResource(_pfd[i].ssboStaging);
+            _renderer->DestroyResource(_pfd[i].ssboGPU);
+            _renderer->DestroyDescriptorSet(_pfd[i].ssboSet);
+        }
+        _renderer->DestroyDescriptorSet(_descriptorSetTexture);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_textureGPU);
         _renderer->DestroySampler(_sampler);
@@ -418,6 +446,8 @@ namespace LinaGX::Examples
         static float time = 0.0f;
         time += (float)(m_deltaMicroseconds * 1e-6);
 
+        auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
+
         // Copy SSBO data on copy queue
         {
             TriangleProperties props[2];
@@ -436,11 +466,11 @@ namespace LinaGX::Examples
             props[1].positionOffset[1] = 0.0f;
 
             auto sz = sizeof(TriangleProperties);
-            std::memcpy(_ssboMapping, props, sz * 2);
+            std::memcpy(currentFrame.ssboMapping, props, sz * 2);
 
             CMDCopyResource* copyRes = _copyStream->AddCommand<CMDCopyResource>();
-            copyRes->source          = _ssboStaging;
-            copyRes->destination     = _ssboGPU;
+            copyRes->source          = currentFrame.ssboStaging;
+            copyRes->destination     = currentFrame.ssboGPU;
 
             _renderer->CloseCommandStreams(&_copyStream, 1);
 
@@ -494,9 +524,10 @@ namespace LinaGX::Examples
         // Bind the descriptor
         {
             CMDBindDescriptorSets* bindTxt = _stream->AddCommand<CMDBindDescriptorSets>();
+            uint16                 sets[2] = {_descriptorSetTexture, currentFrame.ssboSet};
             bindTxt->firstSet              = 0;
-            bindTxt->setCount              = 1;
-            bindTxt->descriptorSetHandles  = &_descriptorSet0;
+            bindTxt->setCount              = 2;
+            bindTxt->descriptorSetHandles  = sets;
         }
 
         // Bind constants & draw.

@@ -37,7 +37,8 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MAIN_WINDOW_ID 0
+#define MAIN_WINDOW_ID   0
+#define FRAMES_IN_FLIGHT 2
 
     LinaGX::Renderer* _renderer  = nullptr;
     uint8             _swapchain = 0;
@@ -82,13 +83,19 @@ namespace LinaGX::Examples
     // Resources
     uint32 _sampler        = 0;
     uint16 _descriptorSet0 = 0;
-    uint16 _descriptorSet1 = 0;
-    uint32 _ssboStaging    = 0;
-    uint32 _ssboGPU        = 0;
-    uint8* _ssboMapping    = nullptr;
     uint32 _ubo            = 0;
     uint8* _uboMapping     = 0;
     uint32 _baseColorGPU   = 0;
+
+    struct PerFrameData
+    {
+        uint32 ssboStaging = 0;
+        uint32 ssboGPU     = 0;
+        uint8* ssboMapping = nullptr;
+        uint16 ssboSet     = 0;
+    };
+
+    PerFrameData _pfd[FRAMES_IN_FLIGHT];
 
     // Syncronization
     uint16 _copySemaphore      = 0;
@@ -112,7 +119,7 @@ namespace LinaGX::Examples
             LinaGX::InitInfo initInfo = InitInfo{
                 .api               = api,
                 .gpu               = PreferredGPUType::Integrated,
-                .framesInFlight    = 2,
+                .framesInFlight    = FRAMES_IN_FLIGHT,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
                 .rtColorFormat     = Format::R8G8B8A8_SRGB,
@@ -320,11 +327,14 @@ namespace LinaGX::Examples
                 .debugName     = "SSBO",
             };
 
-            _ssboStaging = _renderer->CreateResource(desc);
-            _renderer->MapResource(_ssboStaging, _ssboMapping);
-
-            desc.heapType = ResourceHeap::GPUOnly;
-            _ssboGPU      = _renderer->CreateResource(desc);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                desc.heapType       = ResourceHeap::StagingHeap;
+                _pfd[i].ssboStaging = _renderer->CreateResource(desc);
+                _renderer->MapResource(_pfd[i].ssboStaging, _pfd[i].ssboMapping);
+                desc.heapType   = ResourceHeap::GPUOnly;
+                _pfd[i].ssboGPU = _renderer->CreateResource(desc);
+            }
         }
 
         //*******************  UBO
@@ -380,7 +390,20 @@ namespace LinaGX::Examples
                 .bindingsCount = 1,
             };
 
-            _descriptorSet1 = _renderer->CreateDescriptorSet(set1Desc);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                _pfd[i].ssboSet = _renderer->CreateDescriptorSet(set1Desc);
+
+                DescriptorUpdateBufferDesc bufferDesc = {
+                    .setHandle       = _pfd[i].ssboSet,
+                    .binding         = 0,
+                    .descriptorCount = 1,
+                    .resources       = &_pfd[i].ssboGPU,
+                    .descriptorType  = DescriptorType::SSBO,
+                };
+
+                _renderer->DescriptorUpdateBuffer(bufferDesc);
+            }
 
             DescriptorUpdateBufferDesc uboUpdate = {
                 .setHandle       = _descriptorSet0,
@@ -401,16 +424,6 @@ namespace LinaGX::Examples
 
             _renderer->DescriptorUpdateBuffer(uboUpdate);
             _renderer->DescriptorUpdateImage(imgUpdate);
-
-            DescriptorUpdateBufferDesc bufferDesc = {
-                .setHandle       = _descriptorSet1,
-                .binding         = 0,
-                .descriptorCount = 1,
-                .resources       = &_ssboGPU,
-                .descriptorType  = DescriptorType::SSBO,
-            };
-
-            _renderer->DescriptorUpdateBuffer(bufferDesc);
         }
     }
 
@@ -426,11 +439,15 @@ namespace LinaGX::Examples
         for (auto& obj : _objects)
             _renderer->DestroyResource(obj.vertexBufferGPU);
 
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        {
+            _renderer->DestroyResource(_pfd[i].ssboStaging);
+            _renderer->DestroyResource(_pfd[i].ssboGPU);
+            _renderer->DestroyDescriptorSet(_pfd[i].ssboSet);
+        }
+
         _renderer->DestroyResource(_ubo);
-        _renderer->DestroyResource(_ssboStaging);
-        _renderer->DestroyResource(_ssboGPU);
         _renderer->DestroyDescriptorSet(_descriptorSet0);
-        _renderer->DestroyDescriptorSet(_descriptorSet1);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_baseColorGPU);
         _renderer->DestroySampler(_sampler);
@@ -452,6 +469,8 @@ namespace LinaGX::Examples
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
 
+        auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
+
         // Copy SSBO data on copy queue
         {
             LINAGX_VEC<GPUObjectData> objectData;
@@ -459,17 +478,17 @@ namespace LinaGX::Examples
 
             for (size_t i = 0; i < _objects.size(); i++)
             {
-                glm::mat4  mat = glm::mat4(1.0f);
-                mat = glm::rotate(mat, m_elapsedSeconds, glm::vec3(0.0f, 1.0f, 0.0f));
+                glm::mat4 mat             = glm::mat4(1.0f);
+                mat                       = glm::rotate(mat, m_elapsedSeconds, glm::vec3(0.0f, 1.0f, 0.0f));
                 objectData[i].modelMatrix = mat;
             }
 
             auto sz = sizeof(GPUObjectData) * _objects.size();
-            std::memcpy(_ssboMapping, objectData.data(), sz);
+            std::memcpy(currentFrame.ssboMapping, objectData.data(), sz);
 
             CMDCopyResource* copyRes = _copyStream->AddCommand<CMDCopyResource>();
-            copyRes->source          = _ssboStaging;
-            copyRes->destination     = _ssboGPU;
+            copyRes->source          = currentFrame.ssboStaging;
+            copyRes->destination     = currentFrame.ssboGPU;
 
             _renderer->CloseCommandStreams(&_copyStream, 1);
 
@@ -517,7 +536,7 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            uint16                 sets[2]  = {_descriptorSet0, _descriptorSet1};
+            uint16                 sets[2]  = {_descriptorSet0, currentFrame.ssboSet};
             CMDBindDescriptorSets* bindSets = _stream->AddCommand<CMDBindDescriptorSets>();
             bindSets->firstSet              = 0;
             bindSets->setCount              = 2;

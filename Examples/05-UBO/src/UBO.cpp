@@ -410,7 +410,6 @@ namespace LinaGX::Examples
         _renderer->Join();
 
         // Get rid of resources
-
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             _renderer->DestroyDescriptorSet(_pfd[i].descriptorSetUBO);

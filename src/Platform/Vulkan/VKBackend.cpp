@@ -961,6 +961,8 @@ namespace LinaGX
             bindingMap[sampler.set].push_back(binding);
         }
 
+        shader.layouts.resize(bindingMap.size());
+
         // TODO: descriptor set flag reflection?
         for (const auto& [set, bindings] : bindingMap)
         {
@@ -973,7 +975,7 @@ namespace LinaGX
             VkDescriptorSetLayout layout = nullptr;
             VkResult              res    = vkCreateDescriptorSetLayout(m_device, &setInfo, m_allocator, &layout);
             VK_CHECK_RESULT(res, "Failed creating descriptor set layout.");
-            shader.layouts.push_back(layout);
+            shader.layouts[set] = layout;
         }
 
         // Push constants
@@ -1034,7 +1036,6 @@ namespace LinaGX
         LOGA(res == VK_SUCCESS, "Backend -> Could not create shader pipeline!");
 
         VK_NAME_OBJECT(shader.ptrPipeline, VK_OBJECT_TYPE_PIPELINE, shaderDesc.debugName, info);
-
         // Done with the module
         for (auto [stg, mod] : shader.modules)
             vkDestroyShaderModule(m_device, mod, m_allocator);

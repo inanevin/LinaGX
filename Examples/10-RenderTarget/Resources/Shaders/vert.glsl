@@ -11,7 +11,7 @@ layout(location = 0) out vec2 outUV;
 #define MAX_BONES 31
 #define MAX_BONE_INFLUENCES 4
 
-layout(set = 0, binding = 0) uniform SceneData
+layout(set = 2, binding = 0) uniform SceneData
 {
     mat4 viewProj;
 } scene;
