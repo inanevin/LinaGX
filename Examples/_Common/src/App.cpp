@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "App.hpp"
-#include "LinaGX.hpp"
+#include "LinaGX/LinaGX.hpp"
 #include <chrono>
 
 namespace LinaGX::Examples

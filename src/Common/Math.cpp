@@ -28,8 +28,8 @@ SOFTWARE.
 
 #pragma once
 
-#include "Common/Math.hpp"
-#include "Common/CommonGfx.hpp"
+#include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
 {

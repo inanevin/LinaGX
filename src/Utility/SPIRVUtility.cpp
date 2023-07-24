@@ -26,8 +26,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "Utility/SPIRVUtility.hpp"
-#include "Utility/PlatformUtility.hpp"
+#include "LinaGX/Utility/SPIRVUtility.hpp"
+#include "LinaGX/Utility/PlatformUtility.hpp"
 #include "spirv_cross/spirv_glsl.hpp"
 #include "spirv_cross/spirv_msl.hpp"
 #include "spirv_cross/spirv_hlsl.hpp"

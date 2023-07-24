@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "Platform/DX12/SDK/ID3DIncludeInterface.hpp"
+#include "LinaGX/Platform/DX12/SDK/ID3DIncludeInterface.hpp"
 #include <wrl/client.h>
 
 using Microsoft::WRL::ComPtr;

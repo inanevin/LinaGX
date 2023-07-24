@@ -28,15 +28,15 @@ SOFTWARE.
 
 #pragma once
 
-#include "Utility/ImageUtility.hpp"
-#include "Common/Math.hpp"
+#include "LinaGX/Utility/ImageUtility.hpp"
+#include "LinaGX/Common/Math.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "Utility/stb/stb_image.h"
-#include "Utility/stb/stb_image_write.h"
-#include "Utility/stb/stb_image_resize.h"
+#include "LinaGX/Utility/stb/stb_image.h"
+#include "LinaGX/Utility/stb/stb_image_write.h"
+#include "LinaGX/Utility/stb/stb_image_resize.h"
 
 namespace LinaGX
 {
@@ -57,7 +57,7 @@ namespace LinaGX
         }
     }
 
-    void LoadImage(const char* path, TextureLoadData& outData, ImageChannelMask channelMask)
+    void LoadImageFromFile(const char* path, TextureLoadData& outData, ImageChannelMask channelMask)
     {
         int w = 0, h = 0, ch = 0;
         outData.pixels         = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));

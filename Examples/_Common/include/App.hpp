@@ -29,7 +29,7 @@ SOFTWARE.
 #ifndef APP_HPP
 #define APP_HPP
 
-#include "Common/CommonGfx.hpp"
+#include "LinaGX/Common/CommonGfx.hpp"
 #include <iostream>
 #include <cstdarg>
 
@@ -67,10 +67,7 @@ namespace LinaGX
             virtual void Initialize();
             virtual void Run();
             virtual void Shutdown();
-
             virtual void OnTick(){};
-            virtual void OnKeyPress(uint32 key){};
-            virtual void OnMousePress(uint32 mouse){};
 
         protected:
             bool   m_isRunning         = false;

@@ -20,7 +20,7 @@
 // THE SOFTWARE.
 //
 
-#include "Platform/DX12/SDK/D3D12MemAlloc.h"
+#include "LinaGX/Platform/DX12/SDK/D3D12MemAlloc.h"
 
 #include <combaseapi.h>
 #include <mutex>

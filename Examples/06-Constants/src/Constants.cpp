@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "App.hpp"
-#include "LinaGX.hpp"
+#include "LinaGX/LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
 #include "Constants.hpp"
@@ -46,7 +46,6 @@ namespace LinaGX::Examples
     uint16 _shaderProgram = 0;
 
     // Streams.
-    LinaGX::CommandStream* _stream     = nullptr;
     LinaGX::CommandStream* _copyStream = nullptr;
 
     // Resources
@@ -58,13 +57,21 @@ namespace LinaGX::Examples
     uint32 _sampler              = 0;
     uint16 _descriptorSetTexture = 0;
 
+    struct TintColor
+    {
+        float tint[4] = {0.0f, 0.8f, 0.5f, 1.0f};
+    };
+
+    TintColor _tint;
+
     struct PerFrameData
     {
-        uint16 descriptorSetUBO = 0;
-        uint32 uboResource0     = 0;
-        uint32 uboResource1     = 0;
-        uint8* uboMapping0      = nullptr;
-        uint8* uboMapping1      = nullptr;
+        uint16                 descriptorSetUBO = 0;
+        uint32                 uboResource0     = 0;
+        uint32                 uboResource1     = 0;
+        uint8*                 uboMapping0      = nullptr;
+        uint8*                 uboMapping1      = nullptr;
+        LinaGX::CommandStream* stream           = nullptr;
     };
 
     PerFrameData _pfd[FRAMES_IN_FLIGHT];
@@ -175,7 +182,8 @@ namespace LinaGX::Examples
             });
 
             // Create command stream to record draw calls.
-            _stream        = _renderer->CreateCommandStream(10, QueueType::Graphics);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                _pfd[i].stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
             _copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
             _copySemaphore = _renderer->CreateUserSemaphore();
         }
@@ -227,7 +235,7 @@ namespace LinaGX::Examples
 
         // Load image.
         TextureLoadData loadedTextureData = {};
-        LinaGX::LoadImage("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
+        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
 
         // Generate mipmaps
         LINAGX_VEC<MipData> outMipmaps;
@@ -291,7 +299,7 @@ namespace LinaGX::Examples
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _textureGPU;
             copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
-            copyTxt->buffers                  = textureDataWithMips.data();
+            copyTxt->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips.data(), sizeof(TextureBuffer) * textureDataWithMips.size());
 
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
@@ -424,7 +432,10 @@ namespace LinaGX::Examples
         _renderer->DestroyResource(_indexBufferGPU);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
-        _renderer->DestroyCommandStream(_stream);
+
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            _renderer->DestroyCommandStream(_pfd[i].stream);
+
         _renderer->DestroyCommandStream(_copyStream);
 
         // Terminate renderer & shutdown app.
@@ -455,7 +466,7 @@ namespace LinaGX::Examples
         {
             Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
-            CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
+            CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->isSwapchain        = true;
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;
@@ -468,13 +479,13 @@ namespace LinaGX::Examples
 
         // Bind buffers
         {
-            CMDBindVertexBuffers* bind = _stream->AddCommand<CMDBindVertexBuffers>();
+            CMDBindVertexBuffers* bind = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();
             bind->slot                 = 0;
             bind->resource             = _vertexBufferGPU;
             bind->vertexSize           = sizeof(Vertex);
             bind->offset               = 0;
 
-            CMDBindIndexBuffers* bindIndex = _stream->AddCommand<CMDBindIndexBuffers>();
+            CMDBindIndexBuffers* bindIndex = currentFrame.stream->AddCommand<CMDBindIndexBuffers>();
             bindIndex->resource            = _indexBufferGPU;
             bindIndex->indexFormat         = IndexType::Uint32;
             bindIndex->offset              = 0;
@@ -482,34 +493,32 @@ namespace LinaGX::Examples
 
         // Set shader
         {
-            CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
+            CMDBindPipeline* bindPipeline = currentFrame.stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram;
         }
 
         // Bind the descriptor
         {
-            CMDBindDescriptorSets* bindTxt    = _stream->AddCommand<CMDBindDescriptorSets>();
-            uint16                 handles[2] = {_descriptorSetTexture, currentFrame.descriptorSetUBO};
-            bindTxt->firstSet                 = 0;
-            bindTxt->setCount                 = 2;
-            bindTxt->descriptorSetHandles     = &handles[0];
+            CMDBindDescriptorSets* bindTxt = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindTxt->firstSet              = 0;
+            bindTxt->setCount              = 2;
+            bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.descriptorSetUBO);
         }
 
         // Bind constnats.
         {
-            CMDBindConstants* constant  = _stream->AddCommand<CMDBindConstants>();
-            float             tint[4]   = {0.0f, 0.8f, 0.5f, 1.0f};
+            CMDBindConstants* constant  = currentFrame.stream->AddCommand<CMDBindConstants>();
             ShaderStage       stages[1] = {ShaderStage::Fragment};
-            constant->data              = &tint;
             constant->offset            = 0;
             constant->size              = sizeof(float) * 4;
-            constant->stages            = &stages[0];
+            constant->stages            = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Fragment);
+            constant->data              = currentFrame.stream->EmplaceAuxMemory<TintColor>(_tint);
             constant->stagesSize        = 1;
         }
 
         // Draw the triangle
         {
-            CMDDrawIndexedInstanced* drawIndexed = _stream->AddCommand<CMDDrawIndexedInstanced>();
+            CMDDrawIndexedInstanced* drawIndexed = currentFrame.stream->AddCommand<CMDDrawIndexedInstanced>();
             drawIndexed->baseVertexLocation      = 0;
             drawIndexed->indexCountPerInstance   = 6;
             drawIndexed->instanceCount           = 1;
@@ -519,16 +528,16 @@ namespace LinaGX::Examples
 
         // End render pass
         {
-            CMDEndRenderPass* end = _stream->AddCommand<CMDEndRenderPass>();
+            CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
             end->isSwapchain      = true;
             end->swapchain        = _swapchain;
         }
 
         // This does the actual *recording* of every single command stream alive.
-        _renderer->CloseCommandStreams(&_stream, 1);
+        _renderer->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _renderer->SubmitCommandStreams({.streams = &_stream, .streamCount = 1});
+        _renderer->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
 
         // Present main swapchain.
         _renderer->Present({.swapchain = _swapchain});

@@ -28,15 +28,15 @@ SOFTWARE.
 
 #pragma once
 
-#include "Core/Backend.hpp"
+#include "LinaGX/Core/Backend.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
-#include "Platform/DX12/DX12Backend.hpp"
-#include "Platform/Vulkan/VKBackend.hpp"
+#include "LinaGX/Platform/DX12/DX12Backend.hpp"
+#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
 #endif
 
 #ifdef LINAGX_PLATFORM_APPLE
-#include "Platform/Metal/MTLBackend.hpp"
+#include "LinaGX/Platform/Metal/MTLBackend.hpp"
 #endif
 
 namespace LinaGX

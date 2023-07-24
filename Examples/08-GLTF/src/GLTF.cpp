@@ -28,7 +28,7 @@ SOFTWARE.
 
 #include "GLTF.hpp"
 #include "App.hpp"
-#include "LinaGX.hpp"
+#include "LinaGX/LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
 #include <glm/glm.hpp>
@@ -53,6 +53,7 @@ namespace LinaGX::Examples
     struct Object
     {
         LINAGX_VEC<Vertex> vertices;
+        uint32             index = 0;
 
         uint32 vertexBufferStaging = 0;
         uint32 vertexBufferGPU     = 0;
@@ -71,10 +72,6 @@ namespace LinaGX::Examples
     // Shaders.
     uint16 _shaderProgram = 0;
 
-    // Streams.
-    LinaGX::CommandStream* _stream     = nullptr;
-    LinaGX::CommandStream* _copyStream = nullptr;
-
     // Objects
     LinaGX::ModelData  _modelData   = {};
     ModelTexture*      _baseTexture = nullptr;
@@ -89,17 +86,17 @@ namespace LinaGX::Examples
 
     struct PerFrameData
     {
-        uint32 ssboStaging = 0;
-        uint32 ssboGPU     = 0;
-        uint8* ssboMapping = nullptr;
-        uint16 ssboSet     = 0;
+        uint32                 ssboStaging        = 0;
+        uint32                 ssboGPU            = 0;
+        uint8*                 ssboMapping        = nullptr;
+        uint16                 ssboSet            = 0;
+        LinaGX::CommandStream* stream             = nullptr;
+        LinaGX::CommandStream* copyStream         = nullptr;
+        uint16                 copySemaphore      = 0;
+        uint64                 copySemaphoreValue = 0;
     };
 
     PerFrameData _pfd[FRAMES_IN_FLIGHT];
-
-    // Syncronization
-    uint16 _copySemaphore      = 0;
-    uint64 _copySemaphoreValue = 0;
 
     void Example::Initialize()
     {
@@ -201,9 +198,12 @@ namespace LinaGX::Examples
             });
 
             // Create command stream to record draw calls.
-            _stream        = _renderer->CreateCommandStream(10, QueueType::Graphics);
-            _copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
-            _copySemaphore = _renderer->CreateUserSemaphore();
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                _pfd[i].stream        = _renderer->CreateCommandStream(10, QueueType::Graphics);
+                _pfd[i].copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
+                _pfd[i].copySemaphore = _renderer->CreateUserSemaphore();
+            }
         }
 
         //*******************  MODEL (Vertex Data & Object Array)
@@ -218,6 +218,7 @@ namespace LinaGX::Examples
                 {
                     _objects.push_back({});
                     Object& obj = _objects[_objects.size() - 1];
+                    obj.index   = static_cast<uint32>(_objects.size() - 1);
 
                     for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
                     {
@@ -294,24 +295,24 @@ namespace LinaGX::Examples
             };
 
             // Copy texture
-            CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
+            CMDCopyBufferToTexture2D* copyTxt = _pfd[0].copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _baseColorGPU;
             copyTxt->mipLevels                = 1;
-            copyTxt->buffers                  = &txtBuffer;
+            copyTxt->buffers                  = _pfd[0].copyStream->EmplaceAuxMemory<TextureBuffer>(txtBuffer);
 
             for (auto& obj : _objects)
             {
                 // Record copy command.
-                CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
+                CMDCopyResource* copyVtxBuf = _pfd[0].copyStream->AddCommand<CMDCopyResource>();
                 copyVtxBuf->source          = obj.vertexBufferStaging;
                 copyVtxBuf->destination     = obj.vertexBufferGPU;
             }
 
-            _renderer->CloseCommandStreams(&_copyStream, 1);
+            _renderer->CloseCommandStreams(&_pfd[0].copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
-            _renderer->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
-            _renderer->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
+            _renderer->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_pfd[0].copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _pfd[0].copySemaphore, .signalValue = ++_pfd[0].copySemaphoreValue});
+            _renderer->WaitForUserSemaphore(_pfd[0].copySemaphore, _pfd[0].copySemaphoreValue);
 
             // Not needed anymore.
             for (auto& obj : _objects)
@@ -446,17 +447,17 @@ namespace LinaGX::Examples
             _renderer->DestroyResource(_pfd[i].ssboStaging);
             _renderer->DestroyResource(_pfd[i].ssboGPU);
             _renderer->DestroyDescriptorSet(_pfd[i].ssboSet);
+            _renderer->DestroyUserSemaphore(_pfd[i].copySemaphore);
+            _renderer->DestroyCommandStream(_pfd[i].stream);
+            _renderer->DestroyCommandStream(_pfd[i].copyStream);
         }
 
         _renderer->DestroyResource(_ubo);
         _renderer->DestroyDescriptorSet(_descriptorSet0);
-        _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_baseColorGPU);
         _renderer->DestroySampler(_sampler);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
-        _renderer->DestroyCommandStream(_stream);
-        _renderer->DestroyCommandStream(_copyStream);
 
         // Terminate renderer & shutdown app.
         delete _renderer;
@@ -488,20 +489,20 @@ namespace LinaGX::Examples
             auto sz = sizeof(GPUObjectData) * _objects.size();
             std::memcpy(currentFrame.ssboMapping, objectData.data(), sz);
 
-            CMDCopyResource* copyRes = _copyStream->AddCommand<CMDCopyResource>();
+            CMDCopyResource* copyRes = currentFrame.copyStream->AddCommand<CMDCopyResource>();
             copyRes->source          = currentFrame.ssboStaging;
             copyRes->destination     = currentFrame.ssboGPU;
 
-            _renderer->CloseCommandStreams(&_copyStream, 1);
+            _renderer->CloseCommandStreams(&currentFrame.copyStream, 1);
 
             SubmitDesc submit = {
                 .queue           = QueueType::Transfer,
-                .streams         = &_copyStream,
+                .streams         = &currentFrame.copyStream,
                 .streamCount     = 1,
                 .useWait         = false,
                 .useSignal       = true,
-                .signalSemaphore = _copySemaphore,
-                .signalValue     = ++_copySemaphoreValue,
+                .signalSemaphore = currentFrame.copySemaphore,
+                .signalValue     = ++currentFrame.copySemaphoreValue,
             };
 
             _renderer->SubmitCommandStreams(submit);
@@ -520,7 +521,7 @@ namespace LinaGX::Examples
         {
             Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
-            CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
+            CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->isSwapchain        = true;
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;
@@ -533,39 +534,36 @@ namespace LinaGX::Examples
 
         // Set shader
         {
-            CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
+            CMDBindPipeline* bindPipeline = currentFrame.stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram;
         }
 
         // Bind the descriptors
         {
-            uint16                 sets[2]  = {_descriptorSet0, currentFrame.ssboSet};
-            CMDBindDescriptorSets* bindSets = _stream->AddCommand<CMDBindDescriptorSets>();
+            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
             bindSets->firstSet              = 0;
             bindSets->setCount              = 2;
-            bindSets->descriptorSetHandles  = sets;
+            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0, currentFrame.ssboSet);
         }
 
         // Per object, bind vertex buffers, push constants and draw.
         {
-            uint32 index = 0;
-            for (const auto& obj : _objects)
+            for (auto& obj : _objects)
             {
-                CMDBindVertexBuffers* vtx = _stream->AddCommand<CMDBindVertexBuffers>();
+                CMDBindVertexBuffers* vtx = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();
                 vtx->slot                 = 0;
                 vtx->resource             = obj.vertexBufferGPU;
                 vtx->vertexSize           = sizeof(Vertex);
                 vtx->offset               = 0;
 
-                ShaderStage       constantsStage = ShaderStage::Vertex;
-                CMDBindConstants* constants      = _stream->AddCommand<CMDBindConstants>();
-                constants->size                  = sizeof(int);
-                constants->stages                = &constantsStage;
-                constants->stagesSize            = 1;
-                constants->offset                = 0;
-                constants->data                  = &index;
+                CMDBindConstants* constants = currentFrame.stream->AddCommand<CMDBindConstants>();
+                constants->size             = sizeof(int);
+                constants->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Vertex);
+                constants->stagesSize       = 1;
+                constants->offset           = 0;
+                constants->data             = currentFrame.stream->EmplaceAuxMemory<uint32>(obj.index);
 
-                CMDDrawInstanced* draw       = _stream->AddCommand<CMDDrawInstanced>();
+                CMDDrawInstanced* draw       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
                 draw->instanceCount          = 1;
                 draw->startInstanceLocation  = 0;
                 draw->startVertexLocation    = 0;
@@ -575,16 +573,16 @@ namespace LinaGX::Examples
 
         // End render pass
         {
-            CMDEndRenderPass* end = _stream->AddCommand<CMDEndRenderPass>();
+            CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
             end->isSwapchain      = true;
             end->swapchain        = _swapchain;
         }
 
         // This does the actual *recording* of every single command stream alive.
-        _renderer->CloseCommandStreams(&_stream, 1);
+        _renderer->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _renderer->SubmitCommandStreams({.streams = &_stream, .streamCount = 1, .useWait = true, .waitSemaphore = _copySemaphore, .waitValue = _copySemaphoreValue});
+        _renderer->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitSemaphore = currentFrame.copySemaphore, .waitValue = currentFrame.copySemaphoreValue});
 
         // Present main swapchain.
         _renderer->Present({.swapchain = _swapchain});

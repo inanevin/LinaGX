@@ -28,14 +28,14 @@ SOFTWARE.
 
 #pragma once
 
-#include "Platform/Vulkan/VKBackend.hpp"
-#include "Platform/Vulkan/SDK/VkBootstrap.h"
-#include "Core/Commands.hpp"
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
+#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
+#include "LinaGX/Platform/Vulkan/SDK/VkBootstrap.h"
+#include "LinaGX/Core/Commands.hpp"
+#include "LinaGX/Core/Renderer.hpp"
+#include "LinaGX/Core/CommandStream.hpp"
 
 #define VMA_IMPLEMENTATION
-#include "Platform/Vulkan/SDK/vk_mem_alloc.h"
+#include "LinaGX/Platform/Vulkan/SDK/vk_mem_alloc.h"
 
 namespace LinaGX
 {
@@ -1307,7 +1307,7 @@ namespace LinaGX
         allocInfo.pSetLayouts                 = &item.layout;
 
         res = vkAllocateDescriptorSets(m_device, &allocInfo, &item.ptr);
-        VK_CHECK_RESULT(res, "Backend -> Could not allocate descriptor set!");
+        VK_CHECK_RESULT(res, "Backend -> Could not allocate descriptor set, make sure you have set enough descriptor limits in LinaGX::InitInfo::GPULimits structure!");
         return m_descriptorSets.AddItem(item);
     }
 
@@ -1394,25 +1394,20 @@ namespace LinaGX
         commandPoolInfo.flags                   = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         commandPoolInfo.queueFamilyIndex        = familyIndex;
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            VkCommandPool pool   = nullptr;
-            VkResult      result = vkCreateCommandPool(m_device, &commandPoolInfo, m_allocator, &pool);
-            VK_CHECK_RESULT(result, "Failed creating command pool");
+        VkResult result = vkCreateCommandPool(m_device, &commandPoolInfo, m_allocator, &item.pool);
+        VK_CHECK_RESULT(result, "Failed creating command pool");
 
-            VkCommandBufferAllocateInfo cmdAllocInfo = VkCommandBufferAllocateInfo{};
-            cmdAllocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            cmdAllocInfo.pNext                       = nullptr;
-            cmdAllocInfo.commandPool                 = pool;
-            cmdAllocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            cmdAllocInfo.commandBufferCount          = 1;
+        VkCommandBufferAllocateInfo cmdAllocInfo = VkCommandBufferAllocateInfo{};
+        cmdAllocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cmdAllocInfo.pNext                       = nullptr;
+        cmdAllocInfo.commandPool                 = item.pool;
+        cmdAllocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdAllocInfo.commandBufferCount          = 1;
 
-            VkCommandBuffer b = nullptr;
-            result            = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &b);
-            item.buffers.push_back(b);
-            item.pools.push_back(pool);
-            VK_CHECK_RESULT(result, "Failed allocating command buffers");
-        }
+        VkCommandBuffer b = nullptr;
+        result            = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &item.buffer);
+        VK_CHECK_RESULT(result, "Failed allocating command buffers");
+
         return m_cmdStreams.AddItem(item);
     }
 
@@ -1426,11 +1421,7 @@ namespace LinaGX
         }
 
         stream.isValid = false;
-
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            vkDestroyCommandPool(m_device, stream.pools[i], m_allocator);
-        }
+        vkDestroyCommandPool(m_device, stream.pool, m_allocator);
         m_cmdStreams.RemoveItem(handle);
     }
 
@@ -1441,8 +1432,8 @@ namespace LinaGX
         {
             auto  stream = streams[i];
             auto& sr     = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            auto  buffer = sr.buffers[m_currentFrameIndex];
-            auto  pool   = sr.pools[m_currentFrameIndex];
+            auto  buffer = sr.buffer;
+            auto  pool   = sr.pool;
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -1490,7 +1481,7 @@ namespace LinaGX
             }
 
             auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            _buffers.push_back(str.buffers[m_currentFrameIndex]);
+            _buffers.push_back(str.buffer);
 
             // Mark submitted intermediate resources.
             for (auto& inter : str.intermediateResources)
@@ -2190,7 +2181,7 @@ namespace LinaGX
         renderingInfo.colorAttachmentCount = 1;
         renderingInfo.pColorAttachments    = &colorAttachment;
 
-        auto buffer = stream.buffers[m_currentFrameIndex];
+        auto buffer = stream.buffer;
         TransitionImageLayout(buffer, colorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
         vkCmdBeginRendering(buffer, &renderingInfo);
         CMD_SetViewport((uint8*)&interVP, stream);
@@ -2200,7 +2191,7 @@ namespace LinaGX
     void VKBackend::CMD_EndRenderPass(uint8* data, VKBCommandStream& stream)
     {
         CMDEndRenderPass* end    = reinterpret_cast<CMDEndRenderPass*>(data);
-        auto              buffer = stream.buffers[m_currentFrameIndex];
+        auto              buffer = stream.buffer;
         vkCmdEndRendering(buffer);
 
         if (end->isSwapchain)
@@ -2218,7 +2209,7 @@ namespace LinaGX
     void VKBackend::CMD_SetViewport(uint8* data, VKBCommandStream& stream)
     {
         CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
-        auto            buffer = stream.buffers[m_currentFrameIndex];
+        auto            buffer = stream.buffer;
         VkViewport      vp     = VkViewport{};
         vp.x                   = static_cast<float>(cmd->x);
         vp.y                   = Config.vulkanConfig.flipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
@@ -2239,7 +2230,7 @@ namespace LinaGX
     void VKBackend::CMD_SetScissors(uint8* data, VKBCommandStream& stream)
     {
         CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
-        auto            buffer = stream.buffers[m_currentFrameIndex];
+        auto            buffer = stream.buffer;
         VkRect2D        rect   = VkRect2D{};
         rect.offset.x          = static_cast<int32>(cmd->x);
         rect.offset.y          = static_cast<int32>(cmd->y);
@@ -2251,7 +2242,7 @@ namespace LinaGX
     void VKBackend::CMD_BindPipeline(uint8* data, VKBCommandStream& stream)
     {
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
-        auto             buffer = stream.buffers[m_currentFrameIndex];
+        auto             buffer = stream.buffer;
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrPipeline);
         stream.boundShader = cmd->shader;
@@ -2260,21 +2251,21 @@ namespace LinaGX
     void VKBackend::CMD_DrawInstanced(uint8* data, VKBCommandStream& stream)
     {
         CMDDrawInstanced* cmd    = reinterpret_cast<CMDDrawInstanced*>(data);
-        auto              buffer = stream.buffers[m_currentFrameIndex];
+        auto              buffer = stream.buffer;
         vkCmdDraw(buffer, cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
     void VKBackend::CMD_DrawIndexedInstanced(uint8* data, VKBCommandStream& stream)
     {
         CMDDrawIndexedInstanced* cmd    = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
-        auto                     buffer = stream.buffers[m_currentFrameIndex];
+        auto                     buffer = stream.buffer;
         vkCmdDrawIndexed(buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
     void VKBackend::CMD_BindVertexBuffers(uint8* data, VKBCommandStream& stream)
     {
         CMDBindVertexBuffers* cmd    = reinterpret_cast<CMDBindVertexBuffers*>(data);
-        auto                  buffer = stream.buffers[m_currentFrameIndex];
+        auto                  buffer = stream.buffer;
         const auto&           res    = m_resources.GetItemR(cmd->resource);
         vkCmdBindVertexBuffers(buffer, cmd->slot, 1, &res.buffer, &cmd->offset);
     }
@@ -2282,7 +2273,7 @@ namespace LinaGX
     void VKBackend::CMD_BindIndexBuffers(uint8* data, VKBCommandStream& stream)
     {
         CMDBindIndexBuffers* cmd    = reinterpret_cast<CMDBindIndexBuffers*>(data);
-        auto                 buffer = stream.buffers[m_currentFrameIndex];
+        auto                 buffer = stream.buffer;
         const auto&          res    = m_resources.GetItemR(cmd->resource);
         vkCmdBindIndexBuffer(buffer, res.buffer, cmd->offset, GetVKIndexType(cmd->indexFormat));
     }
@@ -2290,7 +2281,7 @@ namespace LinaGX
     void VKBackend::CMD_CopyResource(uint8* data, VKBCommandStream& stream)
     {
         CMDCopyResource* cmd    = reinterpret_cast<CMDCopyResource*>(data);
-        auto             buffer = stream.buffers[m_currentFrameIndex];
+        auto             buffer = stream.buffer;
         const auto&      srcRes = m_resources.GetItemR(cmd->source);
         const auto&      dstRes = m_resources.GetItemR(cmd->destination);
 
@@ -2305,7 +2296,7 @@ namespace LinaGX
     void VKBackend::CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream)
     {
         CMDCopyBufferToTexture2D* cmd    = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
-        auto                      buffer = stream.buffers[m_currentFrameIndex];
+        auto                      buffer = stream.buffer;
 
         uint32 totalDataSize = cmd->buffers[0].width * cmd->buffers[0].height * cmd->buffers[0].bytesPerPixel;
         for (uint32 i = 1; i < cmd->mipLevels; i++)
@@ -2374,7 +2365,7 @@ namespace LinaGX
     void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)
     {
         CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
-        auto                   buffer = stream.buffers[m_currentFrameIndex];
+        auto                   buffer = stream.buffer;
         const auto&            shader = m_shaders.GetItemR(stream.boundShader);
 
         LINAGX_VEC<VkDescriptorSet> sets;
@@ -2389,7 +2380,7 @@ namespace LinaGX
     void VKBackend::CMD_BindConstants(uint8* data, VKBCommandStream& stream)
     {
         CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
-        auto              buffer = stream.buffers[m_currentFrameIndex];
+        auto              buffer = stream.buffer;
         const auto&       shader = m_shaders.GetItemR(stream.boundShader);
 
         uint32 stageFlags = 0;

@@ -28,8 +28,9 @@ SOFTWARE.
 
 #pragma once
 
-#include "Platform/Windows/Win32Window.hpp"
+#include "LinaGX/Platform/Windows/Win32Window.hpp"
 #include <Windows.h>
+#include <windowsx.h>
 
 namespace LinaGX
 {
@@ -101,35 +102,97 @@ namespace LinaGX
             break;
         }
         case WM_KEYDOWN: {
+
+            WORD   keyFlags   = HIWORD(lParam);
+            WORD   scanCode   = LOBYTE(keyFlags);
+            uint32 key        = static_cast<uint32>(wParam);
+            int    extended   = (lParam & 0x01000000) != 0;
+            bool   isRepeated = (HIWORD(lParam) & KF_REPEAT) != 0;
+
+            if (wParam == VK_SHIFT)
+                key = extended == 0 ? VK_LSHIFT : VK_RSHIFT;
+            else if (wParam == VK_CONTROL)
+                key = extended == 0 ? VK_LCONTROL : VK_RCONTROL;
+
+            if (win32Window->m_cbKey)
+                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), isRepeated ? InputAction::Repeated : InputAction::Pressed);
+
             break;
         }
         case WM_KEYUP: {
+
+            WORD   keyFlags = HIWORD(lParam);
+            WORD   scanCode = LOBYTE(keyFlags);
+            uint32 key      = static_cast<uint32>(wParam);
+            int    extended = (lParam & 0x01000000) != 0;
+
+            if (wParam == VK_SHIFT)
+                key = extended ? VK_LSHIFT : VK_RSHIFT;
+            else if (wParam == VK_CONTROL)
+                key = extended ? VK_LCONTROL : VK_RCONTROL;
+
+            if (win32Window->m_cbKey)
+                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), InputAction::Released);
+
             break;
         }
         case WM_MOUSEMOVE: {
+
+            int32 xPos = static_cast<int32>(GET_X_LPARAM(lParam));
+            int32 yPos = static_cast<int32>(GET_Y_LPARAM(lParam));
+
+            if (win32Window->m_cbMouseMove)
+                win32Window->m_cbMouseMove(xPos, yPos);
+
             break;
         }
         case WM_MOUSEWHEEL: {
+
+            auto delta = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (win32Window->m_cbMouseWheel)
+                win32Window->m_cbMouseWheel(static_cast<uint32>(delta));
+
             break;
         }
         case WM_LBUTTONDOWN: {
+
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Pressed);
+
             break;
         }
         case WM_RBUTTONDOWN: {
 
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Pressed);
+
             break;
         }
         case WM_MBUTTONDOWN: {
+
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_MBUTTON, InputAction::Pressed);
+
             break;
         }
         case WM_LBUTTONUP: {
 
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Released);
+
             break;
         }
         case WM_RBUTTONUP: {
+
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released);
+
             break;
         }
         case WM_MBUTTONUP: {
+
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released);
             break;
         }
         }

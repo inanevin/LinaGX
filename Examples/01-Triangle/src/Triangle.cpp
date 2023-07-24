@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "App.hpp"
-#include "LinaGX.hpp"
+#include "LinaGX/LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
 #include "Triangle.hpp"
@@ -35,12 +35,12 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MAIN_WINDOW_ID 0
+#define MAIN_WINDOW_ID   0
+#define FRAMES_IN_FLIGHT 2
 
-    LinaGX::Renderer*      _renderer  = nullptr;
-    LinaGX::CommandStream* _stream    = nullptr;
-    uint8                  _swapchain = 0;
-    Window*                _window    = nullptr;
+    LinaGX::Renderer* _renderer  = nullptr;
+    uint8             _swapchain = 0;
+    Window*           _window    = nullptr;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -50,6 +50,13 @@ namespace LinaGX::Examples
         float position[3];
         float color[3];
     };
+
+    struct PerFrameData
+    {
+        LinaGX::CommandStream* stream = nullptr;
+    };
+
+    PerFrameData _pfd[FRAMES_IN_FLIGHT];
 
     void Example::Initialize()
     {
@@ -70,7 +77,7 @@ namespace LinaGX::Examples
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,
                 .gpu                   = PreferredGPUType::Integrated,
-                .framesInFlight        = 2,
+                .framesInFlight        = FRAMES_IN_FLIGHT,
                 .backbufferCount       = 2,
                 .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
             };
@@ -147,7 +154,8 @@ namespace LinaGX::Examples
             });
 
             // Create command stream to record draw calls.
-            _stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                _pfd[i].stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
         }
     } // namespace LinaGX::Examples
 
@@ -162,7 +170,9 @@ namespace LinaGX::Examples
         // Get rid of resources
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
-        _renderer->DestroyCommandStream(_stream);
+
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            _renderer->DestroyCommandStream(_pfd[i].stream);
 
         // Terminate renderer & shutdown app.
         delete _renderer;
@@ -177,11 +187,13 @@ namespace LinaGX::Examples
         // Let LinaGX know we are starting a new frame.
         _renderer->StartFrame();
 
+        auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
+
         // Render pass begin
         {
             Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
-            CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
+            CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->isSwapchain        = true;
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;
@@ -194,13 +206,13 @@ namespace LinaGX::Examples
 
         // Set shader
         {
-            CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
+            CMDBindPipeline* bindPipeline = currentFrame.stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram;
         }
 
         // Draw the triangle
         {
-            CMDDrawInstanced* drawInstanced       = _stream->AddCommand<CMDDrawInstanced>();
+            CMDDrawInstanced* drawInstanced       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
             drawInstanced->vertexCountPerInstance = 3;
             drawInstanced->instanceCount          = 1;
             drawInstanced->startInstanceLocation  = 0;
@@ -209,16 +221,16 @@ namespace LinaGX::Examples
 
         // End render pass
         {
-            CMDEndRenderPass* end = _stream->AddCommand<CMDEndRenderPass>();
+            CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
             end->isSwapchain      = true;
             end->swapchain        = _swapchain;
         }
 
         // This does the actual *recording* of every single command stream alive.
-        _renderer->CloseCommandStreams(&_stream, 1);
+        _renderer->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _renderer->SubmitCommandStreams({.streams = &_stream, .streamCount = 1});
+        _renderer->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
 
         // Present main swapchain.
         _renderer->Present({.swapchain = _swapchain});

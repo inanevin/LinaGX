@@ -28,14 +28,14 @@ SOFTWARE.
 
 #pragma once
 
-#include "Platform/DX12/DX12Backend.hpp"
-#include "Platform/DX12/SDK/D3D12MemAlloc.h"
-#include "Platform/DX12/DX12HeapGPU.hpp"
-#include "Platform/DX12/DX12HeapStaging.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Core/Commands.hpp"
-#include "Core/Renderer.hpp"
-#include "Core/CommandStream.hpp"
+#include "LinaGX/Platform/DX12/DX12Backend.hpp"
+#include "LinaGX/Platform/DX12/SDK/D3D12MemAlloc.h"
+#include "LinaGX/Platform/DX12/DX12HeapGPU.hpp"
+#include "LinaGX/Platform/DX12/DX12HeapStaging.hpp"
+#include "LinaGX/Utility/PlatformUtility.hpp"
+#include "LinaGX/Core/Commands.hpp"
+#include "LinaGX/Core/Renderer.hpp"
+#include "LinaGX/Core/CommandStream.hpp"
 #include <nvapi/nvapi.h>
 
 LINAGX_DISABLE_VC_WARNING(6387);
@@ -145,11 +145,11 @@ namespace LinaGX
         case BlendFactor::OneMinusDstColor:
             return D3D12_BLEND_INV_DEST_COLOR;
         case BlendFactor::SrcAlpha:
-            return D3D12_BLEND_INV_SRC_ALPHA;
+            return D3D12_BLEND_SRC_ALPHA;
         case BlendFactor::OneMinusSrcAlpha:
             return D3D12_BLEND_INV_SRC_ALPHA;
         case BlendFactor::DstAlpha:
-            return D3D12_BLEND_INV_DEST_ALPHA;
+            return D3D12_BLEND_DEST_ALPHA;
         case BlendFactor::OneMinusDstAlpha:
             return D3D12_BLEND_INV_DEST_ALPHA;
         default:
@@ -1907,15 +1907,9 @@ namespace LinaGX
 
         try
         {
-            item.allocators.resize(m_initInfo.framesInFlight);
-            item.lists.resize(m_initInfo.framesInFlight);
-
-            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-            {
-                ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocators[i].GetAddressOf())));
-                ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocators[i].Get(), nullptr, IID_PPV_ARGS(item.lists[i].GetAddressOf())));
-                ThrowIfFailed(item.lists[i]->Close());
-            }
+            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocator.GetAddressOf())));
+            ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocator.Get(), nullptr, IID_PPV_ARGS(item.list.GetAddressOf())));
+            ThrowIfFailed(item.list->Close());
         }
         catch (HrException e)
         {
@@ -1967,11 +1961,8 @@ namespace LinaGX
         }
         stream.isValid = false;
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-        {
-            stream.lists[i].Reset();
-            stream.allocators[i].Reset();
-        }
+        stream.list.Reset();
+        stream.allocator.Reset();
 
         m_cmdStreams.RemoveItem(handle);
     }
@@ -1982,8 +1973,8 @@ namespace LinaGX
         {
             auto  stream    = streams[i];
             auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-            auto  list      = sr.lists[m_currentFrameIndex];
-            auto  allocator = sr.allocators[m_currentFrameIndex];
+            auto  list      = sr.list;
+            auto  allocator = sr.allocator;
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -2043,7 +2034,7 @@ namespace LinaGX
                 }
 
                 auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-                _lists.push_back(str.lists[m_currentFrameIndex].Get());
+                _lists.push_back(str.list.Get());
 
                 // Mark submitted intermediate resources.
                 for (auto& inter : str.intermediateResources)
@@ -2135,7 +2126,7 @@ namespace LinaGX
     void DX12Backend::CMD_BeginRenderPass(uint8* data, DX12CommandStream& stream)
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
-        auto                list  = stream.lists[m_currentFrameIndex];
+        auto                list  = stream.list;
 
         uint32 txtIndex   = begin->colorTexture;
         uint32 depthIndex = begin->depthTexture;
@@ -2193,7 +2184,7 @@ namespace LinaGX
     void DX12Backend::CMD_EndRenderPass(uint8* data, DX12CommandStream& stream)
     {
         CMDEndRenderPass* end  = reinterpret_cast<CMDEndRenderPass*>(data);
-        auto              list = stream.lists[m_currentFrameIndex];
+        auto              list = stream.list;
         list->EndRenderPass();
 
         if (end->isSwapchain)
@@ -2214,7 +2205,7 @@ namespace LinaGX
     void DX12Backend::CMD_SetViewport(uint8* data, DX12CommandStream& stream)
     {
         CMDSetViewport* cmd  = reinterpret_cast<CMDSetViewport*>(data);
-        auto            list = stream.lists[m_currentFrameIndex];
+        auto            list = stream.list;
         D3D12_VIEWPORT  vp;
         vp.MinDepth = cmd->minDepth;
         vp.MaxDepth = cmd->maxDepth;
@@ -2228,7 +2219,7 @@ namespace LinaGX
     void DX12Backend::CMD_SetScissors(uint8* data, DX12CommandStream& stream)
     {
         CMDSetScissors* cmd  = reinterpret_cast<CMDSetScissors*>(data);
-        auto            list = stream.lists[m_currentFrameIndex];
+        auto            list = stream.list;
         D3D12_RECT      sc;
         sc.left   = static_cast<LONG>(cmd->x);
         sc.top    = static_cast<LONG>(cmd->y);
@@ -2240,7 +2231,7 @@ namespace LinaGX
     void DX12Backend::CMD_BindPipeline(uint8* data, DX12CommandStream& stream)
     {
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
-        auto             list   = stream.lists[m_currentFrameIndex];
+        auto             list   = stream.list;
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
         list->SetGraphicsRootSignature(shader.rootSig.Get());
         list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
@@ -2251,21 +2242,21 @@ namespace LinaGX
     void DX12Backend::CMD_DrawInstanced(uint8* data, DX12CommandStream& stream)
     {
         CMDDrawInstanced* cmd  = reinterpret_cast<CMDDrawInstanced*>(data);
-        auto              list = stream.lists[m_currentFrameIndex];
+        auto              list = stream.list;
         list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
     void DX12Backend::CMD_DrawIndexedInstanced(uint8* data, DX12CommandStream& stream)
     {
         CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
-        auto                     list = stream.lists[m_currentFrameIndex];
+        auto                     list = stream.list;
         list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
     void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)
     {
         CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
-        auto                  list     = stream.lists[m_currentFrameIndex];
+        auto                  list     = stream.list;
         const auto&           resource = m_resources.GetItemR(cmd->resource);
 
         D3D12_VERTEX_BUFFER_VIEW view;
@@ -2278,7 +2269,7 @@ namespace LinaGX
     void DX12Backend::CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream)
     {
         CMDBindIndexBuffers*    cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
-        auto                    list = stream.lists[m_currentFrameIndex];
+        auto                    list = stream.list;
         const auto&             res  = m_resources.GetItemR(cmd->resource);
         D3D12_INDEX_BUFFER_VIEW view;
         view.BufferLocation = GetGPUResource(res)->GetGPUVirtualAddress();
@@ -2290,7 +2281,7 @@ namespace LinaGX
     void DX12Backend::CMD_CopyResource(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyResource* cmd     = reinterpret_cast<CMDCopyResource*>(data);
-        auto             list    = stream.lists[m_currentFrameIndex];
+        auto             list    = stream.list;
         const auto&      srcRes  = m_resources.GetItemR(cmd->source);
         const auto&      destRes = m_resources.GetItemR(cmd->destination);
         list->CopyResource(GetGPUResource(destRes), GetGPUResource(srcRes));
@@ -2299,7 +2290,7 @@ namespace LinaGX
     void DX12Backend::CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyBufferToTexture2D* cmd        = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
-        auto                      list       = stream.lists[m_currentFrameIndex];
+        auto                      list       = stream.list;
         const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
 
         // Find correct size for staging resource.
@@ -2347,7 +2338,7 @@ namespace LinaGX
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
     {
         CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
-        auto                   list   = stream.lists[m_currentFrameIndex];
+        auto                   list   = stream.list;
         auto&                  shader = m_shaders.GetItemR(stream.boundShader);
 
         for (uint32 i = 0; i < cmd->setCount; i++)
@@ -2375,7 +2366,7 @@ namespace LinaGX
     void DX12Backend::CMD_BindConstants(uint8* data, DX12CommandStream& stream)
     {
         CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
-        auto              list   = stream.lists[m_currentFrameIndex];
+        auto              list   = stream.list;
         auto&             shader = m_shaders.GetItemR(stream.boundShader);
 
         DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::ConstantBlock, shader.constantsBinding, shader.constantsSpace);

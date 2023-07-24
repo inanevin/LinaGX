@@ -14,7 +14,7 @@
  * Copyright © 2020 Charles Giessen (charles@lunarg.com)
  */
 
-#include "Platform/Vulkan/SDK/VkBootstrap.h"
+#include "LinaGX/Platform/Vulkan/SDK/VkBootstrap.h"
 
 #include <cstring>
 

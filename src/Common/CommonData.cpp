@@ -28,7 +28,7 @@ SOFTWARE.
 
 #pragma once
 
-#include "Common/CommonData.hpp"
+#include "LinaGX/Common/CommonData.hpp"
 
 namespace LinaGX
 {

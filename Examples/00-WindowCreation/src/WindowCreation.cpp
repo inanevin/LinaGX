@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "App.hpp"
-#include "LinaGX.hpp"
+#include "LinaGX/LinaGX.hpp"
 #include <iostream>
 #include <cstdarg>
 #include "WindowCreation.hpp"
@@ -50,7 +50,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;

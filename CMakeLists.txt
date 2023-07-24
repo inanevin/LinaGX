@@ -36,25 +36,26 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 
 
 set(LinaGX_HEADERS
-include/LinaGX.hpp
-include/LinaGXExports.hpp
-include/Common/CommonData.hpp
-include/Common/CommonGfx.hpp
-include/Common/Math.hpp
-include/Core/Backend.hpp
-include/Core/Renderer.hpp
-include/Core/CommandStream.hpp
-include/Core/Commands.hpp
-include/Core/WindowManager.hpp
-include/Utility/SPIRVUtility.hpp
-include/Utility/PlatformUtility.hpp
-include/Utility/ImageUtility.hpp
-include/Utility/ModelUtility.hpp
-include/Utility/stb/stb_image_write.h
-include/Utility/stb/stb_image_resize.h
-include/Utility/stb/stb_image.h
-include/Utility/tinygltf/tiny_gltf.h
-include/Utility/tinygltf/json.hpp
+include/LinaGX/LinaGX.hpp
+include/LinaGX/LinaGXExports.hpp
+include/LinaGX/Common/CommonData.hpp
+include/LinaGX/Common/CommonGfx.hpp
+include/LinaGX/Common/Math.hpp
+include/LinaGX/Core/Backend.hpp
+include/LinaGX/Core/InputMappings.hpp
+include/LinaGX/Core/Renderer.hpp
+include/LinaGX/Core/CommandStream.hpp
+include/LinaGX/Core/Commands.hpp
+include/LinaGX/Core/WindowManager.hpp
+include/LinaGX/Utility/SPIRVUtility.hpp
+include/LinaGX/Utility/PlatformUtility.hpp
+include/LinaGX/Utility/ImageUtility.hpp
+include/LinaGX/Utility/ModelUtility.hpp
+include/LinaGX/Utility/stb/stb_image_write.h
+include/LinaGX/Utility/stb/stb_image_resize.h
+include/LinaGX/Utility/stb/stb_image.h
+include/LinaGX/Utility/tinygltf/tiny_gltf.h
+include/LinaGX/Utility/tinygltf/json.hpp
 )
 
 set(LinaGX_SOURCES
@@ -77,43 +78,43 @@ if(WIN32)
 set(LinaGX_PLATFORM_HEADERS
 
 # Windows
-include/Platform/Windows/Win32Window.hpp
+include/LinaGX/Platform/Windows/Win32Window.hpp
 
 # Vulkan
-include/Platform/Vulkan/VKBackend.hpp
-include/Platform/Vulkan/SDK/VkBootstrap.h
-include/Platform/Vulkan/SDK/VkBootstrapDispatch.h
-include/Platform/Vulkan/SDK/vk_mem_alloc.h
+include/LinaGX/Platform/Vulkan/VKBackend.hpp
+include/LinaGX/Platform/Vulkan/SDK/VkBootstrap.h
+include/LinaGX/Platform/Vulkan/SDK/VkBootstrapDispatch.h
+include/LinaGX/Platform/Vulkan/SDK/vk_mem_alloc.h
 
 ## DX12 
-include/Platform/DX12/DX12Backend.hpp
-include/Platform/DX12/DX12HeapStaging.hpp
-include/Platform/DX12/DX12HeapGPU.hpp
-include/Platform/DX12/DX12Common.hpp
-include/Platform/DX12/SDK/ID3DIncludeInterface.hpp
-include/Platform/DX12/SDK/d3d12.h
-include/Platform/DX12/SDK/d3d12compatibility.h
-include/Platform/DX12/SDK/d3d12sdklayers.h
-include/Platform/DX12/SDK/d3d12shader.h
-include/Platform/DX12/SDK/d3d12video.h
-include/Platform/DX12/SDK/d3dcommon.h
-include/Platform/DX12/SDK/d3dx12.h
-include/Platform/DX12/SDK/d3dx12_barriers.h
-include/Platform/DX12/SDK/d3dx12_check_feature_support.h
-include/Platform/DX12/SDK/d3dx12_core.h
-include/Platform/DX12/SDK/d3dx12_default.h
-include/Platform/DX12/SDK/d3dx12_pipeline_state_stream.h
-include/Platform/DX12/SDK/d3dx12_property_format_table.h
-include/Platform/DX12/SDK/d3dx12_render_pass.h
-include/Platform/DX12/SDK/d3dx12_resource_helpers.h
-include/Platform/DX12/SDK/d3dx12_root_signature.h
-include/Platform/DX12/SDK/d3dx12_state_object.h
-include/Platform/DX12/SDK/dxcore.h
-include/Platform/DX12/SDK/dxcore_interface.h
-include/Platform/DX12/SDK/dxgicommon.h
-include/Platform/DX12/SDK/dxgiformat.h
-include/Platform/DX12/SDK/Residency/d3dx12Residency.h
-include/Platform/DX12/SDK/D3D12MemAlloc.h
+include/LinaGX/Platform/DX12/DX12Backend.hpp
+include/LinaGX/Platform/DX12/DX12HeapStaging.hpp
+include/LinaGX/Platform/DX12/DX12HeapGPU.hpp
+include/LinaGX/Platform/DX12/DX12Common.hpp
+include/LinaGX/Platform/DX12/SDK/ID3DIncludeInterface.hpp
+include/LinaGX/Platform/DX12/SDK/d3d12.h
+include/LinaGX/Platform/DX12/SDK/d3d12compatibility.h
+include/LinaGX/Platform/DX12/SDK/d3d12sdklayers.h
+include/LinaGX/Platform/DX12/SDK/d3d12shader.h
+include/LinaGX/Platform/DX12/SDK/d3d12video.h
+include/LinaGX/Platform/DX12/SDK/d3dcommon.h
+include/LinaGX/Platform/DX12/SDK/d3dx12.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_barriers.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_check_feature_support.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_core.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_default.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_pipeline_state_stream.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_property_format_table.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_render_pass.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_resource_helpers.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_root_signature.h
+include/LinaGX/Platform/DX12/SDK/d3dx12_state_object.h
+include/LinaGX/Platform/DX12/SDK/dxcore.h
+include/LinaGX/Platform/DX12/SDK/dxcore_interface.h
+include/LinaGX/Platform/DX12/SDK/dxgicommon.h
+include/LinaGX/Platform/DX12/SDK/dxgiformat.h
+include/LinaGX/Platform/DX12/SDK/Residency/d3dx12Residency.h
+include/LinaGX/Platform/DX12/SDK/D3D12MemAlloc.h
 
 )
 
@@ -139,8 +140,8 @@ endif()
 if(APPLE)
 
 set(LinaGX_PLATFORM_HEADERS
-include/Platform/Metal/MTLBackend.hpp
-include/Platform/MacOS/MacOSWindow.hpp
+include/LinaGX/Platform/Metal/MTLBackend.hpp
+include/LinaGX/Platform/MacOS/MacOSWindow.hpp
 )
 
 set(LinaGX_PLATFORM_SOURCES
@@ -206,6 +207,7 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/08-GLTF)
 	add_subdirectory(Examples/09-GLTFSkinning)
 	add_subdirectory(Examples/10-RenderTarget)
+	add_subdirectory(Examples/11-SimpleLighting)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()

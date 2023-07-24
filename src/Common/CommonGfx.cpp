@@ -32,7 +32,7 @@ SOFTWARE.
 
 #pragma once
 
-#include "Common/CommonGfx.hpp"
+#include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
 {

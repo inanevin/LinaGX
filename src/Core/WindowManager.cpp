@@ -28,7 +28,7 @@ SOFTWARE.
 
 #pragma once
 
-#include "Core/WindowManager.hpp"
+#include "LinaGX/Core/WindowManager.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>

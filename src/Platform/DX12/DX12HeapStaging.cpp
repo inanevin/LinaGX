@@ -28,8 +28,8 @@ SOFTWARE.
 
 #pragma once
 
-#include "Platform/DX12/DX12HeapStaging.hpp"
-#include "Platform/DX12/DX12Backend.hpp"
+#include "LinaGX/Platform/DX12/DX12HeapStaging.hpp"
+#include "LinaGX/Platform/DX12/DX12Backend.hpp"
 
 namespace LinaGX
 {

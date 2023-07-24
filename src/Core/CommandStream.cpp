@@ -28,26 +28,31 @@ SOFTWARE.
 
 #pragma once
 
-#include "Core/CommandStream.hpp"
-#include "Core/Commands.hpp"
-#include "Core/Backend.hpp"
+#include "LinaGX/Core/CommandStream.hpp"
+#include "LinaGX/Core/Commands.hpp"
+#include "LinaGX/Core/Backend.hpp"
 
 namespace LinaGX
 {
     CommandStream::CommandStream(Backend* backend, QueueType type, uint32 commandCount, uint32 gpuHandle)
     {
-        m_backend       = backend;
-        m_commandBuffer = (uint8*)LINAGX_MALLOC(6400);
-        m_commands      = static_cast<uint8**>(malloc(sizeof(uint8*) * commandCount));
-        m_type          = type;
-        m_maxCommands   = commandCount;
-        m_gpuHandle     = gpuHandle;
+        m_backend           = backend;
+        m_commandBufferSize = commandCount * 40;
+        m_commandBuffer     = (uint8*)LINAGX_MALLOC(m_commandBufferSize);
+        m_commands          = static_cast<uint8**>(malloc(sizeof(uint8*) * commandCount));
+        m_type              = type;
+        m_maxCommands       = commandCount;
+        m_gpuHandle         = gpuHandle;
+        m_auxMemoryIndex    = 0;
+        m_auxMemorySize     = 4096;
+        m_auxMemory         = (uint8*)LINAGX_MALLOC(m_auxMemorySize);
     }
 
     void CommandStream::Reset()
     {
-        m_commandIndex = 0;
-        m_commandCount = 0;
+        m_commandIndex   = 0;
+        m_commandCount   = 0;
+        m_auxMemoryIndex = 0;
     }
 
     CommandStream::~CommandStream()
@@ -55,5 +60,6 @@ namespace LinaGX
         m_backend->DestroyCommandStream(m_gpuHandle);
         LINAGX_FREE(m_commands);
         LINAGX_FREE(m_commandBuffer);
+        LINAGX_FREE(m_auxMemory);
     }
 } // namespace LinaGX

@@ -28,10 +28,10 @@ SOFTWARE.
 
 #pragma once
 
-#include "Core/Renderer.hpp"
-#include "Core/Backend.hpp"
-#include "Utility/SPIRVUtility.hpp"
-#include "Core/CommandStream.hpp"
+#include "LinaGX/Core/Renderer.hpp"
+#include "LinaGX/Core/Backend.hpp"
+#include "LinaGX/Utility/SPIRVUtility.hpp"
+#include "LinaGX/Core/CommandStream.hpp"
 
 namespace LinaGX
 {

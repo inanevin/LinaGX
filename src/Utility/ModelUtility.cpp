@@ -28,14 +28,15 @@ SOFTWARE.
 
 #pragma once
 
-#include "Utility/ModelUtility.hpp"
+#include "LinaGX/Utility/ModelUtility.hpp"
+#include "LinaGX/Utility/ImageUtility.hpp"
 
 #define TINYGLTF_IMPLEMENTATION
-#include "Utility/tinygltf/tiny_gltf.h"
+#include "LinaGX/Utility/tinygltf/tiny_gltf.h"
 
 namespace LinaGX
 {
-    void ProcessGLTF(tinygltf::Model& model, ModelData& outData)
+    void ProcessGLTF(const char* basePath, tinygltf::Model& model, ModelData& outData, bool loadTextures)
     {
         outData.allNodes      = new ModelNode[model.nodes.size()];
         outData.allNodesCount = static_cast<uint32>(model.nodes.size());
@@ -75,7 +76,7 @@ namespace LinaGX
             }
         }
 
-        if (!model.textures.empty())
+        if (!model.textures.empty() && loadTextures)
         {
             outData.allTextures      = new ModelTexture[model.textures.size()];
             outData.allTexturesCount = static_cast<uint32>(model.textures.size());
@@ -89,15 +90,18 @@ namespace LinaGX
                 if (gltfTexture.source != -1)
                 {
                     auto& image = model.images[gltfTexture.source];
-                    LOGA((image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE), "Unsupported pixel type!");
 
-                    texture->buffer.pixels        = new unsigned char[image.image.size()];
-                    texture->buffer.width         = image.width;
-                    texture->buffer.height        = image.height;
-                    texture->buffer.bytesPerPixel = image.bits / 8 * image.component;
+                    if (!image.image.empty())
+                    {
+                        LOGA((image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE), "Unsupported pixel type!");
 
-                    std::memcpy(texture->buffer.pixels, image.image.data(), image.image.size());
-                    const unsigned char* pixelData = image.image.data();
+                        texture->buffer.pixels        = new unsigned char[image.image.size()];
+                        texture->buffer.width         = image.width;
+                        texture->buffer.height        = image.height;
+                        texture->buffer.bytesPerPixel = image.bits / 8 * image.component;
+
+                        std::memcpy(texture->buffer.pixels, image.image.data(), image.image.size());
+                    }
                 }
             }
         }
@@ -170,6 +174,7 @@ namespace LinaGX
                 for (const auto& tgPrimitive : tgMesh.primitives)
                 {
                     ModelMeshPrimitive* primitive = node->mesh->primitives + primitiveIndex;
+                    primitive->material           = outData.allMaterials + tgPrimitive.material;
 
                     const tinygltf::Accessor&   vertexAccessor   = model.accessors[tgPrimitive.attributes.find("POSITION")->second];
                     const tinygltf::BufferView& vertexBufferView = model.bufferViews[vertexAccessor.bufferView];
@@ -196,17 +201,16 @@ namespace LinaGX
                         const tinygltf::Accessor&   indexAccessor   = model.accessors[tgPrimitive.indices];
                         const tinygltf::BufferView& indexBufferView = model.bufferViews[indexAccessor.bufferView];
                         const tinygltf::Buffer&     indexBuffer     = model.buffers[indexBufferView.buffer];
-                        LOGA((indexAccessor.type == TINYGLTF_TYPE_SCALAR && vertexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_INT), "Unsupported componet type!");
+                        LOGA((indexAccessor.type == TINYGLTF_TYPE_SCALAR && (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT || indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)), "Unsupported component type!");
 
-                        const size_t numIndices = indexBufferView.byteLength / indexBufferView.byteStride;
-                        primitive->indices.resize(numIndices);
-                        for (size_t j = 0; j < numIndices; j++)
-                        {
-                            const size_t  stride  = indexBufferView.byteStride == 0 ? sizeof(int) : indexBufferView.byteStride;
-                            const uint32* rawData = reinterpret_cast<const uint32*>(indexBuffer.data.data() + indexAccessor.byteOffset + indexBufferView.byteOffset + j * stride);
-                            uint32&       index   = primitive->indices[j];
-                            index                 = rawData[0];
-                        }
+                        primitive->indexType = indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT ? IndexType::Uint16 : IndexType::Uint32;
+
+                        const size_t numIndices = indexAccessor.count;
+
+                        const size_t indexSz = primitive->indexType == IndexType::Uint16 ? sizeof(uint16) : sizeof(uint32);
+                        const size_t stride  = indexBufferView.byteStride == 0 ? indexSz : indexBufferView.byteStride;
+                        primitive->indices.resize(numIndices * (stride));
+                        std::memcpy(primitive->indices.data(), &indexBuffer.data[indexAccessor.byteOffset + indexBufferView.byteOffset], numIndices * indexSz);
                     }
 
                     auto normalsAttribute = tgPrimitive.attributes.find("NORMAL");
@@ -471,7 +475,7 @@ namespace LinaGX
         }
     }
 
-    LINAGX_API void LoadGLTFBinary(const char* path, ModelData& outData)
+    LINAGX_API bool LoadGLTFBinary(const char* path, ModelData& outData, bool loadTexturesIfPresent)
     {
         tinygltf::Model    model;
         tinygltf::TinyGLTF loader;
@@ -494,15 +498,16 @@ namespace LinaGX
         if (!ret)
         {
             LOGE("Loading GLTF from binary failed! %s", path);
-            return;
+            return false;
         }
 
-        ProcessGLTF(model, outData);
+        ProcessGLTF(path, model, outData, loadTexturesIfPresent);
 
         LOGV("Loaded GLTF binary: %s", path);
+        return true;
     }
 
-    LINAGX_API void LoadGLTFASCII(const char* path, ModelData& outData)
+    LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData, bool loadTexturesIfPresent)
     {
         tinygltf::Model    model;
         tinygltf::TinyGLTF loader;
@@ -525,11 +530,12 @@ namespace LinaGX
         if (!ret)
         {
             LOGE("Loading GLTF from binary failed! %s", path);
-            return;
+            return false;
         }
 
-        ProcessGLTF(model, outData);
+        ProcessGLTF(path, model, outData, loadTexturesIfPresent);
 
         LOGV("Loaded GLTF binary: %s", path);
+        return true;
     }
 } // namespace LinaGX

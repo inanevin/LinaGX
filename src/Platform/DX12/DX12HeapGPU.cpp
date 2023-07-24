@@ -28,8 +28,8 @@ SOFTWARE.
 
 #pragma once
 
-#include "Platform/DX12/DX12HeapGPU.hpp"
-#include "Platform/DX12/DX12Backend.hpp"
+#include "LinaGX/Platform/DX12/DX12HeapGPU.hpp"
+#include "LinaGX/Platform/DX12/DX12Backend.hpp"
 
 namespace LinaGX
 {

@@ -26,8 +26,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "Utility/PlatformUtility.hpp"
-#include "Common/CommonGfx.hpp"
+#include "LinaGX/Utility/PlatformUtility.hpp"
+#include "LinaGX/Common/CommonGfx.hpp"
 #include <sstream>
 #include <fstream>
 #include <codecvt>
