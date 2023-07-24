@@ -74,7 +74,8 @@ namespace LinaGX::Examples
     };
 
     // Shaders.
-    uint16 _shaderProgram = 0;
+    uint16 _shaderProgram     = 0;
+    uint16 _quadShaderProgram = 0;
 
     // Streams.
     LinaGX::CommandStream* _stream     = nullptr;
@@ -86,12 +87,18 @@ namespace LinaGX::Examples
     LINAGX_VEC<Object> _objects;
 
     // Resources
-    uint32 _sampler                = 0;
-    uint16 _descriptorSetSceneData = 0;
-    uint16 _descriptorSetTexture   = 0;
-    uint32 _ubo                    = 0;
-    uint8* _uboMapping             = 0;
-    uint32 _baseColorGPU           = 0;
+    uint32 _sampler                  = 0;
+    uint16 _descriptorSetSceneData0  = 0;
+    uint16 _descriptorSetSceneData1  = 0;
+    uint16 _descriptorSetTexture     = 0;
+    uint16 _descriptorSetQuadTexture = 0;
+    uint32 _ubo0                     = 0;
+    uint32 _ubo1                     = 0;
+    uint8* _uboMapping0              = 0;
+    uint8* _uboMapping1              = 0;
+    uint32 _baseColorGPU             = 0;
+    uint32 _renderTargetColor        = 0;
+    uint32 _renderTargetDepth        = 0;
 
     struct PerFrameData
     {
@@ -117,7 +124,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -129,7 +136,6 @@ namespace LinaGX::Examples
                 .framesInFlight    = FRAMES_IN_FLIGHT,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
-                .rtColorFormat     = Format::R8G8B8A8_SRGB,
                 .rtDepthFormat     = Format::D32_SFLOAT,
             };
 
@@ -143,7 +149,7 @@ namespace LinaGX::Examples
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
-        //******************* SHADER CREATION
+        //******************* DEFAULT SHADER CREATION
         {
             // Compile shaders.
             const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
@@ -176,6 +182,65 @@ namespace LinaGX::Examples
             free(fragBlob.ptr);
         }
 
+        //******************* QUAD SHADER CREATION
+        {
+            // Compile shaders.
+            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
+            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
+            ShaderLayout      outLayout  = {};
+            DataBlob          vertexBlob = {};
+            DataBlob          fragBlob   = {};
+            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
+            _renderer->CompileShader(ShaderStage::Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+
+            // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
+
+            // Create shader program with vertex & fragment stages.
+            ShaderDesc shaderDesc = {
+                .stages          = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .layout          = outLayout,
+                .polygonMode     = PolygonMode::Fill,
+                .cullMode        = CullMode::None,
+                .frontFace       = FrontFace::CCW,
+                .depthTest       = true,
+                .depthWrite      = true,
+                .depthCompare    = CompareOp::Less,
+                .topology        = Topology::TriangleList,
+                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
+            };
+
+            _quadShaderProgram = _renderer->CreateShader(shaderDesc);
+
+            // Compiled binaries are not needed anymore.
+            free(vertexBlob.ptr);
+            free(fragBlob.ptr);
+        }
+
+        auto createRenderTargets = [&]() {
+            Texture2DDesc desc = {
+                .usage     = Texture2DUsage::ColorTextureRenderTarget,
+                .width     = _window->GetWidth(),
+                .height    = _window->GetHeight(),
+                .mipLevels = 1,
+                .format    = Format::B8G8R8A8_UNORM,
+                .debugName = "LinaGXRTTexture",
+            };
+
+            _renderTargetColor = _renderer->CreateTexture2D(desc);
+
+            desc.format             = Format::D32_SFLOAT;
+            desc.usage              = Texture2DUsage::DepthStencilTexture;
+            desc.depthStencilAspect = DepthStencilAspect::DepthOnly;
+            desc.debugName          = "LinaGXRTDepthTexture";
+
+            _renderTargetDepth = _renderer->CreateTexture2D(desc);
+        };
+
+        //******************* RENDER TARGET
+        {
+            createRenderTargets();
+        }
+
         //*******************  MISC
         {
             // Create a swapchain for main window.
@@ -203,10 +268,25 @@ namespace LinaGX::Examples
                 };
 
                 _renderer->RecreateSwapchain(resizeDesc);
+
+                // re-create render targets.
+                _renderer->DestroyTexture2D(_renderTargetColor);
+                _renderer->DestroyTexture2D(_renderTargetDepth);
+                createRenderTargets();
+
+                DescriptorUpdateImageDesc imgUpdate = {
+                    .setHandle       = _descriptorSetQuadTexture,
+                    .binding         = 0,
+                    .descriptorCount = 1,
+                    .textures        = &_renderTargetColor,
+                    .samplers        = &_sampler,
+                    .descriptorType  = DescriptorType::CombinedImageSampler,
+                };
+                _renderer->DescriptorUpdateImage(imgUpdate);
             });
 
             // Create command stream to record draw calls.
-            _stream        = _renderer->CreateCommandStream(10, QueueType::Graphics);
+            _stream        = _renderer->CreateCommandStream(20, QueueType::Graphics);
             _copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
             _copySemaphore = _renderer->CreateUserSemaphore();
         }
@@ -358,8 +438,10 @@ namespace LinaGX::Examples
                 .debugName     = "UBO",
             };
 
-            _ubo = _renderer->CreateResource(desc);
-            _renderer->MapResource(_ubo, _uboMapping);
+            _ubo0 = _renderer->CreateResource(desc);
+            _ubo1 = _renderer->CreateResource(desc);
+            _renderer->MapResource(_ubo0, _uboMapping0);
+            _renderer->MapResource(_ubo1, _uboMapping1);
         }
 
         //*******************  DESCRIPTOR SET
@@ -378,7 +460,8 @@ namespace LinaGX::Examples
                 .bindingsCount = 1,
             };
 
-            _descriptorSetTexture = _renderer->CreateDescriptorSet(set0Desc);
+            _descriptorSetTexture     = _renderer->CreateDescriptorSet(set0Desc);
+            _descriptorSetQuadTexture = _renderer->CreateDescriptorSet(set0Desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
                 .setHandle       = _descriptorSetTexture,
@@ -388,6 +471,10 @@ namespace LinaGX::Examples
                 .samplers        = &_sampler,
                 .descriptorType  = DescriptorType::CombinedImageSampler,
             };
+            _renderer->DescriptorUpdateImage(imgUpdate);
+
+            imgUpdate.setHandle = _descriptorSetQuadTexture;
+            imgUpdate.textures  = &_renderTargetColor;
             _renderer->DescriptorUpdateImage(imgUpdate);
 
             DescriptorBinding set1Bindings[1];
@@ -433,19 +520,25 @@ namespace LinaGX::Examples
                 .bindingsCount = 1,
             };
 
-            _descriptorSetSceneData = _renderer->CreateDescriptorSet(set2Desc);
+            _descriptorSetSceneData0 = _renderer->CreateDescriptorSet(set2Desc);
+            _descriptorSetSceneData1 = _renderer->CreateDescriptorSet(set2Desc);
 
             DescriptorUpdateBufferDesc uboUpdate = {
-                .setHandle       = _descriptorSetSceneData,
+                .setHandle       = _descriptorSetSceneData0,
                 .binding         = 0,
                 .descriptorCount = 1,
-                .resources       = &_ubo,
+                .resources       = &_ubo0,
                 .descriptorType  = DescriptorType::UBO,
             };
 
             _renderer->DescriptorUpdateBuffer(uboUpdate);
+
+            uboUpdate.setHandle = _descriptorSetSceneData1;
+            uboUpdate.resources = &_ubo1;
+
+            _renderer->DescriptorUpdateBuffer(uboUpdate);
         }
-    }
+    } // namespace LinaGX::Examples
 
     void Example::Shutdown()
     {
@@ -466,14 +559,20 @@ namespace LinaGX::Examples
             _renderer->DestroyDescriptorSet(_pfd[i].ssboSet);
         }
 
-        _renderer->DestroyResource(_ubo);
+        _renderer->DestroyTexture2D(_renderTargetColor);
+        _renderer->DestroyTexture2D(_renderTargetDepth);
+        _renderer->DestroyResource(_ubo0);
+        _renderer->DestroyResource(_ubo1);
         _renderer->DestroyDescriptorSet(_descriptorSetTexture);
-        _renderer->DestroyDescriptorSet(_descriptorSetSceneData);
+        _renderer->DestroyDescriptorSet(_descriptorSetQuadTexture);
+        _renderer->DestroyDescriptorSet(_descriptorSetSceneData0);
+        _renderer->DestroyDescriptorSet(_descriptorSetSceneData1);
         _renderer->DestroyUserSemaphore(_copySemaphore);
         _renderer->DestroyTexture2D(_baseColorGPU);
         _renderer->DestroySampler(_sampler);
         _renderer->DestroySwapchain(_swapchain);
         _renderer->DestroyShader(_shaderProgram);
+        _renderer->DestroyShader(_quadShaderProgram);
         _renderer->DestroyCommandStream(_stream);
         _renderer->DestroyCommandStream(_copyStream);
 
@@ -503,7 +602,7 @@ namespace LinaGX::Examples
         // If time is after the last keyframe, use the last keyframe value.
         if (index1 == -1)
         {
-            index1 = index2 = channel.keyframeTimes.size() - 1;
+            index1 = index2 = static_cast<int>(channel.keyframeTimes.size() - 1);
         }
 
         // Extract the keyframe values.
@@ -676,17 +775,20 @@ namespace LinaGX::Examples
             const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 1000.0f);
             GPUSceneData    sceneData  = {};
             sceneData.viewProj         = projection * eye;
-            std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
+            std::memcpy(_uboMapping0, &sceneData, sizeof(GPUSceneData));
         }
 
-        // Render pass begin
+        Viewport     viewport = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
+        ScissorsRect sc       = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
+
+        // Render pass 1.
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
             CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
-            beginRenderPass->swapchain          = _swapchain;
-            beginRenderPass->clearColor[0]      = 0.79f;
-            beginRenderPass->clearColor[1]      = 0.4f;
+            beginRenderPass->isSwapchain        = false;
+            beginRenderPass->colorTexture       = _renderTargetColor;
+            beginRenderPass->depthTexture       = _renderTargetDepth;
+            beginRenderPass->clearColor[0]      = 0.2f;
+            beginRenderPass->clearColor[1]      = 0.7f;
             beginRenderPass->clearColor[2]      = 1.0f;
             beginRenderPass->clearColor[3]      = 1.0f;
             beginRenderPass->viewport           = viewport;
@@ -701,7 +803,7 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            uint16                 sets[3]  = {_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData};
+            uint16                 sets[3]  = {_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0};
             CMDBindDescriptorSets* bindSets = _stream->AddCommand<CMDBindDescriptorSets>();
             bindSets->firstSet              = 0;
             bindSets->setCount              = 3;
@@ -733,6 +835,101 @@ namespace LinaGX::Examples
                 draw->startVertexLocation    = 0;
                 draw->vertexCountPerInstance = static_cast<uint32>(obj.vertices.size());
             }
+        }
+
+        // End render pass
+        {
+            CMDEndRenderPass* end = _stream->AddCommand<CMDEndRenderPass>();
+            end->isSwapchain      = false;
+            end->texture          = _renderTargetColor;
+        }
+
+        // Update scene data
+        {
+            const glm::mat4 eye        = glm::lookAt(glm::vec3(0.0f, 0.0f, -200.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 1000.0f);
+            GPUSceneData    sceneData  = {};
+            sceneData.viewProj         = projection * eye;
+            std::memcpy(_uboMapping1, &sceneData, sizeof(GPUSceneData));
+        }
+
+        // Render pass swapchain.
+        {
+            CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
+            beginRenderPass->isSwapchain        = true;
+            beginRenderPass->swapchain          = _swapchain;
+            beginRenderPass->clearColor[0]      = 0.79f;
+            beginRenderPass->clearColor[1]      = 0.4f;
+            beginRenderPass->clearColor[2]      = 1.0f;
+            beginRenderPass->clearColor[3]      = 1.0f;
+            beginRenderPass->viewport           = viewport;
+            beginRenderPass->scissors           = sc;
+        }
+
+        // Set shader
+        {
+            CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
+            bindPipeline->shader          = _shaderProgram;
+        }
+
+        // Bind the descriptors
+        {
+            uint16                 sets[3]  = {_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1};
+            CMDBindDescriptorSets* bindSets = _stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet              = 0;
+            bindSets->setCount              = 3;
+            bindSets->descriptorSetHandles  = sets;
+        }
+
+        // Per object, bind vertex buffers, push constants and draw.
+        {
+            uint32 index = 0;
+            for (const auto& obj : _objects)
+            {
+                CMDBindVertexBuffers* vtx = _stream->AddCommand<CMDBindVertexBuffers>();
+                vtx->slot                 = 0;
+                vtx->resource             = obj.vertexBufferGPU;
+                vtx->vertexSize           = sizeof(Vertex);
+                vtx->offset               = 0;
+
+                ShaderStage       constantsStage = ShaderStage::Vertex;
+                CMDBindConstants* constants      = _stream->AddCommand<CMDBindConstants>();
+                constants->size                  = sizeof(int);
+                constants->stages                = &constantsStage;
+                constants->stagesSize            = 1;
+                constants->offset                = 0;
+                constants->data                  = &index;
+
+                CMDDrawInstanced* draw       = _stream->AddCommand<CMDDrawInstanced>();
+                draw->instanceCount          = 1;
+                draw->startInstanceLocation  = 0;
+                draw->startVertexLocation    = 0;
+                draw->vertexCountPerInstance = static_cast<uint32>(obj.vertices.size());
+            }
+        }
+
+        // Set shader
+        {
+            CMDBindPipeline* bindPipeline = _stream->AddCommand<CMDBindPipeline>();
+            bindPipeline->shader          = _quadShaderProgram;
+        }
+
+        // Bind the descriptors
+        {
+            uint16                 sets[1]  = {_descriptorSetQuadTexture};
+            CMDBindDescriptorSets* bindSets = _stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet              = 0;
+            bindSets->setCount              = 1;
+            bindSets->descriptorSetHandles  = sets;
+        }
+
+        // Draw quad
+        {
+            CMDDrawInstanced* draw       = _stream->AddCommand<CMDDrawInstanced>();
+            draw->instanceCount          = 1;
+            draw->startInstanceLocation  = 0;
+            draw->startVertexLocation    = 0;
+            draw->vertexCountPerInstance = 6;
         }
 
         // End render pass

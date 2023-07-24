@@ -622,7 +622,6 @@ namespace LinaGX
         uint32           backbufferCount   = 2;
         GPULimits        gpuLimits         = {};
         Format           rtSwapchainFormat = Format::B8G8R8A8_UNORM;
-        Format           rtColorFormat     = Format::R8G8B8A8_SRGB;
         Format           rtDepthFormat     = Format::D32_SFLOAT;
     };
 

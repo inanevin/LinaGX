@@ -286,7 +286,7 @@ namespace LinaGX
             for (int col = 0; col < 4; ++col)
             {
                 // Cofactor includes (-1)^(row+col) factor
-                result.values[col * 4 + row] = pow(-1, row + col) * Cofactor(row, col) / determinant;
+                result.values[col * 4 + row] = static_cast<float>(pow(-1, row + col)) * Cofactor(row, col) / determinant;
             }
         }
 

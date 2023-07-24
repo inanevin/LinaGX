@@ -40,7 +40,7 @@ namespace LinaGX::Examples
     LinaGX::Renderer*      _renderer  = nullptr;
     LinaGX::CommandStream* _stream    = nullptr;
     uint8                  _swapchain = 0;
-    Window*                _window     = nullptr;
+    Window*                _window    = nullptr;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -73,7 +73,6 @@ namespace LinaGX::Examples
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
-                .rtColorFormat     = Format::R8G8B8A8_SRGB,
                 .rtDepthFormat     = Format::D32_SFLOAT,
             };
 
@@ -182,6 +181,7 @@ namespace LinaGX::Examples
             Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
             CMDBeginRenderPass* beginRenderPass = _stream->AddCommand<CMDBeginRenderPass>();
+            beginRenderPass->isSwapchain        = true;
             beginRenderPass->swapchain          = _swapchain;
             beginRenderPass->clearColor[0]      = 0.79f;
             beginRenderPass->clearColor[1]      = 0.4f;

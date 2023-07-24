@@ -814,7 +814,6 @@ namespace LinaGX
         for (auto& [stage, blob] : shaderDesc.stages)
         {
             auto& ptr = shader.modules[stage];
-
             VkShaderModuleCreateInfo shaderModule = VkShaderModuleCreateInfo{};
             shaderModule.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             shaderModule.pNext                    = nullptr;
@@ -1087,7 +1086,7 @@ namespace LinaGX
         }
         else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
         {
-            imgCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            imgCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         }
         else
         {
@@ -1805,7 +1804,7 @@ namespace LinaGX
                 }
             }
 
-            LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtColorFormat, m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
+            LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
             for (auto& f : requiredFormats)
             {
                 auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
@@ -2209,6 +2208,11 @@ namespace LinaGX
             const auto& swp = m_swapchains.GetItemR(end->swapchain);
             TransitionImageLayout(buffer, swp.imgs[swp._imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
         }
+        else
+        {
+            const auto& txt = m_texture2Ds.GetItemR(end->texture);
+            TransitionImageLayout(buffer, txt.img, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+        }
     }
 
     void VKBackend::CMD_SetViewport(uint8* data, VKBCommandStream& stream)
@@ -2443,6 +2447,20 @@ namespace LinaGX
             barrier.dstAccessMask = 0;
             sourceStage           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             destinationStage      = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        {
+            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            sourceStage           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            destinationStage      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            sourceStage           = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            destinationStage      = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         }
         else
         {

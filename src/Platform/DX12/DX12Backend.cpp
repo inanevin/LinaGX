@@ -1790,7 +1790,7 @@ namespace LinaGX
                         GPUInfo.supportedImageFormats.push_back(lgxFormat);
                 }
 
-                LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtColorFormat, m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
+                LINAGX_VEC<Format> requiredFormats = {m_initInfo.rtDepthFormat, m_initInfo.rtSwapchainFormat};
                 for (auto& f : requiredFormats)
                 {
                     auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
@@ -2149,10 +2149,18 @@ namespace LinaGX
         const auto& colorTxt = m_texture2Ds.GetItemR(txtIndex);
         const auto& depthTxt = m_texture2Ds.GetItemR(depthIndex);
 
-        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? colorTxt.rawRes.Get() : colorTxt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        list->ResourceBarrier(1, &transition);
+        if (begin->isSwapchain)
+        {
+            auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? colorTxt.rawRes.Get() : colorTxt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            list->ResourceBarrier(1, &transition);
+        }
+        else
+        {
+            auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? colorTxt.rawRes.Get() : colorTxt.allocation->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            list->ResourceBarrier(1, &transition);
+        }
 
-        CD3DX12_CLEAR_VALUE clearValue{GetDXFormat(begin->isSwapchain ? m_initInfo.rtSwapchainFormat : m_initInfo.rtColorFormat), begin->clearColor};
+        CD3DX12_CLEAR_VALUE clearValue{GetDXFormat(begin->isSwapchain ? m_initInfo.rtSwapchainFormat : colorTxt.desc.format), begin->clearColor};
         CD3DX12_CLEAR_VALUE clearDepth{GetDXFormat(m_initInfo.rtDepthFormat), 1.0f, 0};
 
         D3D12_RENDER_PASS_BEGINNING_ACCESS   colorBegin{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
@@ -2192,6 +2200,12 @@ namespace LinaGX
             const auto& swp        = m_swapchains.GetItemR(end->swapchain);
             const auto& txt        = m_texture2Ds.GetItemR(swp.colorTextures[swp._imageIndex]);
             auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+            list->ResourceBarrier(1, &transition);
+        }
+        else
+        {
+            const auto& txt        = m_texture2Ds.GetItemR(end->texture);
+            auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             list->ResourceBarrier(1, &transition);
         }
     }

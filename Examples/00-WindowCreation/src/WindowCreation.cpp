@@ -62,7 +62,6 @@ namespace LinaGX::Examples
                 .framesInFlight    = 2,
                 .backbufferCount   = 2,
                 .rtSwapchainFormat = Format::B8G8R8A8_UNORM,
-                .rtColorFormat     = Format::R8G8B8A8_SRGB,
                 .rtDepthFormat     = Format::D32_SFLOAT,
             };
 
