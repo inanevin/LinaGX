@@ -447,6 +447,7 @@ namespace LinaGX
         LINAGX_VEC<ShaderSampler>              samplers;
         LINAGX_MAP<uint32, LINAGX_VEC<uint32>> setsAndBindings;
         ShaderConstantBlock                    constantBlock;
+        uint32                                 totalDescriptors = 0;
     };
 
     struct ShaderCompileData

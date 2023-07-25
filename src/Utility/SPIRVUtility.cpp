@@ -563,6 +563,7 @@ namespace LinaGX
 
                 FillStructMembers(compiler, type, ubo.members);
                 outLayout.ubos.push_back(ubo);
+                outLayout.totalDescriptors += ubo.elementSize;
             }
 
             if (!resources.push_constant_buffers.empty())
@@ -614,6 +615,7 @@ namespace LinaGX
                     txt.elementSize = type.array[0];
 
                 outLayout.combinedImageSamplers.push_back(txt);
+                outLayout.totalDescriptors += txt.elementSize * 2;
             }
 
             for (const auto& resource : resources.separate_images)
@@ -642,6 +644,7 @@ namespace LinaGX
                     txt.elementSize = type.array[0];
 
                 outLayout.separateImages.push_back(txt);
+                outLayout.totalDescriptors += txt.elementSize;
             }
 
             for (const auto& resource : resources.separate_samplers)
@@ -670,6 +673,7 @@ namespace LinaGX
                     sampler.elementSize = type.array[0];
 
                 outLayout.samplers.push_back(sampler);
+                outLayout.totalDescriptors += sampler.elementSize;
             }
 
             for (const auto& resource : resources.storage_buffers)
@@ -694,8 +698,8 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 ssbo.name                         = compiler.get_name(resource.id);
                 outLayout.ssbos.push_back(ssbo);
+                outLayout.totalDescriptors++;
             }
-
         }
         return true;
     }

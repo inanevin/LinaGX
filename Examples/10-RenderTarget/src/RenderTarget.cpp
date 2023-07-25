@@ -85,29 +85,29 @@ namespace LinaGX::Examples
     LINAGX_VEC<Object> _objects;
 
     // Resources
-    uint32 _sampler                  = 0;
-    uint16 _descriptorSetSceneData0  = 0;
-    uint16 _descriptorSetSceneData1  = 0;
-    uint16 _descriptorSetTexture     = 0;
-    uint16 _descriptorSetQuadTexture = 0;
-    uint32 _ubo0                     = 0;
-    uint32 _ubo1                     = 0;
-    uint8* _uboMapping0              = 0;
-    uint8* _uboMapping1              = 0;
-    uint32 _baseColorGPU             = 0;
-    uint32 _renderTargetColor        = 0;
-    uint32 _renderTargetDepth        = 0;
+    uint32 _sampler                 = 0;
+    uint16 _descriptorSetSceneData0 = 0;
+    uint16 _descriptorSetSceneData1 = 0;
+    uint16 _descriptorSetTexture    = 0;
+    uint32 _ubo0                    = 0;
+    uint32 _ubo1                    = 0;
+    uint8* _uboMapping0             = 0;
+    uint8* _uboMapping1             = 0;
+    uint32 _baseColorGPU            = 0;
 
     struct PerFrameData
     {
-        uint32                 ssboStaging        = 0;
-        uint32                 ssboGPU            = 0;
-        uint8*                 ssboMapping        = nullptr;
-        uint16                 ssboSet            = 0;
-        LinaGX::CommandStream* stream             = nullptr;
-        LinaGX::CommandStream* copyStream         = nullptr;
-        uint16                 copySemaphore      = 0;
-        uint64                 copySemaphoreValue = 0;
+        uint32                 ssboStaging              = 0;
+        uint32                 ssboGPU                  = 0;
+        uint8*                 ssboMapping              = nullptr;
+        uint16                 ssboSet                  = 0;
+        LinaGX::CommandStream* stream                   = nullptr;
+        LinaGX::CommandStream* copyStream               = nullptr;
+        uint16                 copySemaphore            = 0;
+        uint64                 copySemaphoreValue       = 0;
+        uint32                 renderTargetColor        = 0;
+        uint32                 renderTargetDepth        = 0;
+        uint16                 descriptorSetQuadTexture = 0;
     };
 
     PerFrameData _pfd[FRAMES_IN_FLIGHT];
@@ -221,23 +221,26 @@ namespace LinaGX::Examples
         }
 
         auto createRenderTargets = [&]() {
-            Texture2DDesc desc = {
-                .usage     = Texture2DUsage::ColorTextureRenderTarget,
-                .width     = _window->GetWidth(),
-                .height    = _window->GetHeight(),
-                .mipLevels = 1,
-                .format    = Format::R8G8B8A8_SRGB,
-                .debugName = "LinaGXRTTexture",
-            };
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                Texture2DDesc desc = {
+                    .usage     = Texture2DUsage::ColorTextureRenderTarget,
+                    .width     = _window->GetWidth(),
+                    .height    = _window->GetHeight(),
+                    .mipLevels = 1,
+                    .format    = Format::R8G8B8A8_SRGB,
+                    .debugName = "LinaGXRTTexture",
+                };
 
-            _renderTargetColor = _renderer->CreateTexture2D(desc);
+                _pfd[i].renderTargetColor = _renderer->CreateTexture2D(desc);
 
-            desc.format             = Format::D32_SFLOAT;
-            desc.usage              = Texture2DUsage::DepthStencilTexture;
-            desc.depthStencilAspect = DepthStencilAspect::DepthOnly;
-            desc.debugName          = "LinaGXRTDepthTexture";
+                desc.format             = Format::D32_SFLOAT;
+                desc.usage              = Texture2DUsage::DepthStencilTexture;
+                desc.depthStencilAspect = DepthStencilAspect::DepthOnly;
+                desc.debugName          = "LinaGXRTDepthTexture";
 
-            _renderTargetDepth = _renderer->CreateTexture2D(desc);
+                _pfd[i].renderTargetDepth = _renderer->CreateTexture2D(desc);
+            }
         };
 
         //******************* RENDER TARGET
@@ -276,19 +279,26 @@ namespace LinaGX::Examples
                 _renderer->RecreateSwapchain(resizeDesc);
 
                 // re-create render targets.
-                _renderer->DestroyTexture2D(_renderTargetColor);
-                _renderer->DestroyTexture2D(_renderTargetDepth);
+                for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                {
+                    _renderer->DestroyTexture2D(_pfd[i].renderTargetColor);
+                    _renderer->DestroyTexture2D(_pfd[i].renderTargetDepth);
+                }
+
                 createRenderTargets();
 
-                DescriptorUpdateImageDesc imgUpdate = {
-                    .setHandle       = _descriptorSetQuadTexture,
-                    .binding         = 0,
-                    .descriptorCount = 1,
-                    .textures        = &_renderTargetColor,
-                    .samplers        = &_sampler,
-                    .descriptorType  = DescriptorType::CombinedImageSampler,
-                };
-                _renderer->DescriptorUpdateImage(imgUpdate);
+                for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                {
+                    DescriptorUpdateImageDesc imgUpdate = {
+                        .setHandle       = _pfd[i].descriptorSetQuadTexture,
+                        .binding         = 0,
+                        .descriptorCount = 1,
+                        .textures        = &_pfd[i].renderTargetColor,
+                        .samplers        = &_sampler,
+                        .descriptorType  = DescriptorType::CombinedImageSampler,
+                    };
+                    _renderer->DescriptorUpdateImage(imgUpdate);
+                }
             });
 
             // Create command stream to record draw calls.
@@ -470,8 +480,7 @@ namespace LinaGX::Examples
                 .bindingsCount = 1,
             };
 
-            _descriptorSetTexture     = _renderer->CreateDescriptorSet(set0Desc);
-            _descriptorSetQuadTexture = _renderer->CreateDescriptorSet(set0Desc);
+            _descriptorSetTexture = _renderer->CreateDescriptorSet(set0Desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
                 .setHandle       = _descriptorSetTexture,
@@ -483,9 +492,14 @@ namespace LinaGX::Examples
             };
             _renderer->DescriptorUpdateImage(imgUpdate);
 
-            imgUpdate.setHandle = _descriptorSetQuadTexture;
-            imgUpdate.textures  = &_renderTargetColor;
-            _renderer->DescriptorUpdateImage(imgUpdate);
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                _pfd[i].descriptorSetQuadTexture = _renderer->CreateDescriptorSet(set0Desc);
+
+                imgUpdate.setHandle = _pfd[i].descriptorSetQuadTexture;
+                imgUpdate.textures  = &_pfd[i].renderTargetColor;
+                _renderer->DescriptorUpdateImage(imgUpdate);
+            }
 
             DescriptorBinding set1Bindings[1];
 
@@ -570,14 +584,14 @@ namespace LinaGX::Examples
             _renderer->DestroyUserSemaphore(_pfd[i].copySemaphore);
             _renderer->DestroyCommandStream(_pfd[i].stream);
             _renderer->DestroyCommandStream(_pfd[i].copyStream);
+            _renderer->DestroyTexture2D(_pfd[i].renderTargetColor);
+            _renderer->DestroyTexture2D(_pfd[i].renderTargetDepth);
+            _renderer->DestroyDescriptorSet(_pfd[i].descriptorSetQuadTexture);
         }
 
-        _renderer->DestroyTexture2D(_renderTargetColor);
-        _renderer->DestroyTexture2D(_renderTargetDepth);
         _renderer->DestroyResource(_ubo0);
         _renderer->DestroyResource(_ubo1);
         _renderer->DestroyDescriptorSet(_descriptorSetTexture);
-        _renderer->DestroyDescriptorSet(_descriptorSetQuadTexture);
         _renderer->DestroyDescriptorSet(_descriptorSetSceneData0);
         _renderer->DestroyDescriptorSet(_descriptorSetSceneData1);
         _renderer->DestroyTexture2D(_baseColorGPU);
@@ -796,8 +810,8 @@ namespace LinaGX::Examples
         {
             CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->isSwapchain        = false;
-            beginRenderPass->colorTexture       = _renderTargetColor;
-            beginRenderPass->depthTexture       = _renderTargetDepth;
+            beginRenderPass->colorTexture       = currentFrame.renderTargetColor;
+            beginRenderPass->depthTexture       = currentFrame.renderTargetDepth;
             beginRenderPass->clearColor[0]      = 0.2f;
             beginRenderPass->clearColor[1]      = 0.7f;
             beginRenderPass->clearColor[2]      = 1.0f;
@@ -849,7 +863,7 @@ namespace LinaGX::Examples
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
             end->isSwapchain      = false;
-            end->texture          = _renderTargetColor;
+            end->texture          = currentFrame.renderTargetColor;
         }
 
         // Update scene data
@@ -924,7 +938,7 @@ namespace LinaGX::Examples
             CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
             bindSets->firstSet              = 0;
             bindSets->setCount              = 1;
-            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetQuadTexture);
+            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
         }
 
         // Draw quad

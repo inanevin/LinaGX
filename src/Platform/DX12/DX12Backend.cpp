@@ -496,11 +496,21 @@ namespace LinaGX
 
     uint8 DX12Backend::CreateSwapchain(const SwapchainDesc& desc)
     {
+        DXGI_FORMAT swapFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+
+        // DXGI flip swapchains can only be b8g8r8a8_unorm, r16g16b16a16_float or r8g8b8a8_unorm.
+        if (desc.format == Format::R16G16B16A16_SFLOAT)
+            swapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        else if (desc.format == Format::R8G8B8A8_UNORM)
+            swapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+        else if (desc.format == Format::R8G8B8A8_SRGB)
+            swapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
         DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
         swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
-        swapchainDesc.Format                = GetDXFormat(desc.format);
+        swapchainDesc.Format                = swapFormat;
         swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchainDesc.SampleDesc.Count      = 1;
@@ -790,7 +800,10 @@ namespace LinaGX
             descRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
             descRange[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 
-            LINAGX_VEC<CD3DX12_ROOT_PARAMETER1> rootParameters;
+            LINAGX_VEC<CD3DX12_ROOT_PARAMETER1>   rootParameters;
+            LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1> ranges;
+            ranges.resize(shaderDesc.layout.totalDescriptors);
+            uint32 rangeCounter = 0;
 
             for (const auto& ubo : shaderDesc.layout.ubos)
             {
@@ -809,9 +822,9 @@ namespace LinaGX
 
                 if (ubo.elementSize > 1)
                 {
-                    CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-                    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, ubo.elementSize, ubo.binding, ubo.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                    param.InitAsDescriptorTable(1, ranges, visibility);
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, ubo.elementSize, ubo.binding, ubo.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
                 }
                 else
                     param.InitAsConstantBufferView(ubo.binding, ubo.set, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
@@ -841,11 +854,13 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::CombinedImageSampler;
                 shader.rootParams.push_back(paramInfo);
 
-                CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1], rangesSampler[1];
-                rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                rangesSampler[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                paramSRV.InitAsDescriptorTable(1, rangesSRV, visibility);
-                paramSampler.InitAsDescriptorTable(1, rangesSampler, visibility);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                paramSampler.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
 
                 rootParameters.push_back(paramSRV);
                 rootParameters.push_back(paramSampler);
@@ -867,9 +882,9 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SeparateImage;
                 shader.rootParams.push_back(paramInfo);
 
-                CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1];
-                rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                paramSRV.InitAsDescriptorTable(1, rangesSRV, visibility);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
 
                 rootParameters.push_back(paramSRV);
             }
@@ -890,9 +905,9 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SeparateSampler;
                 shader.rootParams.push_back(paramInfo);
 
-                CD3DX12_DESCRIPTOR_RANGE1 range[1];
-                range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-                param.InitAsDescriptorTable(1, range, visibility);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
 
                 rootParameters.push_back(param);
             }
@@ -911,9 +926,10 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SSBO;
                 shader.rootParams.push_back(paramInfo);
 
-                CD3DX12_DESCRIPTOR_RANGE1 range[1];
-                range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-                param.InitAsDescriptorTable(1, range, visibility);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
                 rootParameters.push_back(param);
             }
 

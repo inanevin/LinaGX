@@ -192,7 +192,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -274,7 +274,6 @@ namespace LinaGX::Examples
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
-            // Create shader program with vertex & fragment stages.
             ColorBlendAttachment blend = {
                 .blendEnabled        = true,
                 .srcColorBlendFactor = BlendFactor::SrcAlpha,
@@ -355,7 +354,7 @@ namespace LinaGX::Examples
                 .minFilter  = Filter::Anisotropic,
                 .magFilter  = Filter::Anisotropic,
                 .mode       = SamplerAddressMode::Repeat,
-                .anisotropy = 8,
+                .anisotropy = 0,
             };
 
             _sampler = _renderer->CreateSampler(samplerDesc);
@@ -368,7 +367,7 @@ namespace LinaGX::Examples
 
             glm::mat4 mat = glm::mat4(1.0f);
             glm::quat q   = glm::quat(glm::vec3(0.0f, DEG2RAD(45.0f), 0.0f));
-            mat           = TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {1.0f, 1.0f, 1.0f});
+            mat           = TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {0.5f, 0.5f, 0.5f});
 
             auto& fox             = _objects[0];
             fox.modelMatrix       = mat;
@@ -376,7 +375,7 @@ namespace LinaGX::Examples
             fox.constants.index   = 0;
 
             auto& sponza             = _objects[1];
-            sponza.modelMatrix       = TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {0.5f, 0.5f, 0.5f});
+            sponza.modelMatrix       = TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {0.25f, 0.25f, 0.25f});
             sponza.constants.hasSkin = false;
             sponza.constants.index   = 1;
 
@@ -922,7 +921,7 @@ namespace LinaGX::Examples
                     indx->resource            = mesh.indexBufferGPU;
 
                     CMDDrawIndexedInstanced* draw = currentFrame.stream->AddCommand<CMDDrawIndexedInstanced>();
-                    auto                     ic   = static_cast<uint32>(mesh.indices.size()) / (mesh.indexType == IndexType::Uint16 ? sizeof(uint16) : sizeof(uint32));
+                    uint32                   ic   = static_cast<uint32>(mesh.indices.size()) / (mesh.indexType == IndexType::Uint16 ? sizeof(uint16) : sizeof(uint32));
                     draw->baseVertexLocation      = 0;
                     draw->indexCountPerInstance   = ic;
                     draw->instanceCount           = 1;
@@ -1039,7 +1038,7 @@ namespace LinaGX::Examples
             glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -_camera.position);
             glm::mat4 viewMatrix        = rotationMatrix * translationMatrix;
 
-            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.01f, 2000.0f);
+            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.1f, 1200.0f);
             GPUSceneData    sceneData  = {};
             sceneData.viewProj         = projection * viewMatrix;
             std::memcpy(currentFrame.uboMapping0, &sceneData, sizeof(GPUSceneData));

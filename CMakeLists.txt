@@ -208,6 +208,7 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/09-GLTFSkinning)
 	add_subdirectory(Examples/10-RenderTarget)
 	add_subdirectory(Examples/11-Sponza)
+	add_subdirectory(Examples/12-SponzaPBR)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()

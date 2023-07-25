@@ -41,9 +41,10 @@ namespace LinaGX
     {
         BaseColor,
         Normal,
+        MetallicRoughness,
         Occlusion,
         Emissive,
-        MetallicRoughness,
+        Max
     };
 
     enum class GLTFAnimationProperty
@@ -130,11 +131,13 @@ namespace LinaGX
         LGXVector4                          baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
         LGXVector3                          emissive  = {1.0f, 1.0f, 1.0f};
         LINAGX_MAP<GLTFTextureType, uint32> textureIndices;
-        float                               metallicFactor  = 0.0f;
-        float                               roughnessFactor = 0.0f;
-        float                               alphaCutoff     = 0.0f;
-        bool                                doubleSided     = false;
-        bool                                isOpaque        = true;
+        float                               metallicFactor    = 0.0f;
+        float                               roughnessFactor   = 0.0f;
+        float                               alphaCutoff       = 0.0f;
+        float                               occlusionStrength = 0.0f;
+        float                               emissiveFactors[3];
+        bool                                doubleSided = false;
+        bool                                isOpaque    = true;
     };
 
     struct ModelSkin;
