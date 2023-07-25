@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "SimpleLighting.hpp"
+#include "Sponza.hpp"
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
 #include "LinaGX/Core/InputMappings.hpp"
@@ -60,10 +60,7 @@ namespace LinaGX::Examples
 
     struct Mesh
     {
-        float alphaCutoff = 0.0f;
-
-        uint16 descriptorSetTexture = 0;
-        uint32 baseColorIndex       = 0;
+        uint32 materialIndex = 0;
 
         LINAGX_VEC<Vertex>        vertices;
         LINAGX_VEC<unsigned char> indices;
@@ -76,21 +73,28 @@ namespace LinaGX::Examples
         uint32 indexBufferGPU     = 0;
     };
 
+    struct Material
+    {
+        uint16 descriptorSet = 0;
+        uint32 albedoTexture = 0;
+        uint32 ubo           = 0;
+        uint8* uboMapping    = nullptr;
+    };
+
     struct ConstantsData
     {
-        uint32 index       = 0;
-        uint32 hasSkin     = 0;
-        float  alphaCutoff = 0.0f;
+        uint32 index   = 0;
+        uint32 hasSkin = 0;
     };
 
     struct Object
     {
-        LinaGX::ModelData model;
-        glm::mat4         modelMatrix;
-        LINAGX_VEC<Mesh>  meshes;
-        ConstantsData     constants;
-
-        LINAGX_VEC<uint32> texturesGPU;
+        LinaGX::ModelData    model;
+        ConstantsData        constants;
+        glm::mat4            modelMatrix;
+        LINAGX_VEC<Mesh>     meshes;
+        LINAGX_VEC<uint32>   texturesGPU;
+        LINAGX_VEC<Material> materials;
     };
 
     struct GPUSceneData
@@ -102,6 +106,12 @@ namespace LinaGX::Examples
     {
         glm::mat4 modelMatrix;
         glm::mat4 bones[31] = {};
+    };
+
+    struct GPUMaterialData
+    {
+        glm::vec4 baseColorTint;
+        float     alphaCutoff;
     };
 
     struct CameraData
@@ -182,7 +192,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -206,7 +216,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF Render Target", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Sponza", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
 
             _window->SetCallbackKey([](uint32 key, uint32 scanCode, InputAction action) {
@@ -254,13 +264,13 @@ namespace LinaGX::Examples
         //******************* DEFAULT SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout      outLayout  = {};
-            DataBlob          vertexBlob = {};
-            DataBlob          fragBlob   = {};
-            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
-            _renderer->CompileShader(ShaderStage::Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                      outLayout  = {};
+            ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            _renderer->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
@@ -277,7 +287,7 @@ namespace LinaGX::Examples
             };
 
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
                 .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
                 .depthAttachmentFormat = Format::D32_SFLOAT,
                 .layout                = outLayout,
@@ -294,8 +304,8 @@ namespace LinaGX::Examples
             _shaderProgramFinalPass = _renderer->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-            free(vertexBlob.ptr);
-            free(fragBlob.ptr);
+            for (auto& [stg, blob] : outCompiledBlobs)
+                free(blob.ptr);
         }
 
         //*******************  MISC
@@ -338,6 +348,19 @@ namespace LinaGX::Examples
             }
         }
 
+        //******************* SAMPLER
+        {
+            // Sampler
+            SamplerDesc samplerDesc = {
+                .minFilter  = Filter::Anisotropic,
+                .magFilter  = Filter::Anisotropic,
+                .mode       = SamplerAddressMode::Repeat,
+                .anisotropy = 8,
+            };
+
+            _sampler = _renderer->CreateSampler(samplerDesc);
+        }
+
         //*******************  MODEL (Vertex Data & Object Array)
         {
             _objects.push_back({});
@@ -362,6 +385,94 @@ namespace LinaGX::Examples
 
             for (auto& obj : _objects)
             {
+                obj.texturesGPU.resize(obj.model.allTexturesCount);
+
+                for (uint32 i = 0; i < obj.model.allTexturesCount; i++)
+                {
+                    auto* txt = obj.model.allTextures + i;
+
+                    Texture2DDesc desc = {
+                        .usage     = Texture2DUsage::ColorTexture,
+                        .width     = txt->buffer.width,
+                        .height    = txt->buffer.height,
+                        .mipLevels = 1,
+                        .format    = Format::R8G8B8A8_UNORM,
+                        .debugName = "Material Texture",
+                    };
+
+                    obj.texturesGPU[i] = _renderer->CreateTexture2D(desc);
+                }
+
+                obj.materials.resize(obj.model.allMaterialsCount);
+
+                for (uint32 i = 0; i < obj.model.allMaterialsCount; i++)
+                {
+                    ModelMaterial* modMat   = obj.model.allMaterials + i;
+                    auto&          material = obj.materials[i];
+
+                    material.albedoTexture = modMat->textureIndices[GLTFTextureType::BaseColor];
+
+                    ResourceDesc uboDesc = {
+                        .size          = sizeof(GPUMaterialData),
+                        .typeHintFlags = ResourceTypeHint::TH_ConstantBuffer,
+                        .heapType      = ResourceHeap::StagingHeap,
+                        .debugName     = "Material UBO",
+                    };
+
+                    material.ubo = _renderer->CreateResource(uboDesc);
+                    _renderer->MapResource(material.ubo, material.uboMapping);
+
+                    GPUMaterialData gpuMatData;
+                    gpuMatData.alphaCutoff   = modMat->alphaCutoff;
+                    gpuMatData.baseColorTint = glm::vec4(modMat->baseColor.x, modMat->baseColor.y, modMat->baseColor.z, modMat->baseColor.w);
+                    std::memcpy(material.uboMapping, &gpuMatData, sizeof(GPUMaterialData));
+                    _renderer->UnmapResource(material.ubo);
+
+                    DescriptorBinding bindings[2];
+
+                    bindings[0] = {
+                        .binding         = 0,
+                        .descriptorCount = 1,
+                        .type            = DescriptorType::UBO,
+                        .stages          = {ShaderStage::Fragment},
+                    };
+
+                    bindings[1] = {
+                        .binding         = 1,
+                        .descriptorCount = 1,
+                        .type            = DescriptorType::CombinedImageSampler,
+                        .stages          = {ShaderStage::Fragment},
+                    };
+
+                    DescriptorSetDesc desc = {
+                        .bindings      = bindings,
+                        .bindingsCount = 2,
+                    };
+
+                    material.descriptorSet = _renderer->CreateDescriptorSet(desc);
+
+                    DescriptorUpdateBufferDesc bufferDesc = {
+                        .setHandle       = material.descriptorSet,
+                        .binding         = 0,
+                        .descriptorCount = 1,
+                        .resources       = &material.ubo,
+                        .descriptorType  = DescriptorType::UBO,
+                    };
+
+                    _renderer->DescriptorUpdateBuffer(bufferDesc);
+
+                    DescriptorUpdateImageDesc imgUpdate = {
+                        .setHandle       = material.descriptorSet,
+                        .binding         = 1,
+                        .descriptorCount = 1,
+                        .textures        = &obj.texturesGPU[material.albedoTexture],
+                        .samplers        = &_sampler,
+                        .descriptorType  = DescriptorType::CombinedImageSampler,
+                    };
+
+                    _renderer->DescriptorUpdateImage(imgUpdate);
+                }
+
                 for (uint32 i = 0; i < obj.model.allNodesCount; i++)
                 {
                     ModelNode* node = obj.model.allNodes + i;
@@ -374,9 +485,8 @@ namespace LinaGX::Examples
                             auto& mesh = obj.meshes[obj.meshes.size() - 1];
 
                             ModelMeshPrimitive* prim = node->mesh->primitives + j;
-                            mesh.baseColorIndex      = prim->material->textureIndices[GLTFTextureType::BaseColor];
                             mesh.indexType           = prim->indexType;
-                            mesh.alphaCutoff         = prim->material->alphaCutoff;
+                            mesh.materialIndex       = prim->material->index;
 
                             if (!prim->indices.empty())
                                 mesh.indices = prim->indices;
@@ -460,22 +570,8 @@ namespace LinaGX::Examples
             }
         }
 
-        //******************* SAMPLER
+        //******************* TRANSFER
         {
-            // Sampler
-            SamplerDesc samplerDesc = {
-                .minFilter  = Filter::Anisotropic,
-                .magFilter  = Filter::Anisotropic,
-                .mode       = SamplerAddressMode::Repeat,
-                .anisotropy = 8,
-            };
-
-            _sampler = _renderer->CreateSampler(samplerDesc);
-        }
-
-        //******************* TEXTURES & TRANSFER
-        {
-            // Create gpu resource for all textures.
             for (auto& obj : _objects)
             {
                 obj.texturesGPU.resize(obj.model.allTexturesCount);
@@ -483,17 +579,6 @@ namespace LinaGX::Examples
                 for (uint32 i = 0; i < obj.model.allTexturesCount; i++)
                 {
                     auto* txt = obj.model.allTextures + i;
-
-                    Texture2DDesc desc = {
-                        .usage     = Texture2DUsage::ColorTexture,
-                        .width     = txt->buffer.width,
-                        .height    = txt->buffer.height,
-                        .mipLevels = 1,
-                        .format    = Format::R8G8B8A8_UNORM,
-                        .debugName = "Material Texture",
-                    };
-
-                    obj.texturesGPU[i] = _renderer->CreateTexture2D(desc);
 
                     TextureBuffer txtBuffer = {
                         .pixels        = txt->buffer.pixels,
@@ -591,8 +676,8 @@ namespace LinaGX::Examples
             set0Bindings[0] = {
                 .binding         = 0,
                 .descriptorCount = 1,
-                .type            = DescriptorType::CombinedImageSampler,
-                .stages          = {ShaderStage::Fragment},
+                .type            = DescriptorType::UBO,
+                .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set0Desc = {
@@ -600,22 +685,19 @@ namespace LinaGX::Examples
                 .bindingsCount = 1,
             };
 
-            for (auto& obj : _objects)
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-                for (auto& mesh : obj.meshes)
-                {
-                    mesh.descriptorSetTexture = _renderer->CreateDescriptorSet(set0Desc);
+                _pfd[i].descriptorSetSceneData0 = _renderer->CreateDescriptorSet(set0Desc);
 
-                    DescriptorUpdateImageDesc imgUpdate = {
-                        .setHandle       = mesh.descriptorSetTexture,
-                        .binding         = 0,
-                        .descriptorCount = 1,
-                        .textures        = &obj.texturesGPU[mesh.baseColorIndex],
-                        .samplers        = &_sampler,
-                        .descriptorType  = DescriptorType::CombinedImageSampler,
-                    };
-                    _renderer->DescriptorUpdateImage(imgUpdate);
-                }
+                DescriptorUpdateBufferDesc uboUpdate = {
+                    .setHandle       = _pfd[i].descriptorSetSceneData0,
+                    .binding         = 0,
+                    .descriptorCount = 1,
+                    .resources       = &_pfd[i].ubo0,
+                    .descriptorType  = DescriptorType::UBO,
+                };
+
+                _renderer->DescriptorUpdateBuffer(uboUpdate);
             }
 
             DescriptorBinding set1Bindings[1];
@@ -646,35 +728,6 @@ namespace LinaGX::Examples
 
                 _renderer->DescriptorUpdateBuffer(bufferDesc);
             }
-
-            DescriptorBinding set2Bindings[1];
-
-            set2Bindings[0] = {
-                .binding         = 0,
-                .descriptorCount = 1,
-                .type            = DescriptorType::UBO,
-                .stages          = {ShaderStage::Vertex},
-            };
-
-            DescriptorSetDesc set2Desc = {
-                .bindings      = set2Bindings,
-                .bindingsCount = 1,
-            };
-
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-            {
-                _pfd[i].descriptorSetSceneData0 = _renderer->CreateDescriptorSet(set2Desc);
-
-                DescriptorUpdateBufferDesc uboUpdate = {
-                    .setHandle       = _pfd[i].descriptorSetSceneData0,
-                    .binding         = 0,
-                    .descriptorCount = 1,
-                    .resources       = &_pfd[i].ubo0,
-                    .descriptorType  = DescriptorType::UBO,
-                };
-
-                _renderer->DescriptorUpdateBuffer(uboUpdate);
-            }
         }
     } // namespace LinaGX::Examples
 
@@ -689,14 +742,18 @@ namespace LinaGX::Examples
         // Get rid of resources
         for (auto& obj : _objects)
         {
+            for (auto& mat : obj.materials)
+            {
+                _renderer->DestroyDescriptorSet(mat.descriptorSet);
+                _renderer->DestroyResource(mat.ubo);
+            }
+
             for (auto& mesh : obj.meshes)
             {
                 _renderer->DestroyResource(mesh.vertexBufferGPU);
 
                 if (!mesh.indices.empty())
                     _renderer->DestroyResource(mesh.indexBufferGPU);
-
-                _renderer->DestroyDescriptorSet(mesh.descriptorSetTexture);
             }
 
             for (auto& txt : obj.texturesGPU)
@@ -824,22 +881,23 @@ namespace LinaGX::Examples
     {
         for (auto& obj : _objects)
         {
+            CMDBindConstants* constants = currentFrame.stream->AddCommand<CMDBindConstants>();
+            constants->size             = sizeof(ConstantsData);
+            constants->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Vertex);
+            constants->stagesSize       = 1;
+            constants->offset           = 0;
+            constants->data             = currentFrame.stream->EmplaceAuxMemory<ConstantsData>(obj.constants);
+
             for (const auto& mesh : obj.meshes)
             {
-                obj.constants.alphaCutoff   = mesh.alphaCutoff;
-                CMDBindConstants* constants = currentFrame.stream->AddCommand<CMDBindConstants>();
-                constants->size             = sizeof(ConstantsData);
-                constants->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Vertex, ShaderStage::Fragment);
-                constants->stagesSize       = 2;
-                constants->offset           = 0;
-                constants->data             = currentFrame.stream->EmplaceAuxMemory<ConstantsData>(obj.constants);
+                const auto& material = obj.materials[mesh.materialIndex];
 
                 // Bind the descriptors
                 {
                     CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
                     bindSets->firstSet              = 0;
                     bindSets->setCount              = 3;
-                    bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(mesh.descriptorSetTexture, currentFrame.ssboSet, currentFrame.descriptorSetSceneData0);
+                    bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetSceneData0, currentFrame.ssboSet, material.descriptorSet);
                 }
 
                 CMDBindVertexBuffers* vtx = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();
@@ -885,6 +943,22 @@ namespace LinaGX::Examples
 
         auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
 
+        // Sample animation
+        for (const auto& obj : _objects)
+        {
+            for (uint32 i = 0; i < obj.model.allSkinsCount; i++)
+            {
+                ModelSkin* skin = obj.model.allSkins + i;
+
+                auto         targetAnimation = obj.model.allAnimations + 0;
+                static float time            = 0.0f;
+                time += m_deltaSeconds;
+                if (time > targetAnimation->duration)
+                    time = 0.0f;
+                SampleAnimation(obj.model.allSkins, targetAnimation, time);
+            }
+        }
+
         // Copy SSBO data on copy queue
         {
             LINAGX_VEC<GPUObjectData> objectData;
@@ -904,16 +978,6 @@ namespace LinaGX::Examples
 
                 if (obj.constants.hasSkin)
                 {
-                    // Sample animation
-                    {
-                        auto         targetAnimation = obj.model.allAnimations + 1;
-                        static float time            = 0.0f;
-                        time += m_deltaSeconds;
-                        if (time > targetAnimation->duration)
-                            time = 0.0f;
-                        SampleAnimation(obj.model.allSkins, targetAnimation, time);
-                    }
-
                     // Assign all skinning matrices.
                     // This is a very basic implementation of skinned animations
                     uint32 k = 0;

@@ -50,6 +50,7 @@ namespace LinaGX
             {
                 const auto&    gltfMat = model.materials[i];
                 ModelMaterial* mat     = outData.allMaterials + i;
+                mat->index             = static_cast<uint32>(i);
                 mat->name              = gltfMat.name;
                 mat->metallicFactor    = static_cast<float>(gltfMat.pbrMetallicRoughness.metallicFactor);
                 mat->roughnessFactor   = static_cast<float>(gltfMat.pbrMetallicRoughness.roughnessFactor);

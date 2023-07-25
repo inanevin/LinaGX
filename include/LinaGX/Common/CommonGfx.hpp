@@ -449,6 +449,12 @@ namespace LinaGX
         ShaderConstantBlock                    constantBlock;
     };
 
+    struct ShaderCompileData
+    {
+        const char* text        = "";
+        const char* includePath = "";
+    };
+
     struct ShaderDesc
     {
         LINAGX_MAP<ShaderStage, DataBlob> stages;

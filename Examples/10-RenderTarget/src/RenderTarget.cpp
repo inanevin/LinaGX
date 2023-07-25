@@ -122,7 +122,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -149,19 +149,19 @@ namespace LinaGX::Examples
         //******************* DEFAULT SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout      outLayout  = {};
-            DataBlob          vertexBlob = {};
-            DataBlob          fragBlob   = {};
-            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
-            _renderer->CompileShader(ShaderStage::Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                      outLayout  = {};
+            ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            _renderer->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
                 .colorAttachmentFormat = Format::R8G8B8A8_SRGB,
                 .depthAttachmentFormat = Format::D32_SFLOAT,
                 .layout                = outLayout,
@@ -180,26 +180,26 @@ namespace LinaGX::Examples
             _shaderProgramFinalPass          = _renderer->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-            free(vertexBlob.ptr);
-            free(fragBlob.ptr);
+            for (auto& [stg, blob] : outCompiledBlobs)
+                free(blob.ptr);
         }
 
         //******************* QUAD SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
-            ShaderLayout      outLayout  = {};
-            DataBlob          vertexBlob = {};
-            DataBlob          fragBlob   = {};
-            _renderer->CompileShader(ShaderStage::Vertex, vtxShader.c_str(), "Resources/Shaders/Include", vertexBlob, outLayout);
-            _renderer->CompileShader(ShaderStage::Fragment, fragShader.c_str(), "Resources/Shaders/Include", fragBlob, outLayout);
+            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
+            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
+            ShaderLayout                      outLayout  = {};
+            ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            _renderer->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Vertex, vertexBlob}, {ShaderStage::Fragment, fragBlob}},
+                .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
                 .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
                 .depthAttachmentFormat = Format::D32_SFLOAT,
                 .layout                = outLayout,
@@ -216,8 +216,8 @@ namespace LinaGX::Examples
             _quadShaderProgram = _renderer->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-            free(vertexBlob.ptr);
-            free(fragBlob.ptr);
+            for (auto& [stg, blob] : outCompiledBlobs)
+                free(blob.ptr);
         }
 
         auto createRenderTargets = [&]() {

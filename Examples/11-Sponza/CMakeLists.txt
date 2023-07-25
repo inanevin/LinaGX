@@ -13,7 +13,7 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 3.6)
-project(11-SimpleLighting)
+project(11-Sponza)
 
 #--------------------------------------------------------------------
 # Set sources
@@ -21,12 +21,12 @@ project(11-SimpleLighting)
 
 set(SOURCES 
 src/Main.cpp
-src/SimpleLighting.cpp
+src/Sponza.cpp
 )
 
 set(HEADERS
 include/Main.hpp
-include/SimpleLighting.hpp
+include/Sponza.hpp
 Resources/Shaders/frag.glsl
 Resources/Shaders/vert.glsl
 )

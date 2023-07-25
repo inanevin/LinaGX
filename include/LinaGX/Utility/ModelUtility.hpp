@@ -126,6 +126,7 @@ namespace LinaGX
     struct ModelMaterial
     {
         LINAGX_STRING                       name      = "";
+        uint32                              index     = 0;
         LGXVector4                          baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
         LGXVector3                          emissive  = {1.0f, 1.0f, 1.0f};
         LINAGX_MAP<GLTFTextureType, uint32> textureIndices;

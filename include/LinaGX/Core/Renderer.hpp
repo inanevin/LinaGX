@@ -128,7 +128,9 @@ namespace LinaGX
         /// <param name="stage">Target shader stage.</param>
         /// <param name="text">A valid raw GLSL for the shader stage.</param>
         /// <param name="outCompiledBlob">Out blob, SPIRV blob in Vulkan, IDXC blob in DirectX & metal blob in Metal.</param>
-        bool CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout);
+      //  bool CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout);
+
+        bool CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout);
 
         /// <summary>
         /// Generates a shader pipeline.

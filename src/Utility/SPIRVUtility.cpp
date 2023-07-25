@@ -696,27 +696,6 @@ namespace LinaGX
                 outLayout.ssbos.push_back(ssbo);
             }
 
-            // If contains push constants
-            // Make sure we assign it to maxium set's maximum binding+1
-            if (outLayout.constantBlock.size != 0)
-            {
-                uint32 maxSet = 0;
-                for (const auto& [set, bindings] : outLayout.setsAndBindings)
-                {
-                    if (set > maxSet)
-                        maxSet = set;
-                }
-
-                uint32 maxBinding = 0;
-                for (const auto& binding : outLayout.setsAndBindings.at(maxSet))
-                {
-                    if (binding > maxBinding)
-                        maxBinding = binding;
-                }
-
-                outLayout.constantBlock.set     = maxSet;
-                outLayout.constantBlock.binding = maxBinding + 1;
-            }
         }
         return true;
     }

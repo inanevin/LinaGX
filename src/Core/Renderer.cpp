@@ -147,46 +147,121 @@ namespace LinaGX
         m_backend->RecreateSwapchain(desc);
     }
 
-    bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
+    // bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
+    // {
+    //     DataBlob spv = {};
+    //     if (!SPIRVUtility::GLSL2SPV(stage, text, includePath, spv, outLayout))
+    //         return false;
+    //
+    //     if (m_initInfo.api == BackendAPI::DX12)
+    //     {
+    //         LINAGX_STRING outHLSL = "";
+    //
+    //         const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL, outLayout);
+    //
+    //         LINAGX_FREE(spv.ptr);
+    //
+    //         if (!res)
+    //             return false;
+    //
+    //         return m_backend->CompileShader(stage, outHLSL, outCompiledBlob);
+    //     }
+    //     else if (m_initInfo.api == BackendAPI::Metal)
+    //     {
+    //         LINAGX_STRING outMSL = "";
+    //
+    //         const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
+    //
+    //         LINAGX_FREE(spv.ptr);
+    //
+    //         if (!res)
+    //             return false;
+    //
+    //         return m_backend->CompileShader(stage, outMSL, outCompiledBlob);
+    //     }
+    //     else if (m_initInfo.api == BackendAPI::Vulkan)
+    //     {
+    //         // Already SPV, assign & return.
+    //         outCompiledBlob = spv;
+    //         return true;
+    //     }
+    //
+    //     return false;
+    // }
+
+    bool Renderer::CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout)
     {
-        DataBlob spv = {};
-        if (!SPIRVUtility::GLSL2SPV(stage, text, includePath, spv, outLayout))
-            return false;
+        for (const auto& [stage, data] : compileData)
+        {
+            DataBlob spv = {};
+            if (!SPIRVUtility::GLSL2SPV(stage, data.text, data.includePath, spv, outLayout))
+                return false;
+
+            outCompiledBlobs[stage] = spv;
+        }
+
+        // If contains push constants
+        // Make sure we assign it to maxium set's maximum binding+1
+        if (outLayout.constantBlock.size != 0)
+        {
+            uint32 maxSet = 0;
+            for (const auto& [set, bindings] : outLayout.setsAndBindings)
+            {
+                if (set > maxSet)
+                    maxSet = set;
+            }
+
+            uint32 maxBinding = 0;
+            for (const auto& binding : outLayout.setsAndBindings.at(maxSet))
+            {
+                if (binding > maxBinding)
+                    maxBinding = binding;
+            }
+
+            outLayout.constantBlock.set     = maxSet;
+            outLayout.constantBlock.binding = maxBinding + 1;
+        }
 
         if (m_initInfo.api == BackendAPI::DX12)
         {
-            LINAGX_STRING outHLSL = "";
+            for (auto& [stage, spv] : outCompiledBlobs)
+            {
+                LINAGX_STRING outHLSL = "";
 
-            const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL, outLayout);
+                const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL, outLayout);
 
-            LINAGX_FREE(spv.ptr);
+                LINAGX_FREE(spv.ptr);
 
-            if (!res)
-                return false;
+                if (!res)
+                    return false;
 
-            return m_backend->CompileShader(stage, outHLSL, outCompiledBlob);
+                spv = {};
+
+                if (!m_backend->CompileShader(stage, outHLSL, spv))
+                    return false;
+            }
         }
         else if (m_initInfo.api == BackendAPI::Metal)
         {
-            LINAGX_STRING outMSL = "";
+            for (auto& [stage, spv] : outCompiledBlobs)
+            {
+                LINAGX_STRING outMSL = "";
 
-            const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
+                const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
 
-            LINAGX_FREE(spv.ptr);
+                LINAGX_FREE(spv.ptr);
 
-            if (!res)
-                return false;
+                if (!res)
+                    return false;
 
-            return m_backend->CompileShader(stage, outMSL, outCompiledBlob);
+                spv = {};
+
+                if (!m_backend->CompileShader(stage, outMSL, spv))
+                    return false;
+            }
         }
-        else if (m_initInfo.api == BackendAPI::Vulkan)
-        {
-            // Already SPV, assign & return.
-            outCompiledBlob = spv;
-            return true;
-        }
 
-        return false;
+        return true;
     }
 
     uint16 Renderer::CreateShader(const ShaderDesc& shaderDesc)

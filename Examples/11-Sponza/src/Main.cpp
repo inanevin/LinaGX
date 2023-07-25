@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "SimpleLighting.hpp"
+#include "Sponza.hpp"
 
 using namespace LinaGX::Examples;
 
