@@ -531,7 +531,7 @@ namespace LinaGX
         case LinaGX::DescriptorType::UBO:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         case LinaGX::DescriptorType::ConstantBlock:
-            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            LOGA(false, "Can not use!");
         default:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         }
@@ -940,7 +940,20 @@ namespace LinaGX
             VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
             binding.binding                      = t2d.binding;
             binding.descriptorType               = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.descriptorCount              = t2d.elementSize;
+            binding.descriptorCount              = t2d.elementSize == 0 ? m_gpuProperties.limits.maxPerStageDescriptorSamplers : t2d.elementSize;
+
+            for (ShaderStage stg : t2d.stages)
+                binding.stageFlags |= GetVKShaderStage(stg);
+
+            bindingMap[t2d.set].push_back(binding);
+        }
+
+        for (const auto& t2d : shaderDesc.layout.separateImages)
+        {
+            VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
+            binding.binding                      = t2d.binding;
+            binding.descriptorType               = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            binding.descriptorCount              = t2d.elementSize == 0 ? m_gpuProperties.limits.maxDescriptorSetSampledImages : t2d.elementSize;
 
             for (ShaderStage stg : t2d.stages)
                 binding.stageFlags |= GetVKShaderStage(stg);
@@ -953,7 +966,7 @@ namespace LinaGX
             VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
             binding.binding                      = sampler.binding;
             binding.descriptorType               = VK_DESCRIPTOR_TYPE_SAMPLER;
-            binding.descriptorCount              = sampler.elementSize;
+            binding.descriptorCount              = sampler.elementSize == 0 ? m_gpuProperties.limits.maxDescriptorSetSamplers : sampler.elementSize;
 
             for (ShaderStage stg : sampler.stages)
                 binding.stageFlags |= GetVKShaderStage(stg);
@@ -971,6 +984,44 @@ namespace LinaGX
             setInfo.flags                           = 0;
             setInfo.bindingCount                    = static_cast<uint32>(bindings.size());
             setInfo.pBindings                       = bindings.data();
+
+            LINAGX_VEC<VkDescriptorBindingFlags> bindlessFlags;
+
+            bool containsBindless = false;
+            for (const auto& b : bindings)
+            {
+                if (b.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE && b.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSampledImages)
+                {
+                    containsBindless = true;
+                    bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+                }
+                else if (b.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER && b.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
+                {
+                    containsBindless = true;
+                    bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+                }
+                else if (b.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && b.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
+                {
+                    containsBindless = true;
+                    bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+                }
+                else
+                {
+                    bindlessFlags.push_back(0);
+                }
+            }
+
+            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extInfo;
+            extInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+            extInfo.pBindingFlags = bindlessFlags.data();
+            extInfo.bindingCount  = setInfo.bindingCount;
+            extInfo.pNext         = nullptr;
+
+            if (containsBindless)
+            {
+                setInfo.pNext = &extInfo;
+                LOGA(m_initInfo.gpuFeatures.enableBindless, "Enable bindless feature in InitInfo to use bindless descriptors!");
+            }
 
             VkDescriptorSetLayout layout = nullptr;
             VkResult              res    = vkCreateDescriptorSetLayout(m_device, &setInfo, m_allocator, &layout);
@@ -1275,6 +1326,8 @@ namespace LinaGX
         item.isValid          = true;
 
         LINAGX_VEC<VkDescriptorSetLayoutBinding> bindings;
+        bool                                     containsBindlessTextures = false;
+        LINAGX_VEC<VkDescriptorBindingFlags>     bindlessFlags;
 
         for (uint32 i = 0; i < desc.bindingsCount; i++)
         {
@@ -1283,6 +1336,28 @@ namespace LinaGX
             vkBinding.binding                      = binding.binding;
             vkBinding.descriptorType               = GetVKDescriptorType(binding.type);
             vkBinding.descriptorCount              = binding.descriptorCount;
+
+            if (binding.type == DescriptorType::SeparateImage && binding.bindless)
+            {
+                containsBindlessTextures = true;
+                bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxDescriptorSetSampledImages;
+
+            }
+            else if (binding.type == DescriptorType::SeparateSampler && binding.bindless)
+            {
+                containsBindlessTextures = true;
+                bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+            }
+            else if (binding.type == DescriptorType::CombinedImageSampler && binding.bindless)
+            {
+                containsBindlessTextures = true;
+                bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+            }
+            else
+                bindlessFlags.push_back(0);
 
             for (auto stg : binding.stages)
                 vkBinding.stageFlags |= GetVKShaderStage(stg);
@@ -1295,6 +1370,18 @@ namespace LinaGX
         layoutInfo.flags                           = 0;
         layoutInfo.bindingCount                    = static_cast<uint32>(bindings.size());
         layoutInfo.pBindings                       = bindings.data();
+
+        VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extInfo;
+        extInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+        extInfo.pBindingFlags = bindlessFlags.data();
+        extInfo.bindingCount  = layoutInfo.bindingCount;
+        extInfo.pNext         = nullptr;
+
+        if (containsBindlessTextures)
+        {
+            layoutInfo.pNext = &extInfo;
+            LOGA(m_initInfo.gpuFeatures.enableBindless, "Enable bindless feature in InitInfo to use bindless descriptors!");
+        }
 
         VkResult res = vkCreateDescriptorSetLayout(m_device, &layoutInfo, m_allocator, &item.layout);
         VK_CHECK_RESULT(res, "Backend -> Could not create layout!");
@@ -1647,8 +1734,19 @@ namespace LinaGX
         features.samplerAnisotropy         = true;
         features.fillModeNonSolid          = true;
 
+        if (m_initInfo.gpuFeatures.enableBindless)
+        {
+            features.shaderSampledImageArrayDynamicIndexing = true;
+        }
+
         VkPhysicalDeviceVulkan12Features vk12Features = {};
         vk12Features.timelineSemaphore                = true;
+
+        if (m_initInfo.gpuFeatures.enableBindless)
+        {
+            vk12Features.runtimeDescriptorArray          = true;
+            vk12Features.descriptorBindingPartiallyBound = true;
+        }
 
         // std::vector<const char*> deviceExtensions;
         // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
@@ -1815,6 +1913,8 @@ namespace LinaGX
             GPUInfo.dedicatedVideoMemory = gpuMemProps.memoryHeaps->size;
             GPUInfo.deviceName           = gpuProps.deviceName;
 
+            m_gpuProperties = gpuProps;
+
             // Iterate over memory heaps
             for (uint32_t typeIndex = 0; typeIndex < gpuMemProps.memoryTypeCount; ++typeIndex)
             {
@@ -1886,7 +1986,15 @@ namespace LinaGX
             LINAGX_VEC<VkDescriptorPoolSize> sizeInfos;
 
             uint32 totalSets = 0;
-            for (const auto& [dt, limit] : m_initInfo.gpuLimits.descriptorLimits)
+
+            LINAGX_MAP<DescriptorType, uint32> limits;
+            limits[DescriptorType::CombinedImageSampler] = m_initInfo.gpuLimits.samplerLimit;
+            limits[DescriptorType::SeparateSampler]      = m_initInfo.gpuLimits.samplerLimit;
+            limits[DescriptorType::SeparateImage]        = m_initInfo.gpuLimits.textureLimit;
+            limits[DescriptorType::UBO]                  = m_initInfo.gpuLimits.bufferLimit;
+            limits[DescriptorType::SSBO]                 = m_initInfo.gpuLimits.bufferLimit;
+
+            for (const auto& [dt, limit] : limits)
             {
                 VkDescriptorPoolSize sizeInfo = VkDescriptorPoolSize{};
                 sizeInfo.type                 = GetVKDescriptorType(dt);

@@ -232,8 +232,9 @@ namespace LinaGX
         LINAGX_MAP<QueueType, VKBQueueData> m_queueData    = {};
         LINAGX_MAP<uint32, uint64>          m_killQueueIntermediateResources;
 
-        VkDescriptorPool m_descriptorPool          = nullptr;
-        uint32           m_imageAcqSemaphoresCount = 0;
+        VkDescriptorPool           m_descriptorPool          = nullptr;
+        uint32                     m_imageAcqSemaphoresCount = 0;
+        VkPhysicalDeviceProperties m_gpuProperties;
     };
 } // namespace LinaGX
 

@@ -219,9 +219,6 @@ namespace LinaGX::Examples
             api = BackendAPI::Metal;
 #endif
 
-            LinaGX::GPULimits limits;
-            limits.descriptorLimits[DescriptorType::CombinedImageSampler] = 250;
-
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,
                 .gpu                   = PreferredGPUType::Integrated,
@@ -922,7 +919,7 @@ namespace LinaGX::Examples
                 _renderer->DescriptorUpdateImage(imgUpdate);
             }
         }
-    } // namespace LinaGX::Examples
+    } 
 
     void Example::Shutdown()
     {

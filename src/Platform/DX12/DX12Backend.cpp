@@ -796,9 +796,6 @@ namespace LinaGX
             CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
 
             // Textures & Samplers & Materials
-            descRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-            descRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-            descRange[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 
             LINAGX_VEC<CD3DX12_ROOT_PARAMETER1>   rootParameters;
             LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1> ranges;
@@ -854,11 +851,11 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::CombinedImageSampler;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 paramSampler.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -882,7 +879,7 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SeparateImage;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -905,7 +902,7 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SeparateSampler;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize == 0 ? UINT_MAX : sampler.elementSize, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -926,7 +923,7 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SSBO;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -1312,7 +1309,6 @@ namespace LinaGX
             NvAPI_Status result                 = NvAPI_D3D12_CreateCommittedResource(m_device.Get(), &hp, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COMMON, NULL, &nvResourceParams, IID_PPV_ARGS(&item.cpuVisibleResource), NULL);
             LOGA(result == NvAPI_Status::NVAPI_OK, "Backend -> Host-visible gpu resource creation failed! Maybe exceeded total size?");
             NAME_DX12_OBJECT_CSTR(item.cpuVisibleResource, desc.debugName);
-            return m_resources.AddItem(item);
         }
 
         D3D12_RESOURCE_STATES    state          = D3D12_RESOURCE_STATE_GENERIC_READ;
@@ -1337,13 +1333,15 @@ namespace LinaGX
 
         try
         {
-            ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, NULL, &item.allocation, IID_NULL, NULL));
+            if (!item.cpuVisibleResource)
+                ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, NULL, &item.allocation, IID_NULL, NULL));
+
             item.descriptor = m_bufferHeap->GetNewHeapHandle();
 
             if (desc.typeHintFlags & TH_ConstantBuffer)
             {
                 D3D12_CONSTANT_BUFFER_VIEW_DESC cbv;
-                cbv.BufferLocation = item.allocation->GetResource()->GetGPUVirtualAddress();
+                cbv.BufferLocation = GetGPUResource(item)->GetGPUVirtualAddress();
                 cbv.SizeInBytes    = static_cast<UINT>(finalSize);
                 m_device->CreateConstantBufferView(&cbv, {item.descriptor.GetCPUHandle()});
             }
@@ -1357,7 +1355,7 @@ namespace LinaGX
                 srv.Buffer.NumElements         = static_cast<UINT>(finalSize / 4);
                 srv.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_RAW;
                 srv.Buffer.StructureByteStride = 0;
-                m_device->CreateShaderResourceView(item.allocation->GetResource(), &srv, {item.descriptor.GetCPUHandle()});
+                m_device->CreateShaderResourceView(GetGPUResource(item), &srv, {item.descriptor.GetCPUHandle()});
             }
         }
         catch (HrException e)
@@ -1365,7 +1363,7 @@ namespace LinaGX
             DX12_THROW(e, "Backend -> Exception when creating a resource! {0}", e.what());
         }
 
-        NAME_DX12_OBJECT_CSTR(item.allocation->GetResource(), desc.debugName);
+        NAME_DX12_OBJECT_CSTR(GetGPUResource(item), desc.debugName);
 
         return m_resources.AddItem(item);
     }

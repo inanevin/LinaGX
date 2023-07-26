@@ -611,11 +611,18 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
 
-                if (type.array.size() > 0)
+                if (type.array_size_literal[0])
+                {
+                    if (type.array[0] != 1)
+                        txt.elementSize = type.array[0];
+                    else
+                        txt.elementSize = 0;
+                }
+                else if (type.array.size() > 0)
                     txt.elementSize = type.array[0];
 
                 outLayout.combinedImageSamplers.push_back(txt);
-                outLayout.totalDescriptors += txt.elementSize * 2;
+                outLayout.totalDescriptors += txt.elementSize == 0 ? 2 : txt.elementSize * 2;
             }
 
             for (const auto& resource : resources.separate_images)
@@ -640,11 +647,18 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
 
-                if (type.array.size() > 0)
+                if (type.array_size_literal[0])
+                {
+                    if (type.array[0] != 1)
+                        txt.elementSize = type.array[0];
+                    else
+                        txt.elementSize = 0;
+                }
+                else if (type.array.size() > 0)
                     txt.elementSize = type.array[0];
 
                 outLayout.separateImages.push_back(txt);
-                outLayout.totalDescriptors += txt.elementSize;
+                outLayout.totalDescriptors += txt.elementSize == 0 ? 1 : txt.elementSize;
             }
 
             for (const auto& resource : resources.separate_samplers)
@@ -669,11 +683,18 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 sampler.name                      = compiler.get_name(resource.id);
 
-                if (type.array.size() > 0)
+                if (type.array_size_literal[0])
+                {
+                    if (type.array[0] != 1)
+                        sampler.elementSize = type.array[0];
+                    else
+                        sampler.elementSize = 0;
+                }
+                else if (type.array.size() > 0)
                     sampler.elementSize = type.array[0];
 
                 outLayout.samplers.push_back(sampler);
-                outLayout.totalDescriptors += sampler.elementSize;
+                outLayout.totalDescriptors += sampler.elementSize == 0 ? 1 : sampler.elementSize;
             }
 
             for (const auto& resource : resources.storage_buffers)

@@ -531,6 +531,7 @@ namespace LinaGX
         uint32                  descriptorCount = 1;
         DescriptorType          type            = DescriptorType::UBO;
         LINAGX_VEC<ShaderStage> stages;
+        bool                    bindless = false;
     };
 
     struct DescriptorSetDesc
@@ -588,12 +589,10 @@ namespace LinaGX
 
     struct GPULimits
     {
-        uint32 textureLimit       = 1024;
-        uint32 samplerLimit       = 1024;
-        uint32 bufferLimit        = 1024;
+        uint32 textureLimit       = 512;
+        uint32 samplerLimit       = 512;
+        uint32 bufferLimit        = 512;
         uint32 maxSubmitsPerFrame = 30;
-
-        LINAGX_MAP<DescriptorType, uint32> descriptorLimits = {{DescriptorType::CombinedImageSampler, 20}, {DescriptorType::SeparateImage, 20}, {DescriptorType::SeparateSampler, 20}, {DescriptorType::SSBO, 20}, {DescriptorType::UBO, 20}};
     };
 
     struct GPUInformation
@@ -624,6 +623,11 @@ namespace LinaGX
         VulkanConfiguration vulkanConfig  = {};
     };
 
+    struct GPUFeatures
+    {
+        bool enableBindless = false;
+    };
+
     struct InitInfo
     {
         BackendAPI         api             = BackendAPI::Vulkan;
@@ -632,6 +636,7 @@ namespace LinaGX
         uint32             framesInFlight  = 2;
         uint32             backbufferCount = 2;
         GPULimits          gpuLimits       = {};
+        GPUFeatures        gpuFeatures     = {};
         LINAGX_VEC<Format> checkForFormatSupport;
     };
 

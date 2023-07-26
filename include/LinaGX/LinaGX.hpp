@@ -37,6 +37,14 @@ NOTES:
 
 - All matrices and their operations are column-major.
 
+- Bindless is only supported for texture2D, sampler and sampler2D and of course SSBOs.
+
+- If using bindless, need to: #extension GL_EXT_nonuniform_qualifier : enable
+
+- If using bindless, it is forbidden to statically index the unbounded array in the glsl shader.
+
+- UBO buffers need to be 256 byte aligned.
+
 */
 
 #pragma once
