@@ -188,6 +188,7 @@ namespace LinaGX
         void CMD_BindPipeline(uint8* data, VKBCommandStream& stream);
         void CMD_DrawInstanced(uint8* data, VKBCommandStream& stream);
         void CMD_DrawIndexedInstanced(uint8* data, VKBCommandStream& stream);
+        void CMD_DrawIndexedIndirect(uint8* data, VKBCommandStream& stream);
         void CMD_BindVertexBuffers(uint8* data, VKBCommandStream& stream);
         void CMD_BindIndexBuffers(uint8* data, VKBCommandStream& stream);
         void CMD_CopyResource(uint8* data, VKBCommandStream& stream);
@@ -212,6 +213,7 @@ namespace LinaGX
         uint64                    m_minUniformBufferOffsetAlignment = 0;
         bool                      m_supportsAsyncTransferQueue      = false;
         bool                      m_supportsAsyncComputeQueue       = false;
+        bool                      m_supportsMultiDrawIndirect       = false;
 
         uint32 m_currentFrameIndex = 0;
         uint32 m_currentImageIndex = 0;

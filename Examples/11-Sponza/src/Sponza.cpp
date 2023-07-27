@@ -197,6 +197,10 @@ namespace LinaGX::Examples
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
+        
+            GPULimits limits;
+            limits.textureLimit = 1024;
+            limits.bufferLimit = 1024;
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,

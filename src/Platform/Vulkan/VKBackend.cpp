@@ -1207,7 +1207,7 @@ namespace LinaGX
             bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         if (desc.typeHintFlags & TH_IndexBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if (desc.typeHintFlags & TH_IndexBuffer)
+        if (desc.typeHintFlags & TH_IndirectBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
         if (desc.typeHintFlags & TH_StorageBuffer)
             bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
@@ -1342,7 +1342,6 @@ namespace LinaGX
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
                 vkBinding.descriptorCount = m_gpuProperties.limits.maxDescriptorSetSampledImages;
-
             }
             else if (binding.type == DescriptorType::SeparateSampler && binding.bindless)
             {
@@ -1729,10 +1728,11 @@ namespace LinaGX
 
         // Physical device
         VkPhysicalDeviceFeatures features{};
+        features.samplerAnisotropy = true;
+        features.fillModeNonSolid  = true;
+
         features.multiDrawIndirect         = true;
         features.drawIndirectFirstInstance = true;
-        features.samplerAnisotropy         = true;
-        features.fillModeNonSolid          = true;
 
         if (m_initInfo.gpuFeatures.enableBindless)
         {
@@ -1755,21 +1755,41 @@ namespace LinaGX
         // deviceExtensions.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
         // deviceExtensions.push_back(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
 
-        vkb::PhysicalDeviceSelector selector{inst};
-        vkb::PhysicalDevice         physicalDevice = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
-                                                 .set_required_features_12(vk12Features)
-                                                 .defer_surface_initialization()
-                                                 .prefer_gpu_device_type(targetDeviceType)
-                                                 .allow_any_gpu_device_type(false)
-                                                 .set_required_features(features)
-                                                 .select(vkb::DeviceSelectionMode::partially_and_fully_suitable)
-                                                 .value();
+        vkb::PhysicalDeviceSelector      selector{inst};
+        vkb::Result<vkb::PhysicalDevice> phyRes = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
+                                                      .set_required_features_12(vk12Features)
+                                                      .defer_surface_initialization()
+                                                      .prefer_gpu_device_type(targetDeviceType)
+                                                      .allow_any_gpu_device_type(false)
+                                                      .set_required_features(features)
+                                                      .select(vkb::DeviceSelectionMode::partially_and_fully_suitable);
+
+        vkb::PhysicalDevice physicalDevice;
+
+        // Disable not-crucial features if not supported.
+        if (!phyRes.has_value())
+        {
+            features.multiDrawIndirect  = false;
+            physicalDevice              = selector.select(vkb::DeviceSelectionMode::partially_and_fully_suitable).value();
+            m_supportsMultiDrawIndirect = false;
+        }
+        else
+        {
+            m_supportsMultiDrawIndirect = true;
+            physicalDevice              = phyRes.value();
+        }
+
         // create the final Vulkan device
         vkb::DeviceBuilder                           deviceBuilder{physicalDevice};
         VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeature;
         shaderDrawParamsFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
         shaderDrawParamsFeature.pNext                = nullptr;
         shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
+
+        VkPhysicalDeviceMultiDrawFeaturesEXT mt;
+        mt.sType     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT;
+        mt.multiDraw = true;
+        deviceBuilder.add_pNext(&mt);
 
         // For using UPDATE_AFTER_BIND_BIT on material bindings - invalid after using VK12 Features
         // VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
@@ -2368,6 +2388,21 @@ namespace LinaGX
         CMDDrawIndexedInstanced* cmd    = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     buffer = stream.buffer;
         vkCmdDrawIndexed(buffer, cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void VKBackend::CMD_DrawIndexedIndirect(uint8* data, VKBCommandStream& stream)
+    {
+        CMDDrawIndexedIndirect* cmd       = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
+        auto                    buffer    = stream.buffer;
+        auto&                   indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
+
+        if (m_supportsMultiDrawIndirect)
+            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->stride);
+        else
+        {
+            for (uint32 i = 0; i < cmd->count; i++)
+                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
+        }
     }
 
     void VKBackend::CMD_BindVertexBuffers(uint8* data, VKBCommandStream& stream)

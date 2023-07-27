@@ -414,7 +414,7 @@ namespace LinaGX
         }
     };
 
-    bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& compiledBlob, ShaderLayout& outLayout)
+    bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& compiledBlob, ShaderLayout& outLayout, BackendAPI targetAPI)
     {
         glslang_initialize_process();
 
@@ -422,6 +422,35 @@ namespace LinaGX
 
         LINAGX_STRING fullShaderStr = "";
         GetShaderTextWithIncludes(fullShaderStr, pShader, includePath);
+
+        // gl_DrawID is not supported in HLSL, so we will replace it with our custom cbuffer at post processing
+        // But we need to have the identifier generated in HLSL from SPV.
+        if (targetAPI == BackendAPI::DX12)
+        {
+
+            const LINAGX_STRING searchString  = "gl_DrawID";
+            const LINAGX_STRING replaceString = "LGX_GET_DRAW_ID()";
+            size_t              pos           = 0;
+            while ((pos = fullShaderStr.find(searchString, pos)) != std::string::npos)
+            {
+                fullShaderStr.replace(pos, searchString.length(), replaceString);
+                pos += replaceString.length();
+                outLayout.hasGLDrawID = true;
+            }
+
+            const LINAGX_STRING constDecl  = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
+            size_t              versionPos = fullShaderStr.find("#version");
+
+            if (versionPos != std::string::npos)
+            {
+                // The #version directive ends at the end of the line it is on, so we need to find that.
+                size_t endOfVersionLinePos = fullShaderStr.find("\n", versionPos);
+                if (endOfVersionLinePos != std::string::npos)
+                {
+                    fullShaderStr.insert(endOfVersionLinePos + 1, constDecl);
+                }
+            }
+        }
 
         glslang_input_t input                   = {};
         input.language                          = GLSLANG_SOURCE_GLSL;
@@ -722,6 +751,7 @@ namespace LinaGX
                 outLayout.totalDescriptors++;
             }
         }
+
         return true;
     }
 
@@ -731,6 +761,8 @@ namespace LinaGX
         try
         {
             spirv_cross::CompilerHLSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
+
+            auto resources = compiler.get_shader_resources();
 
             spirv_cross::CompilerHLSL::Options    options;
             spirv_cross::HLSLVertexAttributeRemap attribs;
@@ -753,6 +785,13 @@ namespace LinaGX
 
             // Perform the conversion
             out = compiler.compile();
+
+            LINAGX_STRING searchString  = "int LGX_GET_DRAW_ID()\n{\n    return 0;\n}";
+            LINAGX_STRING replaceString = "int LGX_GET_DRAW_ID()\n{\n    return LGX_DRAW_ID;\n}";
+
+            size_t pos = out.find(searchString);
+            if (pos != std::string::npos)
+                out.replace(pos, searchString.length(), replaceString);
         }
         catch (spirv_cross::CompilerError& e)
         {

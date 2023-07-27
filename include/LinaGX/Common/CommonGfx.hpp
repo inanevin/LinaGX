@@ -328,6 +328,16 @@ namespace LinaGX
         Mitchell
     };
 
+    struct IndexedIndirectCommand
+    {
+        uint32 LGX_DrawID            = 0;
+        uint32 indexCountPerInstance = 0;
+        uint32 instanceCount         = 0;
+        uint32 startIndexLocation    = 0;
+        uint32 baseVertexLocation    = 0;
+        uint32 startInstanceLocation = 0;
+    };
+
     struct DataBlob
     {
         uint8* ptr  = nullptr;
@@ -448,6 +458,8 @@ namespace LinaGX
         LINAGX_MAP<uint32, LINAGX_VEC<uint32>> setsAndBindings;
         ShaderConstantBlock                    constantBlock;
         uint32                                 totalDescriptors = 0;
+        bool                                   hasGLDrawID      = false;
+        uint32                                 drawIDBinding    = 0;
     };
 
     struct ShaderCompileData

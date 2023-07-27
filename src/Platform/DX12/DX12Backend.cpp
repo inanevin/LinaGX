@@ -791,6 +791,8 @@ namespace LinaGX
         shader.isValid    = true;
         shader.topology   = shaderDesc.topology;
 
+        uint32 drawIDRootParamIndex = 0;
+
         // Root signature.
         {
             CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
@@ -829,10 +831,14 @@ namespace LinaGX
                 rootParameters.push_back(param);
             }
 
-            /*
-                Texture2D<float4> texSampler[3] : register(t0, space0);
-                SamplerState _texSampler_sampler[3] : register(s0, space0);
-*/
+            if (shaderDesc.layout.hasGLDrawID)
+            {
+                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
+                param.InitAsConstants(1, shaderDesc.layout.drawIDBinding, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+                drawIDRootParamIndex = static_cast<uint32>(rootParameters.size());
+                rootParameters.push_back(param);
+            }
 
             for (const auto& t2d : shaderDesc.layout.combinedImageSamplers)
             {
@@ -851,11 +857,11 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::CombinedImageSampler;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, t2d.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, t2d.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 paramSampler.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -879,7 +885,7 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SeparateImage;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, t2d.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -902,7 +908,7 @@ namespace LinaGX
                 paramInfo.reflectionType    = DescriptorType::SeparateSampler;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize == 0 ? UINT_MAX : sampler.elementSize, sampler.binding, sampler.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize == 0 ? UINT_MAX : sampler.elementSize, sampler.binding, sampler.set, sampler.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -976,6 +982,32 @@ namespace LinaGX
             {
                 LOGA(false, "Backend -> Failed creating root signature!");
                 return 0;
+            }
+
+            // Indirect signature.
+            if (shaderDesc.layout.drawIDBinding)
+            {
+                try
+                {
+                    D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[2]     = {};
+                    argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                    argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                    argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
+                    argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
+                    argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+                    D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+                    commandSignatureDesc.pArgumentDescs               = argumentDescs;
+                    commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
+                    commandSignatureDesc.ByteStride                   = sizeof(IndexedIndirectCommand);
+
+                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.rootSig.Get(), IID_PPV_ARGS(&shader.indirectSig)));
+                }
+                catch (HrException e)
+                {
+                    DX12_THROW(e, "Backend -> Exception when creating command signature! %s", e.what());
+                    return 0;
+                }
             }
         }
 
@@ -2265,6 +2297,15 @@ namespace LinaGX
         CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
         auto                     list = stream.list;
         list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+    }
+
+    void DX12Backend::CMD_DrawIndexedIndirect(uint8* data, DX12CommandStream& stream)
+    {
+        CMDDrawIndexedIndirect* cmd    = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
+        auto                    list   = stream.list;
+        auto&                   shader = m_shaders.GetItemR(stream.boundShader);
+        auto                    buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
+        list->ExecuteIndirect(shader.indirectSig.Get(), cmd->count, buffer, 0, NULL, 0);
     }
 
     void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)

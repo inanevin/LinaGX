@@ -224,7 +224,6 @@ namespace LinaGX::Examples
                 .gpu                   = PreferredGPUType::Integrated,
                 .framesInFlight        = FRAMES_IN_FLIGHT,
                 .backbufferCount       = 2,
-                .gpuLimits             = limits,
                 .checkForFormatSupport = {Format::R8G8B8A8_SRGB, Format::D32_SFLOAT, Format::R32G32B32A32_SFLOAT},
             };
 

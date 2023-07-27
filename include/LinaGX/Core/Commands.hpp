@@ -101,6 +101,14 @@ namespace LinaGX
         uint32 startInstanceLocation;
     };
 
+    struct CMDDrawIndexedIndirect
+    {
+        void*  extension;
+        uint32 indirectBuffer;
+        uint32 count;
+        uint32 stride;
+    };
+
     struct CMDCopyResource
     {
         void*  extension;
@@ -159,6 +167,7 @@ namespace LinaGX
     m_cmdFunctions[GetTypeID<CMDBindPipeline>()]          = &BACKEND::CMD_BindPipeline;          \
     m_cmdFunctions[GetTypeID<CMDDrawInstanced>()]         = &BACKEND::CMD_DrawInstanced;         \
     m_cmdFunctions[GetTypeID<CMDDrawIndexedInstanced>()]  = &BACKEND::CMD_DrawIndexedInstanced;  \
+    m_cmdFunctions[GetTypeID<CMDDrawIndexedIndirect>()]   = &BACKEND::CMD_DrawIndexedIndirect;   \
     m_cmdFunctions[GetTypeID<CMDBindVertexBuffers>()]     = &BACKEND::CMD_BindVertexBuffers;     \
     m_cmdFunctions[GetTypeID<CMDBindIndexBuffers>()]      = &BACKEND::CMD_BindIndexBuffers;      \
     m_cmdFunctions[GetTypeID<CMDCopyResource>()]          = &BACKEND::CMD_CopyResource;          \

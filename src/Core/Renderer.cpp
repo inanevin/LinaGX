@@ -32,6 +32,7 @@ SOFTWARE.
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Utility/SPIRVUtility.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
+#include "LinaGX/Common/Math.hpp"
 
 namespace LinaGX
 {
@@ -194,7 +195,7 @@ namespace LinaGX
         for (const auto& [stage, data] : compileData)
         {
             DataBlob spv = {};
-            if (!SPIRVUtility::GLSL2SPV(stage, data.text, data.includePath, spv, outLayout))
+            if (!SPIRVUtility::GLSL2SPV(stage, data.text, data.includePath, spv, outLayout, m_initInfo.api))
                 return false;
 
             outCompiledBlobs[stage] = spv;
@@ -224,11 +225,11 @@ namespace LinaGX
 
         if (m_initInfo.api == BackendAPI::DX12)
         {
+            LINAGX_MAP<ShaderStage, LINAGX_STRING> outHLSLs;
+
             for (auto& [stage, spv] : outCompiledBlobs)
             {
-                LINAGX_STRING outHLSL = "";
-
-                const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL, outLayout);
+                const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSLs[stage], outLayout);
 
                 LINAGX_FREE(spv.ptr);
 
@@ -236,8 +237,33 @@ namespace LinaGX
                     return false;
 
                 spv = {};
+            }
 
-                if (!m_backend->CompileShader(stage, outHLSL, spv))
+            for (auto& [stage, blob] : outCompiledBlobs)
+            {
+                LINAGX_STRING hlsl = "";
+
+                // gl_DrawID is not supported in HLSL
+                // we need to add a custom constant buffer declaration.
+                if (stage == ShaderStage::Vertex && outLayout.hasGLDrawID)
+                {
+                    uint32 maxBinding = 0;
+
+                    for (const auto& ubo : outLayout.ubos)
+                    {
+                        if (ubo.set == 0)
+                            maxBinding = Max(maxBinding, ubo.binding);
+                    }
+
+                    outLayout.drawIDBinding = maxBinding + 1;
+
+                    hlsl = "\n\ cbuffer DrawIDBuffer : register(b" + LINAGX_TOSTRING(outLayout.drawIDBinding);
+                    hlsl += +") \n\  {\n\ uint LGX_DRAW_ID; \n\ }; \n";
+                }
+
+                hlsl += outHLSLs[stage];
+
+                if (!m_backend->CompileShader(stage, hlsl, blob))
                     return false;
             }
         }

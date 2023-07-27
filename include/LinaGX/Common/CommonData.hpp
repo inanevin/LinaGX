@@ -113,6 +113,10 @@ namespace LinaGX
 #define LINAGX_STRING std::string
 #endif
 
+#ifndef LINAGX_TOSTRING
+#define LINAGX_TOSTRING std::to_string
+#endif
+
 #ifndef LINAGX_WSTRING
 #define LINAGX_WSTRING std::wstring
 #endif
