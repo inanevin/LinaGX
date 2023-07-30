@@ -22,9 +22,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(LINAGX_BUILD_EXAMPLES "Builds example projects." OFF)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CMAKE_SUPPRESS_REGENERATION true)
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
@@ -156,7 +156,7 @@ endif()
 #--------------------------------------------------------------------
 add_library(${PROJECT_NAME} ${LinaGX_SOURCES} ${LinaGX_HEADERS} ${LinaGX_PLATFORM_SOURCES} ${LinaGX_PLATFORM_HEADERS})
 add_library(Lina::GX ALIAS ${PROJECT_NAME})
-include(${CMAKE_SOURCE_DIR}/CMake/ProjectSettings.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
 #--------------------------------------------------------------------
 # Set include directories
