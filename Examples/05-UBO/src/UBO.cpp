@@ -109,7 +109,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX UBO", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _renderer->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX UBO", 0, 0, 800, 800, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -405,7 +405,7 @@ namespace LinaGX::Examples
     void Example::Shutdown()
     {
         // First get rid of the window.
-        _renderer->DestroyApplicationWindow(MAIN_WINDOW_ID);
+        _renderer->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
 
         // Wait for queues to finish
         _renderer->Join();

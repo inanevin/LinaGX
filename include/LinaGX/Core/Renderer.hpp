@@ -128,7 +128,7 @@ namespace LinaGX
         /// <param name="stage">Target shader stage.</param>
         /// <param name="text">A valid raw GLSL for the shader stage.</param>
         /// <param name="outCompiledBlob">Out blob, SPIRV blob in Vulkan, IDXC blob in DirectX & metal blob in Metal.</param>
-      //  bool CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout);
+        //  bool CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout);
 
         bool CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout);
 
@@ -237,31 +237,6 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        /// <param name="stringID"></param>
-        /// <param name="title"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        /// <param name="style"></param>
-        /// <returns></returns>
-        Window* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed)
-        {
-            return m_windowManager.CreateApplicationWindow(stringID, title, x, y, width, height, style);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="sid"></param>
-        void DestroyApplicationWindow(StringID sid)
-        {
-            m_windowManager.DestroyApplicationWindow(sid);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
         void PollWindow()
         {
             m_windowManager.PollWindow();
@@ -270,6 +245,11 @@ namespace LinaGX
         inline uint32 GetCurrentFrameIndex()
         {
             return m_currentFrameIndex;
+        }
+
+        inline WindowManager& GetWindowManager()
+        {
+            return m_windowManager;
         }
 
     private:
