@@ -31,9 +31,18 @@ SOFTWARE.
 #include "LinaGX/Utility/ModelUtility.hpp"
 #include "LinaGX/Utility/ImageUtility.hpp"
 
+LINAGX_DISABLE_VC_WARNING(4018)
+LINAGX_DISABLE_VC_WARNING(4267)
+LINAGX_DISABLE_VC_WARNING(4101)
+LINAGX_DISABLE_VC_WARNING(26451)
+LINAGX_DISABLE_VC_WARNING(26495)
 #define TINYGLTF_IMPLEMENTATION
 #include "LinaGX/Utility/tinygltf/tiny_gltf.h"
-
+LINAGX_RESTORE_VC_WARNING()
+LINAGX_RESTORE_VC_WARNING()
+LINAGX_RESTORE_VC_WARNING()
+LINAGX_RESTORE_VC_WARNING()
+LINAGX_RESTORE_VC_WARNING()
 namespace LinaGX
 {
     void ProcessGLTF(const char* basePath, tinygltf::Model& model, ModelData& outData, bool loadTextures)
@@ -62,7 +71,7 @@ namespace LinaGX
                 mat->emissiveFactors[0] = static_cast<float>(gltfMat.emissiveFactor[0]);
                 mat->emissiveFactors[1] = static_cast<float>(gltfMat.emissiveFactor[1]);
                 mat->emissiveFactors[2] = static_cast<float>(gltfMat.emissiveFactor[2]);
-                mat->occlusionStrength  = gltfMat.occlusionTexture.strength;
+                mat->occlusionStrength  = static_cast<float>(gltfMat.occlusionTexture.strength);
 
                 if (gltfMat.emissiveTexture.index != -1)
                     mat->textureIndices[GLTFTextureType::Emissive] = gltfMat.emissiveTexture.index;
