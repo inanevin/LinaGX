@@ -747,6 +747,10 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 ssbo.name                         = compiler.get_name(resource.id);
+
+                spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
+                ssbo.isReadOnly                  = buffer_flags.get(spv::DecorationNonWritable);
+
                 outLayout.ssbos.push_back(ssbo);
                 outLayout.totalDescriptors++;
             }

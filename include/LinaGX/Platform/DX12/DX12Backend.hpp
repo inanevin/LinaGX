@@ -66,6 +66,7 @@ namespace LinaGX
         uint32         set            = 0;
         uint32         elementSize    = 1;
         DescriptorType reflectionType = DescriptorType::UBO;
+        bool           isReadOnly     = true;
     };
 
     struct DX12Shader
@@ -75,6 +76,7 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectSig      = NULL;
         Topology                                       topology         = Topology::TriangleList;
         bool                                           isValid          = false;
+        bool                                           isCompute        = false;
         uint32                                         constantsSpace   = 0;
         uint32                                         constantsBinding = 0;
         LINAGX_VEC<DX12RootParamInfo>                  rootParams;
@@ -135,13 +137,16 @@ namespace LinaGX
 
     struct DX12Resource
     {
-        bool                                   isValid            = false;
-        D3D12MA::Allocation*                   allocation         = nullptr;
-        Microsoft::WRL::ComPtr<ID3D12Resource> cpuVisibleResource = nullptr;
-        ResourceHeap                           heapType           = ResourceHeap::StagingHeap;
-        uint64                                 size               = 0;
-        bool                                   isMapped           = false;
-        DescriptorHandle                       descriptor         = {};
+        bool                                   isValid              = false;
+        bool                                   isGPUWritable        = false;
+        D3D12MA::Allocation*                   allocation           = nullptr;
+        Microsoft::WRL::ComPtr<ID3D12Resource> cpuVisibleResource   = nullptr;
+        ResourceHeap                           heapType             = ResourceHeap::StagingHeap;
+        uint64                                 size                 = 0;
+        bool                                   isMapped             = false;
+        DescriptorHandle                       descriptor           = {};
+        DescriptorHandle                       additionalDescriptor = {};
+        D3D12_RESOURCE_STATES                  state                = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
     };
 
     struct DX12UserSemaphore
@@ -237,6 +242,8 @@ namespace LinaGX
         void CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream);
         void CMD_BindConstants(uint8* data, DX12CommandStream& stream);
+        void CMD_Dispatch(uint8* data, DX12CommandStream& stream);
+        void CMD_ComputeBarrier(uint8* data, DX12CommandStream& stream);
 
     private:
         D3D12MA::Allocator*                   m_dx12Allocator = nullptr;

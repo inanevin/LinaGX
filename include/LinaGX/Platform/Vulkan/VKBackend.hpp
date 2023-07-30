@@ -48,6 +48,7 @@ namespace LinaGX
     struct VKBShader
     {
         bool                                    isValid     = false;
+        bool                                    isCompute   = false;
         VkPipeline                              ptrPipeline = nullptr;
         VkPipelineLayout                        ptrLayout   = nullptr;
         LINAGX_MAP<ShaderStage, VkShaderModule> modules;
@@ -195,6 +196,8 @@ namespace LinaGX
         void CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream);
         void CMD_BindConstants(uint8* data, VKBCommandStream& stream);
+        void CMD_Dispatch(uint8* data, VKBCommandStream& stream);
+        void CMD_ComputeBarrier(uint8* data, VKBCommandStream& stream);
 
     private:
         void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels);

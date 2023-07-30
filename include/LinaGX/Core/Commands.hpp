@@ -147,6 +147,7 @@ namespace LinaGX
         uint32  firstSet;
         uint32  setCount;
         uint16* descriptorSetHandles;
+        bool    isCompute;
     };
 
     struct CMDBindConstants
@@ -157,6 +158,19 @@ namespace LinaGX
         uint32       size;
         ShaderStage* stages;
         uint32       stagesSize;
+    };
+
+    struct CMDDispatch
+    {
+        void*  extension;
+        uint32 groupSizeX;
+        uint32 groupSizeY;
+        uint32 groupSizeZ;
+    };
+
+    struct CMDComputeBarrier
+    {
+        void*   extension;
     };
 
 #define BACKEND_BIND_COMMANDS(BACKEND)                                                           \
@@ -173,6 +187,8 @@ namespace LinaGX
     m_cmdFunctions[GetTypeID<CMDCopyResource>()]          = &BACKEND::CMD_CopyResource;          \
     m_cmdFunctions[GetTypeID<CMDCopyBufferToTexture2D>()] = &BACKEND::CMD_CopyBufferToTexture2D; \
     m_cmdFunctions[GetTypeID<CMDBindDescriptorSets>()]    = &BACKEND::CMD_BindDescriptorSets;    \
+    m_cmdFunctions[GetTypeID<CMDDispatch>()]              = &BACKEND::CMD_Dispatch;              \
+    m_cmdFunctions[GetTypeID<CMDComputeBarrier>()]        = &BACKEND::CMD_ComputeBarrier;        \
     m_cmdFunctions[GetTypeID<CMDBindConstants>()]         = &BACKEND::CMD_BindConstants;
 } // namespace LinaGX
 

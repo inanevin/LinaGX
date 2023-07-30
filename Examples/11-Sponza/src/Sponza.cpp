@@ -197,10 +197,10 @@ namespace LinaGX::Examples
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
-        
+
             GPULimits limits;
             limits.textureLimit = 1024;
-            limits.bufferLimit = 1024;
+            limits.bufferLimit  = 1024;
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,
@@ -898,6 +898,7 @@ namespace LinaGX::Examples
                     bindSets->firstSet              = 0;
                     bindSets->setCount              = 3;
                     bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetSceneData0, currentFrame.ssboSet, material.descriptorSet);
+                    bindSets->isCompute             = false;
                 }
 
                 CMDBindVertexBuffers* vtx = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();

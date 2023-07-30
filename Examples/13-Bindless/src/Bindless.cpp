@@ -792,6 +792,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 3;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetSceneData0, currentFrame.ssboSet, currentFrame.ssboMaterialsSet);
+            bindSets->isCompute             = false;
         }
 
         CMDBindConstants* constants = currentFrame.stream->AddCommand<CMDBindConstants>();
@@ -926,7 +927,7 @@ namespace LinaGX::Examples
             DrawObject(currentFrame, _objects[0]);
         }
 
-        // // Set shader
+        // Set shader
         {
             CMDBindPipeline* bindPipeline = currentFrame.stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram2;

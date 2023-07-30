@@ -187,7 +187,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -900,6 +900,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 3;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetSceneData0, currentFrame.ssboSet, currentFrame.ssboMaterialsSet);
+            bindSets->isCompute             = false;
         }
 
         // Bind vertex index buffers.

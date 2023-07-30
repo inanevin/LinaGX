@@ -426,7 +426,8 @@ namespace LinaGX
         uint32                  set;
         uint32                  binding;
         LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name = "";
+        LINAGX_STRING           name       = "";
+        bool                    isReadOnly = true;
     };
 
     struct ShaderSRVTexture2D
@@ -564,11 +565,12 @@ namespace LinaGX
 
     struct DescriptorUpdateBufferDesc
     {
-        uint16         setHandle;
-        uint32         binding;
-        uint32         descriptorCount;
-        uint32*        resources;
-        DescriptorType descriptorType;
+        uint16         setHandle       = 0;
+        uint32         binding         = 0;
+        uint32         descriptorCount = 0;
+        uint32*        resources       = nullptr;
+        DescriptorType descriptorType  = DescriptorType::UBO;
+        bool           isWriteAccess   = false;
     };
 
     struct ResourceDesc
@@ -576,6 +578,7 @@ namespace LinaGX
         uint64       size          = 0;
         uint32       typeHintFlags = 0;
         ResourceHeap heapType      = ResourceHeap::StagingHeap;
+        bool         isGPUWritable = false;
         const char*  debugName     = "LinaGXResource";
     };
 

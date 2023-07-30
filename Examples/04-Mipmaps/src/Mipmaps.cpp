@@ -135,7 +135,7 @@ namespace LinaGX::Examples
             _shaderProgram = _renderer->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-             for (auto& [stg, blob] : outCompiledBlobs)
+            for (auto& [stg, blob] : outCompiledBlobs)
                 free(blob.ptr);
         }
 
@@ -423,6 +423,7 @@ namespace LinaGX::Examples
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 1;
             bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0);
+            bindTxt->isCompute             = false;
         }
 
         // Draw the triangle

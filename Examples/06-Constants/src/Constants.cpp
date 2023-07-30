@@ -123,9 +123,9 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout      outLayout  = {};
+            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
             LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
@@ -503,6 +503,7 @@ namespace LinaGX::Examples
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 2;
             bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.descriptorSetUBO);
+            bindTxt->isCompute             = false;
         }
 
         // Bind constnats.

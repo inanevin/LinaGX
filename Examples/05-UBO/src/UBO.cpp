@@ -497,6 +497,7 @@ namespace LinaGX::Examples
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 2;
             bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.descriptorSetUBO);
+            bindTxt->isCompute             = false;
         }
 
         // Draw the triangle

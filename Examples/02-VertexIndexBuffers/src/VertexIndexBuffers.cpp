@@ -132,7 +132,7 @@ namespace LinaGX::Examples
             _shaderProgram = _renderer->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-              for (auto& [stg, blob] : outCompiledBlobs)
+            for (auto& [stg, blob] : outCompiledBlobs)
                 free(blob.ptr);
         }
 

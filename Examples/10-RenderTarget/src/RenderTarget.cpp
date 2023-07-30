@@ -832,6 +832,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 3;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0);
+            bindSets->isCompute             = false;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -900,6 +901,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 3;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
+            bindSets->isCompute             = false;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -939,6 +941,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 1;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
+            bindSets->isCompute             = false;
         }
 
         // Draw quad

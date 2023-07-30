@@ -699,6 +699,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 2;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0, currentFrame.ssboSet);
+            bindSets->isCompute             = false;
         }
 
         // Per object, bind vertex buffers, push constants and draw.

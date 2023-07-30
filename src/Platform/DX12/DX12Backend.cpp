@@ -791,6 +791,22 @@ namespace LinaGX
         shader.isValid    = true;
         shader.topology   = shaderDesc.topology;
 
+        for (const auto& [stage, blob] : shaderDesc.stages)
+        {
+            if (stage == ShaderStage::Compute)
+            {
+                if (shaderDesc.stages.size() == 1)
+                {
+                    shader.isCompute = true;
+                    break;
+                }
+                else
+                {
+                    LOGA(false, "Shader contains a compute stage but that is not the only stage, which is forbidden!");
+                }
+            }
+        }
+
         uint32 drawIDRootParamIndex = 0;
 
         // Root signature.
@@ -927,9 +943,10 @@ namespace LinaGX
                 paramInfo.binding           = ssbo.binding;
                 paramInfo.set               = ssbo.set;
                 paramInfo.reflectionType    = DescriptorType::SSBO;
+                paramInfo.isReadOnly        = ssbo.isReadOnly;
                 shader.rootParams.push_back(paramInfo);
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                ranges[rangeCounter].Init(ssbo.isReadOnly ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
 
@@ -964,7 +981,7 @@ namespace LinaGX
                 rootParameters.push_back(param);
             }
 
-            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, shader.isCompute ? D3D12_ROOT_SIGNATURE_FLAG_NONE : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
             ComPtr<ID3DBlob>                      signatureBlob = nullptr;
             ComPtr<ID3DBlob>                      errorBlob     = nullptr;
 
@@ -982,6 +999,19 @@ namespace LinaGX
             {
                 LOGA(false, "Backend -> Failed creating root signature!");
                 return 0;
+            }
+
+            // done with it.
+            if (shader.isCompute)
+            {
+                const auto& blob = shaderDesc.stages.begin()->second;
+
+                D3D12_COMPUTE_PIPELINE_STATE_DESC cpsd = {};
+                cpsd.pRootSignature                    = shader.rootSig.Get();
+                cpsd.CS                                = {blob.ptr, blob.size};
+                cpsd.NodeMask                          = 0;
+                m_device->CreateComputePipelineState(&cpsd, IID_PPV_ARGS(&shader.pso));
+                return m_shaders.AddItem(shader);
             }
 
             // Indirect signature.
@@ -1311,10 +1341,11 @@ namespace LinaGX
         if (desc.typeHintFlags & TH_ConstantBuffer)
             finalSize = alignedSize;
 
-        DX12Resource item = {};
-        item.heapType     = desc.heapType;
-        item.isValid      = true;
-        item.size         = finalSize;
+        DX12Resource item  = {};
+        item.heapType      = desc.heapType;
+        item.isValid       = true;
+        item.size          = finalSize;
+        item.isGPUWritable = desc.isGPUWritable;
 
         D3D12_RESOURCE_DESC resourceDesc = {};
         resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -1328,6 +1359,11 @@ namespace LinaGX
         resourceDesc.SampleDesc.Quality  = 0;
         resourceDesc.Layout              = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
+
+        if (item.isGPUWritable)
+        {
+            resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        }
 
         ResourceHeap usedHeapType = desc.heapType;
 
@@ -1369,6 +1405,7 @@ namespace LinaGX
                 ThrowIfFailed(m_dx12Allocator->CreateResource(&allocationDesc, &resourceDesc, state, NULL, &item.allocation, IID_NULL, NULL));
 
             item.descriptor = m_bufferHeap->GetNewHeapHandle();
+            item.state      = state;
 
             if (desc.typeHintFlags & TH_ConstantBuffer)
             {
@@ -1388,6 +1425,21 @@ namespace LinaGX
                 srv.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_RAW;
                 srv.Buffer.StructureByteStride = 0;
                 m_device->CreateShaderResourceView(GetGPUResource(item), &srv, {item.descriptor.GetCPUHandle()});
+            }
+
+            if (desc.isGPUWritable && desc.heapType != ResourceHeap::StagingHeap)
+            {
+                D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+                uavDesc.Format                           = DXGI_FORMAT_R32_TYPELESS;
+                uavDesc.ViewDimension                    = D3D12_UAV_DIMENSION_BUFFER;
+                uavDesc.Buffer.FirstElement              = 0;
+                uavDesc.Buffer.NumElements               = static_cast<UINT>(finalSize / 4);
+                uavDesc.Buffer.StructureByteStride       = 0;
+                uavDesc.Buffer.CounterOffsetInBytes      = 0;
+                uavDesc.Buffer.Flags                     = D3D12_BUFFER_UAV_FLAG_RAW;
+
+                item.additionalDescriptor = m_bufferHeap->GetNewHeapHandle();
+                m_device->CreateUnorderedAccessView(GetGPUResource(item), NULL, &uavDesc, {item.additionalDescriptor.GetCPUHandle()});
             }
         }
         catch (HrException e)
@@ -1550,7 +1602,11 @@ namespace LinaGX
                     }
                     else
                     {
-                        srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
+                        if (desc.isWriteAccess)
+                            srcDescriptors.push_back({res.additionalDescriptor.GetCPUHandle()});
+                        else
+                            srcDescriptors.push_back({res.descriptor.GetCPUHandle()});
+
                         destDescriptors.push_back({binding.gpuPointer.GetCPUHandle() + i * m_gpuHeapBuffer->GetDescriptorSize()});
                     }
                 }
@@ -2031,7 +2087,7 @@ namespace LinaGX
                 ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
                 sr.boundShader = 0;
 
-                if (sr.type == QueueType::Graphics)
+                if (sr.type == QueueType::Graphics || sr.type == QueueType::Compute)
                 {
                     ID3D12DescriptorHeap* heaps[] = {m_gpuHeapBuffer->GetHeap(), m_gpuHeapSampler->GetHeap()};
                     list->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -2279,9 +2335,19 @@ namespace LinaGX
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
         auto             list   = stream.list;
         const auto&      shader = m_shaders.GetItemR(cmd->shader);
-        list->SetGraphicsRootSignature(shader.rootSig.Get());
-        list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
-        list->SetPipelineState(shader.pso.Get());
+
+        if (!shader.isCompute)
+        {
+            list->SetGraphicsRootSignature(shader.rootSig.Get());
+            list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
+            list->SetPipelineState(shader.pso.Get());
+        }
+        else
+        {
+            list->SetComputeRootSignature(shader.rootSig.Get());
+            list->SetPipelineState(shader.pso.Get());
+        }
+
         stream.boundShader = cmd->shader;
     }
 
@@ -2406,14 +2472,32 @@ namespace LinaGX
                 DX12RootParamInfo* param = shader.FindRootParam(binding.type, binding.binding, targetSetIndex);
 
                 if (binding.type == DescriptorType::UBO && binding.descriptorCount == 1)
-                    list->SetGraphicsRootConstantBufferView(param->rootParameter, binding.gpuPointer.GetGPUHandle());
+                {
+                    if (cmd->isCompute)
+                        list->SetComputeRootConstantBufferView(param->rootParameter, binding.gpuPointer.GetGPUHandle());
+                    else
+                        list->SetGraphicsRootConstantBufferView(param->rootParameter, binding.gpuPointer.GetGPUHandle());
+                }
                 else if (binding.type == DescriptorType::CombinedImageSampler)
                 {
-                    list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
-                    list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {binding.additionalGpuPointer.GetGPUHandle()});
+                    if (cmd->isCompute)
+                    {
+                        list->SetComputeRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                        list->SetComputeRootDescriptorTable(param->rootParameter + 1, {binding.additionalGpuPointer.GetGPUHandle()});
+                    }
+                    else
+                    {
+                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                        list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {binding.additionalGpuPointer.GetGPUHandle()});
+                    }
                 }
                 else
-                    list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                {
+                    if (cmd->isCompute)
+                        list->SetComputeRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                    else
+                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                }
             }
         }
     }
@@ -2426,6 +2510,19 @@ namespace LinaGX
 
         DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::ConstantBlock, shader.constantsBinding, shader.constantsSpace);
         list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
+    }
+
+    void DX12Backend::CMD_Dispatch(uint8* data, DX12CommandStream& stream)
+    {
+        CMDDispatch* cmd  = reinterpret_cast<CMDDispatch*>(data);
+        auto         list = stream.list;
+        list->Dispatch(cmd->groupSizeX, cmd->groupSizeY, cmd->groupSizeZ);
+    }
+
+    void DX12Backend::CMD_ComputeBarrier(uint8* data, DX12CommandStream& stream)
+    {
+        CMDComputeBarrier* cmd  = reinterpret_cast<CMDComputeBarrier*>(data);
+        auto               list = stream.list;
     }
 
 } // namespace LinaGX

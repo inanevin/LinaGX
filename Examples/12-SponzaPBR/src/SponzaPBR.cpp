@@ -918,7 +918,7 @@ namespace LinaGX::Examples
                 _renderer->DescriptorUpdateImage(imgUpdate);
             }
         }
-    } 
+    }
 
     void Example::Shutdown()
     {
@@ -1094,6 +1094,7 @@ namespace LinaGX::Examples
                     bindSets->firstSet              = 0;
                     bindSets->setCount              = 3;
                     bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetSceneData0, currentFrame.ssboSet, material.descriptorSet);
+                    bindSets->isCompute             = false;
                 }
 
                 CMDBindVertexBuffers* vtx = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();
@@ -1305,6 +1306,7 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 1;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
+            bindSets->isCompute             = false;
         }
 
         // Draw quad
