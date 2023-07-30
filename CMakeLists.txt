@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions 
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-cmake_minimum_required (VERSION 3.6)
+cmake_minimum_required (VERSION 3.8)
 project(LinaGX)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -214,7 +214,6 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/15-IndirectRenderingCompute)
 	add_subdirectory(Examples/16-IndirectRenderingComputeQueue)
 	add_subdirectory(Examples/17-CPUVisibleGPUMemory)
-
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()
 

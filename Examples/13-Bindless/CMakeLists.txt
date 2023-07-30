@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions 
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-cmake_minimum_required (VERSION 3.6)
+cmake_minimum_required (VERSION 3.8)
 project(13-Bindless)
 
 #--------------------------------------------------------------------
@@ -36,7 +36,7 @@ Resources/Shaders/vert.glsl
 #--------------------------------------------------------------------
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
-include(${CMAKE_SOURCE_DIR}/CMake/ProjectSettings.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ExampleProjectSettings.cmake)
 
 set_target_properties(
     ${PROJECT_NAME}
@@ -64,7 +64,7 @@ set_target_properties(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} 
 PUBLIC LinaGX::ExamplesCommon
 )
-include(${CMAKE_SOURCE_DIR}/CMake/CopyResources.cmake)
+
 
 
 #--------------------------------------------------------------------

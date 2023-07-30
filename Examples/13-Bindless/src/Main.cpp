@@ -28,11 +28,14 @@ SOFTWARE.
 
 #include "Main.hpp"
 #include "Bindless.hpp"
+#include <filesystem>
 
 using namespace LinaGX::Examples;
 
 int main(int argc, char* argv[])
 {
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::cout << "Current running path: " << currentPath << std::endl;
     Example app;
     app.Initialize();
     app.Run();

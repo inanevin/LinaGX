@@ -43,6 +43,7 @@ LINAGX_RESTORE_VC_WARNING()
 LINAGX_RESTORE_VC_WARNING()
 LINAGX_RESTORE_VC_WARNING()
 LINAGX_RESTORE_VC_WARNING()
+
 namespace LinaGX
 {
     void ProcessGLTF(const char* basePath, tinygltf::Model& model, ModelData& outData, bool loadTextures)

@@ -28,8 +28,8 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef Common_HPP
-#define Common_HPP
+#ifndef LINAGX_COMMON_HPP
+#define LINAGX_COMMON_HPP
 
 #include "CommonData.hpp"
 
