@@ -42,6 +42,7 @@ include/LinaGX/Common/CommonData.hpp
 include/LinaGX/Common/CommonGfx.hpp
 include/LinaGX/Common/Math.hpp
 include/LinaGX/Core/Backend.hpp
+include/LinaGX/Core/Input.hpp
 include/LinaGX/Core/InputMappings.hpp
 include/LinaGX/Core/Renderer.hpp
 include/LinaGX/Core/CommandStream.hpp
@@ -63,6 +64,7 @@ src/Common/CommonGfx.cpp
 src/Common/CommonData.cpp
 src/Common/Math.cpp
 src/Core/Backend.cpp
+src/Core/Input.cpp
 src/Core/Renderer.cpp
 src/Core/CommandStream.cpp
 src/Core/WindowManager.cpp

@@ -309,8 +309,8 @@ namespace LinaGX::Examples
                 .depthFormat  = Format::D32_SFLOAT,
                 .x            = 0,
                 .y            = 0,
-                .width        = _window->GetWidth(),
-                .height       = _window->GetHeight(),
+                .width        = _window->GetSize().x,
+                .height       = _window->GetSize().y,
                 .window       = _window->GetWindowHandle(),
                 .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
@@ -318,17 +318,14 @@ namespace LinaGX::Examples
             });
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
-            _window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
-                uint32 monitorW, monitorH = 0;
-                _window->GetMonitorSize(monitorW, monitorH);
-
+            _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
+                LGXVector2ui          monitor    = _window->GetMonitorSize();
                 SwapchainRecreateDesc resizeDesc = {
                     .swapchain    = _swapchain,
-                    .width        = w,
-                    .height       = h,
-                    .isFullscreen = w == monitorW && h == monitorH,
+                    .width        = newSize.x,
+                    .height       = newSize.y,
+                    .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
                 };
-
                 _renderer->RecreateSwapchain(resizeDesc);
             });
 
@@ -933,14 +930,14 @@ namespace LinaGX::Examples
         // Update scene data
         {
             const glm::mat4 eye        = glm::lookAt(glm::vec3(0.0f, 50.0f, 350.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.1f, 1200.0f);
+            const glm::mat4 projection = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetSize().x) / static_cast<float>(_window->GetSize().y), 0.1f, 1200.0f);
             GPUSceneData    sceneData  = {};
             sceneData.viewProj         = projection * eye;
             std::memcpy(currentFrame.uboMapping0, &sceneData, sizeof(GPUSceneData));
         }
 
-        Viewport     viewport = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
-        ScissorsRect sc       = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
+        Viewport     viewport = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+        ScissorsRect sc       = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
 
         // Bind for compute
         {

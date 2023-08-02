@@ -32,6 +32,7 @@ SOFTWARE.
 #define LINAGX_WINDOW_MANAGER_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Core/Input.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
@@ -52,6 +53,11 @@ namespace LinaGX
         void    DestroyApplicationWindow(StringID stringID);
         void    PollWindow();
 
+        inline Window* GetWindow(StringID sid)
+        {
+            return m_windows[sid];
+        }
+
     private:
         friend class Renderer;
         void Initialize();
@@ -59,6 +65,7 @@ namespace LinaGX
 
     private:
         LINAGX_MAP<StringID, Window*> m_windows;
+        Input                         m_input;
     };
 } // namespace LinaGX
 

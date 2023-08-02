@@ -32,6 +32,7 @@ SOFTWARE.
 #define LINAGX_WIN32WINDOW_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Common/Math.hpp"
 
 struct HWND__;
 struct HINSTANCE__;
@@ -39,6 +40,7 @@ struct HINSTANCE__;
 namespace LinaGX
 {
     class WindowManager;
+    class Input;
 
     class Win32Window
     {
@@ -57,28 +59,28 @@ namespace LinaGX
         /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        void GetMonitorWorkArea(uint32& width, uint32& height);
+        LGXVector2ui GetMonitorWorkArea();
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        void GetMonitorSize(uint32& width, uint32& height);
+        LGXVector2ui GetMonitorSize();
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        void SetPosition(uint32 x, uint32 y);
+        void SetPosition(const LGXVector2i& pos);
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        void SetSize(uint32 width, uint32 height);
+        void SetSize(const LGXVector2ui& size);
 
         /// <summary>
         ///
@@ -89,6 +91,12 @@ namespace LinaGX
         ///
         /// </summary>
         void SetFullscreen();
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        void SetVisible(bool isVisible);
 
         inline void* GetWindowHandle()
         {
@@ -105,12 +113,12 @@ namespace LinaGX
             m_cbClose = cb;
         }
 
-        inline void SetCallbackPositionChanged(CallbackUint2&& cb)
+        inline void SetCallbackPositionChanged(CallbackPosChanged&& cb)
         {
             m_cbPosChanged = cb;
         }
 
-        inline void SetCallbackSizeChanged(CallbackUint2&& cb)
+        inline void SetCallbackSizeChanged(CallbackSizeChanged&& cb)
         {
             m_cbSizeChanged = cb;
         }
@@ -130,74 +138,57 @@ namespace LinaGX
             m_cbMouseWheel = cb;
         }
 
-        inline void SetCallbackMouseMove(CallbackInt2&& cb)
+        inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
         {
             m_cbMouseMove = cb;
         }
 
-        inline uint32 GetX()
+        inline LGXVector2i GetPosition()
         {
-            return m_posX;
+            return m_position;
         }
 
-        inline uint32 GetY()
+        inline LGXVector2ui GetSize()
         {
-            return m_posY;
-        }
-
-        inline void GetPosition(uint32& x, uint32& y)
-        {
-            x = m_posX;
-            y = m_posY;
-        }
-
-        inline uint32 GetWidth()
-        {
-            return m_width;
-        }
-
-        inline uint32 GetHeight()
-        {
-            return m_height;
-        }
-
-        inline void GetSize(uint32& width, uint32& height)
-        {
-            width  = m_width;
-            height = m_height;
+            return m_size;
         }
 
     private:
         friend class WindowManager;
-        Win32Window()  = default;
+        Win32Window(Input* input)
+            : m_input(input){};
         ~Win32Window() = default;
 
         bool Create(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style);
         void Destroy();
 
         uint32 GetStyle(WindowStyle style);
+        void   OnDPIChanged(uint32 dpi);
 
     private:
-        CallbackNoArg      m_cbClose       = nullptr;
-        CallbackUint2      m_cbPosChanged  = nullptr;
-        CallbackUint2      m_cbSizeChanged = nullptr;
-        CallbackKey        m_cbKey         = nullptr;
-        CallbackMouse      m_cbMouse       = nullptr;
-        CallbackMouseWheel m_cbMouseWheel  = nullptr;
-        CallbackInt2       m_cbMouseMove   = nullptr;
+        CallbackNoArg       m_cbClose       = nullptr;
+        CallbackPosChanged  m_cbPosChanged  = nullptr;
+        CallbackSizeChanged m_cbSizeChanged = nullptr;
+        CallbackKey         m_cbKey         = nullptr;
+        CallbackMouse       m_cbMouse       = nullptr;
+        CallbackMouseWheel  m_cbMouseWheel  = nullptr;
+        CallbackMouseMove   m_cbMouseMove   = nullptr;
 
     private:
-        LINAGX_STRING m_title      = "";
-        uint32        m_posX       = 0;
-        uint32        m_posY       = 0;
-        uint32        m_width      = 0;
-        uint32        m_height     = 0;
-        uint32        m_trueWidth  = 0;
-        uint32        m_trueHeight = 0;
-        uint32        m_dpi        = 0;
-        float         m_dpiScale   = 0.0f;
-        HWND__*       m_hwnd       = nullptr;
-        HINSTANCE__*  m_hinst      = nullptr;
+        /* Window Interface */
+        Input*        m_input = nullptr;
+        LINAGX_STRING m_title = "";
+        LGXVector2i   m_position;
+        LGXVector2ui  m_size;
+        LGXVector2ui  m_trueSize;
+        LGXVector2ui  m_mousePosition = {};
+        uint32        m_dpi           = 0;
+        float         m_dpiScale      = 0.0f;
+        bool          m_isVisible     = true;
+        /* Window Interface */
+
+        HWND__*      m_hwnd  = nullptr;
+        HINSTANCE__* m_hinst = nullptr;
     };
 } // namespace LinaGX
 

@@ -152,6 +152,36 @@ namespace LinaGX
         Repeated
     };
 
+    enum class CursorMode
+    {
+        Visible  = 1 << 0,
+        Hidden   = 1 << 1,
+        Disabled = 1 << 2
+    };
+
+    enum class CursorType
+    {
+        None,
+        Default,
+        SizeHorizontal,
+        SizeVertical,
+        Caret,
+    };
+
+    enum CharacterMask
+    {
+        Letter     = 1 << 0,
+        Number     = 1 << 1,
+        Separator  = 1 << 2,
+        Symbol     = 1 << 4,
+        Whitespace = 1 << 5,
+        Control    = 1 << 6,
+        Printable  = 1 << 7,
+        Operator   = 1 << 8,
+        Sign       = 1 << 9,
+        Any        = Letter | Number | Separator | Whitespace | Control | Symbol | Printable | Operator | Sign,
+    };
+
     template <typename T>
     struct Handle
     {

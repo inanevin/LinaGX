@@ -29,6 +29,7 @@ SOFTWARE.
 #pragma once
 
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
+#include "LinaGX/Core/Input.hpp"
 #include <Windows.h>
 #include <windowsx.h>
 
@@ -64,21 +65,23 @@ namespace LinaGX
             break;
         }
         case WM_DPICHANGED: {
+            const uint32 dpi = static_cast<uint32>((short)LOWORD(lParam));
+            win32Window->OnDPIChanged(dpi);
             break;
         }
         case WM_ACTIVATEAPP: {
+            win32Window->m_input->WindowFeedActivateApp(wParam == TRUE ? true : false);
             break;
         }
         case WM_MOVE: {
 
-            const uint32 x = static_cast<uint32>((short)LOWORD(lParam));
-            const uint32 y = static_cast<uint32>((short)HIWORD(lParam));
+            const int32 x = static_cast<int32>((short)LOWORD(lParam));
+            const int32 y = static_cast<int32>((short)HIWORD(lParam));
 
-            win32Window->m_posX = x;
-            win32Window->m_posY = y;
+            win32Window->m_position = {x, y};
 
             if (win32Window->m_cbPosChanged)
-                win32Window->m_cbPosChanged(x, y);
+                win32Window->m_cbPosChanged(win32Window->m_position);
 
             break;
         }
@@ -90,14 +93,14 @@ namespace LinaGX
             RECT clientRect;
             GetClientRect(win32Window->m_hwnd, &clientRect);
 
-            win32Window->m_width  = clientRect.right - clientRect.left;
-            win32Window->m_height = clientRect.bottom - clientRect.top;
+            win32Window->m_size.x = clientRect.right - clientRect.left;
+            win32Window->m_size.y = clientRect.bottom - clientRect.top;
 
-            win32Window->m_trueWidth  = rect.right - rect.left;
-            win32Window->m_trueHeight = rect.bottom - rect.top;
+            win32Window->m_trueSize.x = rect.right - rect.left;
+            win32Window->m_trueSize.y = rect.bottom - rect.top;
 
             if (win32Window->m_cbSizeChanged)
-                win32Window->m_cbSizeChanged(win32Window->m_width, win32Window->m_height);
+                win32Window->m_cbSizeChanged(win32Window->m_size);
 
             break;
         }
@@ -114,8 +117,12 @@ namespace LinaGX
             else if (wParam == VK_CONTROL)
                 key = extended == 0 ? VK_LCONTROL : VK_RCONTROL;
 
+            const InputAction action = isRepeated ? InputAction::Repeated : InputAction::Pressed;
+
             if (win32Window->m_cbKey)
-                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), isRepeated ? InputAction::Repeated : InputAction::Pressed);
+                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), action);
+
+            win32Window->m_input->WindowFeedKey(key, static_cast<uint32>(scanCode), action);
 
             break;
         }
@@ -134,15 +141,20 @@ namespace LinaGX
             if (win32Window->m_cbKey)
                 win32Window->m_cbKey(key, static_cast<uint32>(scanCode), InputAction::Released);
 
+            win32Window->m_input->WindowFeedKey(key, static_cast<uint32>(scanCode), InputAction::Released);
+
             break;
         }
         case WM_MOUSEMOVE: {
 
-            int32 xPos = static_cast<int32>(GET_X_LPARAM(lParam));
-            int32 yPos = static_cast<int32>(GET_Y_LPARAM(lParam));
+            uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
+            uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
+
+            win32Window->m_input->WindowFeedMousePosition(xPos, yPos);
+            win32Window->m_mousePosition = {xPos, yPos};
 
             if (win32Window->m_cbMouseMove)
-                win32Window->m_cbMouseMove(xPos, yPos);
+                win32Window->m_cbMouseMove(win32Window->m_mousePosition);
 
             break;
         }
@@ -150,7 +162,9 @@ namespace LinaGX
 
             auto delta = GET_WHEEL_DELTA_WPARAM(wParam);
             if (win32Window->m_cbMouseWheel)
-                win32Window->m_cbMouseWheel(static_cast<uint32>(delta));
+                win32Window->m_cbMouseWheel(static_cast<int32>(delta));
+
+            win32Window->m_input->WindowFeedMouseWheel(static_cast<int32>(delta));
 
             break;
         }
@@ -159,12 +173,16 @@ namespace LinaGX
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_LBUTTON, InputAction::Pressed);
 
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Pressed);
+
             break;
         }
         case WM_RBUTTONDOWN: {
 
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_RBUTTON, InputAction::Pressed);
+
+            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Pressed);
 
             break;
         }
@@ -173,12 +191,16 @@ namespace LinaGX
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_MBUTTON, InputAction::Pressed);
 
+            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Pressed);
+
             break;
         }
         case WM_LBUTTONUP: {
 
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_LBUTTON, InputAction::Released);
+
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Released);
 
             break;
         }
@@ -187,12 +209,17 @@ namespace LinaGX
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released);
 
+            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Released);
+
             break;
         }
         case WM_MBUTTONUP: {
 
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released);
+
+            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Released);
+
             break;
         }
         }
@@ -229,14 +256,15 @@ namespace LinaGX
 
         int adjustedWidth  = windowRect.right - windowRect.left;
         int adjustedHeight = windowRect.bottom - windowRect.top;
-        m_trueWidth        = adjustedWidth;
-        m_trueHeight       = adjustedHeight;
-        m_width            = width;
-        m_height           = height;
+        m_trueSize.x       = static_cast<uint32>(adjustedWidth);
+        m_trueSize.y       = static_cast<uint32>(adjustedHeight);
+        m_size.x           = static_cast<uint32>(width);
+        m_size.y           = static_cast<uint32>(height);
 
-        m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, NULL, NULL, m_hinst, NULL);
+        m_hwnd      = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, NULL, NULL, m_hinst, NULL);
+        m_isVisible = true;
+        m_title     = title;
         ShowWindow(m_hwnd, SW_SHOW);
-        m_title = title;
 
         if (m_hwnd == nullptr)
         {
@@ -265,48 +293,56 @@ namespace LinaGX
         return WS_OVERLAPPEDWINDOW;
     }
 
+    void Win32Window::OnDPIChanged(uint32 dpi)
+    {
+        m_dpi      = GetDpiForWindow(m_hwnd);
+        m_dpiScale = m_dpi / 96.0f;
+    }
+
     void Win32Window::SetStyle(WindowStyle style)
     {
         SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
     }
 
-    void Win32Window::GetMonitorWorkArea(uint32& width, uint32& height)
+    LGXVector2ui Win32Window::GetMonitorWorkArea()
     {
         HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitorInfo;
         monitorInfo.cbSize = sizeof(monitorInfo);
         GetMonitorInfo(hMonitor, &monitorInfo);
-        width  = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
-        height = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
+        LGXVector2ui ret;
+        ret.x = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
+        ret.y = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
+        return ret;
     }
 
-    void Win32Window::GetMonitorSize(uint32& width, uint32& height)
+    LGXVector2ui Win32Window::GetMonitorSize()
     {
         HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitorInfo;
         monitorInfo.cbSize = sizeof(monitorInfo);
         GetMonitorInfo(hMonitor, &monitorInfo);
-        width  = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
-        height = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
+        LGXVector2ui ret;
+        ret.x = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
+        ret.y = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
+        return ret;
     }
 
-    void Win32Window::SetPosition(uint32 x, uint32 y)
+    void Win32Window::SetPosition(const LGXVector2i& pos)
     {
-        m_posX = x;
-        m_posY = y;
-        SetWindowPos(m_hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+        m_position = pos;
+        SetWindowPos(m_hwnd, NULL, pos.x, pos.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     }
 
-    void Win32Window::SetSize(uint32 width, uint32 height)
+    void Win32Window::SetSize(const LGXVector2ui& size)
     {
-        m_width         = width;
-        m_height        = height;
-        RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+        m_size          = size;
+        RECT windowRect = {0, 0, static_cast<LONG>(m_size.x), static_cast<LONG>(m_size.y)};
         AdjustWindowRect(&windowRect, GetWindowLong(m_hwnd, GWL_STYLE), FALSE);
         int adjustedWidth  = windowRect.right - windowRect.left;
         int adjustedHeight = windowRect.bottom - windowRect.top;
-        m_trueWidth        = adjustedWidth;
-        m_trueHeight       = adjustedHeight;
+        m_trueSize.x       = static_cast<uint32>(adjustedWidth);
+        m_trueSize.y       = static_cast<uint32>(adjustedHeight);
         SetWindowPos(m_hwnd, NULL, 0, 0, adjustedWidth, adjustedHeight, SWP_NOMOVE | SWP_NOZORDER);
     }
 
@@ -320,8 +356,8 @@ namespace LinaGX
         int monitorWidth  = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
         int monitorHeight = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
 
-        int xPos = (monitorWidth - m_trueWidth) / 2;
-        int yPos = (monitorHeight - m_trueHeight) / 2;
+        int xPos = (monitorWidth - static_cast<int>(m_trueSize.x)) / 2;
+        int yPos = (monitorHeight - static_cast<int>(m_trueSize.y)) / 2;
 
         SetWindowPos(m_hwnd, NULL, xPos, yPos, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     }
@@ -338,6 +374,12 @@ namespace LinaGX
                      monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
                      SWP_NOZORDER | SWP_FRAMECHANGED);
         ShowWindow(m_hwnd, SW_MAXIMIZE);
+    }
+
+    void Win32Window::SetVisible(bool isVisible)
+    {
+        m_isVisible = isVisible;
+        ShowWindow(m_hwnd, m_isVisible ? SW_SHOW : SW_HIDE);
     }
 
 } // namespace LinaGX

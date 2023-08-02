@@ -252,11 +252,11 @@ namespace LinaGX::Examples
                     _camera.isPressed = action != InputAction::Released;
             });
 
-            _window->SetCallbackMouseMove([this](int32 x, int32 y) {
+            _window->SetCallbackMouseMove([this](const LGXVector2ui& pos) {
                 if (_camera.isPressed)
                 {
-                    int32 deltaX = static_cast<int32>(x) - static_cast<int32>(_camera.prevMouseX);
-                    int32 deltaY = static_cast<int32>(y) - static_cast<int32>(_camera.prevMouseY);
+                    int32 deltaX = static_cast<int32>(pos.x) - static_cast<int32>(_camera.prevMouseX);
+                    int32 deltaY = static_cast<int32>(pos.y) - static_cast<int32>(_camera.prevMouseY);
 
                     const float sensitivity = _camera.rotationSpeed * m_deltaSeconds; // Assuming this is already normalized
 
@@ -269,8 +269,8 @@ namespace LinaGX::Examples
                 }
 
                 // Store the current mouse position for the next frame
-                _camera.prevMouseX = x;
-                _camera.prevMouseY = y;
+                _camera.prevMouseX = pos.x;
+                _camera.prevMouseY = pos.y;
             });
 
             _window->SetCallbackMouseWheel([this](uint32 delta) {
@@ -367,8 +367,8 @@ namespace LinaGX::Examples
                 .depthFormat  = Format::D32_SFLOAT,
                 .x            = 0,
                 .y            = 0,
-                .width        = _window->GetWidth(),
-                .height       = _window->GetHeight(),
+                .width        = _window->GetSize().x,
+                .height       = _window->GetSize().y,
                 .window       = _window->GetWindowHandle(),
                 .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
@@ -380,8 +380,8 @@ namespace LinaGX::Examples
                 {
                     Texture2DDesc desc = {
                         .usage     = Texture2DUsage::ColorTextureRenderTarget,
-                        .width     = _window->GetWidth(),
-                        .height    = _window->GetHeight(),
+                        .width     = _window->GetSize().x,
+                        .height    = _window->GetSize().y,
                         .mipLevels = 1,
                         .format    = Format::R32G32B32A32_SFLOAT,
                         .debugName = "LinaGXRTTexture",
@@ -404,15 +404,14 @@ namespace LinaGX::Examples
             }
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
-            _window->SetCallbackSizeChanged([&](uint32 w, uint32 h) {
-                uint32 monitorW, monitorH = 0;
-                _window->GetMonitorSize(monitorW, monitorH);
+            _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
+                LGXVector2ui monitor = _window->GetMonitorSize();
 
                 SwapchainRecreateDesc resizeDesc = {
                     .swapchain    = _swapchain,
-                    .width        = w,
-                    .height       = h,
-                    .isFullscreen = w == monitorW && h == monitorH,
+                    .width        = newSize.x,
+                    .height       = newSize.y,
+                    .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
                 };
 
                 _renderer->RecreateSwapchain(resizeDesc);
@@ -977,6 +976,16 @@ namespace LinaGX::Examples
         App::Shutdown();
     }
 
+    LGXVector4 Lerp(const LGXVector4 start, const LGXVector4 end, float t)
+    {
+        LGXVector4 result;
+        result.x = start.x + (end.x - start.x) * t;
+        result.y = start.y + (end.y - start.y) * t;
+        result.z = start.z + (end.z - start.z) * t;
+        result.w = start.w + (end.w - start.w) * t;
+        return result;
+    }
+
     LGXVector4 InterpolateKeyframes(const ModelAnimationChannel& channel, float time)
     {
         // Find the two keyframes we need to interpolate between.
@@ -1034,7 +1043,7 @@ namespace LinaGX::Examples
             alpha = (time - channel.keyframeTimes[index1]) / (channel.keyframeTimes[index2] - channel.keyframeTimes[index1]);
         }
 
-        return LGXVector4::Lerp(value1, value2, alpha);
+        return Lerp(value1, value2, alpha);
     }
 
     void SampleAnimation(LinaGX::ModelSkin* skin, LinaGX::ModelAnimation* anim, float time)
@@ -1237,7 +1246,7 @@ namespace LinaGX::Examples
             glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -_camera.position);
             glm::mat4 viewMatrix        = rotationMatrix * translationMatrix;
 
-            const glm::mat4 projection   = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()), 0.1f, 1200.0f);
+            const glm::mat4 projection   = glm::perspective(DEG2RAD(90.0f), static_cast<float>(_window->GetSize().x) / static_cast<float>(_window->GetSize().y), 0.1f, 1200.0f);
             GPUSceneData    sceneData    = {};
             sceneData.viewProj           = projection * viewMatrix;
             sceneData.lights[0].position = glm::vec4(0.0f, 45.0f, 0.0f, 0.0f);
@@ -1246,8 +1255,8 @@ namespace LinaGX::Examples
             std::memcpy(currentFrame.uboMapping0, &sceneData, sizeof(GPUSceneData));
         }
 
-        Viewport     viewport = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight(), .minDepth = 0.0f, .maxDepth = 1.0f};
-        ScissorsRect sc       = {.x = 0, .y = 0, .width = _window->GetWidth(), .height = _window->GetHeight()};
+        Viewport     viewport = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+        ScissorsRect sc       = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
 
         // Render pass 1.
         {

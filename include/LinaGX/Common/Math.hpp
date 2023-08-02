@@ -67,11 +67,6 @@ namespace LinaGX
         {
             return {x - other.x, y - other.y, z - other.z};
         }
-
-        LGXVector3 Cross(const LGXVector3& other) const;
-        float      Dot(const LGXVector3& other) const;
-        void       Normalize();
-        LGXVector3 Normalized() const;
     };
 
     struct LGXVector2
@@ -79,16 +74,19 @@ namespace LinaGX
         float x = 0.0f, y = 0.0f;
     };
 
+    struct LGXVector2ui
+    {
+        uint32 x = 0, y = 0;
+    };
+
+    struct LGXVector2i
+    {
+        int32 x = 0, y = 0;
+    };
+
     struct LGXVector4
     {
         float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
-
-        static LGXVector4 Lerp(const LGXVector4& start, const LGXVector4& end, float t);
-
-        void       Normalize();
-        LGXVector4 Normalized() const;
-        LGXVector3 Quat2Euler();
-        LGXVector4 Euler2Quat(const LGXVector3& euler);
     };
 
     struct LGXVector4ui16
@@ -96,39 +94,10 @@ namespace LinaGX
         uint16 x = 0, y = 0, z = 0, w = 0;
     };
 
-    struct LGXMatrix4
+    struct LGXRectui
     {
-        float values[16] = {0.0f};
-
-        LGXMatrix4 operator*(const LGXMatrix4& other) const
-        {
-            LGXMatrix4 result;
-            for (int row = 0; row < 4; ++row)
-            {
-                for (int col = 0; col < 4; ++col)
-                {
-                    result.values[row * 4 + col] = 0.0f;
-                    for (int k = 0; k < 4; ++k)
-                    {
-                        result.values[row * 4 + col] += this->values[row * 4 + k] * other.values[k * 4 + col];
-                    }
-                }
-            }
-            return result;
-        }
-
-        static LGXMatrix4 Identity();
-        static LGXMatrix4 Translate(const LGXMatrix4& in, const LGXVector3& translation);
-        static LGXMatrix4 Rotate(const LGXMatrix4& in, const LGXVector4& rotation);
-        static LGXMatrix4 Scale(const LGXMatrix4& in, const LGXVector3& scale);
-
-        LGXMatrix4 Transpose() const;
-        float      Cofactor(int row, int col) const;
-        LGXMatrix4 Inverse() const;
-        LGXMatrix4 QuaternionToLGXMatrix4(const LGXVector4& q) const;
-        void       InitTranslationRotationScale(const LGXVector3& translation, const LGXVector4& quaternionRotation, const LGXVector3& scale);
-        void       InitLookAtRH(const LGXVector3& eye, const LGXVector3& center, const LGXVector3& up);
-        void       InitPerspectiveRH(float halfFov, float aspect, float nearZ, float farZ);
+        LGXVector2ui pos;
+        LGXVector2ui size;
     };
 } // namespace LinaGX
 

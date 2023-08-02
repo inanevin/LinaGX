@@ -32,6 +32,7 @@ SOFTWARE.
 #define LINAGX_COMMON_HPP
 
 #include "CommonData.hpp"
+#include "Math.hpp"
 
 namespace LinaGX
 {
@@ -679,11 +680,12 @@ namespace LinaGX
     _ASSERT(condition);
 
     typedef std::function<void()>                            CallbackNoArg;
-    typedef std::function<void(uint32, uint32)>              CallbackUint2;
-    typedef std::function<void(int32, int32)>                CallbackInt2;
+    typedef std::function<void(const LGXVector2i&)>          CallbackPosChanged;
+    typedef std::function<void(const LGXVector2ui&)>         CallbackMouseMove;
+    typedef std::function<void(const LGXVector2ui&)>         CallbackSizeChanged;
     typedef std::function<void(uint32, uint32, InputAction)> CallbackKey;
     typedef std::function<void(uint32, InputAction)>         CallbackMouse;
-    typedef std::function<void(uint32)>                      CallbackMouseWheel;
+    typedef std::function<void(int32)>                       CallbackMouseWheel;
 
 } // namespace LinaGX
 

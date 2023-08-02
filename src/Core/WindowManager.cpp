@@ -42,7 +42,7 @@ namespace LinaGX
     {
         auto it = m_windows.find(stringID);
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same StringID already exists! %d", stringID);
-        Window* win = new Window();
+        Window* win = new Window(&m_input);
 
         if (!win->Create(stringID, title, x, y, width, height, style))
         {
@@ -65,6 +65,8 @@ namespace LinaGX
 
     void WindowManager::PollWindow()
     {
+        m_input.PreTick();
+
 #ifdef LINAGX_PLATFORM_WINDOWS
         MSG msg    = {0};
         msg.wParam = 0;
@@ -76,6 +78,8 @@ namespace LinaGX
 #else
 
 #endif
+
+        m_input.Tick();
     }
 
     void WindowManager::Initialize()
