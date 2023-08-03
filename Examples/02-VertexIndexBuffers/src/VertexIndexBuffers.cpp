@@ -38,7 +38,7 @@ namespace LinaGX::Examples
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
 
-    LinaGX::Renderer* _renderer  = nullptr;
+    LinaGX::Instance* _lgx  = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
 
@@ -95,13 +95,13 @@ namespace LinaGX::Examples
                 .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
             };
 
-            _renderer = new LinaGX::Renderer();
-            _renderer->Initialize(initInfo);
+            _lgx = new LinaGX::Instance();
+            _lgx->Initialize(initInfo);
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Vertex Index Buffers", 0, 0, 800, 600, WindowStyle::Windowed);
+            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Vertex Index Buffers", 0, 0, 800, 600, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -114,7 +114,7 @@ namespace LinaGX::Examples
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
             LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
-            _renderer->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
+            _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
@@ -129,7 +129,7 @@ namespace LinaGX::Examples
                 .topology              = Topology::TriangleList,
                 .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
-            _shaderProgram = _renderer->CreateShader(shaderDesc);
+            _shaderProgram = _lgx->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
             for (auto& [stg, blob] : outCompiledBlobs)
@@ -139,7 +139,7 @@ namespace LinaGX::Examples
         //*******************  MISC
         {
             // Create a swapchain for main window.
-            _swapchain = _renderer->CreateSwapchain({
+            _swapchain = _lgx->CreateSwapchain({
                 .format       = Format::B8G8R8A8_UNORM,
                 .x            = 0,
                 .y            = 0,
@@ -160,15 +160,15 @@ namespace LinaGX::Examples
                     .height       = newSize.y,
                     .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
                 };
-                _renderer->RecreateSwapchain(resizeDesc);
+                _lgx->RecreateSwapchain(resizeDesc);
             });
 
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                _pfd[i].stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
+                _pfd[i].stream = _lgx->CreateCommandStream(10, QueueType::Graphics);
 
-            _copyStream    = _renderer->CreateCommandStream(10, QueueType::Transfer);
-            _copySemaphore = _renderer->CreateUserSemaphore();
+            _copyStream    = _lgx->CreateCommandStream(10, QueueType::Transfer);
+            _copySemaphore = _lgx->CreateUserSemaphore();
         }
 
         //*******************  VERTEX BUFFER CREATION
@@ -192,27 +192,27 @@ namespace LinaGX::Examples
             };
 
             // We create 2 buffers, one CPU visible & mapped, one GPU visible for transfer operations.
-            _vertexBufferStaging = _renderer->CreateResource(bufferDesc);
+            _vertexBufferStaging = _lgx->CreateResource(bufferDesc);
             bufferDesc.heapType  = ResourceHeap::GPUOnly;
-            _vertexBufferGPU     = _renderer->CreateResource(bufferDesc);
+            _vertexBufferGPU     = _lgx->CreateResource(bufferDesc);
 
             // Same for index buffers.
             bufferDesc.typeHintFlags = TH_IndexBuffer;
             bufferDesc.heapType      = ResourceHeap::StagingHeap;
-            _indexBufferStaging      = _renderer->CreateResource(bufferDesc);
+            _indexBufferStaging      = _lgx->CreateResource(bufferDesc);
             bufferDesc.heapType      = ResourceHeap::GPUOnly;
-            _indexBufferGPU          = _renderer->CreateResource(bufferDesc);
+            _indexBufferGPU          = _lgx->CreateResource(bufferDesc);
 
             // Map & fill data into the staging buffer.
             uint8* vtxData = nullptr;
-            _renderer->MapResource(_vertexBufferStaging, vtxData);
+            _lgx->MapResource(_vertexBufferStaging, vtxData);
             std::memcpy(vtxData, vertexBuffer.data(), sizeof(Vertex) * vertexBuffer.size());
-            _renderer->UnmapResource(_vertexBufferStaging);
+            _lgx->UnmapResource(_vertexBufferStaging);
 
             uint8* indexData = nullptr;
-            _renderer->MapResource(_indexBufferStaging, indexData);
+            _lgx->MapResource(_indexBufferStaging, indexData);
             std::memcpy(indexData, indexBuffer.data(), sizeof(uint32) * indexBuffer.size());
-            _renderer->UnmapResource(_indexBufferStaging);
+            _lgx->UnmapResource(_indexBufferStaging);
         }
 
         // Complete transfer operations before beginning the main loop
@@ -226,52 +226,52 @@ namespace LinaGX::Examples
             copyIndexBuf->source          = _indexBufferStaging;
             copyIndexBuf->destination     = _indexBufferGPU;
 
-            _renderer->CloseCommandStreams(&_copyStream, 1);
+            _lgx->CloseCommandStreams(&_copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
-            _renderer->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
-            _renderer->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
+            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
+            _lgx->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
 
             // Not needed anymore.
-            _renderer->DestroyResource(_vertexBufferStaging);
-            _renderer->DestroyResource(_indexBufferStaging);
+            _lgx->DestroyResource(_vertexBufferStaging);
+            _lgx->DestroyResource(_indexBufferStaging);
         }
     }
 
     void Example::Shutdown()
     {
         // First get rid of the window.
-        _renderer->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
+        _lgx->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
 
         // Wait for queues to finish
-        _renderer->Join();
+        _lgx->Join();
 
         // Get rid of resources
-        _renderer->DestroyUserSemaphore(_copySemaphore);
-        _renderer->DestroyResource(_vertexBufferGPU);
-        _renderer->DestroyResource(_indexBufferGPU);
-        _renderer->DestroySwapchain(_swapchain);
-        _renderer->DestroyShader(_shaderProgram);
+        _lgx->DestroyUserSemaphore(_copySemaphore);
+        _lgx->DestroyResource(_vertexBufferGPU);
+        _lgx->DestroyResource(_indexBufferGPU);
+        _lgx->DestroySwapchain(_swapchain);
+        _lgx->DestroyShader(_shaderProgram);
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-            _renderer->DestroyCommandStream(_pfd[i].stream);
+            _lgx->DestroyCommandStream(_pfd[i].stream);
 
-        _renderer->DestroyCommandStream(_copyStream);
+        _lgx->DestroyCommandStream(_copyStream);
 
         // Terminate renderer & shutdown app.
-        delete _renderer;
+        delete _lgx;
         App::Shutdown();
     }
 
     void Example::OnTick()
     {
         // Check for window inputs.
-        _renderer->PollWindow();
+        _lgx->PollWindow();
 
         // Let LinaGX know we are starting a new frame.
-        _renderer->StartFrame();
+        _lgx->StartFrame();
 
-        auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
+        auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
 
         // Render pass begin
         {
@@ -326,16 +326,16 @@ namespace LinaGX::Examples
         }
 
         // This does the actual *recording* of every single command stream alive.
-        _renderer->CloseCommandStreams(&currentFrame.stream, 1);
+        _lgx->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _renderer->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
+        _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
 
         // Present main swapchain.
-        _renderer->Present({.swapchain = _swapchain});
+        _lgx->Present({.swapchain = _swapchain});
 
         // Let LinaGX know we are finalizing this frame.
-        _renderer->EndFrame();
+        _lgx->EndFrame();
     }
 
 } // namespace LinaGX::Examples

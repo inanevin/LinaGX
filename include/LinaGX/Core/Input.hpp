@@ -176,8 +176,45 @@ namespace LinaGX
             return m_cursorMode;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="cb"></param>
+        inline void SetCallbackKey(CallbackKey&& cb)
+        {
+            m_cbKey = cb;
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="cb"></param>
+        inline void SetCallbackMouse(CallbackMouse&& cb)
+        {
+            m_cbMouse = cb;
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="cb"></param>
+        inline void SetCallbackMouseWheel(CallbackMouseWheel&& cb)
+        {
+            m_cbMouseWheel = cb;
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="cb"></param>
+        inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
+        {
+            m_cbMouseMove = cb;
+        }
+
     private:
         friend class WindowManager;
+        friend class Instance;
 
         Input()  = default;
         ~Input() = default;
@@ -192,25 +229,30 @@ namespace LinaGX
         void Tick();
         void WindowFeedKey(uint32 key, uint32 scanCode, InputAction action);
         void WindowFeedMouseButton(uint32 button, InputAction action);
-        void WindowFeedMousePosition(uint32 x, uint32 y);
+        void WindowFeedMousePosition(const LGXVector2ui& pos);
         void WindowFeedActivateApp(bool activate);
         void WindowFeedMouseWheel(int32 delta);
 
     private:
-        int         m_keyStatesDown[NUM_KEY_STATES];
-        int         m_keyStatesUp[NUM_KEY_STATES]       = {0};
-        int         m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
-        int         m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
-        bool        m_appActive                         = true;
-        CursorMode  m_cursorMode                        = CursorMode::Visible;
+        int          m_keyStatesDown[NUM_KEY_STATES];
+        int          m_keyStatesUp[NUM_KEY_STATES]       = {0};
+        int          m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
+        int          m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
+        bool         m_appActive                         = true;
+        CursorMode   m_cursorMode                        = CursorMode::Visible;
         LGXVector2ui m_currentMousePositionAbs           = {0, 0};
         LGXVector2ui m_previousMousePosition             = {0, 0};
         LGXVector2ui m_mouseDelta                        = {0, 0};
         LGXVector2ui m_mouseDeltaRaw                     = {0, 0};
-        int32       m_mouseScroll                       = 0;
-        bool        m_currentStates[256]                = {0};
-        bool        m_previousStates[256]               = {0};
+        int32        m_mouseScroll                       = 0;
+        bool         m_currentStates[256]                = {0};
+        bool         m_previousStates[256]               = {0};
         LGXVector2ui m_mousePosTrackingClick             = {};
+
+        CallbackKey        m_cbKey        = nullptr;
+        CallbackMouse      m_cbMouse      = nullptr;
+        CallbackMouseWheel m_cbMouseWheel = nullptr;
+        CallbackMouseMove  m_cbMouseMove  = nullptr;
     };
 } // namespace LinaGX
 

@@ -276,11 +276,14 @@ namespace LinaGX
 
     void Input::WindowFeedKey(uint32 key, uint32 scanCode, InputAction action)
     {
+        if (m_cbKey)
+            m_cbKey(key, scanCode, action);
     }
 
     void Input::WindowFeedMouseButton(uint32 button, InputAction action)
     {
-       
+        if (m_cbMouse)
+            m_cbMouse(button, action);
     }
 
     void Input::WindowFeedActivateApp(bool activate)
@@ -291,9 +294,14 @@ namespace LinaGX
     void Input::WindowFeedMouseWheel(int32 delta)
     {
         m_mouseScroll = delta;
+
+        if(m_cbMouseWheel)
+            m_cbMouseWheel(delta);
     }
 
-    void Input::WindowFeedMousePosition(uint32 x, uint32 y)
+    void Input::WindowFeedMousePosition(const LGXVector2ui& pos)
     {
+        if(m_cbMouseMove)
+            m_cbMouseMove(pos);
     }
 } // namespace LinaGX

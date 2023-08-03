@@ -32,7 +32,6 @@ SOFTWARE.
 #define LINAGX_WINDOW_MANAGER_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
-#include "LinaGX/Core/Input.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
@@ -44,7 +43,7 @@ typedef LinaGX::MacOSWindow Window;
 
 namespace LinaGX
 {
-    class Renderer;
+    class Instance;
 
     class WindowManager
     {
@@ -59,13 +58,18 @@ namespace LinaGX
         }
 
     private:
-        friend class Renderer;
+        friend class Instance;
+
+        WindowManager(Input* inp)
+            : m_input(inp){};
+        ~WindowManager() = default;
+
         void Initialize();
         void Shutdown();
 
     private:
         LINAGX_MAP<StringID, Window*> m_windows;
-        Input                         m_input;
+        Input*                        m_input = nullptr;
     };
 } // namespace LinaGX
 

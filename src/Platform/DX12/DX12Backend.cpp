@@ -34,7 +34,7 @@ SOFTWARE.
 #include "LinaGX/Platform/DX12/DX12HeapStaging.hpp"
 #include "LinaGX/Utility/PlatformUtility.hpp"
 #include "LinaGX/Core/Commands.hpp"
-#include "LinaGX/Core/Renderer.hpp"
+#include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
 #include <nvapi/nvapi.h>
 

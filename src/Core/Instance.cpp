@@ -28,7 +28,7 @@ SOFTWARE.
 
 #pragma once
 
-#include "LinaGX/Core/Renderer.hpp"
+#include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Utility/SPIRVUtility.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
@@ -36,12 +36,12 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Renderer::~Renderer()
+    Instance::~Instance()
     {
         Shutdown();
     }
 
-    bool Renderer::Initialize(const InitInfo& info)
+    bool Instance::Initialize(const InitInfo& info)
     {
 #ifdef LINAGX_PLATFORM_APPLE
 
@@ -57,17 +57,17 @@ namespace LinaGX
 
         if (m_backend == nullptr)
         {
-            LOGE("Renderer -> Failed creating backend!");
+            LOGE("Instance -> Failed creating backend!");
             return false;
         }
 
         if (!m_backend->Initialize(info))
         {
-            LOGE("Renderer -> Failed initializing backend!");
+            LOGE("Instance -> Failed initializing backend!");
             return false;
         }
 
-        LOGT("Renderer -> Successfuly initialized.");
+        LOGT("Instance -> Successfuly initialized.");
 
         m_initInfo = info;
         m_windowManager.Initialize();
@@ -75,12 +75,12 @@ namespace LinaGX
         return true;
     }
 
-    void Renderer::Join()
+    void Instance::Join()
     {
         m_backend->Join();
     }
 
-    void Renderer::Shutdown()
+    void Instance::Shutdown()
     {
         m_backend->Join();
         m_windowManager.Shutdown();
@@ -88,17 +88,17 @@ namespace LinaGX
         m_backend->Shutdown();
     }
 
-    void Renderer::StartFrame()
+    void Instance::StartFrame()
     {
         m_backend->StartFrame(m_currentFrameIndex);
     }
 
-    void Renderer::CloseCommandStreams(CommandStream** streams, uint32 streamCount)
+    void Instance::CloseCommandStreams(CommandStream** streams, uint32 streamCount)
     {
         m_backend->CloseCommandStreams(streams, streamCount);
     }
 
-    void Renderer::SubmitCommandStreams(const SubmitDesc& desc)
+    void Instance::SubmitCommandStreams(const SubmitDesc& desc)
     {
         m_backend->SubmitCommandStreams(desc);
 
@@ -106,49 +106,49 @@ namespace LinaGX
             desc.streams[i]->Reset();
     }
 
-    void Renderer::EndFrame()
+    void Instance::EndFrame()
     {
         m_backend->EndFrame();
         m_currentFrameIndex = (m_currentFrameIndex + 1) % m_initInfo.framesInFlight;
         PerformanceStats.totalFrames++;
     }
 
-    void Renderer::Present(const PresentDesc& present)
+    void Instance::Present(const PresentDesc& present)
     {
         m_backend->Present(present);
     }
 
-    uint16 Renderer::CreateUserSemaphore()
+    uint16 Instance::CreateUserSemaphore()
     {
         return m_backend->CreateUserSemaphore();
     }
 
-    void Renderer::DestroyUserSemaphore(uint16 handle)
+    void Instance::DestroyUserSemaphore(uint16 handle)
     {
         m_backend->DestroyUserSemaphore(handle);
     }
 
-    void Renderer::WaitForUserSemaphore(uint16 handle, uint64 value)
+    void Instance::WaitForUserSemaphore(uint16 handle, uint64 value)
     {
         m_backend->WaitForUserSemaphore(handle, value);
     }
 
-    uint8 Renderer::CreateSwapchain(const SwapchainDesc& desc)
+    uint8 Instance::CreateSwapchain(const SwapchainDesc& desc)
     {
         return m_backend->CreateSwapchain(desc);
     }
 
-    void Renderer::DestroySwapchain(uint8 handle)
+    void Instance::DestroySwapchain(uint8 handle)
     {
         m_backend->DestroySwapchain(handle);
     }
 
-    void Renderer::RecreateSwapchain(const SwapchainRecreateDesc& desc)
+    void Instance::RecreateSwapchain(const SwapchainRecreateDesc& desc)
     {
         m_backend->RecreateSwapchain(desc);
     }
 
-    // bool Renderer::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
+    // bool Instance::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
     // {
     //     DataBlob spv = {};
     //     if (!SPIRVUtility::GLSL2SPV(stage, text, includePath, spv, outLayout))
@@ -190,7 +190,7 @@ namespace LinaGX
     //     return false;
     // }
 
-    bool Renderer::CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout)
+    bool Instance::CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout)
     {
         for (const auto& [stage, data] : compileData)
         {
@@ -290,84 +290,84 @@ namespace LinaGX
         return true;
     }
 
-    uint16 Renderer::CreateShader(const ShaderDesc& shaderDesc)
+    uint16 Instance::CreateShader(const ShaderDesc& shaderDesc)
     {
         return m_backend->CreateShader(shaderDesc);
     }
 
-    void Renderer::DestroyShader(uint16 handle)
+    void Instance::DestroyShader(uint16 handle)
     {
         m_backend->DestroyShader(handle);
     }
 
-    CommandStream* Renderer::CreateCommandStream(uint32 commandCount, QueueType type)
+    CommandStream* Instance::CreateCommandStream(uint32 commandCount, QueueType type)
     {
         CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type));
         m_commandStreams.push_back(stream);
         return stream;
     }
 
-    void Renderer::DestroyCommandStream(CommandStream* stream)
+    void Instance::DestroyCommandStream(CommandStream* stream)
     {
         delete stream;
     }
 
-    uint32 Renderer::CreateTexture2D(const Texture2DDesc& desc)
+    uint32 Instance::CreateTexture2D(const Texture2DDesc& desc)
     {
         return m_backend->CreateTexture2D(desc);
     }
 
-    void Renderer::DestroyTexture2D(uint32 handle)
+    void Instance::DestroyTexture2D(uint32 handle)
     {
         m_backend->DestroyTexture2D(handle);
     }
 
-    uint32 Renderer::CreateSampler(const SamplerDesc& desc)
+    uint32 Instance::CreateSampler(const SamplerDesc& desc)
     {
         return m_backend->CreateSampler(desc);
     }
 
-    void Renderer::DestroySampler(uint32 handle)
+    void Instance::DestroySampler(uint32 handle)
     {
         m_backend->DestroySampler(handle);
     }
 
-    uint32 Renderer::CreateResource(const ResourceDesc& desc)
+    uint32 Instance::CreateResource(const ResourceDesc& desc)
     {
         return m_backend->CreateResource(desc);
     }
 
-    void Renderer::DestroyResource(uint32 handle)
+    void Instance::DestroyResource(uint32 handle)
     {
         m_backend->DestroyResource(handle);
     }
 
-    void Renderer::MapResource(uint32 resource, uint8*& ptr)
+    void Instance::MapResource(uint32 resource, uint8*& ptr)
     {
         m_backend->MapResource(resource, ptr);
     }
 
-    void Renderer::UnmapResource(uint32 resource)
+    void Instance::UnmapResource(uint32 resource)
     {
         m_backend->UnmapResource(resource);
     }
 
-    uint16 Renderer::CreateDescriptorSet(const DescriptorSetDesc& desc)
+    uint16 Instance::CreateDescriptorSet(const DescriptorSetDesc& desc)
     {
         return m_backend->CreateDescriptorSet(desc);
     }
 
-    void Renderer::DestroyDescriptorSet(uint16 handle)
+    void Instance::DestroyDescriptorSet(uint16 handle)
     {
         m_backend->DestroyDescriptorSet(handle);
     }
 
-    void Renderer::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
+    void Instance::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
         m_backend->DescriptorUpdateBuffer(desc);
     }
 
-    void Renderer::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
+    void Instance::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
         m_backend->DescriptorUpdateImage(desc);
     }

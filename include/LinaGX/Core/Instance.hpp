@@ -28,22 +28,24 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_Renderer_HPP
-#define LINAGX_Renderer_HPP
+#ifndef LINAGX_lgx_HPP
+#define LINAGX_lgx_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "WindowManager.hpp"
+#include "Input.hpp"
 
 namespace LinaGX
 {
     class Backend;
     class CommandStream;
 
-    class Renderer
+    class Instance
     {
     public:
-        Renderer(){};
-        virtual ~Renderer();
+        Instance()
+            : m_windowManager(&m_input){};
+        virtual ~Instance();
 
         /// <summary>
         ///
@@ -252,6 +254,11 @@ namespace LinaGX
             return m_windowManager;
         }
 
+        inline Input& GetInput()
+        {
+            return m_input;
+        }
+
     private:
         /// <summary>
         ///
@@ -267,6 +274,7 @@ namespace LinaGX
         InitInfo      m_initInfo = {};
         Backend*      m_backend  = nullptr;
         WindowManager m_windowManager;
+        Input         m_input;
         uint32        m_currentFrameIndex = 0;
 
         LINAGX_VEC<CommandStream*> m_commandStreams;

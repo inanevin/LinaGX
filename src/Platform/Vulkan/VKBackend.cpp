@@ -31,7 +31,7 @@ SOFTWARE.
 #include "LinaGX/Platform/Vulkan/VKBackend.hpp"
 #include "LinaGX/Platform/Vulkan/SDK/VkBootstrap.h"
 #include "LinaGX/Core/Commands.hpp"
-#include "LinaGX/Core/Renderer.hpp"
+#include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
 
 #define VMA_IMPLEMENTATION
@@ -2196,7 +2196,7 @@ namespace LinaGX
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             {
-                LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
+                LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Instance->RecreateSwapchain after a window resize?");
             }
 
             i++;
@@ -2248,7 +2248,7 @@ namespace LinaGX
         // Check for swapchain recreation.
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
-            LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Renderer->RecreateSwapchain after a window resize?");
+            LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Instance->RecreateSwapchain after a window resize?");
         }
     }
 

@@ -35,14 +35,14 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    class Renderer;
+    class Instance;
     class CommandStream;
 
     class Backend
     {
     public:
-        Backend(Renderer* renderer)
-            : m_renderer(renderer){};
+        Backend(Instance* renderer)
+            : m_lgx(renderer){};
         virtual ~Backend(){};
 
         virtual bool Initialize(const InitInfo& initInfo) = 0;
@@ -78,10 +78,10 @@ namespace LinaGX
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc)                                     = 0;
 
-        static Backend* CreateBackend(BackendAPI api, Renderer* renderer);
+        static Backend* CreateBackend(BackendAPI api, Instance* renderer);
 
     protected:
-        Renderer* m_renderer = nullptr;
+        Instance* m_lgx = nullptr;
     };
 } // namespace LinaGX
 

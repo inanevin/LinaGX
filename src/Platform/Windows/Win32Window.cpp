@@ -150,8 +150,8 @@ namespace LinaGX
             uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
             uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
 
-            win32Window->m_input->WindowFeedMousePosition(xPos, yPos);
             win32Window->m_mousePosition = {xPos, yPos};
+            win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
 
             if (win32Window->m_cbMouseMove)
                 win32Window->m_cbMouseMove(win32Window->m_mousePosition);
@@ -304,6 +304,35 @@ namespace LinaGX
         SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
     }
 
+    void Win32Window::SetCursorType(CursorType type)
+    {
+        m_cursorType = type;
+
+        HCURSOR cursor = NULL;
+
+        switch (m_cursorType)
+        {
+        case CursorType::None:
+        case CursorType::Default:
+            cursor = LoadCursor(NULL, IDC_ARROW);
+            break;
+        case CursorType::SizeHorizontal:
+            cursor = LoadCursor(NULL, IDC_SIZEWE);
+            break;
+        case CursorType::SizeVertical:
+            cursor = LoadCursor(NULL, IDC_SIZENS);
+            break;
+        case CursorType::Caret:
+            cursor = LoadCursor(NULL, IDC_IBEAM);
+            break;
+        default:
+            break;
+        }
+
+        if (cursor != NULL)
+            SetCursor(cursor);
+    }
+
     LGXVector2ui Win32Window::GetMonitorWorkArea()
     {
         HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
@@ -380,6 +409,24 @@ namespace LinaGX
     {
         m_isVisible = isVisible;
         ShowWindow(m_hwnd, m_isVisible ? SW_SHOW : SW_HIDE);
+    }
+
+    MonitorInfo Win32Window::GetMonitorInfoFromWindow()
+    {
+        MonitorInfo info;
+
+        HMONITOR      monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
+        MONITORINFOEX monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(monitor, &monitorInfo);
+
+        info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
+        info.workArea      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
+        info.workTopLeft   = {static_cast<uint32>(monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.top)};
+        info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+        info.monitorHandle = static_cast<void*>(monitor);
+
+        return info;
     }
 
 } // namespace LinaGX

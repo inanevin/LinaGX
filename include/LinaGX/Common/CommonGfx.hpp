@@ -655,6 +655,17 @@ namespace LinaGX
         GPUFeatures        gpuFeatures     = {};
         LINAGX_VEC<Format> checkForFormatSupport;
     };
+    
+    struct MonitorInfo
+    {
+        void*        monitorHandle = nullptr;
+        bool         isPrimary     = false;
+        float        m_dpiScale    = 0.0f;
+        LGXVector2ui size          = {};
+        LGXVector2ui workArea      = {};
+        LGXVector2ui workTopLeft   = {};
+        uint32       m_dpi         = 0;
+    };
 
     extern LINAGX_API Configuration         Config;
     extern LINAGX_API GPUInformation        GPUInfo;

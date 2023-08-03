@@ -139,7 +139,7 @@ namespace LinaGX
         typedef void (VKBackend::*CommandFunction)(uint8*, VKBCommandStream& stream);
 
     public:
-        VKBackend(Renderer* renderer)
+        VKBackend(Instance* renderer)
             : Backend(renderer){};
         virtual ~VKBackend(){};
 

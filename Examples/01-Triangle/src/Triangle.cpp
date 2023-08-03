@@ -38,7 +38,7 @@ namespace LinaGX::Examples
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
 
-    LinaGX::Renderer* _renderer  = nullptr;
+    LinaGX::Instance* _lgx  = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
 
@@ -82,13 +82,13 @@ namespace LinaGX::Examples
                 .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
             };
 
-            _renderer = new LinaGX::Renderer();
-            _renderer->Initialize(initInfo);
+            _lgx = new LinaGX::Instance();
+            _lgx->Initialize(initInfo);
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Triangle", 0, 0, 800, 600, WindowStyle::Windowed);
+            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Triangle", 0, 0, 800, 600, WindowStyle::Windowed);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
 
@@ -101,7 +101,7 @@ namespace LinaGX::Examples
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
             LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
-            _renderer->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
+            _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
@@ -116,7 +116,7 @@ namespace LinaGX::Examples
                 .topology              = Topology::TriangleList,
                 .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
-            _shaderProgram = _renderer->CreateShader(shaderDesc);
+            _shaderProgram = _lgx->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
             for (auto& [stg, blob] : outCompiledBlobs)
@@ -126,7 +126,7 @@ namespace LinaGX::Examples
         //*******************  MISC
         {
             // Create a swapchain for main window.
-            _swapchain = _renderer->CreateSwapchain({
+            _swapchain = _lgx->CreateSwapchain({
                 .format       = Format::B8G8R8A8_UNORM,
                 .x            = 0,
                 .y            = 0,
@@ -147,44 +147,44 @@ namespace LinaGX::Examples
                     .height       = newSize.y,
                     .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
                 };
-                _renderer->RecreateSwapchain(resizeDesc);
+                _lgx->RecreateSwapchain(resizeDesc);
             });
 
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                _pfd[i].stream = _renderer->CreateCommandStream(10, QueueType::Graphics);
+                _pfd[i].stream = _lgx->CreateCommandStream(10, QueueType::Graphics);
         }
     } // namespace LinaGX::Examples
 
     void Example::Shutdown()
     {
         // First get rid of the window.
-        _renderer->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
+        _lgx->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
 
         // Wait for queues to finish
-        _renderer->Join();
+        _lgx->Join();
 
         // Get rid of resources
-        _renderer->DestroySwapchain(_swapchain);
-        _renderer->DestroyShader(_shaderProgram);
+        _lgx->DestroySwapchain(_swapchain);
+        _lgx->DestroyShader(_shaderProgram);
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-            _renderer->DestroyCommandStream(_pfd[i].stream);
+            _lgx->DestroyCommandStream(_pfd[i].stream);
 
         // Terminate renderer & shutdown app.
-        delete _renderer;
+        delete _lgx;
         App::Shutdown();
     }
 
     void Example::OnTick()
     {
         // Check for window inputs.
-        _renderer->PollWindow();
+        _lgx->PollWindow();
 
         // Let LinaGX know we are starting a new frame.
-        _renderer->StartFrame();
+        _lgx->StartFrame();
 
-        auto& currentFrame = _pfd[_renderer->GetCurrentFrameIndex()];
+        auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
 
         // Render pass begin
         {
@@ -224,16 +224,16 @@ namespace LinaGX::Examples
         }
 
         // This does the actual *recording* of every single command stream alive.
-        _renderer->CloseCommandStreams(&currentFrame.stream, 1);
+        _lgx->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _renderer->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
+        _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
 
         // Present main swapchain.
-        _renderer->Present({.swapchain = _swapchain});
+        _lgx->Present({.swapchain = _swapchain});
 
         // Let LinaGX know we are finalizing this frame.
-        _renderer->EndFrame();
+        _lgx->EndFrame();
     }
 
 } // namespace LinaGX::Examples

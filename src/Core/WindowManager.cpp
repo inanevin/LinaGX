@@ -29,6 +29,7 @@ SOFTWARE.
 #pragma once
 
 #include "LinaGX/Core/WindowManager.hpp"
+#include "LinaGX/Core/Input.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>
@@ -42,7 +43,7 @@ namespace LinaGX
     {
         auto it = m_windows.find(stringID);
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same StringID already exists! %d", stringID);
-        Window* win = new Window(&m_input);
+        Window* win = new Window(m_input);
 
         if (!win->Create(stringID, title, x, y, width, height, style))
         {
@@ -65,12 +66,12 @@ namespace LinaGX
 
     void WindowManager::PollWindow()
     {
-        m_input.PreTick();
+        m_input->PreTick();
 
 #ifdef LINAGX_PLATFORM_WINDOWS
         MSG msg    = {0};
         msg.wParam = 0;
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -78,8 +79,7 @@ namespace LinaGX
 #else
 
 #endif
-
-        m_input.Tick();
+        m_input->Tick();
     }
 
     void WindowManager::Initialize()

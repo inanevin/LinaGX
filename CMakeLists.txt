@@ -44,7 +44,7 @@ include/LinaGX/Common/Math.hpp
 include/LinaGX/Core/Backend.hpp
 include/LinaGX/Core/Input.hpp
 include/LinaGX/Core/InputMappings.hpp
-include/LinaGX/Core/Renderer.hpp
+include/LinaGX/Core/Instance.hpp
 include/LinaGX/Core/CommandStream.hpp
 include/LinaGX/Core/Commands.hpp
 include/LinaGX/Core/WindowManager.hpp
@@ -65,7 +65,7 @@ src/Common/CommonData.cpp
 src/Common/Math.cpp
 src/Core/Backend.cpp
 src/Core/Input.cpp
-src/Core/Renderer.cpp
+src/Core/Instance.cpp
 src/Core/CommandStream.cpp
 src/Core/WindowManager.cpp
 src/Utility/SPIRVUtility.cpp

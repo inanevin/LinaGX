@@ -176,7 +176,7 @@ namespace LinaGX
         typedef void (DX12Backend::*CommandFunction)(uint8*, DX12CommandStream& stream);
 
     public:
-        DX12Backend(Renderer* renderer)
+        DX12Backend(Instance* renderer)
             : Backend(renderer){};
         virtual ~DX12Backend(){};
 

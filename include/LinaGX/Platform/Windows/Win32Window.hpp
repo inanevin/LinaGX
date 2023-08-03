@@ -57,6 +57,12 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
+        /// <param name="type"></param>
+        void SetCursorType(CursorType type);
+
+        /// <summary>
+        ///
+        /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
         LGXVector2ui GetMonitorWorkArea();
@@ -97,6 +103,12 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         void SetVisible(bool isVisible);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        MonitorInfo GetMonitorInfoFromWindow();
 
         inline void* GetWindowHandle()
         {
@@ -185,6 +197,7 @@ namespace LinaGX
         uint32        m_dpi           = 0;
         float         m_dpiScale      = 0.0f;
         bool          m_isVisible     = true;
+        CursorType    m_cursorType    = CursorType::Default;
         /* Window Interface */
 
         HWND__*      m_hwnd  = nullptr;

@@ -41,7 +41,7 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend(BackendAPI api, Renderer* renderer)
+    Backend* LinaGX::Backend::CreateBackend(BackendAPI api, Instance* renderer)
     {
         switch (api)
         {

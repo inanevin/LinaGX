@@ -55,7 +55,7 @@ use to index into another buffer for per-draw-call parameters.
 #ifndef LinaGX_HPP
 #define LinaGX_HPP
 
-#include "Core/Renderer.hpp"
+#include "Core/Instance.hpp"
 #include "Core/CommandStream.hpp"
 #include "Core/Commands.hpp"
 #include "Common/Math.hpp"

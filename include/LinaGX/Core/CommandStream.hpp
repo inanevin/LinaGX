@@ -36,7 +36,7 @@ SOFTWARE.
 namespace LinaGX
 {
     class Backend;
-    class Renderer;
+    class Instance;
     class DX12Backend;
     class MTLBackend;
     class VKBackend;
@@ -106,7 +106,7 @@ namespace LinaGX
         }
 
     private:
-        friend class Renderer;
+        friend class Instance;
         friend class VKBackend;
         friend class MTLBackend;
         friend class DX12Backend;

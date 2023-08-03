@@ -37,7 +37,7 @@ namespace LinaGX::Examples
 
 #define MAIN_WINDOW_ID 0
 
-    LinaGX::Renderer* _renderer = nullptr;
+    LinaGX::Instance* _lgx = nullptr;
     Window*           _window   = nullptr;
 
     void Example::Initialize()
@@ -63,13 +63,13 @@ namespace LinaGX::Examples
                 .backbufferCount   = 2,
             };
 
-            _renderer = new LinaGX::Renderer();
-            _renderer->Initialize(initInfo);
+            _lgx = new LinaGX::Instance();
+            _lgx->Initialize(initInfo);
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _renderer->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Window Creation", 0, 0, 800, 600, WindowStyle::Borderless);
+            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Window Creation", 0, 0, 800, 600, WindowStyle::Borderless);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
         }
     }
@@ -77,20 +77,20 @@ namespace LinaGX::Examples
     void Example::Shutdown()
     {
         // First get rid of the window.
-        _renderer->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
+        _lgx->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
 
         // Wait for queues to finish
-        _renderer->Join();
+        _lgx->Join();
 
         // Terminate renderer & shutdown app.
-        delete _renderer;
+        delete _lgx;
         App::Shutdown();
     }
 
     void Example::OnTick()
     {
         // Check for window inputs.
-        _renderer->PollWindow();
+        _lgx->PollWindow();
     }
 
 } // namespace LinaGX::Examples
