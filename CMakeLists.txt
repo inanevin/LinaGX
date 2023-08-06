@@ -48,6 +48,7 @@ include/LinaGX/Core/Instance.hpp
 include/LinaGX/Core/CommandStream.hpp
 include/LinaGX/Core/Commands.hpp
 include/LinaGX/Core/WindowManager.hpp
+include/LinaGX/Core/Window.hpp
 include/LinaGX/Utility/SPIRVUtility.hpp
 include/LinaGX/Utility/PlatformUtility.hpp
 include/LinaGX/Utility/ImageUtility.hpp
@@ -143,12 +144,12 @@ if(APPLE)
 
 set(LinaGX_PLATFORM_HEADERS
 include/LinaGX/Platform/Metal/MTLBackend.hpp
-include/LinaGX/Platform/MacOS/MacOSWindow.hpp
+include/LinaGX/Platform/Apple/AppleWindow.hpp
 )
 
 set(LinaGX_PLATFORM_SOURCES
 src/Platform/Metal/MTLBackend.cpp
-src/Platform/MacOS/MacOSWindow.cpp
+src/Platform/Apple/AppleWindow.cpp
 )
 
 endif()

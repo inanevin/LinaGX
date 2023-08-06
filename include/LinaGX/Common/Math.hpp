@@ -59,46 +59,69 @@ namespace LinaGX
         return (T)(val1 * ((U)(1) - amt) + val2 * amt);
     }
 
+#ifndef LGXVector3
+
     struct LGXVector3
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
-
-        LGXVector3 operator-(const LGXVector3& other) const
-        {
-            return {x - other.x, y - other.y, z - other.z};
-        }
     };
+
+#endif
+
+#ifndef LGXVector2
 
     struct LGXVector2
     {
         float x = 0.0f, y = 0.0f;
     };
 
+#endif
+
+#ifndef LGXVector2ui
+
     struct LGXVector2ui
     {
         uint32 x = 0, y = 0;
     };
+
+#endif
+
+#ifndef LGXVector2i
 
     struct LGXVector2i
     {
         int32 x = 0, y = 0;
     };
 
+#endif
+
+#ifndef LGXVector4
+
     struct LGXVector4
     {
         float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
     };
+
+#endif
+
+#ifndef LGXVector4ui16
 
     struct LGXVector4ui16
     {
         uint16 x = 0, y = 0, z = 0, w = 0;
     };
 
+#endif
+
+#ifndef LGXRectui
+
     struct LGXRectui
     {
         LGXVector2ui pos;
         LGXVector2ui size;
     };
+
+#endif
 } // namespace LinaGX
 
 #endif

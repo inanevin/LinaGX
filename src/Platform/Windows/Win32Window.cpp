@@ -227,9 +227,9 @@ namespace LinaGX
         return DefWindowProcA(window, msg, wParam, lParam);
     }
 
-    bool Win32Window::Create(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
+    bool Win32Window::Create(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
     {
-        m_sid   = LINAGX_STRINGID;
+        m_sid   = sid;
         m_hinst = GetModuleHandle(0);
         WNDCLASSEX wcx;
         BOOL       exists = GetClassInfoEx(m_hinst, title, &wcx);
@@ -334,30 +334,6 @@ namespace LinaGX
             SetCursor(cursor);
     }
 
-    LGXVector2ui Win32Window::GetMonitorWorkArea()
-    {
-        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(hMonitor, &monitorInfo);
-        LGXVector2ui ret;
-        ret.x = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
-        ret.y = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
-        return ret;
-    }
-
-    LGXVector2ui Win32Window::GetMonitorSize()
-    {
-        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(hMonitor, &monitorInfo);
-        LGXVector2ui ret;
-        ret.x = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
-        ret.y = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
-        return ret;
-    }
-
     void Win32Window::SetPosition(const LGXVector2i& pos)
     {
         m_position = pos;
@@ -428,6 +404,30 @@ namespace LinaGX
         info.monitorHandle = static_cast<void*>(monitor);
 
         return info;
+    }
+
+    LGXVector2ui Win32Window::GetMonitorWorkArea()
+    {
+        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(hMonitor, &monitorInfo);
+        LGXVector2ui ret;
+        ret.x = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
+        ret.y = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
+        return ret;
+    }
+
+    LGXVector2ui Win32Window::GetMonitorSize()
+    {
+        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(hMonitor, &monitorInfo);
+        LGXVector2ui ret;
+        ret.x = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
+        ret.y = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
+        return ret;
     }
 
 } // namespace LinaGX

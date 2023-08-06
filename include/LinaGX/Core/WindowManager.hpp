@@ -35,10 +35,8 @@ SOFTWARE.
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
-typedef LinaGX::Win32Window Window;
 #elif LINAGX_PLATFORM_APPLE
-#include "LinaGX/Platform/MacOS/MacOSWindow.hpp"
-typedef LinaGX::MacOSWindow Window;
+#include "LinaGX/Platform/Apple/AppleWindow.hpp"
 #endif
 
 namespace LinaGX
@@ -48,8 +46,8 @@ namespace LinaGX
     class WindowManager
     {
     public:
-        Window* CreateApplicationWindow(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
-        void    DestroyApplicationWindow(LINAGX_STRINGID LINAGX_STRINGID);
+        Window* CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
+        void    DestroyApplicationWindow(LINAGX_STRINGID sid);
         void    PollWindow();
 
         inline Window* GetWindow(LINAGX_STRINGID sid)
@@ -69,7 +67,7 @@ namespace LinaGX
 
     private:
         LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows;
-        Input*                        m_input = nullptr;
+        Input*                               m_input = nullptr;
     };
 } // namespace LinaGX
 

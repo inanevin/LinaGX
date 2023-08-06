@@ -33,179 +33,55 @@ SOFTWARE.
 
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Core/Window.hpp"
 
 struct HWND__;
 struct HINSTANCE__;
 
 namespace LinaGX
 {
-    class WindowManager;
-    class Input;
-
-    class Win32Window
+    class Win32Window : public Window
     {
     public:
         static __int64 __stdcall WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam);
         static LINAGX_MAP<HWND__*, Win32Window*> s_win32Windows;
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="style"></param>
-        void SetStyle(WindowStyle style);
+        virtual void SetStyle(WindowStyle style) override;
+        virtual void SetCursorType(CursorType type) override;
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="type"></param>
-        void SetCursorType(CursorType type);
+        virtual void         SetPosition(const LGXVector2i& pos);
+        virtual void         SetSize(const LGXVector2ui& size);
+        virtual void         CenterPositionToCurrentMonitor();
+        virtual void         SetFullscreen();
+        virtual void         SetVisible(bool isVisible);
+        virtual MonitorInfo  GetMonitorInfoFromWindow();
+        virtual LGXVector2ui GetMonitorWorkArea() override;
+        virtual LGXVector2ui GetMonitorSize();
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        LGXVector2ui GetMonitorWorkArea();
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        LGXVector2ui GetMonitorSize();
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        void SetPosition(const LGXVector2i& pos);
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        void SetSize(const LGXVector2ui& size);
-
-        /// <summary>
-        ///
-        /// </summary>
-        void CenterPositionToCurrentMonitor();
-
-        /// <summary>
-        ///
-        /// </summary>
-        void SetFullscreen();
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
-        void SetVisible(bool isVisible);
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
-        MonitorInfo GetMonitorInfoFromWindow();
-
-        inline void* GetWindowHandle()
+        virtual void* GetWindowHandle() override
         {
             return static_cast<void*>(m_hwnd);
         }
 
-        inline void* GetOSHandle()
+        virtual void* GetOSHandle() override
         {
             return static_cast<void*>(m_hinst);
         }
 
-        inline void SetCallbackClose(CallbackNoArg&& cb)
-        {
-            m_cbClose = cb;
-        }
-
-        inline void SetCallbackPositionChanged(CallbackPosChanged&& cb)
-        {
-            m_cbPosChanged = cb;
-        }
-
-        inline void SetCallbackSizeChanged(CallbackSizeChanged&& cb)
-        {
-            m_cbSizeChanged = cb;
-        }
-
-        inline void SetCallbackKey(CallbackKey&& cb)
-        {
-            m_cbKey = cb;
-        }
-
-        inline void SetCallbackMouse(CallbackMouse&& cb)
-        {
-            m_cbMouse = cb;
-        }
-
-        inline void SetCallbackMouseWheel(CallbackMouseWheel&& cb)
-        {
-            m_cbMouseWheel = cb;
-        }
-
-        inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
-        {
-            m_cbMouseMove = cb;
-        }
-
-        inline LGXVector2i GetPosition()
-        {
-            return m_position;
-        }
-
-        inline LGXVector2ui GetSize()
-        {
-            return m_size;
-        }
-
-        inline LINAGX_STRINGID GetSID()
-        {
-            return m_sid;
-        }
-
-    private:
+    protected:
         friend class WindowManager;
         Win32Window(Input* input)
-            : m_input(input){};
-        ~Win32Window() = default;
+            : Window(input){};
+        virtual ~Win32Window() = default;
 
-        bool Create(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style);
-        void Destroy();
+        virtual bool Create(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style) override;
+        virtual void Destroy() override;
 
+    private:
         uint32 GetStyle(WindowStyle style);
         void   OnDPIChanged(uint32 dpi);
 
     private:
-        CallbackNoArg       m_cbClose       = nullptr;
-        CallbackPosChanged  m_cbPosChanged  = nullptr;
-        CallbackSizeChanged m_cbSizeChanged = nullptr;
-        CallbackKey         m_cbKey         = nullptr;
-        CallbackMouse       m_cbMouse       = nullptr;
-        CallbackMouseWheel  m_cbMouseWheel  = nullptr;
-        CallbackMouseMove   m_cbMouseMove   = nullptr;
-
-    private:
-        /* Window Interface */
-        LINAGX_STRINGID      m_sid   = 0;
-        Input*        m_input = nullptr;
-        LINAGX_STRING m_title = "";
-        LGXVector2i   m_position;
-        LGXVector2ui  m_size;
-        LGXVector2ui  m_trueSize;
-        LGXVector2ui  m_mousePosition = {};
-        uint32        m_dpi           = 0;
-        float         m_dpiScale      = 0.0f;
-        bool          m_isVisible     = true;
-        CursorType    m_cursorType    = CursorType::Default;
-        /* Window Interface */
-
         HWND__*      m_hwnd  = nullptr;
         HINSTANCE__* m_hinst = nullptr;
     };
