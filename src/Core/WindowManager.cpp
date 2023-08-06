@@ -39,27 +39,27 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Window* WindowManager::CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
+    Window* WindowManager::CreateApplicationWindow(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
     {
-        auto it = m_windows.find(stringID);
-        LOGA((it == m_windows.end()), "Window Manager -> Window with the same StringID already exists! %d", stringID);
+        auto it = m_windows.find(LINAGX_STRINGID);
+        LOGA((it == m_windows.end()), "Window Manager -> Window with the same LINAGX_STRINGID already exists! %d", LINAGX_STRINGID);
         Window* win = new Window(m_input);
 
-        if (!win->Create(stringID, title, x, y, width, height, style))
+        if (!win->Create(LINAGX_STRINGID, title, x, y, width, height, style))
         {
             LOGE("Window Manager -> Failed creating window!");
             delete win;
             return nullptr;
         }
 
-        m_windows[stringID] = win;
+        m_windows[LINAGX_STRINGID] = win;
         return win;
     }
 
-    void WindowManager::DestroyApplicationWindow(StringID stringID)
+    void WindowManager::DestroyApplicationWindow(LINAGX_STRINGID LINAGX_STRINGID)
     {
-        auto it = m_windows.find(stringID);
-        LOGA((it != m_windows.end()), "Window Manager -> Window with the StringID %d could not be found!", stringID);
+        auto it = m_windows.find(LINAGX_STRINGID);
+        LOGA((it != m_windows.end()), "Window Manager -> Window with the LINAGX_STRINGID %d could not be found!", LINAGX_STRINGID);
         delete it->second;
         m_windows.erase(it);
     }

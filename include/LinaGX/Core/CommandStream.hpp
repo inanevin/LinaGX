@@ -50,8 +50,8 @@ namespace LinaGX
         T* AddCommand()
         {
             LOGA((m_commandCount < m_maxCommands), "Command Stream -> Max command count (%d) is exceeded (%d)!", m_maxCommands, m_commandCount);
-            const TypeID tid      = GetTypeID<T>();
-            const size_t typeSize = sizeof(TypeID);
+            const LINAGX_TYPEID tid      = LGX_GetTypeID<T>();
+            const size_t typeSize = sizeof(LINAGX_TYPEID);
 
             uint8* currentHead = m_commandBuffer + m_commandIndex;
 

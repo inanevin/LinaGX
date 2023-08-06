@@ -141,6 +141,14 @@ namespace LinaGX
 #define LINAGX_FREE(...) free(__VA_ARGS__)
 #endif
 
+#ifndef LINAGX_STRINGID
+#define LINAGX_STRINGID uint32_t
+#endif
+
+#ifndef LINAGX_TYPEID
+#define LINAGX_TYPEID uint32_t
+#endif
+
 #define ALIGN_SIZE_POW(sizeToAlign, PowerOfTwo) (((sizeToAlign) + (PowerOfTwo)-1) & ~((PowerOfTwo)-1))
 #define ALIGN_SIZE(sizeToAlign, Alignment)      (sizeToAlign + Alignment - 1) - sizeToAlign % Alignment;
 #define IS_SIZE_ALIGNED(sizeToTest, PowerOfTwo) (((sizeToTest) & ((PowerOfTwo)-1)) == 0)
@@ -295,9 +303,6 @@ namespace LinaGX
         uint32          m_defaultStep = 50;
     };
 
-    typedef uint32 StringID;
-    typedef uint32 TypeID;
-
     // https://gist.github.com/hwei/1950649d523afd03285c
     class FnvHash
     {
@@ -340,12 +345,12 @@ namespace LinaGX
     };
 
     template <typename T>
-    TypeID GetTypeID()
+    LINAGX_TYPEID LGX_GetTypeID()
     {
         return FnvHash(typeid(T).name());
     }
 
-    constexpr StringID operator"" _hs(const char* str, std::size_t) noexcept
+    constexpr LINAGX_STRINGID operator"" _hs(const char* str, std::size_t) noexcept
     {
         return FnvHash(str);
     }

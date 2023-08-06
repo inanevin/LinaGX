@@ -2101,9 +2101,9 @@ namespace LinaGX
             for (uint32 i = 0; i < stream->m_commandCount; i++)
             {
                 uint8* data = stream->m_commands[i];
-                TypeID tid  = 0;
-                LINAGX_MEMCPY(&tid, data, sizeof(TypeID));
-                const size_t increment = sizeof(TypeID);
+                LINAGX_TYPEID tid  = 0;
+                LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
+                const size_t increment = sizeof(LINAGX_TYPEID);
                 uint8*       cmd       = data + increment;
                 (this->*m_cmdFunctions[tid])(cmd, sr);
                 // TODO: tids -> consecutive into arr

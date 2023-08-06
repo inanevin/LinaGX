@@ -270,7 +270,7 @@ namespace LinaGX
         DX12HeapGPU*                                        m_gpuHeapBuffer  = nullptr;
         DX12HeapGPU*                                        m_gpuHeapSampler = nullptr;
 
-        LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions;
+        LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
         uint32                              m_currentFrameIndex    = 0;
         uint32                              m_currentImageIndex    = 0;
         uint32                              m_previousRefreshCount = 0;

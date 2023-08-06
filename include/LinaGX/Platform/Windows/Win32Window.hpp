@@ -165,13 +165,18 @@ namespace LinaGX
             return m_size;
         }
 
+        inline LINAGX_STRINGID GetSID()
+        {
+            return m_sid;
+        }
+
     private:
         friend class WindowManager;
         Win32Window(Input* input)
             : m_input(input){};
         ~Win32Window() = default;
 
-        bool Create(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style);
+        bool Create(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style);
         void Destroy();
 
         uint32 GetStyle(WindowStyle style);
@@ -188,6 +193,7 @@ namespace LinaGX
 
     private:
         /* Window Interface */
+        LINAGX_STRINGID      m_sid   = 0;
         Input*        m_input = nullptr;
         LINAGX_STRING m_title = "";
         LGXVector2i   m_position;

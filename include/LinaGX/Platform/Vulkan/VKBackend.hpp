@@ -233,7 +233,7 @@ namespace LinaGX
 
         InitInfo                            m_initInfo     = {};
         LINAGX_VEC<VKBPerFrameData>         m_perFrameData = {};
-        LINAGX_MAP<TypeID, CommandFunction> m_cmdFunctions = {};
+        LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions = {};
         LINAGX_MAP<QueueType, VKBQueueData> m_queueData    = {};
         LINAGX_MAP<uint32, uint64>          m_killQueueIntermediateResources;
 

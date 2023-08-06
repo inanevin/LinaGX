@@ -48,11 +48,11 @@ namespace LinaGX
     class WindowManager
     {
     public:
-        Window* CreateApplicationWindow(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
-        void    DestroyApplicationWindow(StringID stringID);
+        Window* CreateApplicationWindow(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
+        void    DestroyApplicationWindow(LINAGX_STRINGID LINAGX_STRINGID);
         void    PollWindow();
 
-        inline Window* GetWindow(StringID sid)
+        inline Window* GetWindow(LINAGX_STRINGID sid)
         {
             return m_windows[sid];
         }
@@ -68,7 +68,7 @@ namespace LinaGX
         void Shutdown();
 
     private:
-        LINAGX_MAP<StringID, Window*> m_windows;
+        LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows;
         Input*                        m_input = nullptr;
     };
 } // namespace LinaGX

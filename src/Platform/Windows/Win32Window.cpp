@@ -227,8 +227,9 @@ namespace LinaGX
         return DefWindowProcA(window, msg, wParam, lParam);
     }
 
-    bool Win32Window::Create(StringID stringID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
+    bool Win32Window::Create(LINAGX_STRINGID LINAGX_STRINGID, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
     {
+        m_sid   = LINAGX_STRINGID;
         m_hinst = GetModuleHandle(0);
         WNDCLASSEX wcx;
         BOOL       exists = GetClassInfoEx(m_hinst, title, &wcx);
