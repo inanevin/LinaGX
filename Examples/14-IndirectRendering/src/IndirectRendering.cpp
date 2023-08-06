@@ -59,8 +59,8 @@ namespace LinaGX::Examples
 
     struct Mesh
     {
-        LINAGX_VEC<Vertex>        vertices;
-        LINAGX_VEC<unsigned char> indices;
+        std::vector<Vertex>        vertices;
+        std::vector<unsigned char> indices;
         IndexType                 indexType = IndexType::Uint16;
 
         uint32 vertexOffset = 0;
@@ -78,8 +78,8 @@ namespace LinaGX::Examples
         LinaGX::ModelData  model;
         ConstantsData      constants;
         glm::mat4          modelMatrix;
-        LINAGX_VEC<Mesh>   meshes;
-        LINAGX_VEC<uint32> texturesGPU;
+        std::vector<Mesh>   meshes;
+        std::vector<uint32> texturesGPU;
     };
 
     struct GPULightData
@@ -109,7 +109,7 @@ namespace LinaGX::Examples
     uint16 _shaderProgram = 0;
 
     // Objects
-    LINAGX_VEC<Object> _objects;
+    std::vector<Object> _objects;
 
     struct DefaultTexture
     {
@@ -120,7 +120,7 @@ namespace LinaGX::Examples
 
     // Resources
     uint32             _sampler = 0;
-    LINAGX_VEC<uint16> _allMaterialDescriptors;
+    std::vector<uint16> _allMaterialDescriptors;
     uint16             _descriptorSetMaterial;
     GPUMaterialData    _material1;
     GPUMaterialData    _material2;
@@ -224,7 +224,7 @@ namespace LinaGX::Examples
             ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
-            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
@@ -405,8 +405,8 @@ namespace LinaGX::Examples
                 }
             }
 
-            LINAGX_VEC<Vertex>        combinedVertices;
-            LINAGX_VEC<unsigned char> combinedIndices;
+            std::vector<Vertex>        combinedVertices;
+            std::vector<unsigned char> combinedIndices;
 
             for (auto& obj : _objects)
             {
@@ -676,7 +676,7 @@ namespace LinaGX::Examples
                 .bindingsCount = 2,
             };
 
-            LINAGX_VEC<uint32> textures;
+            std::vector<uint32> textures;
 
             for (const auto& obj : _objects)
             {
@@ -684,7 +684,7 @@ namespace LinaGX::Examples
                     textures.push_back(txt);
             }
 
-            LINAGX_VEC<uint32> samplers;
+            std::vector<uint32> samplers;
             samplers.resize(textures.size());
 
             for (size_t i = 0; i < samplers.size(); i++)
@@ -772,8 +772,8 @@ namespace LinaGX::Examples
 
         auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
 
-        LINAGX_VEC<IndexedIndirectCommand> indirectCommands;
-        LINAGX_VEC<ConstantsData>          indirectArguments;
+        std::vector<IndexedIndirectCommand> indirectCommands;
+        std::vector<ConstantsData>          indirectArguments;
 
         // Copy indirect buffer.
         {
@@ -812,7 +812,7 @@ namespace LinaGX::Examples
 
         // Copy SSBO data on copy queue
         {
-            LINAGX_VEC<GPUObjectData> objectData;
+            std::vector<GPUObjectData> objectData;
             objectData.resize(_objects.size());
 
             for (size_t i = 0; i < _objects.size(); i++)

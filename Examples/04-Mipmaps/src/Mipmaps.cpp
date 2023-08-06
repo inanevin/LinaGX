@@ -116,7 +116,7 @@ namespace LinaGX::Examples
             ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
-            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
@@ -224,7 +224,7 @@ namespace LinaGX::Examples
         LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
 
         // Generate mipmaps
-        LINAGX_VEC<MipData> outMipmaps;
+        std::vector<MipData> outMipmaps;
         LinaGX::GenerateMipmaps(loadedTextureData, outMipmaps, MipmapFilter::Default, ImageChannelMask::Rgba, false);
 
         // Need big enough staging resource, calculate size.
@@ -266,7 +266,7 @@ namespace LinaGX::Examples
             };
 
             // Put the base texture data + all mip data together.
-            LINAGX_VEC<TextureBuffer> textureDataWithMips;
+            std::vector<TextureBuffer> textureDataWithMips;
             textureDataWithMips.push_back(txtBuffer);
 
             for (const auto& md : outMipmaps)

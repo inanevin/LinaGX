@@ -105,7 +105,7 @@ namespace LinaGX
 #define LINAGX_VEC std::vector
 #endif
 
-#ifndef INAGX_QUEUE
+#ifndef LINAGX_QUEUE
 #define LINAGX_QUEUE std::queue
 #endif
 

@@ -56,7 +56,7 @@ namespace LinaGX::Examples
 
     struct Object
     {
-        LINAGX_VEC<Vertex> vertices;
+        std::vector<Vertex> vertices;
         uint32             index = 0;
 
         uint32 vertexBufferStaging = 0;
@@ -82,7 +82,7 @@ namespace LinaGX::Examples
     // Objects
     LinaGX::ModelData  _modelData   = {};
     ModelTexture*      _baseTexture = nullptr;
-    LINAGX_VEC<Object> _objects;
+    std::vector<Object> _objects;
 
     // Resources
     uint32 _sampler                 = 0;
@@ -154,7 +154,7 @@ namespace LinaGX::Examples
             ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
-            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
@@ -192,7 +192,7 @@ namespace LinaGX::Examples
             ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
-            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
@@ -753,7 +753,7 @@ namespace LinaGX::Examples
 
         // Copy SSBO data on copy queue
         {
-            LINAGX_VEC<GPUObjectData> objectData;
+            std::vector<GPUObjectData> objectData;
             objectData.resize(_objects.size());
 
             // Inverse root-global matrix.

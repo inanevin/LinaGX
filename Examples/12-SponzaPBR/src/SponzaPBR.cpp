@@ -61,8 +61,8 @@ namespace LinaGX::Examples
     {
         uint32 materialIndex = 0;
 
-        LINAGX_VEC<Vertex>        vertices;
-        LINAGX_VEC<unsigned char> indices;
+        std::vector<Vertex>        vertices;
+        std::vector<unsigned char> indices;
         IndexType                 indexType = IndexType::Uint16;
 
         uint32 vertexBufferStaging = 0;
@@ -75,7 +75,7 @@ namespace LinaGX::Examples
     struct Material
     {
         uint16                              descriptorSet = 0;
-        LINAGX_MAP<GLTFTextureType, uint32> texturesGPU;
+        std::unordered_map<GLTFTextureType, uint32> texturesGPU;
         uint32                              ubo        = 0;
         uint8*                              uboMapping = nullptr;
     };
@@ -91,9 +91,9 @@ namespace LinaGX::Examples
         LinaGX::ModelData    model;
         ConstantsData        constants;
         glm::mat4            modelMatrix;
-        LINAGX_VEC<Mesh>     meshes;
-        LINAGX_VEC<uint32>   texturesGPU;
-        LINAGX_VEC<Material> materials;
+        std::vector<Mesh>     meshes;
+        std::vector<uint32>   texturesGPU;
+        std::vector<Material> materials;
     };
 
     struct GPULightData
@@ -149,7 +149,7 @@ namespace LinaGX::Examples
     uint16 _shaderProgramQuad    = 0;
 
     // Objects
-    LINAGX_VEC<Object> _objects;
+    std::vector<Object> _objects;
     CameraData         _camera;
 
     struct DefaultTexture
@@ -161,7 +161,7 @@ namespace LinaGX::Examples
 
     // Resources
     uint32                                      _sampler = 0;
-    LINAGX_MAP<GLTFTextureType, DefaultTexture> _defaultTexturesGPU;
+    std::unordered_map<GLTFTextureType, DefaultTexture> _defaultTexturesGPU;
 
     struct PerFrameData
     {
@@ -286,7 +286,7 @@ namespace LinaGX::Examples
             ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
-            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
@@ -332,7 +332,7 @@ namespace LinaGX::Examples
             ShaderLayout                      outLayout  = {};
             ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
             ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
-            LINAGX_MAP<ShaderStage, DataBlob> outCompiledBlobs;
+            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
@@ -1167,7 +1167,7 @@ namespace LinaGX::Examples
 
         // Copy SSBO data on copy queue
         {
-            LINAGX_VEC<GPUObjectData> objectData;
+            std::vector<GPUObjectData> objectData;
             objectData.resize(_objects.size());
 
             // Inverse root-global matrix.

@@ -234,7 +234,7 @@ namespace LinaGX
         void WindowFeedMouseWheel(int32 delta);
 
     private:
-        int          m_keyStatesDown[NUM_KEY_STATES];
+        int          m_keyStatesDown[NUM_KEY_STATES]     = {0};
         int          m_keyStatesUp[NUM_KEY_STATES]       = {0};
         int          m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
         int          m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
