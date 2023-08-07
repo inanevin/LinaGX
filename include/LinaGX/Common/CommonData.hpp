@@ -84,6 +84,7 @@ namespace LinaGX
     typedef intptr_t  intptr;
     typedef uintptr_t uintptr;
 
+
 #ifndef LINAGX_DISABLE_VC_WARNING
 #if defined(_MSC_VER)
 #define LINAGX_DISABLE_VC_WARNING(w) __pragma(warning(push)) __pragma(warning(disable \

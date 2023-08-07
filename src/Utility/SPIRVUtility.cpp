@@ -28,9 +28,9 @@ SOFTWARE.
 
 #include "LinaGX/Utility/SPIRVUtility.hpp"
 #include "LinaGX/Utility/PlatformUtility.hpp"
-#include "spirv_cross/spirv_glsl.hpp"
-#include "spirv_cross/spirv_msl.hpp"
-#include "spirv_cross/spirv_hlsl.hpp"
+#include "spirv_glsl.hpp"
+#include "spirv_msl.hpp"
+#include "spirv_hlsl.hpp"
 #include "glslang/Include/glslang_c_interface.h"
 #include "glslang/SPIRV/spirv.hpp"
 #include "glslang/Public/ShaderLang.h"

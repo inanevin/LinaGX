@@ -1,0 +1,7 @@
+macro(link_dxc)
+   set(DIRNAME "dxc")
+   set(LIBNAME "dxcompiler")
+   target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/${DIRNAME}/include)
+   target_link_libraries(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/${DIRNAME}/Win64/$<CONFIGURATION>/${LIBNAME}.lib)
+   message("${PROJECT_NAME} -> ${DIRNAME} has been linked.")
+endmacro()

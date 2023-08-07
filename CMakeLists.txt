@@ -159,6 +159,7 @@ endif()
 #--------------------------------------------------------------------
 add_library(${PROJECT_NAME} ${LinaGX_SOURCES} ${LinaGX_HEADERS} ${LinaGX_PLATFORM_SOURCES} ${LinaGX_PLATFORM_HEADERS})
 add_library(Lina::GX ALIAS ${PROJECT_NAME})
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject)
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
 #--------------------------------------------------------------------
@@ -170,32 +171,8 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MAJOR=1)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MINOR=0)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_PATCH=0)
 
-if(WIN32)
 
-# DX12
-target_link_libraries(${PROJECT_NAME} 
-	PRIVATE d3d12.lib
-	PRIVATE dxgi.lib
-	PRIVATE dxguid.lib
-)
-
-include(_Vendor/dxc/link.cmake)
-include(_Vendor/nvapi/link.cmake)
-link_dxc()
-link_nvapi()
-
-find_package(Vulkan REQUIRED FATAL_ERROR)
-
-target_link_libraries(${PROJECT_NAME} 
-	PRIVATE Vulkan::Vulkan
-)
-
-endif()
-
-include(_Vendor/glslang/link.cmake)
-include(_Vendor/spirv-cross/link.cmake)
-link_glslang()
-link_spirv()
+include(Dependencies/Dependencies.cmake)
 
 if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/_Common)

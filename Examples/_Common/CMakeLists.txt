@@ -36,6 +36,7 @@ include/App.hpp
 #--------------------------------------------------------------------
 add_library(${PROJECT_NAME} ${COMMON_SOURCES} ${COMMON_HEADERS})
 add_library(LinaGX::ExamplesCommon ALIAS ${PROJECT_NAME})
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ProjectSettings.cmake)
 

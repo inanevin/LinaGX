@@ -1,3 +1,7 @@
+if(MSVC)
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
+endif()
+
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME}/$<CONFIGURATION>/")
 
 add_custom_command(

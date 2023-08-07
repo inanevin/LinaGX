@@ -36,7 +36,10 @@ SOFTWARE.
 #include "LinaGX/Core/Commands.hpp"
 #include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
-#include <nvapi/nvapi.h>
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+#include "nvapi/nvapi.h"
+#endif
 
 LINAGX_DISABLE_VC_WARNING(6387);
 
@@ -52,8 +55,8 @@ namespace LinaGX
 
 #define NAME_DX12_OBJECT(x, NAME) x->SetName(NAME)
 #else
-#define NAME_D3D12_OBJECT(x)
-#define NAME_D3D12_OBJECT_INDEXED(x, n)
+#define NAME_DX12_OBJECT_CSTR(x, NAME)   
+#define NAME_DX12_OBJECT(x, NAME) 
 #endif
 
 #define DX12_THROW(exception, ...) \
@@ -2100,7 +2103,7 @@ namespace LinaGX
 
             for (uint32 i = 0; i < stream->m_commandCount; i++)
             {
-                uint8* data = stream->m_commands[i];
+                uint8*        data = stream->m_commands[i];
                 LINAGX_TYPEID tid  = 0;
                 LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
                 const size_t increment = sizeof(LINAGX_TYPEID);
