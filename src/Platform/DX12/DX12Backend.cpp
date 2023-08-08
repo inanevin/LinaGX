@@ -55,8 +55,8 @@ namespace LinaGX
 
 #define NAME_DX12_OBJECT(x, NAME) x->SetName(NAME)
 #else
-#define NAME_DX12_OBJECT_CSTR(x, NAME)   
-#define NAME_DX12_OBJECT(x, NAME) 
+#define NAME_DX12_OBJECT_CSTR(x, NAME)
+#define NAME_DX12_OBJECT(x, NAME)
 #endif
 
 #define DX12_THROW(exception, ...) \

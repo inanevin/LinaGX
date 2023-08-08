@@ -66,8 +66,9 @@ namespace LinaGX
         void Shutdown();
 
     private:
-        LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows;
+        LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows = {};
         Input*                               m_input = nullptr;
+        int a = 0;
     };
 } // namespace LinaGX
 

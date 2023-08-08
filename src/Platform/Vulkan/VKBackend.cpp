@@ -1300,7 +1300,7 @@ namespace LinaGX
 
         VkResult res = vkCreateSampler(m_device, &info, m_allocator, &item.ptr);
         VK_CHECK_RESULT(res, "Backend -> Could not create sampler!");
-
+        VK_NAME_OBJECT(item.ptr, VK_OBJECT_TYPE_SAMPLER, desc.debugName, sinfo);
         return m_samplers.AddItem(item);
     }
 
@@ -1571,7 +1571,7 @@ namespace LinaGX
 
             for (uint32 i = 0; i < stream->m_commandCount; i++)
             {
-                uint8* data = stream->m_commands[i];
+                uint8*        data = stream->m_commands[i];
                 LINAGX_TYPEID tid  = 0;
                 LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
                 const size_t increment = sizeof(LINAGX_TYPEID);

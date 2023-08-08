@@ -395,6 +395,7 @@ namespace LinaGX
         ShaderMemberType type;
         size_t           size         = 0;
         size_t           offset       = 0;
+        size_t           alignment    = 0;
         LINAGX_STRING    name         = "";
         uint32           elementSize  = 0;
         size_t           arrayStride  = 0;
@@ -413,9 +414,9 @@ namespace LinaGX
 
     struct ShaderUBO
     {
-        uint32                      set;
-        uint32                      binding;
-        size_t                      size;
+        uint32                      set     = 0;
+        uint32                      binding = 0;
+        size_t                      size    = 0;
         LINAGX_VEC<ShaderUBOMember> members;
         LINAGX_VEC<ShaderStage>     stages;
         LINAGX_STRING               name        = "";
@@ -424,8 +425,8 @@ namespace LinaGX
 
     struct ShaderSSBO
     {
-        uint32                  set;
-        uint32                  binding;
+        uint32                  set     = 0;
+        uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name       = "";
         bool                    isReadOnly = true;
@@ -433,8 +434,8 @@ namespace LinaGX
 
     struct ShaderSRVTexture2D
     {
-        uint32                  set;
-        uint32                  binding;
+        uint32                  set     = 0;
+        uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name        = "";
         uint32                  elementSize = 1;
@@ -442,8 +443,8 @@ namespace LinaGX
 
     struct ShaderSampler
     {
-        uint32                  set;
-        uint32                  binding;
+        uint32                  set     = 0;
+        uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name        = "";
         uint32                  elementSize = 1;
@@ -537,6 +538,7 @@ namespace LinaGX
         float              maxLod     = 1.0f;
         float              mipLodBias = 0.0f;
         BorderColor        borderColor;
+        const char*        debugName = "";
     };
 
     struct DescriptorBinding
@@ -655,7 +657,7 @@ namespace LinaGX
         GPUFeatures        gpuFeatures     = {};
         LINAGX_VEC<Format> checkForFormatSupport;
     };
-    
+
     struct MonitorInfo
     {
         void*        monitorHandle = nullptr;

@@ -64,7 +64,15 @@ namespace LinaGX
         outData.width          = w;
         outData.height         = h;
         outData.totalMipLevels = FloorLog2(Max(outData.width, outData.height)) + 1;
-        LOGV("Loaded image: %s", path);
+
+        if (outData.pixels)
+        {
+            LOGV("Loaded image: %s", path);
+        }
+        else
+        {
+            LOGE("Failed loading image: %s", path);
+        }
     }
 
     LINAGX_API void FreeImage(uint8* pixels)

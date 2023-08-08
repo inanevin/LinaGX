@@ -354,7 +354,7 @@ namespace LinaGX
             /* .generalConstantMatrixVectorIndexing = */ 1,
         }};
 
-    ShaderMemberType GetMemberType(spirv_cross::SPIRType type)
+    ShaderMemberType GetMemberType(spirv_cross::SPIRType type, size_t& alignment)
     {
         ShaderMemberType outType = ShaderMemberType::Float;
         const bool       isFloat = type.basetype == spirv_cross::SPIRType::BaseType::Float;
@@ -362,22 +362,41 @@ namespace LinaGX
         if (type.columns == 1)
         {
             if (type.vecsize == 1)
-                outType = isFloat ? ShaderMemberType::Float : ShaderMemberType::Int;
+            {
+                outType   = isFloat ? ShaderMemberType::Float : ShaderMemberType::Int;
+                alignment = sizeof(float);
+            }
             else if (type.vecsize == 2)
-                outType = isFloat ? ShaderMemberType::Float2 : ShaderMemberType::Int2;
+            {
+                outType   = isFloat ? ShaderMemberType::Float2 : ShaderMemberType::Int2;
+                alignment = sizeof(float) * 2;
+            }
             else if (type.vecsize == 3)
-                outType = isFloat ? ShaderMemberType::Float3 : ShaderMemberType::Int3;
+            {
+                outType   = isFloat ? ShaderMemberType::Float3 : ShaderMemberType::Int3;
+                alignment = sizeof(float) * 4;
+            }
             else
-                outType = isFloat ? ShaderMemberType::Float4 : ShaderMemberType::Int4;
+            {
+                outType   = isFloat ? ShaderMemberType::Float4 : ShaderMemberType::Int4;
+                alignment = sizeof(float) * 4;
+            }
         }
         else if (type.columns == 2 && type.vecsize == 2)
         {
-            outType = ShaderMemberType::Mat2x2;
+            outType   = ShaderMemberType::Mat2x2;
+            alignment = sizeof(float) * 4;
         }
         else if (type.columns == 3 && type.vecsize == 3)
-            outType = ShaderMemberType::Mat3x3;
+        {
+            outType   = ShaderMemberType::Mat3x3;
+            alignment = sizeof(float) * 16;
+        }
         else if (type.columns == 4 && type.vecsize == 4)
-            outType = ShaderMemberType::Mat4x4;
+        {
+            outType   = ShaderMemberType::Mat4x4;
+            alignment = sizeof(float) * 16;
+        }
         else
             outType = ShaderMemberType::MatUnknown;
 
@@ -393,7 +412,7 @@ namespace LinaGX
 
             auto& member_type = compiler.get_type(type.member_types[i]);
             member.size       = compiler.get_declared_struct_member_size(type, i);
-            member.type       = GetMemberType(member_type);
+            member.type       = GetMemberType(member_type, member.alignment);
             member.offset     = compiler.type_struct_member_offset(type, i);
 
             if (!member_type.array.empty())
