@@ -33,6 +33,11 @@ target_link_libraries(${PROJECT_NAME}
 	PRIVATE Vulkan::Vulkan
 )
 
+target_link_libraries(${PROJECT_NAME} 
+	PUBLIC user32.lib
+	PUBLIC Shcore.lib
+)
+
 endif()
 
 add_subdirectory(Dependencies/glslang-12.2.0)

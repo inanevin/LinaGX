@@ -594,15 +594,17 @@ namespace LinaGX
 
     struct SubmitDesc
     {
-        QueueType       queue           = QueueType::Graphics;
-        CommandStream** streams         = nullptr;
-        uint32          streamCount     = 0;
-        bool            useWait         = 0;
-        uint16          waitSemaphore   = 0;
-        uint64          waitValue       = 0;
-        bool            useSignal       = 0;
-        uint16          signalSemaphore = 0;
-        uint64          signalValue     = 0;
+        QueueType       queue            = QueueType::Graphics;
+        CommandStream** streams          = nullptr;
+        uint32          streamCount      = 0;
+        bool            useWait          = 0;
+        uint32          waitCount        = 0;
+        uint16*         waitSemaphores   = 0;
+        uint64*         waitValues       = 0;
+        bool            useSignal        = 0;
+        uint32          signalCount      = 0;
+        uint16*         signalSemaphores = 0;
+        uint64*         signalValues     = 0;
     };
 
     struct GPULimits
@@ -662,11 +664,11 @@ namespace LinaGX
     {
         void*        monitorHandle = nullptr;
         bool         isPrimary     = false;
-        float        m_dpiScale    = 0.0f;
+        float        dpiScale      = 0.0f;
+        uint32       dpi           = 0;
         LGXVector2ui size          = {};
         LGXVector2ui workArea      = {};
-        LGXVector2ui workTopLeft   = {};
-        uint32       m_dpi         = 0;
+        LGXVector2i  workTopLeft   = {};
     };
 
     extern LINAGX_API Configuration         Config;
@@ -692,13 +694,13 @@ namespace LinaGX
         Config.errorCallback(__VA_ARGS__);    \
     _ASSERT(condition);
 
-    typedef std::function<void()>                            CallbackNoArg;
-    typedef std::function<void(const LGXVector2i&)>          CallbackPosChanged;
-    typedef std::function<void(const LGXVector2ui&)>         CallbackMouseMove;
-    typedef std::function<void(const LGXVector2ui&)>         CallbackSizeChanged;
-    typedef std::function<void(uint32, uint32, InputAction)> CallbackKey;
-    typedef std::function<void(uint32, InputAction)>         CallbackMouse;
-    typedef std::function<void(int32)>                       CallbackMouseWheel;
+    typedef std::function<void()>                           CallbackNoArg;
+    typedef std::function<void(const LGXVector2i&)>         CallbackPosChanged;
+    typedef std::function<void(const LGXVector2ui&)>        CallbackMouseMove;
+    typedef std::function<void(const LGXVector2ui&)>        CallbackSizeChanged;
+    typedef std::function<void(uint32, int32, InputAction)> CallbackKey;
+    typedef std::function<void(uint32, InputAction)>        CallbackMouse;
+    typedef std::function<void(int32)>                      CallbackMouseWheel;
 
 } // namespace LinaGX
 

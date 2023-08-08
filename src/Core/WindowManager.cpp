@@ -33,13 +33,14 @@ SOFTWARE.
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>
+#include <shellscalingapi.h>
 #else
 
 #endif
 
 namespace LinaGX
 {
-    Window* WindowManager::CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
+    Window* WindowManager::CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style)
     {
         auto it = m_windows.find(sid);
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same sid already exists! %d", sid);
@@ -87,8 +88,45 @@ namespace LinaGX
         m_input->Tick();
     }
 
+    MonitorInfo WindowManager::GetPrimaryMonitorInfo()
+    {
+        for (const auto& m : m_monitors)
+        {
+            if (m.isPrimary)
+                return m;
+        }
+        return MonitorInfo();
+    }
+
     void WindowManager::Initialize()
     {
+#ifdef LINAGX_PLATFORM_WINDOWS
+        EnumDisplayMonitors(
+            NULL,
+            NULL,
+            [](HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) -> BOOL {
+                LINAGX_VEC<MonitorInfo>& monitors = *reinterpret_cast<LINAGX_VEC<MonitorInfo>*>(dwData);
+                MONITORINFOEX            monitorInfo;
+                monitorInfo.cbSize = sizeof(monitorInfo);
+                GetMonitorInfo(hMonitor, &monitorInfo);
+
+                UINT    dpiX, dpiY;
+                HRESULT temp2 = GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+
+                MonitorInfo data;
+                data.size        = LGXVector2ui{static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
+                data.workArea    = LGXVector2ui{static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
+                data.workTopLeft = LGXVector2i{static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
+                data.isPrimary   = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+                data.dpi       = dpiX;
+                data.dpiScale  = static_cast<float>(dpiY) / 96.0f;
+
+                monitors.push_back(data);
+
+                return TRUE;
+            },
+            reinterpret_cast<LPARAM>(&m_monitors));
+#endif
     }
 
     void WindowManager::Shutdown()

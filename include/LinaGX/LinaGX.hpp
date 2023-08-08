@@ -48,6 +48,10 @@ NOTES:
 - Indirect: You need to always use IndexedIndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can
 use to index into another buffer for per-draw-call parameters.
 
+- Sets need to be starting from 0. (e.g. cant have set =1 when there is not set = 0)
+
+- #version 460 required
+
 */
 
 #pragma once
@@ -58,6 +62,7 @@ use to index into another buffer for per-draw-call parameters.
 #include "Core/Instance.hpp"
 #include "Core/CommandStream.hpp"
 #include "Core/Commands.hpp"
+#include "Core/Input.hpp"
 #include "Common/Math.hpp"
 #include "Utility/PlatformUtility.hpp"
 #include "Utility/ImageUtility.hpp"

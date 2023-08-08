@@ -38,7 +38,7 @@ namespace LinaGX::Examples
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
 
-    LinaGX::Instance* _lgx  = nullptr;
+    LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
 
@@ -116,11 +116,11 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout                      outLayout  = {};
-            ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
-            ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                              outLayout  = {};
+            ShaderCompileData                         dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                         dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
@@ -303,7 +303,8 @@ namespace LinaGX::Examples
             _lgx->CloseCommandStreams(&_copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
-            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
+            _copySemaphoreValue++;
+            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_copySemaphore, .signalValues = &_copySemaphoreValue});
             _lgx->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
 
             // Not needed anymore.

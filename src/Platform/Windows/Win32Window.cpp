@@ -32,6 +32,7 @@ SOFTWARE.
 #include "LinaGX/Core/Input.hpp"
 #include <Windows.h>
 #include <windowsx.h>
+#include <shellscalingapi.h>
 
 namespace LinaGX
 {
@@ -106,11 +107,11 @@ namespace LinaGX
         }
         case WM_KEYDOWN: {
 
-            WORD   keyFlags   = HIWORD(lParam);
-            WORD   scanCode   = LOBYTE(keyFlags);
-            uint32 key        = static_cast<uint32>(wParam);
-            int    extended   = (lParam & 0x01000000) != 0;
-            bool   isRepeated = (HIWORD(lParam) & KF_REPEAT) != 0;
+            WORD  keyFlags   = HIWORD(lParam);
+            WORD  scanCode   = LOBYTE(keyFlags);
+            int32 key        = static_cast<int32>(wParam);
+            int   extended   = (lParam & 0x01000000) != 0;
+            bool  isRepeated = (HIWORD(lParam) & KF_REPEAT) != 0;
 
             if (wParam == VK_SHIFT)
                 key = extended == 0 ? VK_LSHIFT : VK_RSHIFT;
@@ -120,9 +121,9 @@ namespace LinaGX
             const InputAction action = isRepeated ? InputAction::Repeated : InputAction::Pressed;
 
             if (win32Window->m_cbKey)
-                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), action);
+                win32Window->m_cbKey(key, static_cast<int32>(scanCode), action);
 
-            win32Window->m_input->WindowFeedKey(key, static_cast<uint32>(scanCode), action);
+            win32Window->m_input->WindowFeedKey(key, static_cast<int32>(scanCode), action);
 
             break;
         }
@@ -227,7 +228,7 @@ namespace LinaGX
         return DefWindowProcA(window, msg, wParam, lParam);
     }
 
-    bool Win32Window::Create(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style)
+    bool Win32Window::Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style)
     {
         m_sid   = sid;
         m_hinst = GetModuleHandle(0);
@@ -397,12 +398,16 @@ namespace LinaGX
         monitorInfo.cbSize = sizeof(monitorInfo);
         GetMonitorInfo(monitor, &monitorInfo);
 
+        UINT    dpiX, dpiY;
+        HRESULT temp2 = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+
         info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
         info.workArea      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
-        info.workTopLeft   = {static_cast<uint32>(monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.top)};
+        info.workTopLeft   = {static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
         info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
         info.monitorHandle = static_cast<void*>(monitor);
-
+        info.dpi           = dpiX;
+        info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
         return info;
     }
 

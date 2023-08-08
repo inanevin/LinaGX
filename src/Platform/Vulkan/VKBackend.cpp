@@ -1642,15 +1642,21 @@ namespace LinaGX
         {
             if (desc.useWait)
             {
-                waitSemaphores.push_back(m_userSemaphores.GetItem(desc.waitSemaphore).ptr);
-                waitSemaphoreValues.push_back(desc.waitValue);
-                waitStages.push_back(waitStage);
+                for (uint32 i = 0; i < desc.waitCount; i++)
+                {
+                    waitSemaphores.push_back(m_userSemaphores.GetItem(desc.waitSemaphores[i]).ptr);
+                    waitSemaphoreValues.push_back(desc.waitValues[i]);
+                    waitStages.push_back(waitStage);
+                }
             }
 
             if (desc.useSignal)
             {
-                signalSemaphores.push_back(m_userSemaphores.GetItem(desc.signalSemaphore).ptr);
-                signalSemaphoreValues.push_back(desc.signalValue);
+                for (uint32 i = 0; i < desc.signalCount; i++)
+                {
+                    signalSemaphores.push_back(m_userSemaphores.GetItem(desc.signalSemaphores[i]).ptr);
+                    signalSemaphoreValues.push_back(desc.signalValues[i]);
+                }
             }
         }
 

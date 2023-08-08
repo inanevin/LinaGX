@@ -2150,13 +2150,19 @@ namespace LinaGX
             auto queue = m_queueData[desc.queue].queue;
 
             if (desc.useWait)
-                queue->Wait(m_userSemaphores.GetItem(desc.waitSemaphore).ptr.Get(), desc.waitValue);
+            {
+                for (uint32 i = 0; i < desc.waitCount; i++)
+                    queue->Wait(m_userSemaphores.GetItem(desc.waitSemaphores[i]).ptr.Get(), desc.waitValues[i]);
+            }
 
             ID3D12CommandList* const* data = _lists.data();
             queue->ExecuteCommandLists(desc.streamCount, data);
 
             if (desc.useSignal)
-                queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphore).ptr.Get(), desc.signalValue);
+            {
+                for (uint32 i = 0; i < desc.signalCount; i++)
+                    queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphores[i]).ptr.Get(), desc.signalValues[i]);
+            }
 
             m_submissionPerFrame++;
             LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");

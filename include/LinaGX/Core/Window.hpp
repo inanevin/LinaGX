@@ -176,14 +176,19 @@ namespace LinaGX
             return m_mousePosition;
         }
 
+        inline bool GetIsVisible() const
+        {
+            return m_isVisible;
+        }
+
     protected:
         friend class WindowManager;
         Window(Input* input)
             : m_input(input){};
         virtual ~Window() = default;
 
-        virtual bool Create(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style) = 0;
-        virtual void Destroy()                                                                                                          = 0;
+        virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style) = 0;
+        virtual void Destroy()                                                                                                        = 0;
 
     protected:
         CallbackNoArg       m_cbClose       = nullptr;

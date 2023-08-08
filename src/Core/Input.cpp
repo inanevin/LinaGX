@@ -274,7 +274,7 @@ namespace LinaGX
         m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
     }
 
-    void Input::WindowFeedKey(uint32 key, uint32 scanCode, InputAction action)
+    void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action)
     {
         if (m_cbKey)
             m_cbKey(key, scanCode, action);
@@ -295,13 +295,13 @@ namespace LinaGX
     {
         m_mouseScroll = delta;
 
-        if(m_cbMouseWheel)
+        if (m_cbMouseWheel)
             m_cbMouseWheel(delta);
     }
 
     void Input::WindowFeedMousePosition(const LGXVector2ui& pos)
     {
-        if(m_cbMouseMove)
+        if (m_cbMouseMove)
             m_cbMouseMove(pos);
     }
 } // namespace LinaGX

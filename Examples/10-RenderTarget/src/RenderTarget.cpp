@@ -42,7 +42,7 @@ namespace LinaGX::Examples
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
 
-    LinaGX::Instance* _lgx  = nullptr;
+    LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
 
@@ -57,7 +57,7 @@ namespace LinaGX::Examples
     struct Object
     {
         std::vector<Vertex> vertices;
-        uint32             index = 0;
+        uint32              index = 0;
 
         uint32 vertexBufferStaging = 0;
         uint32 vertexBufferGPU     = 0;
@@ -80,8 +80,8 @@ namespace LinaGX::Examples
     uint16 _quadShaderProgram      = 0;
 
     // Objects
-    LinaGX::ModelData  _modelData   = {};
-    ModelTexture*      _baseTexture = nullptr;
+    LinaGX::ModelData   _modelData   = {};
+    ModelTexture*       _baseTexture = nullptr;
     std::vector<Object> _objects;
 
     // Resources
@@ -149,11 +149,11 @@ namespace LinaGX::Examples
         //******************* DEFAULT SHADER CREATION
         {
             // Compile shaders.
-            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout                      outLayout  = {};
-            ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
-            ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                              outLayout  = {};
+            ShaderCompileData                         dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                         dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
@@ -187,11 +187,11 @@ namespace LinaGX::Examples
         //******************* QUAD SHADER CREATION
         {
             // Compile shaders.
-            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
-            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
-            ShaderLayout                      outLayout  = {};
-            ShaderCompileData                 dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
-            ShaderCompileData                 dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
+            const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
+            ShaderLayout                              outLayout  = {};
+            ShaderCompileData                         dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                         dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
@@ -419,7 +419,8 @@ namespace LinaGX::Examples
             _lgx->CloseCommandStreams(&_pfd[0].copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
-            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_pfd[0].copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _pfd[0].copySemaphore, .signalValue = ++_pfd[0].copySemaphoreValue});
+            _pfd[0].copySemaphoreValue++;
+            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_pfd[0].copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_pfd[0].copySemaphore, .signalValues = &_pfd[0].copySemaphoreValue});
             _lgx->WaitForUserSemaphore(_pfd[0].copySemaphore, _pfd[0].copySemaphoreValue);
 
             // Not needed anymore.
@@ -790,14 +791,17 @@ namespace LinaGX::Examples
 
             _lgx->CloseCommandStreams(&currentFrame.copyStream, 1);
 
+            currentFrame.copySemaphoreValue++;
+
             SubmitDesc submit = {
-                .queue           = QueueType::Transfer,
-                .streams         = &currentFrame.copyStream,
-                .streamCount     = 1,
-                .useWait         = false,
-                .useSignal       = true,
-                .signalSemaphore = currentFrame.copySemaphore,
-                .signalValue     = ++currentFrame.copySemaphoreValue,
+                .queue            = QueueType::Transfer,
+                .streams          = &currentFrame.copyStream,
+                .streamCount      = 1,
+                .useWait          = false,
+                .useSignal        = true,
+                .signalCount      = 1,
+                .signalSemaphores = &currentFrame.copySemaphore,
+                .signalValues     = &currentFrame.copySemaphoreValue,
             };
 
             _lgx->SubmitCommandStreams(submit);
@@ -973,7 +977,7 @@ namespace LinaGX::Examples
         _lgx->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitSemaphore = currentFrame.copySemaphore, .waitValue = currentFrame.copySemaphoreValue});
+        _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue});
 
         // Present main swapchain.
         _lgx->Present({.swapchain = _swapchain});

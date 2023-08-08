@@ -46,7 +46,7 @@ namespace LinaGX
     class WindowManager
     {
     public:
-        Window* CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
+        Window* CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
         void    DestroyApplicationWindow(LINAGX_STRINGID sid);
         void    PollWindow();
 
@@ -54,6 +54,8 @@ namespace LinaGX
         {
             return m_windows[sid];
         }
+
+        MonitorInfo GetPrimaryMonitorInfo();
 
     private:
         friend class Instance;
@@ -67,8 +69,9 @@ namespace LinaGX
 
     private:
         LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows = {};
+        LINAGX_VEC<MonitorInfo>              m_monitors;
         Input*                               m_input = nullptr;
-        int a = 0;
+        int                                  a       = 0;
     };
 } // namespace LinaGX
 

@@ -227,7 +227,7 @@ namespace LinaGX
 
         void PreTick();
         void Tick();
-        void WindowFeedKey(uint32 key, uint32 scanCode, InputAction action);
+        void WindowFeedKey(uint32 key, int32 scanCode, InputAction action);
         void WindowFeedMouseButton(uint32 button, InputAction action);
         void WindowFeedMousePosition(const LGXVector2ui& pos);
         void WindowFeedActivateApp(bool activate);

@@ -435,8 +435,6 @@ namespace LinaGX
 
     bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& compiledBlob, ShaderLayout& outLayout, BackendAPI targetAPI)
     {
-        glslang_initialize_process();
-
         glslang_stage_t stage = GetStage(stg);
 
         LINAGX_STRING fullShaderStr = "";
@@ -478,7 +476,7 @@ namespace LinaGX
         input.target_language                   = GLSLANG_TARGET_SPV;
         input.target_language_version           = GLSLANG_TARGET_SPV_1_0;
         input.code                              = fullShaderStr.c_str();
-        input.default_version                   = 100;
+        input.default_version                   = 460;
         input.default_profile                   = GLSLANG_NO_PROFILE;
         input.force_default_version_and_profile = false;
         input.forward_compatible                = false;
@@ -532,7 +530,6 @@ namespace LinaGX
         glslang_program_delete(program);
         glslang_shader_delete(shader);
 
-        glslang_finalize_process();
 
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();

@@ -86,6 +86,7 @@ namespace LinaGX
         m_windowManager.Shutdown();
         SPIRVUtility::Shutdown();
         m_backend->Shutdown();
+        delete m_backend;
     }
 
     void Instance::StartFrame()
@@ -148,48 +149,6 @@ namespace LinaGX
         m_backend->RecreateSwapchain(desc);
     }
 
-    // bool Instance::CompileShader(ShaderStage stage, const char* text, const char* includePath, DataBlob& outCompiledBlob, ShaderLayout& outLayout)
-    // {
-    //     DataBlob spv = {};
-    //     if (!SPIRVUtility::GLSL2SPV(stage, text, includePath, spv, outLayout))
-    //         return false;
-    //
-    //     if (m_initInfo.api == BackendAPI::DX12)
-    //     {
-    //         LINAGX_STRING outHLSL = "";
-    //
-    //         const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSL, outLayout);
-    //
-    //         LINAGX_FREE(spv.ptr);
-    //
-    //         if (!res)
-    //             return false;
-    //
-    //         return m_backend->CompileShader(stage, outHLSL, outCompiledBlob);
-    //     }
-    //     else if (m_initInfo.api == BackendAPI::Metal)
-    //     {
-    //         LINAGX_STRING outMSL = "";
-    //
-    //         const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
-    //
-    //         LINAGX_FREE(spv.ptr);
-    //
-    //         if (!res)
-    //             return false;
-    //
-    //         return m_backend->CompileShader(stage, outMSL, outCompiledBlob);
-    //     }
-    //     else if (m_initInfo.api == BackendAPI::Vulkan)
-    //     {
-    //         // Already SPV, assign & return.
-    //         outCompiledBlob = spv;
-    //         return true;
-    //     }
-    //
-    //     return false;
-    // }
-
     bool Instance::CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout)
     {
         for (const auto& [stage, data] : compileData)
@@ -231,7 +190,7 @@ namespace LinaGX
             {
                 const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSLs[stage], outLayout);
 
-                LINAGX_FREE(spv.ptr);
+                delete[] spv.ptr;
 
                 if (!res)
                     return false;
@@ -275,7 +234,7 @@ namespace LinaGX
 
                 const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
 
-                LINAGX_FREE(spv.ptr);
+                delete[] spv.ptr;
 
                 if (!res)
                     return false;

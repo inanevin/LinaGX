@@ -299,7 +299,8 @@ namespace LinaGX::Examples
             _lgx->CloseCommandStreams(&_copyStream, 1);
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
-            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalSemaphore = _copySemaphore, .signalValue = ++_copySemaphoreValue});
+            _copySemaphoreValue++;
+            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_copySemaphore, .signalValues = &_copySemaphoreValue});
             _lgx->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
 
             // Not needed anymore.

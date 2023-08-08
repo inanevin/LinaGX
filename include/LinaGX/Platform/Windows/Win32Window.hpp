@@ -74,7 +74,7 @@ namespace LinaGX
             : Window(input){};
         virtual ~Win32Window() = default;
 
-        virtual bool Create(LINAGX_STRINGID sid, const char* title, uint32 x, uint32 y, uint32 width, uint32 height, WindowStyle style) override;
+        virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style) override;
         virtual void Destroy() override;
 
     private:
