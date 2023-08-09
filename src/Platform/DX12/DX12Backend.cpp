@@ -1584,6 +1584,9 @@ namespace LinaGX
 
     void DX12Backend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
+        const bool typeOK = desc.descriptorType == DescriptorType::SSBO || desc.descriptorType == DescriptorType::UBO;
+        LOGA(typeOK, "Invalid descriptor type for buffer update!");
+
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptors;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors;
         auto&                                   descriptorSet = m_descriptorSets.GetItemR(desc.setHandle);
@@ -1621,6 +1624,9 @@ namespace LinaGX
 
     void DX12Backend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
+        const bool typeOK = (desc.descriptorType == DescriptorType::CombinedImageSampler) || (desc.descriptorType == DescriptorType::SeparateImage) || (desc.descriptorType == DescriptorType::SeparateSampler);
+        LOGA(typeOK, "Invalid descriptor type for image update!");
+
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsTxt;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsSampler;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptorsTxt;
@@ -1638,30 +1644,51 @@ namespace LinaGX
             {
                 for (uint32 i = 0; i < desc.descriptorCount; i++)
                 {
-                    const auto& res                        = m_texture2Ds.GetItemR(desc.textures[i]);
-                    const auto& sampler                    = m_samplers.GetItemR(desc.samplers[i]);
-                    const auto& srcResDescriptorHandle     = res.desc.usage == Texture2DUsage::ColorTextureRenderTarget ? res.descriptor2 : res.descriptor;
-                    const auto& srcSamplerDescriptorHandle = sampler.descriptor;
+                    if (desc.descriptorType == DescriptorType::CombinedImageSampler || desc.descriptorType == DescriptorType::SeparateImage)
+                    {
+                        const auto& res                    = m_texture2Ds.GetItemR(desc.textures[i]);
+                        const auto& srcResDescriptorHandle = res.desc.usage == Texture2DUsage::ColorTextureRenderTarget ? res.descriptor2 : res.descriptor;
 
-                    D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt, srcHandleSampler;
-                    srcHandleTxt.ptr         = srcResDescriptorHandle.GetCPUHandle();
-                    srcHandleSampler.ptr     = srcSamplerDescriptorHandle.GetCPUHandle();
-                    srcDescriptorsTxt[i]     = srcHandleTxt;
-                    srcDescriptorsSampler[i] = srcHandleSampler;
+                        D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt;
+                        srcHandleTxt.ptr     = srcResDescriptorHandle.GetCPUHandle();
+                        srcDescriptorsTxt[i] = srcHandleTxt;
 
-                    D3D12_CPU_DESCRIPTOR_HANDLE txtHandle, samplerHandle;
-                    txtHandle.ptr     = binding.gpuPointer.GetCPUHandle() + i * m_gpuHeapBuffer->GetDescriptorSize();
-                    samplerHandle.ptr = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
+                        D3D12_CPU_DESCRIPTOR_HANDLE txtHandle;
+                        txtHandle.ptr         = binding.gpuPointer.GetCPUHandle() + i * m_gpuHeapBuffer->GetDescriptorSize();
+                        destDescriptorsTxt[i] = txtHandle;
+                    }
 
-                    destDescriptorsTxt[i]     = txtHandle;
-                    destDescriptorsSampler[i] = samplerHandle;
+                    if (desc.descriptorType == DescriptorType::CombinedImageSampler || desc.descriptorType == DescriptorType::SeparateSampler)
+                    {
+                        const auto& sampler                    = m_samplers.GetItemR(desc.samplers[i]);
+                        const auto& srcSamplerDescriptorHandle = sampler.descriptor;
+
+                        D3D12_CPU_DESCRIPTOR_HANDLE srcHandleSampler;
+                        srcHandleSampler.ptr     = srcSamplerDescriptorHandle.GetCPUHandle();
+                        srcDescriptorsSampler[i] = srcHandleSampler;
+
+                        D3D12_CPU_DESCRIPTOR_HANDLE samplerHandle;
+                        samplerHandle.ptr         = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
+                        destDescriptorsSampler[i] = samplerHandle;
+                    }
                 }
                 break;
             }
         }
 
-        m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsTxt.data(), NULL, desc.descriptorCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsSampler.data(), NULL, desc.descriptorCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        if (desc.descriptorType == DescriptorType::CombinedImageSampler)
+        {
+            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsTxt.data(), NULL, desc.descriptorCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsSampler.data(), NULL, desc.descriptorCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        }
+        else if (desc.descriptorType == DescriptorType::SeparateImage)
+        {
+            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsTxt.data(), NULL, desc.descriptorCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        }
+        else if (desc.descriptorType == DescriptorType::SeparateSampler)
+        {
+            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsSampler.data(), NULL, desc.descriptorCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        }
     }
 
     void DX12Backend::DX12Exception(HrException e)

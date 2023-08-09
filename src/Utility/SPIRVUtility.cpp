@@ -435,8 +435,6 @@ namespace LinaGX
 
     bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& compiledBlob, ShaderLayout& outLayout, BackendAPI targetAPI)
     {
-        glslang_stage_t stage = GetStage(stg);
-
         LINAGX_STRING fullShaderStr = "";
         GetShaderTextWithIncludes(fullShaderStr, pShader, includePath);
 
@@ -444,7 +442,6 @@ namespace LinaGX
         // But we need to have the identifier generated in HLSL from SPV.
         if (targetAPI == BackendAPI::DX12)
         {
-
             const LINAGX_STRING searchString  = "gl_DrawID";
             const LINAGX_STRING replaceString = "LGX_GET_DRAW_ID()";
             size_t              pos           = 0;
@@ -469,6 +466,8 @@ namespace LinaGX
             }
         }
 
+        glslang_stage_t stage = GetStage(stg);
+
         glslang_input_t input                   = {};
         input.language                          = GLSLANG_SOURCE_GLSL;
         input.stage                             = stage;
@@ -482,32 +481,34 @@ namespace LinaGX
         input.forward_compatible                = false;
         input.messages                          = GLSLANG_MSG_DEFAULT_BIT;
         input.resource                          = &DefaultTBuiltInResource;
-
-        glslang_shader_t* shader = glslang_shader_create(&input);
+        glslang_shader_t* shader                = glslang_shader_create(&input);
 
         if (!glslang_shader_preprocess(shader, &input))
         {
-            LOGE("GLSL2SPV -> Preprocess failed %s, %s", glslang_shader_get_info_log(shader), glslang_shader_get_info_debug_log(shader));
+            LINAGX_STRING log = glslang_shader_get_info_log(shader);
+            log               = log.substr(0, 100);
+            LOGE("GLSL2SPV -> Preprocess failed %s", log.c_str());
             return false;
         }
-
         if (!glslang_shader_parse(shader, &input))
         {
-            LOGE("GLSL2SPV -> Parsing failed %s, %s", glslang_shader_get_info_log(shader), glslang_shader_get_info_debug_log(shader));
+            LINAGX_STRING log = glslang_shader_get_info_log(shader);
+            log               = log.substr(0, 100);
+            LOGE("GLSL2SPV -> Parsing failed %s", log.c_str());
             return false;
         }
 
         glslang_program_t* program = glslang_program_create();
         glslang_program_add_shader(program, shader);
-
         if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT))
         {
-            LOGE("GLSL2SPV -> Linking failed %s, %s", glslang_shader_get_info_log(shader), glslang_shader_get_info_debug_log(shader));
+            LINAGX_STRING log = glslang_shader_get_info_log(shader);
+            log               = log.substr(0, 100);
+            LOGE("GLSL2SPV -> Linking failed %s, %s", log.c_str());
             return false;
         }
 
         glslang_program_SPIRV_generate(program, stage);
-
         std::vector<uint32> spirvBinary;
         const size_t        elemCount = glslang_program_SPIRV_get_size(program);
         spirvBinary.resize(elemCount);
@@ -521,15 +522,13 @@ namespace LinaGX
             LINAGX_MEMCPY(compiledBlob.ptr, spirvBinary.data(), programSize);
         }
 
-        const char* spirv_messages =
-            glslang_program_SPIRV_get_messages(program);
+        const char* spirv_messages = glslang_program_SPIRV_get_messages(program);
 
         if (spirv_messages)
             fprintf(stderr, "%s", spirv_messages);
 
         glslang_program_delete(program);
         glslang_shader_delete(shader);
-
 
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();

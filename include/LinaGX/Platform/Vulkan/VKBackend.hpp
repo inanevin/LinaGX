@@ -217,6 +217,7 @@ namespace LinaGX
         bool                      m_supportsAsyncTransferQueue      = false;
         bool                      m_supportsAsyncComputeQueue       = false;
         bool                      m_supportsMultiDrawIndirect       = false;
+        bool                      m_supportsAnisotropy              = false;
 
         uint32 m_currentFrameIndex = 0;
         uint32 m_currentImageIndex = 0;
@@ -231,11 +232,11 @@ namespace LinaGX
         IDList<uint32, VKBSampler>       m_samplers       = {100};
         IDList<uint16, VKBDescriptorSet> m_descriptorSets = {20};
 
-        InitInfo                            m_initInfo     = {};
-        LINAGX_VEC<VKBPerFrameData>         m_perFrameData = {};
+        InitInfo                                   m_initInfo     = {};
+        LINAGX_VEC<VKBPerFrameData>                m_perFrameData = {};
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions = {};
-        LINAGX_MAP<QueueType, VKBQueueData> m_queueData    = {};
-        LINAGX_MAP<uint32, uint64>          m_killQueueIntermediateResources;
+        LINAGX_MAP<QueueType, VKBQueueData>        m_queueData    = {};
+        LINAGX_MAP<uint32, uint64>                 m_killQueueIntermediateResources;
 
         VkDescriptorPool           m_descriptorPool          = nullptr;
         uint32                     m_imageAcqSemaphoresCount = 0;
