@@ -526,6 +526,8 @@ namespace LinaGX
             return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         case LinaGX::DescriptorType::SeparateSampler:
             return VK_DESCRIPTOR_TYPE_SAMPLER;
+        case LinaGX::DescriptorType::SeparateImage:
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         case LinaGX::DescriptorType::SSBO:
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         case LinaGX::DescriptorType::UBO:
@@ -1375,7 +1377,7 @@ namespace LinaGX
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                vkBinding.descriptorCount = m_gpuProperties.limits.maxDescriptorSetSampledImages;
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
             }
             else if (binding.type == DescriptorType::SeparateSampler && binding.bindless)
             {
@@ -1800,6 +1802,7 @@ namespace LinaGX
             vk12Features.descriptorBindingPartiallyBound               = true;
             vk12Features.descriptorBindingSampledImageUpdateAfterBind  = true;
             vk12Features.descriptorBindingStorageBufferUpdateAfterBind = true;
+            vk12Features.descriptorBindingUniformBufferUpdateAfterBind = true;
         }
 
         // Check for feature support
@@ -1827,7 +1830,7 @@ namespace LinaGX
 
                 if (m_initInfo.gpuFeatures.enableBindless)
                 {
-                    if (!supportedFeatures.shaderSampledImageArrayDynamicIndexing || !supportedVulkan12Features.runtimeDescriptorArray || !supportedVulkan12Features.descriptorBindingPartiallyBound || !supportedVulkan12Features.descriptorBindingSampledImageUpdateAfterBind || !supportedVulkan12Features.descriptorBindingStorageBufferUpdateAfterBind)
+                    if (!supportedFeatures.shaderSampledImageArrayDynamicIndexing || !supportedVulkan12Features.runtimeDescriptorArray || !supportedVulkan12Features.descriptorBindingPartiallyBound || !supportedVulkan12Features.descriptorBindingSampledImageUpdateAfterBind || !supportedVulkan12Features.descriptorBindingUniformBufferUpdateAfterBind || !supportedVulkan12Features.descriptorBindingStorageBufferUpdateAfterBind)
                         unsupportState[i] = true;
                 }
 
