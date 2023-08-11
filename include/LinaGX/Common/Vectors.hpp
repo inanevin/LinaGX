@@ -28,37 +28,47 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_MATH_HPP
-#define LINAGX_MATH_HPP
-
-#include "CommonData.hpp"
-#include "Vectors.hpp"
+#ifndef LINAGX_VECTORS_HPP
+#define LINAGX_VECTORS_HPP
 
 namespace LinaGX
 {
 
-#define DEG2RAD(X) X * 0.0174533f
-#define LPI        3.14159265359f
-
-    extern LINAGX_API uint32 FloorLog2(uint32 val);
-
-    template <typename T>
-    inline constexpr T Max(const T& val1, const T& val2)
+    struct LGXVector3
     {
-        return val1 >= val2 ? val1 : val2;
-    }
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+    };
 
-    template <typename T>
-    inline constexpr T Min(const T& val1, const T& val2)
+    struct LGXVector2
     {
-        return val1 <= val2 ? val1 : val2;
-    }
+        float x = 0.0f, y = 0.0f;
+    };
 
-    template <typename T, typename U>
-    static T Lerp(const T& val1, const T& val2, const U& amt)
+    struct LGXVector2ui
     {
-        return (T)(val1 * ((U)(1) - amt) + val2 * amt);
-    }
+        unsigned int x = 0, y = 0;
+    };
+
+    struct LGXVector2i
+    {
+        int x = 0, y = 0;
+    };
+
+    struct LGXVector4
+    {
+        float x = 0.0f, y = 0.0f, z = 0.0, w = 0.0f;
+    };
+
+    struct LGXVector4ui16
+    {
+        unsigned short x = 0, y = 0, z = 0, w = 0;
+    };
+
+    struct LGXRectui
+    {
+        LGXVector2ui pos;
+        LGXVector2ui size;
+    };
 
 } // namespace LinaGX
 

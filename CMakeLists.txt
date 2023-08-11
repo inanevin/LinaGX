@@ -42,6 +42,7 @@ include/LinaGX/LinaGXExports.hpp
 include/LinaGX/Common/CommonData.hpp
 include/LinaGX/Common/CommonGfx.hpp
 include/LinaGX/Common/Math.hpp
+include/LinaGX/Common/Vectors.hpp
 include/LinaGX/Core/Backend.hpp
 include/LinaGX/Core/Input.hpp
 include/LinaGX/Core/InputMappings.hpp

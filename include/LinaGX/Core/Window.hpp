@@ -171,6 +171,11 @@ namespace LinaGX
             return m_dpiScale;
         }
 
+        inline uint32 GetDPI() const
+        {
+            return m_dpi;
+        }
+
         inline const LGXVector2ui GetMousePosition() const
         {
             return m_mousePosition;
