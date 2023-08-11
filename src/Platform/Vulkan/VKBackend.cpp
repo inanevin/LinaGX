@@ -2041,7 +2041,7 @@ namespace LinaGX
                 // Check if the heap has host-mappable memory properties
                 if (type.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT && type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
                 {
-                    GPUInfo.totalCPUVisibleGPUMemorySize = gpuMemProps.memoryHeaps[type.heapIndex].size;
+                    GPUInfo.totalCPUVisibleGPUMemorySize = Max(GPUInfo.totalCPUVisibleGPUMemorySize, gpuMemProps.memoryHeaps[type.heapIndex].size);
                 }
             }
         }

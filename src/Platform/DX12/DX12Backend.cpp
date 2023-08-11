@@ -1668,7 +1668,12 @@ namespace LinaGX
                         srcDescriptorsSampler[i] = srcHandleSampler;
 
                         D3D12_CPU_DESCRIPTOR_HANDLE samplerHandle;
-                        samplerHandle.ptr         = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
+
+                        if (desc.descriptorType == DescriptorType::CombinedImageSampler)
+                            samplerHandle.ptr = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
+                        else
+                            samplerHandle.ptr = binding.gpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
+
                         destDescriptorsSampler[i] = samplerHandle;
                     }
                 }
