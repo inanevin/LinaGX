@@ -936,7 +936,7 @@ namespace LinaGX::Examples
         _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue});
 
         // Present main swapchain.
-        _lgx->Present({.swapchain = _swapchain});
+        _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});
 
         // Let LinaGX know we are finalizing this frame.
         _lgx->EndFrame();

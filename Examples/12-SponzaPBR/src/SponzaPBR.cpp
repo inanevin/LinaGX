@@ -213,7 +213,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -1349,7 +1349,7 @@ namespace LinaGX::Examples
         _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue});
 
         // Present main swapchain.
-        _lgx->Present({.swapchain = _swapchain});
+        _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});
 
         // Let LinaGX know we are finalizing this frame.
         _lgx->EndFrame();

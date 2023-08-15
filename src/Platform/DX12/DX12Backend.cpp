@@ -684,6 +684,11 @@ namespace LinaGX
         }
     }
 
+    void DX12Backend::SetSwapchainActive(uint8 swp, bool isActive)
+    {
+        m_swapchains.GetItemR(swp).isActive = isActive;
+    }
+
     bool DX12Backend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
     {
         try
@@ -2207,45 +2212,57 @@ namespace LinaGX
 
     void DX12Backend::Present(const PresentDesc& present)
     {
-        auto& swp = m_swapchains.GetItemR(present.swapchain);
-
-        try
+        for (uint32 i = 0; i < present.swapchainCount; i++)
         {
-            UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
-            uint32 interval = 0;
+            auto& swp = m_swapchains.GetItemR(present.swapchains[i]);
 
-            if (swp.vsync == VsyncMode::EveryVBlank)
+            if (swp.width == 0 || swp.height == 0)
+                continue;
+
+            if (!swp.isActive)
             {
-                interval = 1;
-                flags    = 0;
-            }
-            else if (swp.vsync == VsyncMode::EverySecondVBlank)
-            {
-                interval = 2;
-                flags    = 0;
+                LOGE("Trying to present an inactive swapchain!");
+                continue;
             }
 
-            ThrowIfFailed(swp.ptr->Present(interval, flags));
-            swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
-
-            DXGI_FRAME_STATISTICS FrameStatistics;
-            swp.ptr->GetFrameStatistics(&FrameStatistics);
-
-            if (FrameStatistics.PresentCount > m_previousPresentCount)
+            try
             {
-                if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
+                UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+                uint32 interval = 0;
+
+                if (swp.vsync == VsyncMode::EveryVBlank)
                 {
-                    ++m_glitchCount;
-                    interval = 0;
+                    interval = 1;
+                    flags    = 0;
                 }
-            }
+                else if (swp.vsync == VsyncMode::EverySecondVBlank)
+                {
+                    interval = 2;
+                    flags    = 0;
+                }
 
-            m_previousPresentCount = FrameStatistics.PresentCount;
-            m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
-        }
-        catch (HrException& e)
-        {
-            DX12_THROW(e, "Backend -> Present engine error! {0}", e.what());
+                ThrowIfFailed(swp.ptr->Present(interval, flags));
+                swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
+
+                DXGI_FRAME_STATISTICS FrameStatistics;
+                swp.ptr->GetFrameStatistics(&FrameStatistics);
+
+                if (FrameStatistics.PresentCount > m_previousPresentCount)
+                {
+                    if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
+                    {
+                        ++m_glitchCount;
+                        interval = 0;
+                    }
+                }
+
+                m_previousPresentCount = FrameStatistics.PresentCount;
+                m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
+            }
+            catch (HrException& e)
+            {
+                DX12_THROW(e, "Backend -> Present engine error! {0}", e.what());
+            }
         }
     }
 
@@ -2461,7 +2478,7 @@ namespace LinaGX
         const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
 
         // Find correct size for staging resource.
-        uint64       ogDataSize = 0;
+        uint64 ogDataSize = 0;
 
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {

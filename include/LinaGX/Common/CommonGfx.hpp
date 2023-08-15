@@ -587,7 +587,8 @@ namespace LinaGX
 
     struct PresentDesc
     {
-        uint8 swapchain = 0;
+        uint8* swapchains     = nullptr;
+        uint32 swapchainCount = 0;
     };
 
     class CommandStream;

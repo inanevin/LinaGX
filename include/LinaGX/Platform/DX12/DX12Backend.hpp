@@ -49,6 +49,7 @@ namespace LinaGX
     {
         Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr         = NULL;
         bool                                    isValid     = false;
+        bool                                    isActive    = true;
         Format                                  format      = Format::B8G8R8A8_UNORM;
         Format                                  depthFormat = Format::D32_SFLOAT;
         LINAGX_VEC<uint32>                      colorTextures;
@@ -186,7 +187,7 @@ namespace LinaGX
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
-        virtual void   SetSwapchainActive(uint8 swp, bool isActive) override{};
+        virtual void   SetSwapchainActive(uint8 swp, bool isActive);
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;

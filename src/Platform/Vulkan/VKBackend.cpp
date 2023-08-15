@@ -1653,12 +1653,12 @@ namespace LinaGX
                     waitStages.push_back(waitStage);
                     waitSemaphoreValues.push_back(0); // ignored binary semaphore.
                 }
-            }
 
-            for(uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
-            {
-                signalSemaphores.push_back(frame.submitSemaphores[i]);
-                signalSemaphoreValues.push_back(0);
+                for (uint32 i = 0; i < frame.submissionCount + 1; i++)
+                {
+                    signalSemaphores.push_back(frame.submitSemaphores[i]);
+                    signalSemaphoreValues.push_back(0);
+                }
             }
         }
 
@@ -1703,8 +1703,10 @@ namespace LinaGX
         submitInfo.pCommandBuffers      = _buffers.data();
         submitInfo.pWaitDstStageMask    = waitStages.data();
 
-        VkResult res = vkQueueSubmit(queue, 1, &submitInfo, frame.submitFences[frame.submissionCount]);
-        frame.submissionCount++;
+        VkResult res = vkQueueSubmit(queue, 1, &submitInfo, desc.queue == QueueType::Graphics ? frame.submitFences[frame.submissionCount] : nullptr);
+
+        if (desc.queue == QueueType::Graphics)
+            frame.submissionCount++;
 
         LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
@@ -2295,12 +2297,30 @@ namespace LinaGX
 
     void VKBackend::Present(const PresentDesc& present)
     {
-        auto&                   swp   = m_swapchains.GetItemR(present.swapchain);
+        LINAGX_VEC<VkSwapchainKHR> swaps;
+        LINAGX_VEC<uint32> imageIndices;
+        swaps.reserve(present.swapchainCount);
+        imageIndices.reserve(present.swapchainCount);
+
+        for (uint32 i = 0; i < present.swapchainCount; i++)
+        {
+            const auto& swp = m_swapchains.GetItemR(present.swapchains[i]);
+
+            if (swp.width == 0 || swp.height == 0)
+                continue;
+
+            if (!swp.isActive)
+            {
+                LOGE("Trying to present an inactive swapchain!");
+                continue;
+            }
+
+            swaps.push_back(swp.ptr);
+            imageIndices.push_back(swp._imageIndex);
+        }
+
         auto&                   frame = m_perFrameData[m_currentFrameIndex];
         LINAGX_VEC<VkSemaphore> waitSemaphores;
-
-        if (swp.width == 0 || swp.height == 0)
-            return;
 
         for (uint32 i = 0; i < frame.submissionCount; i++)
             waitSemaphores.push_back(frame.submitSemaphores[i]);
@@ -2310,9 +2330,9 @@ namespace LinaGX
         info.pNext              = nullptr;
         info.waitSemaphoreCount = static_cast<uint32>(waitSemaphores.size());
         info.pWaitSemaphores    = waitSemaphores.data();
-        info.swapchainCount     = 1;
-        info.pSwapchains        = &swp.ptr;
-        info.pImageIndices      = &swp._imageIndex;
+        info.swapchainCount     = static_cast<uint32>(swaps.size());
+        info.pSwapchains        = swaps.data();
+        info.pImageIndices      = imageIndices.data();
 
         VkResult result = vkQueuePresentKHR(m_queueData[QueueType::Graphics].queue, &info);
 
