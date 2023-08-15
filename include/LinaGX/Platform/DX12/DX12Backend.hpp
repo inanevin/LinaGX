@@ -186,6 +186,7 @@ namespace LinaGX
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
+        virtual void   SetSwapchainActive(uint8 swp, bool isActive) override{};
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
@@ -271,11 +272,11 @@ namespace LinaGX
         DX12HeapGPU*                                        m_gpuHeapSampler = nullptr;
 
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
-        uint32                              m_currentFrameIndex    = 0;
-        uint32                              m_currentImageIndex    = 0;
-        uint32                              m_previousRefreshCount = 0;
-        uint32                              m_previousPresentCount = 0;
-        uint32                              m_glitchCount          = 0;
+        uint32                                     m_currentFrameIndex    = 0;
+        uint32                                     m_currentImageIndex    = 0;
+        uint32                                     m_previousRefreshCount = 0;
+        uint32                                     m_previousPresentCount = 0;
+        uint32                                     m_glitchCount          = 0;
 
         LINAGX_MAP<uint32, uint64>           m_killQueueIntermediateResources;
         LINAGX_MAP<void*, uint64>            m_killQueueAdjustedBuffers;

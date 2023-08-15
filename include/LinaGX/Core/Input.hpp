@@ -135,7 +135,7 @@ namespace LinaGX
         ///
         /// </summary>
         /// <returns></returns>
-        inline LGXVector2ui GetMousePositionAbs()
+        inline LGXVector2i GetMousePositionAbs()
         {
             return m_currentMousePositionAbs;
         }
@@ -144,7 +144,7 @@ namespace LinaGX
         ///
         /// </summary>
         /// <returns></returns>
-        inline LGXVector2ui GetMouseDelta()
+        inline LGXVector2i GetMouseDelta()
         {
             return m_mouseDelta;
         }
@@ -153,7 +153,7 @@ namespace LinaGX
         ///
         /// </summary>
         /// <returns></returns>
-        inline LGXVector2ui GetMouseDeltaRaw()
+        inline LGXVector2i GetMouseDeltaRaw()
         {
             return m_mouseDeltaRaw;
         }
@@ -234,20 +234,20 @@ namespace LinaGX
         void WindowFeedMouseWheel(int32 delta);
 
     private:
-        int          m_keyStatesDown[NUM_KEY_STATES]     = {0};
-        int          m_keyStatesUp[NUM_KEY_STATES]       = {0};
-        int          m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
-        int          m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
-        bool         m_appActive                         = true;
-        CursorMode   m_cursorMode                        = CursorMode::Visible;
-        LGXVector2ui m_currentMousePositionAbs           = {0, 0};
-        LGXVector2ui m_previousMousePosition             = {0, 0};
-        LGXVector2ui m_mouseDelta                        = {0, 0};
-        LGXVector2ui m_mouseDeltaRaw                     = {0, 0};
-        int32        m_mouseScroll                       = 0;
-        bool         m_currentStates[256]                = {0};
-        bool         m_previousStates[256]               = {0};
-        LGXVector2ui m_mousePosTrackingClick             = {};
+        int         m_keyStatesDown[NUM_KEY_STATES]     = {0};
+        int         m_keyStatesUp[NUM_KEY_STATES]       = {0};
+        int         m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
+        int         m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
+        bool        m_appActive                         = true;
+        CursorMode  m_cursorMode                        = CursorMode::Visible;
+        LGXVector2i m_currentMousePositionAbs           = {0, 0};
+        LGXVector2i m_previousMousePosition             = {0, 0};
+        LGXVector2i m_mouseDelta                        = {0, 0};
+        LGXVector2i m_mouseDeltaRaw                     = {0, 0};
+        int32       m_mouseScroll                       = 0;
+        bool        m_currentStates[256]                = {0};
+        bool        m_previousStates[256]               = {0};
+        LGXVector2i m_mousePosTrackingClick             = {};
 
         CallbackKey        m_cbKey        = nullptr;
         CallbackMouse      m_cbMouse      = nullptr;

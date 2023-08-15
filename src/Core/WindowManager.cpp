@@ -86,6 +86,9 @@ namespace LinaGX
 
 #endif
         m_input->Tick();
+
+        for (const auto [sid, w] : m_windows)
+            w->Tick();
     }
 
     MonitorInfo WindowManager::GetPrimaryMonitorInfo()
@@ -118,8 +121,8 @@ namespace LinaGX
                 data.workArea    = LGXVector2ui{static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
                 data.workTopLeft = LGXVector2i{static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
                 data.isPrimary   = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-                data.dpi       = dpiX;
-                data.dpiScale  = static_cast<float>(dpiY) / 96.0f;
+                data.dpi         = dpiX;
+                data.dpiScale    = static_cast<float>(dpiY) / 96.0f;
 
                 monitors.push_back(data);
 

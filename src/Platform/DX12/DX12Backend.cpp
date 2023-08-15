@@ -2449,6 +2449,11 @@ namespace LinaGX
         list->CopyResource(GetGPUResource(destRes), GetGPUResource(srcRes));
     }
 
+    uint64 AlignUp(uint64 value, uint64 alignment)
+    {
+        return (value + alignment - 1) & ~(alignment - 1);
+    }
+
     void DX12Backend::CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyBufferToTexture2D* cmd        = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
@@ -2456,15 +2461,22 @@ namespace LinaGX
         const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
 
         // Find correct size for staging resource.
-        const uint64 rowPitch   = (cmd->buffers[0].width * cmd->buffers[0].bytesPerPixel + (D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
-        uint64       ogDataSize = rowPitch * cmd->buffers[0].height;
+        uint64       ogDataSize = 0;
 
-        for (uint32 i = 1; i < cmd->mipLevels; i++)
+        for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
-            const auto&  buf         = cmd->buffers[i];
+            const auto& buf = cmd->buffers[i];
+
+            // Calculate the rowPitch
             const uint64 mipRowPitch = (buf.width * buf.bytesPerPixel + (D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
-            const uint64 mipSz       = mipRowPitch * buf.height;
-            ogDataSize += mipSz;
+
+            // Calculate mip size
+            const uint64 mipSz = mipRowPitch * buf.height;
+
+            // Align the mip size
+            const uint64 alignedMipSize = AlignUp(mipSz, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
+            ogDataSize += alignedMipSize;
         }
 
         // Create staging.

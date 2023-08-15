@@ -54,9 +54,18 @@ namespace LinaGX
             return 0;
         }
         case WM_KILLFOCUS: {
+            if (win32Window->m_cbFocus != nullptr)
+                win32Window->m_cbFocus(false);
+
+            win32Window->m_hasFocus = false;
             break;
         }
         case WM_SETFOCUS: {
+            if (win32Window->m_cbFocus != nullptr)
+                win32Window->m_cbFocus(true);
+
+            win32Window->m_hasFocus = true;
+
             break;
         }
         case WM_WINDOWPOSCHANGED: {
@@ -79,7 +88,8 @@ namespace LinaGX
             const int32 x = static_cast<int32>((short)LOWORD(lParam));
             const int32 y = static_cast<int32>((short)HIWORD(lParam));
 
-            win32Window->m_position = {x, y};
+            const LGXVector2i mp    = {x, y};
+            win32Window->m_position = mp;
 
             if (win32Window->m_cbPosChanged)
                 win32Window->m_cbPosChanged(win32Window->m_position);
@@ -151,7 +161,9 @@ namespace LinaGX
             uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
             uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
 
-            win32Window->m_mousePosition = {xPos, yPos};
+            const LGXVector2ui mp        = {xPos, yPos};
+            win32Window->m_mouseDelta    = {mp.x - win32Window->m_mousePosition.x, mp.y - win32Window->m_mousePosition.y};
+            win32Window->m_mousePosition = mp;
             win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
 
             if (win32Window->m_cbMouseMove)
@@ -167,6 +179,20 @@ namespace LinaGX
 
             win32Window->m_input->WindowFeedMouseWheel(static_cast<int32>(delta));
 
+            break;
+        }
+        case WM_LBUTTONDBLCLK: {
+
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Repeated);
+
+            if (win32Window->m_dragRect.IsPointInside(win32Window->m_mousePosition))
+            {
+                if (win32Window->GetIsMaximized())
+                    win32Window->Restore();
+                else
+                    win32Window->Maximize();
+            }
             break;
         }
         case WM_LBUTTONDOWN: {
@@ -242,6 +268,7 @@ namespace LinaGX
             wc.hInstance     = m_hinst;
             wc.lpszClassName = title;
             wc.hCursor       = NULL;
+            wc.style         = CS_DBLCLKS;
 
             if (!RegisterClassA(&wc))
             {
@@ -287,6 +314,71 @@ namespace LinaGX
         DestroyWindow(m_hwnd);
     }
 
+    void Win32Window::Tick()
+    {
+        if (!m_sizeRequests.empty())
+        {
+            SetSize(*m_sizeRequests.end());
+            m_sizeRequests.clear();
+        }
+
+        if (m_titleChangeRequested)
+        {
+            SetWindowTextA(m_hwnd, m_title.c_str());
+            m_titleChangeRequested = false;
+        }
+
+        const auto absMouse = m_input->GetMousePositionAbs();
+        const bool isInside = absMouse.x > m_position.x && absMouse.y > m_position.y && absMouse.x < m_position.x + static_cast<int>(m_size.x) && absMouse.y < m_position.y + static_cast<int>(m_size.y);
+
+        if (!m_isHovered && isInside)
+        {
+            m_isHovered = true;
+
+            if (m_cbHoverBegin)
+                m_cbHoverBegin();
+        }
+        else if (m_isHovered && !isInside)
+        {
+            m_isHovered = false;
+
+            if (m_cbHoverEnd)
+                m_cbHoverEnd();
+        }
+
+        // Custom dragging by drag rect.
+        {
+            if (!m_isDragged)
+            {
+                if (m_input->GetMouseButtonDown(VK_LBUTTON) && m_dragRect.IsPointInside(m_mousePosition) && m_hasFocus)
+                {
+                    m_isDragged      = true;
+                    m_dragMouseDelta = m_mousePosition;
+
+                    if (m_cbDragBegin)
+                        m_cbDragBegin();
+                }
+            }
+
+            if (m_isDragged)
+            {
+                if (!m_input->GetMouseButton(VK_LBUTTON))
+                {
+                    m_isDragged = false;
+
+                    if (m_cbDragEnd)
+                        m_cbDragEnd();
+
+                    return;
+                }
+
+                const LGXVector2i absMouse  = m_input->GetMousePositionAbs();
+                const LGXVector2i targetPos = {absMouse.x - static_cast<int32>(m_dragMouseDelta.x), absMouse.y - static_cast<int32>(m_dragMouseDelta.y)};
+                SetPosition(targetPos);
+            }
+        }
+    }
+
     uint32 Win32Window::GetStyle(WindowStyle style)
     {
         if (style == WindowStyle::Borderless)
@@ -299,6 +391,14 @@ namespace LinaGX
     {
         m_dpi      = GetDpiForWindow(m_hwnd);
         m_dpiScale = m_dpi / 96.0f;
+    }
+
+    void Win32Window::Close()
+    {
+        if (m_cbClose != nullptr)
+            m_cbClose();
+
+        CloseWindow(m_hwnd);
     }
 
     void Win32Window::SetStyle(WindowStyle style)
@@ -387,6 +487,84 @@ namespace LinaGX
     {
         m_isVisible = isVisible;
         ShowWindow(m_hwnd, m_isVisible ? SW_SHOW : SW_HIDE);
+    }
+
+    void Win32Window::BringToFront()
+    {
+        OpenIcon(m_hwnd);
+        SetWindowPos(m_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    }
+
+    void Win32Window::SetAlpha(float alpha)
+    {
+        const BYTE     finalAlpha = static_cast<BYTE>(alpha * 255.0f);
+        const COLORREF colorKey   = RGB(1, 1, 1);
+        SetLayeredWindowAttributes(m_hwnd, colorKey, finalAlpha, LWA_ALPHA);
+        m_isTransparent = alpha < 0.99f;
+    }
+
+    void Win32Window::SetTitle(const LINAGX_STRING& str)
+    {
+        m_title                = str;
+        m_titleChangeRequested = true;
+    }
+
+    void Win32Window::SetInputPassthrough(bool isInputPassthrough)
+    {
+        m_isInputPassThrough = isInputPassthrough;
+
+        if (m_isInputPassThrough)
+        {
+            SetWindowLong(m_hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_TRANSPARENT | WS_EX_LAYERED);
+        }
+        else
+        {
+            SetWindowLong(m_hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_LAYERED);
+        }
+    }
+
+    void Win32Window::Maximize()
+    {
+        SendMessage(m_hwnd, WM_SETREDRAW, FALSE, 0);
+        SetWindowLongPtr(m_hwnd, GWL_STYLE, WS_POPUP);
+
+        const MonitorInfo mi = GetMonitorInfoFromWindow();
+        m_restoreSize        = m_trueSize;
+        m_restorePos         = m_position;
+        SetPosition(mi.workTopLeft);
+        SetSize(mi.workArea);
+        m_isMaximized = true;
+
+        SendMessage(m_hwnd, WM_SETREDRAW, TRUE, 0);
+        RedrawWindow(m_hwnd, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+    }
+
+    void Win32Window::Minimize()
+    {
+        ShowWindow(m_hwnd, SW_MINIMIZE);
+    }
+
+    void Win32Window::Restore()
+    {
+        m_isMaximized = false;
+
+        const MonitorInfo mi = GetMonitorInfoFromWindow();
+
+        if (m_restoreSize.x == 0 && m_restoreSize.y == 0)
+        {
+            m_restoreSize  = {static_cast<uint32>((float)mi.size.x * 0.5f, static_cast<uint32>((float)mi.size.y * 0.5f))};
+            m_restorePos.x = static_cast<int32>((float)mi.size.x * 0.5f - m_restoreSize.x * 0.5f);
+            m_restorePos.y = static_cast<int32>((float)mi.size.y * 0.5f - m_restoreSize.y * 0.5f);
+        }
+
+        SendMessage(m_hwnd, WM_SETREDRAW, FALSE, 0);
+        SetWindowLongPtr(m_hwnd, GWL_STYLE, WS_POPUP);
+
+        SetSize(m_restoreSize);
+        SetPosition(m_restorePos);
+
+        SendMessage(m_hwnd, WM_SETREDRAW, TRUE, 0);
+        RedrawWindow(m_hwnd, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
     }
 
     MonitorInfo Win32Window::GetMonitorInfoFromWindow()

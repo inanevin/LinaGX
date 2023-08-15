@@ -68,6 +68,11 @@ namespace LinaGX
     {
         LGXVector2ui pos;
         LGXVector2ui size;
+
+        bool IsPointInside(const LGXVector2ui& p) const
+        {
+            return p.x > pos.x && p.x < pos.x + size.x && p.y > pos.y && p.y < pos.y + size.y;
+        }
     };
 
 } // namespace LinaGX

@@ -87,6 +87,49 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
+        /// <param name="alpha"></param>
+        virtual void SetAlpha(float alpha) = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="str"></param>
+        virtual void SetTitle(const LINAGX_STRING& str) = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="isInputPassthrough"></param>
+        virtual void SetInputPassthrough(bool isInputPassthrough) = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        virtual void Close() = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        virtual void BringToFront() = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        virtual void Maximize() = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        virtual void Minimize() = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        virtual void Restore() = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
         /// <returns></returns>
         virtual MonitorInfo GetMonitorInfoFromWindow() = 0;
 
@@ -151,6 +194,31 @@ namespace LinaGX
             m_cbMouseMove = cb;
         }
 
+        inline void SetCallbackFocus(CallbackFocus&& cb)
+        {
+            m_cbFocus = cb;
+        }
+
+        inline void SetCallbackDragBegin(CallbackDragBegin&& cb)
+        {
+            m_cbDragBegin = cb;
+        }
+
+        inline void SetCallbackDragEnd(CallbackDragEnd&& cb)
+        {
+            m_cbDragEnd = cb;
+        }
+
+        inline void SetCallbackHoverBegin(CallbackHoverBegin&& cb)
+        {
+            m_cbHoverBegin = cb;
+        }
+
+        inline void SetCallbackHoverEnd(CallbackHoverEnd&& cb)
+        {
+            m_cbHoverEnd = cb;
+        }
+
         inline const LGXVector2i& GetPosition() const
         {
             return m_position;
@@ -186,6 +254,51 @@ namespace LinaGX
             return m_isVisible;
         }
 
+        inline const LINAGX_STRING& GetTitle() const
+        {
+            return m_title;
+        }
+
+        inline bool GetIsTransparent() const
+        {
+            return m_isTransparent;
+        }
+
+        inline bool HasFocus() const
+        {
+            return m_hasFocus;
+        }
+
+        inline void SetDragRect(const LinaGX::LGXRectui& rect)
+        {
+            m_dragRect = rect;
+        }
+
+        inline bool GetIsDragged() const
+        {
+            return m_isDragged;
+        }
+
+        inline bool GetIsMaximized() const
+        {
+            return m_isMaximized;
+        }
+
+        inline bool GetIsHovered() const
+        {
+            return m_isHovered;
+        }
+
+        inline void AddSizeRequest(const LGXVector2ui& req)
+        {
+            m_sizeRequests.push_back(req);
+        }
+
+        inline const LGXVector2ui& GetMouseDelta() const
+        {
+            return m_mouseDelta;
+        }
+
     protected:
         friend class WindowManager;
         Window(Input* input)
@@ -194,6 +307,7 @@ namespace LinaGX
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style) = 0;
         virtual void Destroy()                                                                                                        = 0;
+        virtual void Tick()                                                                                                           = 0;
 
     protected:
         CallbackNoArg       m_cbClose       = nullptr;
@@ -203,19 +317,34 @@ namespace LinaGX
         CallbackMouse       m_cbMouse       = nullptr;
         CallbackMouseWheel  m_cbMouseWheel  = nullptr;
         CallbackMouseMove   m_cbMouseMove   = nullptr;
+        CallbackFocus       m_cbFocus       = nullptr;
+        CallbackHoverBegin  m_cbHoverBegin  = nullptr;
+        CallbackHoverEnd    m_cbHoverEnd    = nullptr;
+        CallbackDragBegin   m_cbDragBegin   = nullptr;
+        CallbackDragEnd     m_cbDragEnd     = nullptr;
 
     protected:
-        LINAGX_STRINGID m_sid   = 0;
-        Input*          m_input = nullptr;
-        LINAGX_STRING   m_title = "";
-        LGXVector2i     m_position;
-        LGXVector2ui    m_size;
-        LGXVector2ui    m_trueSize;
-        LGXVector2ui    m_mousePosition = {};
-        uint32          m_dpi           = 0;
-        float           m_dpiScale      = 0.0f;
-        bool            m_isVisible     = true;
-        CursorType      m_cursorType    = CursorType::Default;
+        LINAGX_STRINGID          m_sid   = 0;
+        Input*                   m_input = nullptr;
+        LINAGX_STRING            m_title = "";
+        LGXVector2i              m_position;
+        LGXVector2ui             m_size;
+        LGXVector2ui             m_trueSize;
+        LGXVector2ui             m_mousePosition = {};
+        LGXVector2ui             m_mouseDelta    = {};
+        LGXRectui                m_dragRect;
+        uint32                   m_dpi                = 0;
+        float                    m_dpiScale           = 0.0f;
+        bool                     m_isVisible          = true;
+        bool                     m_isTransparent      = false;
+        float                    m_alpha              = 0.0f;
+        bool                     m_hasFocus           = true;
+        bool                     m_isDragged          = false;
+        bool                     m_isMaximized        = false;
+        bool                     m_isHovered          = false;
+        bool                     m_isInputPassThrough = false;
+        CursorType               m_cursorType         = CursorType::Default;
+        LINAGX_VEC<LGXVector2ui> m_sizeRequests;
     };
 } // namespace LinaGX
 

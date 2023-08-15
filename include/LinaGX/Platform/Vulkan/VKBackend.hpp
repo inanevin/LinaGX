@@ -74,6 +74,7 @@ namespace LinaGX
     struct VKBSwapchain
     {
         bool                    isValid     = false;
+        bool                    isActive    = true;
         uint32                  width       = 0;
         uint32                  height      = 0;
         VkFormat                format      = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
@@ -149,6 +150,7 @@ namespace LinaGX
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
+        virtual void   SetSwapchainActive(uint8 swp, bool isActive) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;

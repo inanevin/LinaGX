@@ -57,6 +57,16 @@ namespace LinaGX
 
         MonitorInfo GetPrimaryMonitorInfo();
 
+        inline const LINAGX_MAP<LINAGX_STRINGID, Window*>& GetWindows() const
+        {
+            return m_windows;
+        }
+
+        inline const LINAGX_VEC<MonitorInfo>& GetMonitors() const
+        {
+            return m_monitors;
+        }
+
     private:
         friend class Instance;
 

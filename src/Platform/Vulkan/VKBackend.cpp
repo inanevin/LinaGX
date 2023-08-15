@@ -770,6 +770,12 @@ namespace LinaGX
             swp.views.push_back(view);
     }
 
+    void VKBackend::SetSwapchainActive(uint8 swp, bool isActive)
+    {
+        auto& swap    = m_swapchains.GetItemR(swp);
+        swap.isActive = isActive;
+    }
+
     bool VKBackend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
     {
         LOGA(false, "!!");
@@ -1649,9 +1655,9 @@ namespace LinaGX
                 }
             }
 
-            if (m_imageAcqSemaphoresCount != 0)
+            for(uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
             {
-                signalSemaphores.push_back(frame.submitSemaphores[frame.submissionCount]);
+                signalSemaphores.push_back(frame.submitSemaphores[i]);
                 signalSemaphoreValues.push_back(0);
             }
         }
@@ -2250,7 +2256,7 @@ namespace LinaGX
         uint8 i = 0;
         for (auto& swp : m_swapchains)
         {
-            if (!swp.isValid || swp.width == 0 || swp.height == 0)
+            if (!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)
             {
                 i++;
                 continue;

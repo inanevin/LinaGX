@@ -701,6 +701,11 @@ namespace LinaGX
     typedef std::function<void(uint32, int32, InputAction)> CallbackKey;
     typedef std::function<void(uint32, InputAction)>        CallbackMouse;
     typedef std::function<void(int32)>                      CallbackMouseWheel;
+    typedef std::function<void(bool)>                       CallbackFocus;
+    typedef std::function<void()>                           CallbackHoverBegin;
+    typedef std::function<void()>                           CallbackHoverEnd;
+    typedef std::function<void()>                           CallbackDragBegin;
+    typedef std::function<void()>                           CallbackDragEnd;
 
 } // namespace LinaGX
 

@@ -149,6 +149,11 @@ namespace LinaGX
         m_backend->RecreateSwapchain(desc);
     }
 
+    void Instance::SetSwapchainActive(uint8 swp, bool isActive)
+    {
+        m_backend->SetSwapchainActive(swp, isActive);
+    }
+
     bool Instance::CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout)
     {
         for (const auto& [stage, data] : compileData)

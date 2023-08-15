@@ -46,17 +46,24 @@ namespace LinaGX
         static __int64 __stdcall WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam);
         static LINAGX_MAP<HWND__*, Win32Window*> s_win32Windows;
 
-        virtual void SetStyle(WindowStyle style) override;
-        virtual void SetCursorType(CursorType type) override;
-
-        virtual void         SetPosition(const LGXVector2i& pos);
-        virtual void         SetSize(const LGXVector2ui& size);
-        virtual void         CenterPositionToCurrentMonitor();
-        virtual void         SetFullscreen();
-        virtual void         SetVisible(bool isVisible);
-        virtual MonitorInfo  GetMonitorInfoFromWindow();
+        virtual void         Close() override;
+        virtual void         SetStyle(WindowStyle style) override;
+        virtual void         SetCursorType(CursorType type) override;
+        virtual void         SetPosition(const LGXVector2i& pos) override;
+        virtual void         SetSize(const LGXVector2ui& size) override;
+        virtual void         CenterPositionToCurrentMonitor() override;
+        virtual void         SetFullscreen() override;
+        virtual void         SetVisible(bool isVisible) override;
+        virtual void         BringToFront() override;
+        virtual void         SetAlpha(float alpha) override;
+        virtual void         SetTitle(const LINAGX_STRING& str) override;
+        virtual void         SetInputPassthrough(bool isInputPassthrough) override;
+        virtual void         Maximize() override;
+        virtual void         Minimize() override;
+        virtual void         Restore() override;
+        virtual MonitorInfo  GetMonitorInfoFromWindow() override;
         virtual LGXVector2ui GetMonitorWorkArea() override;
-        virtual LGXVector2ui GetMonitorSize();
+        virtual LGXVector2ui GetMonitorSize() override;
 
         virtual void* GetWindowHandle() override
         {
@@ -76,14 +83,19 @@ namespace LinaGX
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style) override;
         virtual void Destroy() override;
+        virtual void Tick() override;
 
     private:
         uint32 GetStyle(WindowStyle style);
         void   OnDPIChanged(uint32 dpi);
 
     private:
-        HWND__*      m_hwnd  = nullptr;
-        HINSTANCE__* m_hinst = nullptr;
+        HWND__*      m_hwnd                 = nullptr;
+        HINSTANCE__* m_hinst                = nullptr;
+        bool         m_titleChangeRequested = false;
+        LGXVector2ui m_dragMouseDelta       = {};
+        LGXVector2i  m_restorePos           = {};
+        LGXVector2ui m_restoreSize          = {};
     };
 } // namespace LinaGX
 
