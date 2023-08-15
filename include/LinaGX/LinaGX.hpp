@@ -52,6 +52,8 @@ use to index into another buffer for per-draw-call parameters.
 
 - #version 460 required
 
+- Align buffers 16 bytes always, if using constants buffers on top, align 256 for DX12
+
 */
 
 #pragma once
