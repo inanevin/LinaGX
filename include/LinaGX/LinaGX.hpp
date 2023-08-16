@@ -54,6 +54,10 @@ use to index into another buffer for per-draw-call parameters.
 
 - Align buffers 16 bytes always, if using constants buffers on top, align 256 for DX12
 
+- Any submissions made containing writes to the swapchain image must be sent to the primary queue.
+
+- Don't forget to set isMultithreaded flag if submitting from multiple threads.
+
 */
 
 #pragma once

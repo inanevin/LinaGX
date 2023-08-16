@@ -310,7 +310,7 @@ namespace LinaGX::Examples
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
             _pfd[0].copySemaphoreValue++;
-            _lgx->SubmitCommandStreams({.queue = QueueType::Transfer, .streams = &_pfd[0].copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_pfd[0].copySemaphore, .signalValues = &_pfd[0].copySemaphoreValue});
+            _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(QueueType::Transfer), .streams = &_pfd[0].copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_pfd[0].copySemaphore, .signalValues = &_pfd[0].copySemaphoreValue});
             _lgx->WaitForUserSemaphore(_pfd[0].copySemaphore, _pfd[0].copySemaphoreValue);
 
             // Not needed anymore.
@@ -490,7 +490,7 @@ namespace LinaGX::Examples
                 currentFrame.copySemaphoreValue++;
 
                 SubmitDesc submit = {
-                    .queue            = QueueType::Transfer,
+                    .targetQueue      = _lgx->GetPrimaryQueue(QueueType::Transfer),
                     .streams          = &currentFrame.copyStream,
                     .streamCount      = 1,
                     .useWait          = false,
@@ -598,7 +598,7 @@ namespace LinaGX::Examples
         _lgx->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue});
+        _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(QueueType::Graphics), .streams = &currentFrame.stream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue});
 
         // Present main swapchain.
         _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});

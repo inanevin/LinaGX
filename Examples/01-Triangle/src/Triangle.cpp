@@ -227,7 +227,7 @@ namespace LinaGX::Examples
         _lgx->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _lgx->SubmitCommandStreams({.streams = &currentFrame.stream, .streamCount = 1});
+        _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(QueueType::Graphics), .streams = &currentFrame.stream, .streamCount = 1});
 
         // Present main swapchain.
         _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});

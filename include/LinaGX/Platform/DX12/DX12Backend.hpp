@@ -33,6 +33,7 @@ SOFTWARE.
 
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Platform/DX12/DX12Common.hpp"
+#include <atomic>
 
 namespace D3D12MA
 {
@@ -120,20 +121,12 @@ namespace LinaGX
         QueueType                                          type        = QueueType::Graphics;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
-        LINAGX_VEC<uint32>                                 intermediateResources;
+        LINAGX_MAP<uint32, uint64>                         intermediateResources;
+        LINAGX_MAP<void*, uint64>                          adjustedBuffers;
     };
 
     struct DX12PerFrameData
     {
-        uint64 storedFenceGraphics = 0;
-        uint64 storedFenceTransfer = 0;
-    };
-
-    struct DX12QueueData
-    {
-        Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue;
-        Microsoft::WRL::ComPtr<ID3D12Fence>        frameFence;
-        uint64                                     frameFenceValue = 0;
     };
 
     struct DX12Resource
@@ -169,6 +162,17 @@ namespace LinaGX
     {
         bool                              isValid = false;
         LINAGX_VEC<DX12DescriptorBinding> bindings;
+    };
+
+    struct DX12Queue
+    {
+        bool                                       isValid = false;
+        QueueType                                  type    = QueueType::Graphics;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue;
+        Microsoft::WRL::ComPtr<ID3D12Fence>        frameFence;
+        uint64                                     frameFenceValue = 0;
+        LINAGX_VEC<uint64>                         storedFenceValues;
+        std::atomic_flag*                          inUse = nullptr;
     };
 
     class DX12Backend : public Backend
@@ -207,6 +211,9 @@ namespace LinaGX
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
+        virtual uint8  CreateQueue(const QueueDesc& desc) override;
+        virtual void   DestroyQueue(uint8 queue) override;
+        virtual uint8  GetPrimaryQueue(QueueType type) override;
 
         void            DX12Exception(HrException e);
         ID3D12Resource* GetGPUResource(const DX12Resource& res);
@@ -269,6 +276,7 @@ namespace LinaGX
         IDList<uint16, DX12UserSemaphore>                   m_userSemaphores = {20};
         IDList<uint32, DX12Sampler>                         m_samplers       = {100};
         IDList<uint16, DX12DescriptorSet>                   m_descriptorSets = {20};
+        IDList<uint8, DX12Queue>                            m_queues         = {5};
         DX12HeapGPU*                                        m_gpuHeapBuffer  = nullptr;
         DX12HeapGPU*                                        m_gpuHeapSampler = nullptr;
 
@@ -279,10 +287,8 @@ namespace LinaGX
         uint32                                     m_previousPresentCount = 0;
         uint32                                     m_glitchCount          = 0;
 
-        LINAGX_MAP<uint32, uint64>           m_killQueueIntermediateResources;
-        LINAGX_MAP<void*, uint64>            m_killQueueAdjustedBuffers;
-        LINAGX_VEC<DX12PerFrameData>         m_perFrameData;
-        LINAGX_MAP<QueueType, DX12QueueData> m_queueData;
+        LINAGX_VEC<DX12PerFrameData> m_perFrameData;
+        LINAGX_MAP<QueueType, uint8> m_primaryQueues;
 
         InitInfo m_initInfo           = {};
         uint32   m_submissionPerFrame = 0;

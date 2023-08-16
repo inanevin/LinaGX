@@ -336,4 +336,19 @@ namespace LinaGX
         m_backend->DescriptorUpdateImage(desc);
     }
 
+    uint8 Instance::CreateQueue(const QueueDesc& desc)
+    {
+        return m_backend->CreateQueue(desc);
+    }
+
+    void Instance::DestroyQueue(uint8 queue)
+    {
+        m_backend->DestroyQueue(queue);
+    }
+
+    uint8 Instance::GetPrimaryQueue(QueueType type)
+    {
+        return m_backend->GetPrimaryQueue(type);
+    }
+
 } // namespace LinaGX

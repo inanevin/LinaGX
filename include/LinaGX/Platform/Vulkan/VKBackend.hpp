@@ -32,6 +32,7 @@ SOFTWARE.
 #define LINAGX_VKBackend_HPP
 
 #include "LinaGX/Core/Backend.hpp"
+#include <atomic>
 #ifdef LINAGX_PLATFORM_WINDOWS
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
@@ -98,12 +99,12 @@ namespace LinaGX
 
     struct VKBCommandStream
     {
-        bool               isValid     = false;
-        QueueType          type        = QueueType::Graphics;
-        uint32             boundShader = 0;
-        VkCommandBuffer    buffer      = nullptr;
-        VkCommandPool      pool        = nullptr;
-        LINAGX_VEC<uint32> intermediateResources;
+        bool                       isValid     = false;
+        QueueType                  type        = QueueType::Graphics;
+        uint32                     boundShader = 0;
+        VkCommandBuffer            buffer      = nullptr;
+        VkCommandPool              pool        = nullptr;
+        LINAGX_MAP<uint32, uint64> intermediateResources;
     };
 
     struct VKBResource
@@ -114,11 +115,6 @@ namespace LinaGX
         ResourceHeap     heapType   = ResourceHeap::StagingHeap;
         VkBuffer         buffer     = nullptr;
         VmaAllocation_T* allocation = nullptr;
-    };
-
-    struct VKBQueueData
-    {
-        VkQueue queue = nullptr;
     };
 
     struct VKBUserSemaphore
@@ -132,6 +128,24 @@ namespace LinaGX
         bool                  isValid = false;
         VkDescriptorSet       ptr     = nullptr;
         VkDescriptorSetLayout layout  = nullptr;
+    };
+
+    struct VKBQueue
+    {
+        bool               isValid             = false;
+        VkQueue            queue               = nullptr;
+        QueueType          type                = QueueType::Graphics;
+        VkSemaphore        semaphore           = nullptr;
+        uint64             frameSemaphoreValue = 0;
+        LINAGX_VEC<uint64> storedSemaphoreValues;
+    };
+
+    struct VKBQueueData
+    {
+        uint32              createRequestCount = 0;
+        uint32              totalQueueCount    = 0;
+        LINAGX_VEC<VkQueue> queues;
+        uint32              familyIndex = 0;
     };
 
     class VKBackend : public Backend
@@ -170,6 +184,9 @@ namespace LinaGX
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
+        virtual uint8  CreateQueue(const QueueDesc& desc) override;
+        virtual void   DestroyQueue(uint8 queue) override;
+        virtual uint8  GetPrimaryQueue(QueueType type) override;
 
     private:
         uint16 CreateFence();
@@ -212,14 +229,9 @@ namespace LinaGX
         VkPhysicalDevice         m_gpu            = nullptr;
         VmaAllocator_T*          m_vmaAllocator   = nullptr;
 
-        std::pair<uint32, uint32> m_graphicsQueueIndices;
-        std::pair<uint32, uint32> m_transferQueueIndices;
-        std::pair<uint32, uint32> m_computeQueueIndices;
-        uint64                    m_minUniformBufferOffsetAlignment = 0;
-        bool                      m_supportsAsyncTransferQueue      = false;
-        bool                      m_supportsAsyncComputeQueue       = false;
-        bool                      m_supportsMultiDrawIndirect       = false;
-        bool                      m_supportsAnisotropy              = false;
+        uint64 m_minUniformBufferOffsetAlignment = 0;
+        bool   m_supportsMultiDrawIndirect       = false;
+        bool   m_supportsAnisotropy              = false;
 
         uint32 m_currentFrameIndex = 0;
         uint32 m_currentImageIndex = 0;
@@ -233,16 +245,19 @@ namespace LinaGX
         IDList<uint32, VKBResource>      m_resources      = {100};
         IDList<uint32, VKBSampler>       m_samplers       = {100};
         IDList<uint16, VKBDescriptorSet> m_descriptorSets = {20};
+        IDList<uint8, VKBQueue>          m_queues         = {5};
 
         InitInfo                                   m_initInfo     = {};
         LINAGX_VEC<VKBPerFrameData>                m_perFrameData = {};
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions = {};
-        LINAGX_MAP<QueueType, VKBQueueData>        m_queueData    = {};
-        LINAGX_MAP<uint32, uint64>                 m_killQueueIntermediateResources;
+        LINAGX_MAP<QueueType, uint8>               m_primaryQueues;
+        LINAGX_MAP<VkQueue, std::atomic_flag*>     m_flagsPerQueue;
 
         VkDescriptorPool           m_descriptorPool          = nullptr;
         uint32                     m_imageAcqSemaphoresCount = 0;
         VkPhysicalDeviceProperties m_gpuProperties;
+
+        LINAGX_MAP<QueueType, VKBQueueData> m_queueData;
     };
 } // namespace LinaGX
 

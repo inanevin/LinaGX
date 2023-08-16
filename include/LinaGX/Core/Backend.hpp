@@ -78,6 +78,9 @@ namespace LinaGX
         virtual void   DestroyCommandStream(uint32 handle)                                              = 0;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc)                                     = 0;
+        virtual uint8  CreateQueue(const QueueDesc& desc)                                               = 0;
+        virtual void   DestroyQueue(uint8 queue)                                                        = 0;
+        virtual uint8  GetPrimaryQueue(QueueType type)                                                  = 0;
 
         static Backend* CreateBackend(BackendAPI api, Instance* renderer);
 

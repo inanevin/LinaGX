@@ -125,7 +125,7 @@ namespace LinaGX
         void RecreateSwapchain(const SwapchainRecreateDesc& desc);
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="swp"></param>
         /// <param name="isActive"></param>
@@ -242,6 +242,25 @@ namespace LinaGX
         /// </summary>
         /// <param name="desc"></param>
         void DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="type"></param>
+        uint8 CreateQueue(const QueueDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="queue"></param>
+        void DestroyQueue(uint8 queue);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        uint8 GetPrimaryQueue(QueueType type);
 
         /// <summary>
         ///

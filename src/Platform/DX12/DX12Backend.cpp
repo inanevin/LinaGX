@@ -526,7 +526,8 @@ namespace LinaGX
 
         try
         {
-            ThrowIfFailed(m_factory->CreateSwapChainForHwnd(m_queueData[QueueType::Graphics].queue.Get(), // Swap chain needs the queue so that it can force a flush on it.
+            const auto& primaryGraphics = m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics));
+            ThrowIfFailed(m_factory->CreateSwapChainForHwnd(primaryGraphics.queue.Get(), // Swap chain needs the queue so that it can force a flush on it.
                                                             (HWND)desc.window,
                                                             &swapchainDesc,
                                                             nullptr,
@@ -1855,35 +1856,16 @@ namespace LinaGX
 
             // Queue
             {
-                auto& graphics = m_queueData[QueueType::Graphics];
-                auto& transfer = m_queueData[QueueType::Transfer];
-                auto& compute  = m_queueData[QueueType::Compute];
-
-                D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-                queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
-                queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
-                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&graphics.queue)));
-
-                queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&transfer.queue)));
-
-                queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-                ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&compute.queue)));
-
-                NAME_DX12_OBJECT(graphics.queue, L"Direct Queue");
-                NAME_DX12_OBJECT(transfer.queue, L"Transfer Queue");
-                NAME_DX12_OBJECT(compute.queue, L"Compute Queue");
-
-                try
-                {
-                    ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&graphics.frameFence)));
-                    ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&transfer.frameFence)));
-                    ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&compute.frameFence)));
-                }
-                catch (HrException e)
-                {
-                    DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
-                }
+                QueueDesc descGfx, descTransfer, descCompute;
+                descGfx.type                         = QueueType::Graphics;
+                descTransfer.type                    = QueueType::Transfer;
+                descCompute.type                     = QueueType::Compute;
+                descGfx.debugName                    = "Primary Graphics Queue";
+                descTransfer.debugName               = "Primary Transfer Queue";
+                descCompute.debugName                = "Primary Compute Queue";
+                m_primaryQueues[QueueType::Graphics] = CreateQueue(descGfx);
+                m_primaryQueues[QueueType::Transfer] = CreateQueue(descTransfer);
+                m_primaryQueues[QueueType::Compute]  = CreateQueue(descCompute);
             }
 
             // Heaps
@@ -1952,19 +1934,9 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
-        for (const auto [id, frame] : m_killQueueIntermediateResources)
-            DestroyResource(id);
-
-        for (const auto [ptr, frame] : m_killQueueAdjustedBuffers)
-            LINAGX_FREE(ptr);
-
-        m_killQueueIntermediateResources.clear();
-        m_killQueueAdjustedBuffers.clear();
-
-        for (auto& [queue, data] : m_queueData)
-        {
-            data.frameFence.Reset();
-        }
+        DestroyQueue(GetPrimaryQueue(QueueType::Graphics));
+        DestroyQueue(GetPrimaryQueue(QueueType::Transfer));
+        DestroyQueue(GetPrimaryQueue(QueueType::Compute));
 
         for (auto& swp : m_swapchains)
         {
@@ -2006,6 +1978,11 @@ namespace LinaGX
             LOGA(!r.isValid, "Backend -> Some descriptor sets were not destroyed!");
         }
 
+        for (auto& q : m_queues)
+        {
+            LOGA(!q.isValid, "Backend -> Some queues were not destroyed!");
+        }
+
         ID3D12InfoQueue1* infoQueue = nullptr;
         if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
         {
@@ -2036,8 +2013,13 @@ namespace LinaGX
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             const auto& frame = m_perFrameData[i];
-            WaitForFences(m_queueData[QueueType::Graphics].frameFence.Get(), frame.storedFenceGraphics);
-            WaitForFences(m_queueData[QueueType::Transfer].frameFence.Get(), frame.storedFenceTransfer);
+            for (auto& q : m_queues)
+            {
+                if (!q.isValid || q.type != QueueType::Graphics)
+                    continue;
+
+                WaitForFences(q.frameFence.Get(), q.storedFenceValues[i]);
+            }
         }
     }
 
@@ -2065,31 +2047,44 @@ namespace LinaGX
     {
         m_submissionPerFrame = 0;
         m_currentFrameIndex  = frameIndex;
-        auto& frame          = m_perFrameData[m_currentFrameIndex];
-        WaitForFences(m_queueData[QueueType::Graphics].frameFence.Get(), frame.storedFenceGraphics);
-        WaitForFences(m_queueData[QueueType::Transfer].frameFence.Get(), frame.storedFenceTransfer);
 
-        // Check for dangling intermediate resources.
-        for (auto it = m_killQueueIntermediateResources.begin(); it != m_killQueueIntermediateResources.end();)
+        for (auto& q : m_queues)
         {
-            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
-            {
-                DestroyResource(it->first);
-                it = m_killQueueIntermediateResources.erase(it);
-            }
-            else
-                ++it;
+            if (!q.isValid || q.type != QueueType::Graphics)
+                continue;
+
+            WaitForFences(q.frameFence.Get(), q.storedFenceValues[m_currentFrameIndex]);
         }
 
-        for (auto it = m_killQueueAdjustedBuffers.begin(); it != m_killQueueAdjustedBuffers.end();)
+        const uint32 next = m_cmdStreams.GetNextFreeID();
+        for (uint32 i = 0; i < next; i++)
         {
-            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+            auto& cs = m_cmdStreams.GetItemR(i);
+
+            if (!cs.isValid)
+                continue;
+
+            for (auto it = cs.intermediateResources.begin(); it != cs.intermediateResources.end();)
             {
-                LINAGX_FREE(it->first);
-                it = m_killQueueAdjustedBuffers.erase(it);
+                if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+                {
+                    DestroyResource(it->first);
+                    it = cs.intermediateResources.erase(it);
+                }
+                else
+                    ++it;
             }
-            else
-                ++it;
+
+            for (auto it = cs.adjustedBuffers.begin(); it != cs.adjustedBuffers.end();)
+            {
+                if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+                {
+                    LINAGX_FREE(it->first);
+                    it = cs.adjustedBuffers.erase(it);
+                }
+                else
+                    ++it;
+            }
         }
     }
 
@@ -2101,8 +2096,11 @@ namespace LinaGX
             LOGE("Backend -> Command Stream to be destroyed is not valid!");
             return;
         }
-        stream.isValid = false;
 
+        for (const auto [id, frame] : stream.intermediateResources)
+            DestroyResource(id);
+
+        stream.isValid = false;
         stream.list.Reset();
         stream.allocator.Reset();
 
@@ -2162,6 +2160,8 @@ namespace LinaGX
 
     void DX12Backend::SubmitCommandStreams(const SubmitDesc& desc)
     {
+        auto& queue = m_queues.GetItemR(desc.targetQueue);
+
         try
         {
             LINAGX_VEC<ID3D12CommandList*> _lists;
@@ -2177,14 +2177,9 @@ namespace LinaGX
 
                 auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
                 _lists.push_back(str.list.Get());
-
-                // Mark submitted intermediate resources.
-                for (auto& inter : str.intermediateResources)
-                    m_killQueueIntermediateResources[inter] = PerformanceStats.totalFrames;
-                str.intermediateResources.clear();
             }
 
-            auto queue = m_queueData[desc.queue].queue;
+            auto queue = m_queues.GetItemR(desc.targetQueue).queue;
 
             if (desc.useWait)
             {
@@ -2208,6 +2203,54 @@ namespace LinaGX
         {
             DX12_THROW(e, "Backend -> Exception when executing operations on the queue! %s", e.what());
         }
+    }
+
+    uint8 DX12Backend::CreateQueue(const QueueDesc& desc)
+    {
+        DX12Queue item;
+        item.isValid = true;
+        item.type    = desc.type;
+
+        D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+        queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
+        queueDesc.Type                     = GetDXCommandType(desc.type);
+        ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&item.queue)));
+        NAME_DX12_OBJECT_CSTR(item.queue, desc.debugName);
+
+        item.storedFenceValues.resize(m_initInfo.framesInFlight);
+        item.inUse = new std::atomic_flag();
+
+        try
+        {
+            ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&item.frameFence)));
+        }
+        catch (HrException e)
+        {
+            DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
+        }
+
+        return m_queues.AddItem(item);
+    }
+
+    void DX12Backend::DestroyQueue(uint8 queue)
+    {
+        auto& item = m_queues.GetItemR(queue);
+        if (!item.isValid)
+        {
+            LOGE("Backend -> Queue to be destroyed is not valid!");
+            return;
+        }
+
+        delete item.inUse;
+        item.frameFence.Reset();
+        item.queue.Reset();
+
+        m_queues.RemoveItem(queue);
+    }
+
+    uint8 DX12Backend::GetPrimaryQueue(QueueType type)
+    {
+        return m_primaryQueues[type];
     }
 
     void DX12Backend::Present(const PresentDesc& present)
@@ -2268,19 +2311,16 @@ namespace LinaGX
 
     void DX12Backend::EndFrame()
     {
-        auto& frame = m_perFrameData[m_currentFrameIndex];
-
         // Increase & signal, we'll wait for this value next time we are starting this frame index.
-        auto& graphics = m_queueData[QueueType::Graphics];
-        auto& transfer = m_queueData[QueueType::Transfer];
+        for (auto& q : m_queues)
+        {
+            if (!q.isValid || q.type != QueueType::Graphics)
+                continue;
 
-        graphics.frameFenceValue++;
-        transfer.frameFenceValue++;
-        frame.storedFenceGraphics = graphics.frameFenceValue;
-        frame.storedFenceTransfer = transfer.frameFenceValue;
-
-        graphics.queue->Signal(graphics.frameFence.Get(), graphics.frameFenceValue);
-        transfer.queue->Signal(transfer.frameFence.Get(), transfer.frameFenceValue);
+            q.frameFenceValue++;
+            q.storedFenceValues[m_currentFrameIndex] = q.frameFenceValue;
+            q.queue->Signal(q.frameFence.Get(), q.frameFenceValue);
+        }
     }
 
     void DX12Backend::CMD_BeginRenderPass(uint8* data, DX12CommandStream& stream)
@@ -2497,12 +2537,12 @@ namespace LinaGX
         }
 
         // Create staging.
-        ResourceDesc stagingDesc  = {};
-        stagingDesc.size          = ogDataSize;
-        stagingDesc.typeHintFlags = TH_None;
-        stagingDesc.heapType      = ResourceHeap::StagingHeap;
-        uint32 stagingHandle      = CreateResource(stagingDesc);
-        stream.intermediateResources.push_back(stagingHandle);
+        ResourceDesc stagingDesc                    = {};
+        stagingDesc.size                            = ogDataSize;
+        stagingDesc.typeHintFlags                   = TH_None;
+        stagingDesc.heapType                        = ResourceHeap::StagingHeap;
+        uint32 stagingHandle                        = CreateResource(stagingDesc);
+        stream.intermediateResources[stagingHandle] = PerformanceStats.totalFrames;
 
         LINAGX_VEC<D3D12_SUBRESOURCE_DATA> allData;
 
@@ -2516,9 +2556,9 @@ namespace LinaGX
 
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
-            const auto& buffer                       = cmd->buffers[i];
-            void*       adjustedData                 = AdjustBufferPitch(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-            m_killQueueAdjustedBuffers[adjustedData] = PerformanceStats.totalFrames;
+            const auto& buffer                   = cmd->buffers[i];
+            void*       adjustedData             = AdjustBufferPitch(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+            stream.adjustedBuffers[adjustedData] = PerformanceStats.totalFrames;
             calcTd(adjustedData, buffer.width, buffer.height, buffer.bytesPerPixel);
         }
 

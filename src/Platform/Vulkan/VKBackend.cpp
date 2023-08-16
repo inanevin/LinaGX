@@ -1523,13 +1523,7 @@ namespace LinaGX
         VKBCommandStream item = {};
         item.isValid          = true;
 
-        uint32 familyIndex = 0;
-        if (cmdType == QueueType::Graphics)
-            familyIndex = m_graphicsQueueIndices.first;
-        else if (cmdType == QueueType::Compute)
-            familyIndex = m_computeQueueIndices.first;
-        else if (cmdType == QueueType::Transfer)
-            familyIndex = m_transferQueueIndices.first;
+        const uint32 familyIndex = m_queueData[cmdType].familyIndex;
 
         VkCommandPoolCreateInfo commandPoolInfo = VkCommandPoolCreateInfo{};
         commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1562,6 +1556,9 @@ namespace LinaGX
             LOGE("Backend -> Command Stream to be destroyed is not valid!");
             return;
         }
+
+        for (const auto [id, frame] : stream.intermediateResources)
+            DestroyResource(id);
 
         stream.isValid = false;
         vkDestroyCommandPool(m_device, stream.pool, m_allocator);
@@ -1610,6 +1607,17 @@ namespace LinaGX
 
     void VKBackend::SubmitCommandStreams(const SubmitDesc& desc)
     {
+        auto& queue = m_queues.GetItemR(desc.targetQueue);
+        auto  flag  = m_flagsPerQueue[queue.queue];
+
+        if (desc.isMultithreaded)
+        {
+            // Thread can't access.
+            while (flag->test_and_set(std::memory_order_acquire))
+            {
+            }
+        }
+
         auto&                       frame = m_perFrameData[m_currentFrameIndex];
         LINAGX_VEC<VkCommandBuffer> _buffers;
 
@@ -1625,14 +1633,7 @@ namespace LinaGX
 
             auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             _buffers.push_back(str.buffer);
-
-            // Mark submitted intermediate resources.
-            for (auto& inter : str.intermediateResources)
-                m_killQueueIntermediateResources[inter] = PerformanceStats.totalFrames;
-            str.intermediateResources.clear();
         }
-
-        auto queue = m_queueData[desc.queue].queue;
 
         VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         LINAGX_VEC<VkSemaphore>          waitSemaphores;
@@ -1641,24 +1642,29 @@ namespace LinaGX
         LINAGX_VEC<uint64>               waitSemaphoreValues;
         LINAGX_VEC<uint64>               signalSemaphoreValues;
 
-        // This is for WITHIN the frame.
-        // We wait for image acquired semaphores.
-        // We signal 1 semaphore per submit for presentation.
+        // If its a graphics queue, we will have to wait on it during StartFrame() for the next frame-in-flight availability.
+        // Thus, we need to signal its stored semaphore value.
+        if (queue.type == QueueType::Graphics)
         {
-            if (desc.queue == QueueType::Graphics)
-            {
-                for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
-                {
-                    waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
-                    waitStages.push_back(waitStage);
-                    waitSemaphoreValues.push_back(0); // ignored binary semaphore.
-                }
+            queue.frameSemaphoreValue++;
+            queue.storedSemaphoreValues[m_currentFrameIndex] = queue.frameSemaphoreValue;
+            signalSemaphores.push_back(queue.semaphore);
+            signalSemaphoreValues.push_back(queue.storedSemaphoreValues[m_currentFrameIndex]);
+        }
 
-                for (uint32 i = 0; i < frame.submissionCount + 1; i++)
-                {
-                    signalSemaphores.push_back(frame.submitSemaphores[i]);
-                    signalSemaphoreValues.push_back(0);
-                }
+        // If primary graphics queue, we need to signal a binary semaphore, so that we can wait on it during presentation.
+        // Primary graphics queue also has to wait for all images to be acquired.
+        if (desc.targetQueue == GetPrimaryQueue(QueueType::Graphics))
+        {
+            signalSemaphores.push_back(frame.submitSemaphores[frame.submissionCount]);
+            signalSemaphoreValues.push_back(0);
+            frame.submissionCount++;
+
+            for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
+            {
+                waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
+                waitStages.push_back(waitStage);
+                waitSemaphoreValues.push_back(0); // ignored binary semaphore.
             }
         }
 
@@ -1703,13 +1709,155 @@ namespace LinaGX
         submitInfo.pCommandBuffers      = _buffers.data();
         submitInfo.pWaitDstStageMask    = waitStages.data();
 
-        VkResult res = vkQueueSubmit(queue, 1, &submitInfo, desc.queue == QueueType::Graphics ? frame.submitFences[frame.submissionCount] : nullptr);
+        LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame + 1), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
 
-        if (desc.queue == QueueType::Graphics)
-            frame.submissionCount++;
-
-        LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        VkResult res = vkQueueSubmit(queue.queue, 1, &submitInfo, nullptr);
+        flag->clear(std::memory_order_release);
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
+
+        // auto queue = m_queueData[desc.queueType].queue;
+        //
+        // VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        // LINAGX_VEC<VkSemaphore>          waitSemaphores;
+        // LINAGX_VEC<VkPipelineStageFlags> waitStages;
+        // LINAGX_VEC<VkSemaphore>          signalSemaphores;
+        // LINAGX_VEC<uint64>               waitSemaphoreValues;
+        // LINAGX_VEC<uint64>               signalSemaphoreValues;
+        //
+        // // This is for WITHIN the frame.
+        // // We wait for image acquired semaphores.
+        // // We signal 1 semaphore per submit for presentation.
+        // {
+        //     if (desc.queueType == QueueType::Graphics)
+        //     {
+        //         for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
+        //         {
+        //             waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
+        //             waitStages.push_back(waitStage);
+        //             waitSemaphoreValues.push_back(0); // ignored binary semaphore.
+        //         }
+        //
+        //         for (uint32 i = 0; i < frame.submissionCount + 1; i++)
+        //         {
+        //             signalSemaphores.push_back(frame.submitSemaphores[i]);
+        //             signalSemaphoreValues.push_back(0);
+        //         }
+        //     }
+        // }
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        // VkTimelineSemaphoreSubmitInfo timelineInfo;
+        // timelineInfo.sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        // timelineInfo.pNext                     = NULL;
+        // timelineInfo.waitSemaphoreValueCount   = static_cast<uint32>(waitSemaphores.size());
+        // timelineInfo.pWaitSemaphoreValues      = waitSemaphoreValues.data();
+        // timelineInfo.signalSemaphoreValueCount = static_cast<uint32>(signalSemaphores.size());
+        // timelineInfo.pSignalSemaphoreValues    = signalSemaphoreValues.data();
+        //
+        // VkSubmitInfo submitInfo;
+        // submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        // submitInfo.pNext                = &timelineInfo;
+        // submitInfo.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
+        // submitInfo.pWaitSemaphores      = waitSemaphores.data();
+        // submitInfo.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
+        // submitInfo.pSignalSemaphores    = signalSemaphores.data();
+        // submitInfo.commandBufferCount   = desc.streamCount;
+        // submitInfo.pCommandBuffers      = _buffers.data();
+        // submitInfo.pWaitDstStageMask    = waitStages.data();
+        //
+        // VkResult res = vkQueueSubmit(queue, 1, &submitInfo, desc.queueType == QueueType::Graphics ? frame.submitFences[frame.submissionCount] : nullptr);
+        //
+        // if (desc.queueType == QueueType::Graphics)
+        //     frame.submissionCount++;
+
+        //  LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        //  VK_CHECK_RESULT(res, "Failed submitting to queue!");
+    }
+
+    uint8 VKBackend::CreateQueue(const QueueDesc& desc)
+    {
+        VkQueue targetQueue = nullptr;
+
+        if (desc.type == QueueType::Transfer)
+            targetQueue = m_queueData[QueueType::Transfer].queues[0];
+        else if (desc.type == QueueType::Compute)
+            targetQueue = m_queueData[QueueType::Compute].queues[0];
+        else
+        {
+            auto& gfx = m_queueData[QueueType::Graphics];
+
+            if (gfx.createRequestCount < static_cast<uint32>(gfx.queues.size()))
+            {
+                targetQueue = gfx.queues[gfx.createRequestCount];
+                gfx.createRequestCount++;
+            }
+            else
+            {
+                targetQueue = gfx.queues.back();
+            }
+        }
+
+        VKBQueue item;
+        item.isValid = true;
+        item.type    = desc.type;
+
+        VkSemaphoreTypeCreateInfo timelineCreateInfo;
+        timelineCreateInfo.sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+        timelineCreateInfo.pNext         = NULL;
+        timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+        timelineCreateInfo.initialValue  = 0;
+
+        VkSemaphoreCreateInfo info = VkSemaphoreCreateInfo{};
+        info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        info.pNext                 = &timelineCreateInfo;
+        info.flags                 = 0;
+        VkResult res               = vkCreateSemaphore(m_device, &info, m_allocator, &item.semaphore);
+        VK_CHECK_RESULT(res, "Failed creating semaphore.");
+
+        item.storedSemaphoreValues.resize(m_initInfo.framesInFlight);
+        item.queue = targetQueue;
+
+        return m_queues.AddItem(item);
+    }
+
+    void VKBackend::DestroyQueue(uint8 queue)
+    {
+        auto& item = m_queues.GetItemR(queue);
+        if (!item.isValid)
+        {
+            LOGE("Backend -> Queue to be destroyed is not valid!");
+            return;
+        }
+
+        vkDestroySemaphore(m_device, item.semaphore, m_allocator);
+
+        m_queues.RemoveItem(queue);
+    }
+
+    uint8 VKBackend::GetPrimaryQueue(QueueType type)
+    {
+        return m_primaryQueues[type];
     }
 
     uint16 VKBackend::CreateFence()
@@ -1912,46 +2060,88 @@ namespace LinaGX
         deviceBuilder.add_pNext(&shaderDrawParamsFeature);
         deviceBuilder.add_pNext(&dynamic_rendering_feature);
 
-        bool   hasDedicatedTransferQueue = physicalDevice.has_dedicated_transfer_queue();
-        bool   hasDedicatedComputeQueue  = physicalDevice.has_dedicated_compute_queue();
-        auto   queueFamilies             = physicalDevice.get_queue_families();
-        uint32 transferQueueFamily       = 0;
-        uint32 transferQueueIndex        = 0;
-        uint32 graphicsQueueFamily       = 0;
-        uint32 graphicsQueueIndex        = 0;
-        uint32 computeQueueFamily        = 0;
-        uint32 computeQueueIndex         = 0;
-
+        std::vector<VkQueueFamilyProperties>     queueFamilies = physicalDevice.get_queue_families();
         std::vector<vkb::CustomQueueDescription> queueDescs;
-        for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); i++)
+
+        bool               supportsDedicatedTransferQueue = false;
+        bool               supportsDedicatedComputeQueue  = false;
+        bool               supportsSeparateTransferQueue  = false;
+        bool               supportsSeparateComputeQueue   = false;
+        uint32             dedicatedTransferQueueIndex    = 0;
+        uint32             dedicatedComputeQueueIndex     = 0;
+        uint32             separateTransferQueueIndex     = 0;
+        uint32             separateComputeQueueIndex      = 0;
+        LINAGX_VEC<uint32> graphicsQueueFamilies;
+        LINAGX_VEC<uint32> computeQueueFamilies;
+        LINAGX_VEC<uint32> transferQueueFamilies;
+
+        for (uint32_t i = 0; i < queueFamilies.size(); i++)
         {
-            uint32 count = 1;
-
             if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+                graphicsQueueFamilies.push_back(i);
+
+            if (queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
+                computeQueueFamilies.push_back(i);
+
+            if (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+                transferQueueFamilies.push_back(i);
+        }
+
+        for (const auto& i : transferQueueFamilies)
+        {
+            if (!(queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
             {
-                graphicsQueueFamily = i;
-
-                if (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-                {
-                    transferQueueFamily = i;
-
-                    if (queueFamilies[i].queueCount > count + 1)
-                        count++;
-
-                    transferQueueIndex = count - 1;
-                }
-
-                if (!hasDedicatedComputeQueue && queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-                {
-                    computeQueueFamily = i;
-
-                    if (queueFamilies[i].queueCount > count + 1)
-                        count++;
-                    computeQueueIndex = count - 1;
-                }
+                supportsDedicatedTransferQueue = true;
+                dedicatedTransferQueueIndex    = i;
             }
 
-            queueDescs.push_back(vkb::CustomQueueDescription(i, count, std::vector<float>(count, 1.0f)));
+            if ((queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            {
+                supportsSeparateTransferQueue = true;
+                separateTransferQueueIndex    = i;
+            }
+        }
+
+        for (const auto& i : computeQueueFamilies)
+        {
+            if (!(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
+            {
+                supportsDedicatedComputeQueue = true;
+                dedicatedComputeQueueIndex    = i;
+                break;
+            }
+            if ((queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            {
+                supportsSeparateComputeQueue = true;
+                separateComputeQueueIndex    = i;
+            }
+        }
+
+        LINAGX_MAP<uint32, uint32> queueIndicesAndCounts;
+
+        if (supportsDedicatedTransferQueue)
+            queueIndicesAndCounts[dedicatedTransferQueueIndex] = 1;
+        else if (supportsSeparateTransferQueue)
+            queueIndicesAndCounts[separateTransferQueueIndex]++;
+        else
+            queueIndicesAndCounts[transferQueueFamilies[0]]++;
+
+        if (supportsDedicatedComputeQueue)
+            queueIndicesAndCounts[dedicatedComputeQueueIndex] = 1;
+        else if (supportsSeparateComputeQueue)
+            queueIndicesAndCounts[separateComputeQueueIndex]++;
+        else
+            queueIndicesAndCounts[computeQueueFamilies[0]]++;
+
+        queueIndicesAndCounts[graphicsQueueFamilies[0]] += 1 + m_initInfo.gpuFeatures.extraGraphicsQueueCount;
+
+        for (auto& pair : queueIndicesAndCounts)
+        {
+            // Set actual counts.
+            pair.second = Min(queueFamilies[pair.first].queueCount, pair.second);
+
+            // request.
+            queueDescs.push_back(vkb::CustomQueueDescription(pair.first, pair.second, std::vector<float>(pair.second, 1.0f)));
         }
 
         deviceBuilder.custom_queue_setup(queueDescs);
@@ -1960,47 +2150,109 @@ namespace LinaGX
         m_device              = vkbDevice.device;
         m_gpu                 = physicalDevice.physical_device;
 
+        auto& gfx      = m_queueData[QueueType::Graphics];
+        auto& transfer = m_queueData[QueueType::Transfer];
+        auto& compute  = m_queueData[QueueType::Compute];
+
+        transfer.queues.resize(1);
+        compute.queues.resize(1);
+
+        LINAGX_MAP<uint32, uint32> queueIndicesAndOccupiedQueues;
+
+        if (supportsDedicatedTransferQueue)
+        {
+            vkGetDeviceQueue(m_device, dedicatedTransferQueueIndex, 0, &transfer.queues[0]);
+            transfer.familyIndex = dedicatedTransferQueueIndex;
+        }
+        else if (supportsSeparateTransferQueue)
+        {
+            vkGetDeviceQueue(m_device, separateTransferQueueIndex, 0, &transfer.queues[0]);
+            queueIndicesAndOccupiedQueues[separateTransferQueueIndex]++;
+            transfer.familyIndex = separateTransferQueueIndex;
+        }
+        else
+        {
+            vkGetDeviceQueue(m_device, transferQueueFamilies[0], 0, &transfer.queues[0]);
+            queueIndicesAndOccupiedQueues[transferQueueFamilies[0]]++;
+            transfer.familyIndex = transferQueueFamilies[0];
+        }
+
+        if (supportsDedicatedComputeQueue)
+        {
+            vkGetDeviceQueue(m_device, dedicatedComputeQueueIndex, 0, &compute.queues[0]);
+            compute.familyIndex = dedicatedComputeQueueIndex;
+        }
+        else if (supportsSeparateComputeQueue)
+        {
+            if (queueIndicesAndOccupiedQueues[separateComputeQueueIndex] < queueFamilies[separateComputeQueueIndex].queueCount)
+            {
+                vkGetDeviceQueue(m_device, separateComputeQueueIndex, queueIndicesAndOccupiedQueues[separateComputeQueueIndex], &compute.queues[0]);
+                queueIndicesAndOccupiedQueues[separateComputeQueueIndex]++;
+            }
+            else
+            {
+                vkGetDeviceQueue(m_device, separateComputeQueueIndex, queueIndicesAndOccupiedQueues[separateComputeQueueIndex] - 1, &compute.queues[0]);
+            }
+
+            compute.familyIndex = separateComputeQueueIndex;
+        }
+        else
+        {
+            if (queueIndicesAndOccupiedQueues[computeQueueFamilies[0]] < queueFamilies[computeQueueFamilies[0]].queueCount)
+            {
+                vkGetDeviceQueue(m_device, computeQueueFamilies[0], queueIndicesAndOccupiedQueues[computeQueueFamilies[0]], &compute.queues[0]);
+                queueIndicesAndOccupiedQueues[computeQueueFamilies[0]]++;
+            }
+            else
+            {
+                vkGetDeviceQueue(m_device, computeQueueFamilies[0], queueIndicesAndOccupiedQueues[computeQueueFamilies[0]] - 1, &compute.queues[0]);
+            }
+
+            compute.familyIndex = computeQueueFamilies[0];
+        }
+
+        gfx.queues.resize(m_initInfo.gpuFeatures.extraGraphicsQueueCount + 1);
+        gfx.familyIndex = graphicsQueueFamilies[0];
+
+        for (uint32 i = 0; i < m_initInfo.gpuFeatures.extraGraphicsQueueCount + 1; i++)
+        {
+            if (queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]] < queueFamilies[graphicsQueueFamilies[0]].queueCount)
+            {
+                vkGetDeviceQueue(m_device, graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]], &gfx.queues[i]);
+                queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]]++;
+            }
+            else
+            {
+                vkGetDeviceQueue(m_device, graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]] - 1, &gfx.queues[i]);
+            }
+        }
+
+        for (const auto& [type, data] : m_queueData)
+        {
+            for (auto q : data.queues)
+            {
+                auto& ptr = m_flagsPerQueue[q];
+
+                if (ptr == nullptr)
+                    ptr = new std::atomic_flag();
+            }
+        }
+
         g_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
 
         // Queue support
         {
-            if (hasDedicatedComputeQueue)
-            {
-                auto res           = vkbDevice.get_dedicated_queue_index(vkb::QueueType::compute);
-                computeQueueFamily = res.value();
-                computeQueueIndex  = 0;
-            }
 
-            m_graphicsQueueIndices = std::make_pair(graphicsQueueFamily, graphicsQueueIndex);
-            m_transferQueueIndices = std::make_pair(transferQueueFamily, transferQueueIndex);
-            m_computeQueueIndices  = std::make_pair(computeQueueFamily, computeQueueIndex);
-
-            auto& graphics = m_queueData[QueueType::Graphics];
-            auto& transfer = m_queueData[QueueType::Transfer];
-            auto& compute  = m_queueData[QueueType::Compute];
-
-            vkGetDeviceQueue(m_device, m_graphicsQueueIndices.first, m_graphicsQueueIndices.second, &graphics.queue);
-            vkGetDeviceQueue(m_device, m_transferQueueIndices.first, m_transferQueueIndices.second, &transfer.queue);
-            vkGetDeviceQueue(m_device, m_computeQueueIndices.first, m_computeQueueIndices.second, &compute.queue);
-
-            VkSemaphoreCreateInfo info = VkSemaphoreCreateInfo{};
-            info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            info.pNext                 = nullptr,
-            info.flags                 = 0;
-
-            if (m_transferQueueIndices.first != m_graphicsQueueIndices.first)
-                m_supportsAsyncTransferQueue = true;
-            else if (m_transferQueueIndices.second != m_graphicsQueueIndices.second)
-                m_supportsAsyncTransferQueue = true;
-            else
-                m_supportsAsyncTransferQueue = false;
-
-            if (m_computeQueueIndices.first != m_graphicsQueueIndices.first)
-                m_supportsAsyncComputeQueue = true;
-            else if (m_computeQueueIndices.second != m_graphicsQueueIndices.second)
-                m_supportsAsyncComputeQueue = true;
-            else
-                m_supportsAsyncComputeQueue = false;
+            QueueDesc descGfx, descTransfer, descCompute;
+            descGfx.type                         = QueueType::Graphics;
+            descTransfer.type                    = QueueType::Transfer;
+            descCompute.type                     = QueueType::Compute;
+            descGfx.debugName                    = "Primary Graphics Queue";
+            descTransfer.debugName               = "Primary Transfer Queue";
+            descCompute.debugName                = "Primary Compute Queue";
+            m_primaryQueues[QueueType::Graphics] = CreateQueue(descGfx);
+            m_primaryQueues[QueueType::Transfer] = CreateQueue(descTransfer);
+            m_primaryQueues[QueueType::Compute]  = CreateQueue(descCompute);
         }
 
         // Check format support
@@ -2149,10 +2401,13 @@ namespace LinaGX
 
     void VKBackend::Shutdown()
     {
-        for (const auto [id, frame] : m_killQueueIntermediateResources)
-            DestroyResource(id);
 
-        m_killQueueIntermediateResources.clear();
+        for (const auto& [q, flag] : m_flagsPerQueue)
+            delete flag;
+
+        DestroyQueue(GetPrimaryQueue(QueueType::Graphics));
+        DestroyQueue(GetPrimaryQueue(QueueType::Transfer));
+        DestroyQueue(GetPrimaryQueue(QueueType::Compute));
 
         vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
 
@@ -2208,6 +2463,11 @@ namespace LinaGX
             LOGA(!r.isValid, "Backend -> Some descriptor sets were not destroyed!");
         }
 
+        for (auto& q : m_queues)
+        {
+            LOGA(!q.isValid, "Backend -> Some queues were not destroyed!");
+        }
+
         vmaDestroyAllocator(m_vmaAllocator);
         vkDestroyDevice(m_device, m_allocator);
         vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
@@ -2216,40 +2476,62 @@ namespace LinaGX
 
     void VKBackend::Join()
     {
-        LINAGX_VEC<VkFence> fences;
-        const uint64        timeout = static_cast<uint64>(5000000000);
+        const uint64 timeout = static_cast<uint64>(5000000000);
+
+        LINAGX_VEC<VkSemaphore> waitSemaphores;
+        LINAGX_VEC<uint64>      waitSemaphoreValues;
 
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
-            auto& frame = m_perFrameData[i];
-            for (uint32 i = 0; i < frame.submissionCount; i++)
-                fences.push_back(frame.submitFences[i]);
+            for (const auto& q : m_queues)
+            {
+                if (!q.isValid || q.type != QueueType::Graphics)
+                    continue;
+
+                waitSemaphores.push_back(q.semaphore);
+                waitSemaphoreValues.push_back(q.storedSemaphoreValues[i]);
+            }
         }
 
-        vkDeviceWaitIdle(m_device);
+        VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
+        waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+        waitInfo.pNext               = nullptr;
+        waitInfo.flags               = 0;
+        waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
+        waitInfo.pSemaphores         = waitSemaphores.data();
+        waitInfo.pValues             = waitSemaphoreValues.data();
+        vkWaitSemaphores(m_device, &waitInfo, timeout);
 
-        if (!fences.empty())
-            vkWaitForFences(m_device, static_cast<uint32>(fences.size()), fences.data(), true, timeout);
+        vkDeviceWaitIdle(m_device);
     }
 
     void VKBackend::StartFrame(uint32 frameIndex)
     {
-        m_currentFrameIndex  = frameIndex;
-        auto&        frame   = m_perFrameData[frameIndex];
-        const uint64 timeout = static_cast<uint64>(5000000000);
+        m_currentFrameIndex = frameIndex;
+        auto& frame         = m_perFrameData[frameIndex];
 
-        // Wait for all submission fences for this frame.
-        LINAGX_VEC<VkFence> fences;
-        fences.resize(frame.submissionCount);
+        // Wait for the queues to finish operations from last time they were used.
+        LINAGX_VEC<VkSemaphore> waitSemaphores;
+        LINAGX_VEC<uint64>      waitSemaphoreValues;
 
-        for (uint32 i = 0; i < frame.submissionCount; i++)
-            fences[i] = frame.submitFences[i];
-
-        if (!fences.empty())
+        for (const auto& q : m_queues)
         {
-            VkResult result = vkWaitForFences(m_device, static_cast<uint32>(fences.size()), &fences[0], true, timeout);
-            VK_CHECK_RESULT(result, "Failed waiting for fences!");
+            if (!q.isValid || q.type != QueueType::Graphics)
+                continue;
+
+            waitSemaphores.push_back(q.semaphore);
+            waitSemaphoreValues.push_back(q.storedSemaphoreValues[frameIndex]);
         }
+
+        const uint64        timeout  = static_cast<uint64>(5000000000);
+        VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
+        waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+        waitInfo.pNext               = nullptr;
+        waitInfo.flags               = 0;
+        waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
+        waitInfo.pSemaphores         = waitSemaphores.data();
+        waitInfo.pValues             = waitSemaphoreValues.data();
+        vkWaitSemaphores(m_device, &waitInfo, timeout);
 
         m_imageAcqSemaphoresCount = 0;
         frame.submissionCount     = 0;
@@ -2275,30 +2557,31 @@ namespace LinaGX
             i++;
         }
 
-        // reset
-        if (!fences.empty())
+        const uint32 next = m_cmdStreams.GetNextFreeID();
+        for (uint32 i = 0; i < next; i++)
         {
-            VkResult result = vkResetFences(m_device, static_cast<uint32>(fences.size()), &fences[0]);
-            VK_CHECK_RESULT(result, "Failed resetting fences!");
-        }
+            auto& cs = m_cmdStreams.GetItemR(i);
 
-        // Check for dangling intermediate resources.
-        for (auto it = m_killQueueIntermediateResources.begin(); it != m_killQueueIntermediateResources.end();)
-        {
-            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+            if (!cs.isValid)
+                continue;
+
+            for (auto it = cs.intermediateResources.begin(); it != cs.intermediateResources.end();)
             {
-                DestroyResource(it->first);
-                it = m_killQueueIntermediateResources.erase(it);
+                if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+                {
+                    DestroyResource(it->first);
+                    it = cs.intermediateResources.erase(it);
+                }
+                else
+                    ++it;
             }
-            else
-                ++it;
         }
     }
 
     void VKBackend::Present(const PresentDesc& present)
     {
         LINAGX_VEC<VkSwapchainKHR> swaps;
-        LINAGX_VEC<uint32> imageIndices;
+        LINAGX_VEC<uint32>         imageIndices;
         swaps.reserve(present.swapchainCount);
         imageIndices.reserve(present.swapchainCount);
 
@@ -2334,7 +2617,7 @@ namespace LinaGX
         info.pSwapchains        = swaps.data();
         info.pImageIndices      = imageIndices.data();
 
-        VkResult result = vkQueuePresentKHR(m_queueData[QueueType::Graphics].queue, &info);
+        VkResult result = vkQueuePresentKHR(m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics)).queue, &info);
 
         // Check for swapchain recreation.
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
@@ -2572,12 +2855,12 @@ namespace LinaGX
             totalDataSize += buf.width * buf.height * buf.bytesPerPixel;
         }
 
-        ResourceDesc stagingDesc  = {};
-        stagingDesc.size          = totalDataSize;
-        stagingDesc.typeHintFlags = TH_None;
-        stagingDesc.heapType      = ResourceHeap::StagingHeap;
-        uint32 stagingHandle      = CreateResource(stagingDesc);
-        stream.intermediateResources.push_back(stagingHandle);
+        ResourceDesc stagingDesc                    = {};
+        stagingDesc.size                            = totalDataSize;
+        stagingDesc.typeHintFlags                   = TH_None;
+        stagingDesc.heapType                        = ResourceHeap::StagingHeap;
+        uint32 stagingHandle                        = CreateResource(stagingDesc);
+        stream.intermediateResources[stagingHandle] = PerformanceStats.totalFrames;
 
         const auto& srcResource = m_resources.GetItemR(stagingHandle);
         const auto& dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);

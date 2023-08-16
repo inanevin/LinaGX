@@ -591,11 +591,17 @@ namespace LinaGX
         uint32 swapchainCount = 0;
     };
 
+    struct QueueDesc
+    {
+        QueueType   type      = QueueType::Graphics;
+        const char* debugName = "LinaGXQueue";
+    };
+
     class CommandStream;
 
     struct SubmitDesc
     {
-        QueueType       queue            = QueueType::Graphics;
+        uint8           targetQueue      = 0;
         CommandStream** streams          = nullptr;
         uint32          streamCount      = 0;
         bool            useWait          = 0;
@@ -606,6 +612,7 @@ namespace LinaGX
         uint32          signalCount      = 0;
         uint16*         signalSemaphores = 0;
         uint64*         signalValues     = 0;
+        bool            isMultithreaded  = false;
     };
 
     struct GPULimits
@@ -633,7 +640,7 @@ namespace LinaGX
 
     struct VulkanConfiguration
     {
-        bool flipViewport = true;
+        bool   flipViewport             = true;
     };
 
     struct Configuration
@@ -646,7 +653,8 @@ namespace LinaGX
 
     struct GPUFeatures
     {
-        bool enableBindless = false;
+        bool   enableBindless          = false;
+        uint32 extraGraphicsQueueCount = 0;
     };
 
     struct InitInfo
