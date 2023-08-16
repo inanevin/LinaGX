@@ -2179,21 +2179,20 @@ namespace LinaGX
                 _lists.push_back(str.list.Get());
             }
 
-            auto queue = m_queues.GetItemR(desc.targetQueue).queue;
 
             if (desc.useWait)
             {
                 for (uint32 i = 0; i < desc.waitCount; i++)
-                    queue->Wait(m_userSemaphores.GetItem(desc.waitSemaphores[i]).ptr.Get(), desc.waitValues[i]);
+                    queue.queue->Wait(m_userSemaphores.GetItem(desc.waitSemaphores[i]).ptr.Get(), desc.waitValues[i]);
             }
 
             ID3D12CommandList* const* data = _lists.data();
-            queue->ExecuteCommandLists(desc.streamCount, data);
+            queue.queue->ExecuteCommandLists(desc.streamCount, data);
 
             if (desc.useSignal)
             {
                 for (uint32 i = 0; i < desc.signalCount; i++)
-                    queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphores[i]).ptr.Get(), desc.signalValues[i]);
+                    queue.queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphores[i]).ptr.Get(), desc.signalValues[i]);
             }
 
             m_submissionPerFrame++;
