@@ -2287,20 +2287,20 @@ namespace LinaGX
                 ThrowIfFailed(swp.ptr->Present(interval, flags));
                 swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
 
-                DXGI_FRAME_STATISTICS FrameStatistics;
-                swp.ptr->GetFrameStatistics(&FrameStatistics);
-
-                if (FrameStatistics.PresentCount > m_previousPresentCount)
-                {
-                    if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
-                    {
-                        ++m_glitchCount;
-                        interval = 0;
-                    }
-                }
-
-                m_previousPresentCount = FrameStatistics.PresentCount;
-                m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
+                // DXGI_FRAME_STATISTICS FrameStatistics;
+                // swp.ptr->GetFrameStatistics(&FrameStatistics);
+                // 
+                // if (FrameStatistics.PresentCount > m_previousPresentCount)
+                // {
+                //     if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
+                //     {
+                //         ++m_glitchCount;
+                //         interval = 0;
+                //     }
+                // }
+                // 
+                // m_previousPresentCount = FrameStatistics.PresentCount;
+                // m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
             }
             catch (HrException& e)
             {
