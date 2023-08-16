@@ -1608,7 +1608,7 @@ namespace LinaGX
     void VKBackend::SubmitCommandStreams(const SubmitDesc& desc)
     {
         auto& queue = m_queues.GetItemR(desc.targetQueue);
-        auto  flag  = m_flagsPerQueue[queue.queue];
+        auto  flag  = m_flagsPerQueue.at(queue.queue);
 
         if (desc.isMultithreaded)
         {
@@ -1714,85 +1714,6 @@ namespace LinaGX
         VkResult res = vkQueueSubmit(queue.queue, 1, &submitInfo, nullptr);
         flag->clear(std::memory_order_release);
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
-
-        // auto queue = m_queueData[desc.queueType].queue;
-        //
-        // VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        // LINAGX_VEC<VkSemaphore>          waitSemaphores;
-        // LINAGX_VEC<VkPipelineStageFlags> waitStages;
-        // LINAGX_VEC<VkSemaphore>          signalSemaphores;
-        // LINAGX_VEC<uint64>               waitSemaphoreValues;
-        // LINAGX_VEC<uint64>               signalSemaphoreValues;
-        //
-        // // This is for WITHIN the frame.
-        // // We wait for image acquired semaphores.
-        // // We signal 1 semaphore per submit for presentation.
-        // {
-        //     if (desc.queueType == QueueType::Graphics)
-        //     {
-        //         for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
-        //         {
-        //             waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
-        //             waitStages.push_back(waitStage);
-        //             waitSemaphoreValues.push_back(0); // ignored binary semaphore.
-        //         }
-        //
-        //         for (uint32 i = 0; i < frame.submissionCount + 1; i++)
-        //         {
-        //             signalSemaphores.push_back(frame.submitSemaphores[i]);
-        //             signalSemaphoreValues.push_back(0);
-        //         }
-        //     }
-        // }
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        // VkTimelineSemaphoreSubmitInfo timelineInfo;
-        // timelineInfo.sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-        // timelineInfo.pNext                     = NULL;
-        // timelineInfo.waitSemaphoreValueCount   = static_cast<uint32>(waitSemaphores.size());
-        // timelineInfo.pWaitSemaphoreValues      = waitSemaphoreValues.data();
-        // timelineInfo.signalSemaphoreValueCount = static_cast<uint32>(signalSemaphores.size());
-        // timelineInfo.pSignalSemaphoreValues    = signalSemaphoreValues.data();
-        //
-        // VkSubmitInfo submitInfo;
-        // submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        // submitInfo.pNext                = &timelineInfo;
-        // submitInfo.waitSemaphoreCount   = static_cast<uint32>(waitSemaphores.size());
-        // submitInfo.pWaitSemaphores      = waitSemaphores.data();
-        // submitInfo.signalSemaphoreCount = static_cast<uint32>(signalSemaphores.size());
-        // submitInfo.pSignalSemaphores    = signalSemaphores.data();
-        // submitInfo.commandBufferCount   = desc.streamCount;
-        // submitInfo.pCommandBuffers      = _buffers.data();
-        // submitInfo.pWaitDstStageMask    = waitStages.data();
-        //
-        // VkResult res = vkQueueSubmit(queue, 1, &submitInfo, desc.queueType == QueueType::Graphics ? frame.submitFences[frame.submissionCount] : nullptr);
-        //
-        // if (desc.queueType == QueueType::Graphics)
-        //     frame.submissionCount++;
-
-        //  LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
-        //  VK_CHECK_RESULT(res, "Failed submitting to queue!");
     }
 
     uint8 VKBackend::CreateQueue(const QueueDesc& desc)

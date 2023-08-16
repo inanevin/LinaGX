@@ -93,6 +93,7 @@ namespace LinaGX
         HWND__*      m_hwnd                 = nullptr;
         HINSTANCE__* m_hinst                = nullptr;
         bool         m_titleChangeRequested = false;
+        bool         m_markedDestroy          = false;
         LGXVector2ui m_dragMouseDelta       = {};
         LGXVector2i  m_restorePos           = {};
         LGXVector2ui m_restoreSize          = {};

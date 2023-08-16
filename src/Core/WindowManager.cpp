@@ -66,6 +66,7 @@ namespace LinaGX
     {
         auto it = m_windows.find(sid);
         LOGA((it != m_windows.end()), "Window Manager -> Window with the sid %d could not be found!", sid);
+        it->second->Destroy();
         delete it->second;
         m_windows.erase(it);
     }

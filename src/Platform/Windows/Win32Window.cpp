@@ -54,10 +54,14 @@ namespace LinaGX
             return 0;
         }
         case WM_KILLFOCUS: {
-            if (win32Window->m_cbFocus != nullptr)
-                win32Window->m_cbFocus(false);
 
-            win32Window->m_hasFocus = false;
+            if (!win32Window->m_markedDestroy)
+            {
+                if (win32Window->m_cbFocus != nullptr)
+                    win32Window->m_cbFocus(false);
+
+                win32Window->m_hasFocus = false;
+            }
             break;
         }
         case WM_SETFOCUS: {
@@ -311,6 +315,7 @@ namespace LinaGX
 
     void Win32Window::Destroy()
     {
+        m_markedDestroy = true;
         DestroyWindow(m_hwnd);
     }
 
