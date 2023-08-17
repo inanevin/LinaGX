@@ -224,7 +224,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,
-                .gpu                   = PreferredGPUType::Integrated,
+                .gpu                   = PreferredGPUType::Discrete,
                 .framesInFlight        = FRAMES_IN_FLIGHT,
                 .backbufferCount       = 2,
                 .gpuLimits             = limits,
@@ -343,7 +343,7 @@ namespace LinaGX::Examples
 
             ShaderDesc shaderDesc = {
                 .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::R8G8B8A8_SRGB,
+                .colorAttachmentFormat = Format::B8G8R8A8_SRGB,
                 .depthAttachmentFormat = Format::D32_SFLOAT,
                 .layout                = outLayout,
                 .polygonMode           = PolygonMode::Fill,
@@ -367,7 +367,7 @@ namespace LinaGX::Examples
         {
             // Create a swapchain for main window.
             _swapchain = _lgx->CreateSwapchain({
-                .format       = Format::R8G8B8A8_SRGB,
+                .format       = Format::B8G8R8A8_SRGB,
                 .depthFormat  = Format::D32_SFLOAT,
                 .x            = 0,
                 .y            = 0,

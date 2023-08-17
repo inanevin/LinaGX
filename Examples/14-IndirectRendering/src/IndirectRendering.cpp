@@ -198,7 +198,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,
-                .gpu                   = PreferredGPUType::Integrated,
+                .gpu                   = PreferredGPUType::Discrete,
                 .framesInFlight        = FRAMES_IN_FLIGHT,
                 .backbufferCount       = 2,
                 .gpuLimits             = limits,

@@ -133,12 +133,12 @@ namespace LinaGX
 
     struct VKBQueue
     {
-        bool               isValid             = false;
-        VkQueue            queue               = nullptr;
-        QueueType          type                = QueueType::Graphics;
-        VkSemaphore        semaphore           = nullptr;
-        uint64             frameSemaphoreValue = 0;
-        LINAGX_VEC<uint64> storedSemaphoreValues;
+        bool                    isValid             = false;
+        VkQueue                 queue               = nullptr;
+        QueueType               type                = QueueType::Graphics;
+        LINAGX_VEC<VkSemaphore> semaphores          = {nullptr};
+        uint64                  frameSemaphoreValue = 0;
+        LINAGX_VEC<uint64>      storedSemaphoreValues;
     };
 
     struct VKBQueueData

@@ -166,13 +166,13 @@ namespace LinaGX
 
     struct DX12Queue
     {
-        bool                                       isValid = false;
-        QueueType                                  type    = QueueType::Graphics;
-        Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue;
-        Microsoft::WRL::ComPtr<ID3D12Fence>        frameFence;
-        uint64                                     frameFenceValue = 0;
-        LINAGX_VEC<uint64>                         storedFenceValues;
-        std::atomic_flag*                          inUse = nullptr;
+        bool                                            isValid = false;
+        QueueType                                       type    = QueueType::Graphics;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue>      queue;
+        LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12Fence>> frameFences;
+        uint64                                          frameFenceValue = 0;
+        LINAGX_VEC<uint64>                              storedFenceValues;
+        std::atomic_flag*                               inUse = nullptr;
     };
 
     class DX12Backend : public Backend

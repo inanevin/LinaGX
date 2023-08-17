@@ -1642,13 +1642,18 @@ namespace LinaGX
         LINAGX_VEC<uint64>               waitSemaphoreValues;
         LINAGX_VEC<uint64>               signalSemaphoreValues;
 
+        if (queue.type == QueueType::Compute && (m_supportsDedicatedComputeQueue || m_supportsSeparateComputeQueue))
+            waitStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        else if (queue.type == QueueType::Transfer && (m_supportsDedicatedTransferQueue || m_supportsSeparateTransferQueue))
+            waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
         // If its a graphics queue, we will have to wait on it during StartFrame() for the next frame-in-flight availability.
         // Thus, we need to signal its stored semaphore value.
         if (queue.type == QueueType::Graphics)
         {
             queue.frameSemaphoreValue++;
             queue.storedSemaphoreValues[m_currentFrameIndex] = queue.frameSemaphoreValue;
-            signalSemaphores.push_back(queue.semaphore);
+            signalSemaphores.push_back(queue.semaphores[m_currentFrameIndex]);
             signalSemaphoreValues.push_back(queue.storedSemaphoreValues[m_currentFrameIndex]);
         }
 
@@ -1753,11 +1758,16 @@ namespace LinaGX
         info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         info.pNext                 = &timelineCreateInfo;
         info.flags                 = 0;
-        VkResult res               = vkCreateSemaphore(m_device, &info, m_allocator, &item.semaphore);
-        VK_CHECK_RESULT(res, "Failed creating semaphore.");
 
+        item.semaphores.resize(m_initInfo.framesInFlight);
         item.storedSemaphoreValues.resize(m_initInfo.framesInFlight);
         item.queue = targetQueue;
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            VkResult res = vkCreateSemaphore(m_device, &info, m_allocator, &item.semaphores[i]);
+            VK_CHECK_RESULT(res, "Failed creating semaphore.");
+        }
 
         return m_queues.AddItem(item);
     }
@@ -1771,7 +1781,8 @@ namespace LinaGX
             return;
         }
 
-        vkDestroySemaphore(m_device, item.semaphore, m_allocator);
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            vkDestroySemaphore(m_device, item.semaphores[i], m_allocator);
 
         m_queues.RemoveItem(queue);
     }
@@ -2409,9 +2420,11 @@ namespace LinaGX
                 if (!q.isValid || q.type != QueueType::Graphics)
                     continue;
 
-                if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [&q](VkSemaphore s) { return s == q.semaphore; }) == waitSemaphores.end())
+                auto sem = q.semaphores[m_currentFrameIndex];
+
+                if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [sem](VkSemaphore s) { return s == sem; }) == waitSemaphores.end())
                 {
-                    waitSemaphores.push_back(q.semaphore);
+                    waitSemaphores.push_back(sem);
                     waitSemaphoreValues.push_back(q.storedSemaphoreValues[i]);
                 }
             }
@@ -2443,9 +2456,11 @@ namespace LinaGX
             if (!q.isValid || q.type != QueueType::Graphics)
                 continue;
 
-            if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [&q](VkSemaphore s) { return s == q.semaphore; }) == waitSemaphores.end())
+            auto sem = q.semaphores[m_currentFrameIndex];
+
+            if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [sem](VkSemaphore s) { return s == sem; }) == waitSemaphores.end())
             {
-                waitSemaphores.push_back(q.semaphore);
+                waitSemaphores.push_back(sem);
                 waitSemaphoreValues.push_back(q.storedSemaphoreValues[frameIndex]);
             }
         }

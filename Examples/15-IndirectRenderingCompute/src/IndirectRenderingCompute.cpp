@@ -189,7 +189,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -200,7 +200,7 @@ namespace LinaGX::Examples
 
             LinaGX::InitInfo initInfo = InitInfo{
                 .api                   = api,
-                .gpu                   = PreferredGPUType::Integrated,
+                .gpu                   = PreferredGPUType::Discrete,
                 .framesInFlight        = FRAMES_IN_FLIGHT,
                 .backbufferCount       = 2,
                 .gpuLimits             = limits,

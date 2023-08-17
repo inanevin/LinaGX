@@ -2017,7 +2017,7 @@ namespace LinaGX
                 if (!q.isValid || q.type != QueueType::Graphics)
                     continue;
 
-                WaitForFences(q.frameFence.Get(), q.storedFenceValues[i]);
+                WaitForFences(q.frameFences[i].Get(), q.storedFenceValues[i]);
             }
         }
     }
@@ -2052,7 +2052,7 @@ namespace LinaGX
             if (!q.isValid || q.type != QueueType::Graphics)
                 continue;
 
-            WaitForFences(q.frameFence.Get(), q.storedFenceValues[m_currentFrameIndex]);
+            WaitForFences(q.frameFences[m_currentFrameIndex].Get(), q.storedFenceValues[m_currentFrameIndex]);
         }
 
         const uint32 next = m_cmdStreams.GetNextFreeID();
@@ -2213,12 +2213,14 @@ namespace LinaGX
         ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&item.queue)));
         NAME_DX12_OBJECT_CSTR(item.queue, desc.debugName);
 
+        item.frameFences.resize(m_initInfo.framesInFlight);
         item.storedFenceValues.resize(m_initInfo.framesInFlight);
         item.inUse = new std::atomic_flag();
 
         try
         {
-            ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&item.frameFence)));
+            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+                ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&item.frameFences[i])));
         }
         catch (HrException e)
         {
@@ -2238,7 +2240,10 @@ namespace LinaGX
         }
 
         delete item.inUse;
-        item.frameFence.Reset();
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            item.frameFences[i].Reset();
+
         item.queue.Reset();
 
         m_queues.RemoveItem(queue);
@@ -2317,7 +2322,7 @@ namespace LinaGX
 
             q.frameFenceValue++;
             q.storedFenceValues[m_currentFrameIndex] = q.frameFenceValue;
-            q.queue->Signal(q.frameFence.Get(), q.frameFenceValue);
+            q.queue->Signal(q.frameFences[m_currentFrameIndex].Get(), q.frameFenceValue);
         }
     }
 
