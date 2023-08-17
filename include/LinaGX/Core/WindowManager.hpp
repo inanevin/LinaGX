@@ -46,7 +46,7 @@ namespace LinaGX
     class WindowManager
     {
     public:
-        Window* CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed);
+        Window* CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::Windowed, Window* parent = nullptr);
         void    DestroyApplicationWindow(LINAGX_STRINGID sid);
         void    PollWindow();
 

@@ -1984,14 +1984,14 @@ namespace LinaGX
         std::vector<VkQueueFamilyProperties>     queueFamilies = physicalDevice.get_queue_families();
         std::vector<vkb::CustomQueueDescription> queueDescs;
 
-        bool               supportsDedicatedTransferQueue = false;
-        bool               supportsDedicatedComputeQueue  = false;
-        bool               supportsSeparateTransferQueue  = false;
-        bool               supportsSeparateComputeQueue   = false;
-        uint32             dedicatedTransferQueueIndex    = 0;
-        uint32             dedicatedComputeQueueIndex     = 0;
-        uint32             separateTransferQueueIndex     = 0;
-        uint32             separateComputeQueueIndex      = 0;
+        m_supportsDedicatedTransferQueue               = false;
+        m_supportsDedicatedComputeQueue                = false;
+        m_supportsSeparateTransferQueue                = false;
+        m_supportsSeparateComputeQueue                 = false;
+        uint32             dedicatedTransferQueueIndex = 0;
+        uint32             dedicatedComputeQueueIndex  = 0;
+        uint32             separateTransferQueueIndex  = 0;
+        uint32             separateComputeQueueIndex   = 0;
         LINAGX_VEC<uint32> graphicsQueueFamilies;
         LINAGX_VEC<uint32> computeQueueFamilies;
         LINAGX_VEC<uint32> transferQueueFamilies;
@@ -2012,14 +2012,14 @@ namespace LinaGX
         {
             if (!(queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
             {
-                supportsDedicatedTransferQueue = true;
-                dedicatedTransferQueueIndex    = i;
+                m_supportsDedicatedTransferQueue = true;
+                dedicatedTransferQueueIndex      = i;
             }
 
             if ((queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
             {
-                supportsSeparateTransferQueue = true;
-                separateTransferQueueIndex    = i;
+                m_supportsSeparateTransferQueue = true;
+                separateTransferQueueIndex      = i;
             }
         }
 
@@ -2027,29 +2027,29 @@ namespace LinaGX
         {
             if (!(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
             {
-                supportsDedicatedComputeQueue = true;
-                dedicatedComputeQueueIndex    = i;
+                m_supportsDedicatedComputeQueue = true;
+                dedicatedComputeQueueIndex      = i;
                 break;
             }
             if ((queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
             {
-                supportsSeparateComputeQueue = true;
-                separateComputeQueueIndex    = i;
+                m_supportsSeparateComputeQueue = true;
+                separateComputeQueueIndex      = i;
             }
         }
 
         LINAGX_MAP<uint32, uint32> queueIndicesAndCounts;
 
-        if (supportsDedicatedTransferQueue)
+        if (m_supportsDedicatedTransferQueue)
             queueIndicesAndCounts[dedicatedTransferQueueIndex] = 1;
-        else if (supportsSeparateTransferQueue)
+        else if (m_supportsSeparateTransferQueue)
             queueIndicesAndCounts[separateTransferQueueIndex]++;
         else
             queueIndicesAndCounts[transferQueueFamilies[0]]++;
 
-        if (supportsDedicatedComputeQueue)
+        if (m_supportsDedicatedComputeQueue)
             queueIndicesAndCounts[dedicatedComputeQueueIndex] = 1;
-        else if (supportsSeparateComputeQueue)
+        else if (m_supportsSeparateComputeQueue)
             queueIndicesAndCounts[separateComputeQueueIndex]++;
         else
             queueIndicesAndCounts[computeQueueFamilies[0]]++;
@@ -2080,12 +2080,12 @@ namespace LinaGX
 
         LINAGX_MAP<uint32, uint32> queueIndicesAndOccupiedQueues;
 
-        if (supportsDedicatedTransferQueue)
+        if (m_supportsDedicatedTransferQueue)
         {
             vkGetDeviceQueue(m_device, dedicatedTransferQueueIndex, 0, &transfer.queues[0]);
             transfer.familyIndex = dedicatedTransferQueueIndex;
         }
-        else if (supportsSeparateTransferQueue)
+        else if (m_supportsSeparateTransferQueue)
         {
             vkGetDeviceQueue(m_device, separateTransferQueueIndex, 0, &transfer.queues[0]);
             queueIndicesAndOccupiedQueues[separateTransferQueueIndex]++;
@@ -2098,12 +2098,12 @@ namespace LinaGX
             transfer.familyIndex = transferQueueFamilies[0];
         }
 
-        if (supportsDedicatedComputeQueue)
+        if (m_supportsDedicatedComputeQueue)
         {
             vkGetDeviceQueue(m_device, dedicatedComputeQueueIndex, 0, &compute.queues[0]);
             compute.familyIndex = dedicatedComputeQueueIndex;
         }
-        else if (supportsSeparateComputeQueue)
+        else if (m_supportsSeparateComputeQueue)
         {
             if (queueIndicesAndOccupiedQueues[separateComputeQueueIndex] < queueFamilies[separateComputeQueueIndex].queueCount)
             {
@@ -2409,8 +2409,11 @@ namespace LinaGX
                 if (!q.isValid || q.type != QueueType::Graphics)
                     continue;
 
-                waitSemaphores.push_back(q.semaphore);
-                waitSemaphoreValues.push_back(q.storedSemaphoreValues[i]);
+                if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [&q](VkSemaphore s) { return s == q.semaphore; }) == waitSemaphores.end())
+                {
+                    waitSemaphores.push_back(q.semaphore);
+                    waitSemaphoreValues.push_back(q.storedSemaphoreValues[i]);
+                }
             }
         }
 
@@ -2440,8 +2443,11 @@ namespace LinaGX
             if (!q.isValid || q.type != QueueType::Graphics)
                 continue;
 
-            waitSemaphores.push_back(q.semaphore);
-            waitSemaphoreValues.push_back(q.storedSemaphoreValues[frameIndex]);
+            if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [&q](VkSemaphore s) { return s == q.semaphore; }) == waitSemaphores.end())
+            {
+                waitSemaphores.push_back(q.semaphore);
+                waitSemaphoreValues.push_back(q.storedSemaphoreValues[frameIndex]);
+            }
         }
 
         const uint64        timeout  = static_cast<uint64>(5000000000);
@@ -2458,24 +2464,28 @@ namespace LinaGX
         frame.submissionCount     = 0;
 
         // Acquire images for each swapchain
-        uint8 i = 0;
         for (auto& swp : m_swapchains)
         {
             if (!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)
             {
-                i++;
                 continue;
             }
 
             VkResult result = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, frame.imageAcquiredSemaphores[m_imageAcqSemaphoresCount], nullptr, &swp._imageIndex);
-            m_imageAcqSemaphoresCount++;
+            if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
+            {
+                swp.gotImage = true;
+                m_imageAcqSemaphoresCount++;
+            }
+            else
+            {
+                LOGE("Backend -> Failed acquiring image for swapchain!");
+            }
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             {
                 LOGA(false, "Backend -> Image is out of date or suboptimal, did you forget to call LinaGX::Instance->RecreateSwapchain after a window resize?");
             }
-
-            i++;
         }
 
         const uint32 next = m_cmdStreams.GetNextFreeID();
@@ -2510,7 +2520,7 @@ namespace LinaGX
         {
             const auto& swp = m_swapchains.GetItemR(present.swapchains[i]);
 
-            if (swp.width == 0 || swp.height == 0)
+            if (swp.width == 0 || swp.height == 0 || !swp.gotImage)
                 continue;
 
             if (!swp.isActive)
@@ -2917,10 +2927,10 @@ namespace LinaGX
         else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
         {
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            barrier.dstAccessMask = (m_supportsDedicatedComputeQueue || m_supportsSeparateTransferQueue) ? 0 : VK_ACCESS_SHADER_READ_BIT;
 
             sourceStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            destinationStage = (m_supportsDedicatedComputeQueue || m_supportsSeparateTransferQueue) ? VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         }
         else if ((oldLayout == VK_IMAGE_LAYOUT_UNDEFINED || oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         {

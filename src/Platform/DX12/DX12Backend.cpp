@@ -410,53 +410,52 @@ namespace LinaGX
 
         ComPtr<IDXGIAdapter1> adapter;
 
-        ComPtr<IDXGIFactory6> factory6;
-        if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
-        {
-            for (UINT adapterIndex = 0; SUCCEEDED(factory6->EnumAdapterByGpuPreference(adapterIndex, gpuType == PreferredGPUType::Discrete ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_MINIMUM_POWER, IID_PPV_ARGS(&adapter))); ++adapterIndex)
+        const unsigned int NVIDIA_VENDOR_ID = 0x10DE;
+        const unsigned int AMD_VENDOR_ID    = 0x1002;
+        const unsigned int INTEL_VENDOR_ID  = 0x8086;
+
+        auto findDevice = [&](bool agressive) {
+            ComPtr<IDXGIFactory6> factory6;
+            if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
             {
-                DXGI_ADAPTER_DESC1 desc;
-                adapter->GetDesc1(&desc);
-
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-                    continue;
-
-                // Check to see whether the adapter supports Direct3D 12, but don't create the
-                // actual device yet.
-                if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+                for (UINT adapterIndex = 0; SUCCEEDED(factory6->EnumAdapterByGpuPreference(adapterIndex, gpuType == PreferredGPUType::Discrete ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_MINIMUM_POWER, IID_PPV_ARGS(&adapter))); ++adapterIndex)
                 {
-                    char* buf = WCharToChar(desc.Description);
-                    LOGT("Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
-                    GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
-                    GPUInfo.deviceName           = buf;
-                    delete[] buf;
-                    break;
+                    DXGI_ADAPTER_DESC1 desc;
+                    adapter->GetDesc1(&desc);
+
+                    if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+                        continue;
+
+                    if (agressive && desc.VendorId != NVIDIA_VENDOR_ID && desc.VendorId != AMD_VENDOR_ID && gpuType == PreferredGPUType::Discrete)
+                        continue;
+
+                    if (agressive && (desc.VendorId == NVIDIA_VENDOR_ID || desc.VendorId == AMD_VENDOR_ID) && gpuType == PreferredGPUType::Integrated)
+                        continue;
+
+                    // Check to see whether the adapter supports Direct3D 12, but don't create the
+                    // actual device yet.
+                    if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+                    {
+                        char* buf = WCharToChar(desc.Description);
+                        LOGT("Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
+                        GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
+                        GPUInfo.deviceName           = buf;
+                        delete[] buf;
+                        break;
+                    }
                 }
             }
-        }
+        };
+
+        findDevice(true);
+
+        if (adapter.Get() == nullptr)
+            findDevice(false);
 
         if (adapter.Get() == nullptr)
         {
-            for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
-            {
-                DXGI_ADAPTER_DESC1 desc;
-                adapter->GetDesc1(&desc);
-
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-                    continue;
-
-                // Check to see whether the adapter supports Direct3D 12, but don't create the
-                // actual device yet.
-                if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-                {
-                    char* buf = WCharToChar(desc.Description);
-                    LOGT("Backend -> Selected hardware adapter %s, dedicated video memory %f mb", buf, desc.DedicatedVideoMemory * 0.000001);
-                    GPUInfo.dedicatedVideoMemory = static_cast<uint64>(desc.DedicatedVideoMemory);
-                    GPUInfo.deviceName           = buf;
-                    delete[] buf;
-                    break;
-                }
-            }
+            LOGE("Backend -> Failed finding a suitable device!");
+            return;
         }
 
         *ppAdapter = adapter.Detach();
@@ -2179,7 +2178,6 @@ namespace LinaGX
                 _lists.push_back(str.list.Get());
             }
 
-
             if (desc.useWait)
             {
                 for (uint32 i = 0; i < desc.waitCount; i++)
@@ -2195,8 +2193,7 @@ namespace LinaGX
                     queue.queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphores[i]).ptr.Get(), desc.signalValues[i]);
             }
 
-            m_submissionPerFrame++;
-            LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+            m_submissionPerFrame.store(m_submissionPerFrame + 1);
         }
         catch (HrException e)
         {
@@ -2288,7 +2285,7 @@ namespace LinaGX
 
                 // DXGI_FRAME_STATISTICS FrameStatistics;
                 // swp.ptr->GetFrameStatistics(&FrameStatistics);
-                // 
+                //
                 // if (FrameStatistics.PresentCount > m_previousPresentCount)
                 // {
                 //     if (m_previousRefreshCount > 0 && (FrameStatistics.PresentRefreshCount - m_previousRefreshCount) > (FrameStatistics.PresentCount - m_previousPresentCount))
@@ -2297,7 +2294,7 @@ namespace LinaGX
                 //         interval = 0;
                 //     }
                 // }
-                // 
+                //
                 // m_previousPresentCount = FrameStatistics.PresentCount;
                 // m_previousRefreshCount = FrameStatistics.SyncRefreshCount;
             }
@@ -2310,6 +2307,8 @@ namespace LinaGX
 
     void DX12Backend::EndFrame()
     {
+        LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+
         // Increase & signal, we'll wait for this value next time we are starting this frame index.
         for (auto& q : m_queues)
         {

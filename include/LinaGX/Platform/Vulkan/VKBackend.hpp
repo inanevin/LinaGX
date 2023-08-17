@@ -87,6 +87,7 @@ namespace LinaGX
         LINAGX_VEC<VkImageView> views;
         LINAGX_VEC<uint32>      depthTextures;
         uint32                  _imageIndex = 0;
+        bool                    gotImage    = false;
     };
 
     struct VKBPerFrameData
@@ -232,6 +233,10 @@ namespace LinaGX
         uint64 m_minUniformBufferOffsetAlignment = 0;
         bool   m_supportsMultiDrawIndirect       = false;
         bool   m_supportsAnisotropy              = false;
+        bool   m_supportsDedicatedTransferQueue  = false;
+        bool   m_supportsDedicatedComputeQueue   = false;
+        bool   m_supportsSeparateTransferQueue   = false;
+        bool   m_supportsSeparateComputeQueue    = false;
 
         uint32 m_currentFrameIndex = 0;
         uint32 m_currentImageIndex = 0;

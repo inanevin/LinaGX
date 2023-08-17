@@ -58,6 +58,8 @@ use to index into another buffer for per-draw-call parameters.
 
 - Don't forget to set isMultithreaded flag if submitting from multiple threads.
 
+- Refactor so that CMDComputeBarrier is CMDComputeIndirectBarrier or something
+
 */
 
 #pragma once

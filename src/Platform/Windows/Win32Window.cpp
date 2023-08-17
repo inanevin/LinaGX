@@ -166,7 +166,7 @@ namespace LinaGX
             uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
 
             const LGXVector2ui mp        = {xPos, yPos};
-            win32Window->m_mouseDelta    = {mp.x - win32Window->m_mousePosition.x, mp.y - win32Window->m_mousePosition.y};
+            win32Window->m_mouseDelta    = {static_cast<int32>(mp.x - win32Window->m_mousePosition.x), static_cast<int32>(mp.y - win32Window->m_mousePosition.y)};
             win32Window->m_mousePosition = mp;
             win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
 
@@ -258,7 +258,7 @@ namespace LinaGX
         return DefWindowProcA(window, msg, wParam, lParam);
     }
 
-    bool Win32Window::Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style)
+    bool Win32Window::Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent)
     {
         m_sid   = sid;
         m_hinst = GetModuleHandle(0);
@@ -294,10 +294,15 @@ namespace LinaGX
         m_size.x           = static_cast<uint32>(width);
         m_size.y           = static_cast<uint32>(height);
 
-        m_hwnd      = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, NULL, NULL, m_hinst, NULL);
-        m_isVisible = true;
-        m_title     = title;
-        ShowWindow(m_hwnd, SW_SHOW);
+        Win32Window* parentWindow = nullptr;
+
+        if (parent != nullptr)
+        {
+            parentWindow = static_cast<Win32Window*>(parent);
+            exStyle |= WS_EX_LAYERED;
+        }
+
+        m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, parentWindow ? parentWindow->m_hwnd : NULL, NULL, m_hinst, NULL);
 
         if (m_hwnd == nullptr)
         {
@@ -305,9 +310,17 @@ namespace LinaGX
             return false;
         }
 
+        if (parentWindow != nullptr)
+            SetAlpha(1.0f);
+
         s_win32Windows[m_hwnd] = this;
-        m_dpi                  = GetDpiForWindow(m_hwnd);
-        m_dpiScale             = m_dpi / 96.0f;
+        m_isVisible            = true;
+        m_title                = title;
+        ShowWindow(m_hwnd, SW_SHOW);
+        SetFocus(m_hwnd);
+
+        m_dpi      = GetDpiForWindow(m_hwnd);
+        m_dpiScale = m_dpi / 96.0f;
 
         SetCursor(LoadCursor(NULL, IDC_ARROW));
         return true;
@@ -317,6 +330,12 @@ namespace LinaGX
     {
         m_markedDestroy = true;
         DestroyWindow(m_hwnd);
+    }
+
+    void Win32Window::PreTick()
+    {
+        // Reset as this will be called pre-pump messages
+        m_mouseDelta = {0, 0};
     }
 
     void Win32Window::Tick()

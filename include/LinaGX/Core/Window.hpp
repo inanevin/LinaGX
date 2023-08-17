@@ -294,7 +294,7 @@ namespace LinaGX
             m_sizeRequests.push_back(req);
         }
 
-        inline const LGXVector2ui& GetMouseDelta() const
+        inline const LGXVector2i& GetMouseDelta() const
         {
             return m_mouseDelta;
         }
@@ -305,9 +305,10 @@ namespace LinaGX
             : m_input(input){};
         virtual ~Window() = default;
 
-        virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style) = 0;
-        virtual void Destroy()                                                                                                        = 0;
-        virtual void Tick()                                                                                                           = 0;
+        virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) = 0;
+        virtual void Destroy()                                                                                                                        = 0;
+        virtual void PreTick()                                                                                                                        = 0;
+        virtual void Tick()                                                                                                                           = 0;
 
     protected:
         CallbackNoArg       m_cbClose       = nullptr;
@@ -331,7 +332,7 @@ namespace LinaGX
         LGXVector2ui             m_size;
         LGXVector2ui             m_trueSize;
         LGXVector2ui             m_mousePosition = {};
-        LGXVector2ui             m_mouseDelta    = {};
+        LGXVector2i              m_mouseDelta    = {};
         LGXRectui                m_dragRect;
         uint32                   m_dpi                = 0;
         float                    m_dpiScale           = 0.0f;

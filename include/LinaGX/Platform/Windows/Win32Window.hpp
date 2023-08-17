@@ -81,8 +81,9 @@ namespace LinaGX
             : Window(input){};
         virtual ~Win32Window() = default;
 
-        virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style) override;
+        virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) override;
         virtual void Destroy() override;
+        virtual void PreTick() override;
         virtual void Tick() override;
 
     private:
@@ -93,7 +94,7 @@ namespace LinaGX
         HWND__*      m_hwnd                 = nullptr;
         HINSTANCE__* m_hinst                = nullptr;
         bool         m_titleChangeRequested = false;
-        bool         m_markedDestroy          = false;
+        bool         m_markedDestroy        = false;
         LGXVector2ui m_dragMouseDelta       = {};
         LGXVector2i  m_restorePos           = {};
         LGXVector2ui m_restoreSize          = {};

@@ -290,8 +290,8 @@ namespace LinaGX
         LINAGX_VEC<DX12PerFrameData> m_perFrameData;
         LINAGX_MAP<QueueType, uint8> m_primaryQueues;
 
-        InitInfo m_initInfo           = {};
-        uint32   m_submissionPerFrame = 0;
+        InitInfo            m_initInfo           = {};
+        std::atomic<uint32> m_submissionPerFrame = 0;
     };
 
 } // namespace LinaGX

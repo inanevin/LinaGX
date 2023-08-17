@@ -40,7 +40,7 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Window* WindowManager::CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style)
+    Window* WindowManager::CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent)
     {
         auto it = m_windows.find(sid);
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same sid already exists! %d", sid);
@@ -51,7 +51,7 @@ namespace LinaGX
         Window* win = new AppleWindow(m_input);
 #endif
 
-        if (!win->Create(sid, title, x, y, width, height, style))
+        if (!win->Create(sid, title, x, y, width, height, style, parent))
         {
             LOGE("Window Manager -> Failed creating window!");
             delete win;
@@ -74,6 +74,9 @@ namespace LinaGX
     void WindowManager::PollWindow()
     {
         m_input->PreTick();
+
+        for (const auto [sid, w] : m_windows)
+            w->PreTick();
 
 #ifdef LINAGX_PLATFORM_WINDOWS
         MSG msg    = {0};
