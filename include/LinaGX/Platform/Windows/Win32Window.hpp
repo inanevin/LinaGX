@@ -37,6 +37,7 @@ SOFTWARE.
 
 struct HWND__;
 struct HINSTANCE__;
+struct HICON__;
 
 namespace LinaGX
 {
@@ -57,7 +58,8 @@ namespace LinaGX
         virtual void         BringToFront() override;
         virtual void         SetAlpha(float alpha) override;
         virtual void         SetTitle(const LINAGX_STRING& str) override;
-        virtual void         SetInputPassthrough(bool isInputPassthrough) override;
+        virtual void         SetForceIsDragged(bool isDragged, const LGXVector2ui& offset) override;
+        virtual void         SetIcon(const LINAGX_STRING& name) override;
         virtual void         Maximize() override;
         virtual void         Minimize() override;
         virtual void         Restore() override;
@@ -89,6 +91,7 @@ namespace LinaGX
     private:
         uint32 GetStyle(WindowStyle style);
         void   OnDPIChanged(uint32 dpi);
+        void   CheckMaximizedState();
 
     private:
         HWND__*      m_hwnd                 = nullptr;
@@ -98,6 +101,7 @@ namespace LinaGX
         LGXVector2ui m_dragMouseDelta       = {};
         LGXVector2i  m_restorePos           = {};
         LGXVector2ui m_restoreSize          = {};
+        HICON__*     m_icon                 = nullptr;
     };
 } // namespace LinaGX
 

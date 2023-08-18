@@ -33,17 +33,51 @@ SOFTWARE.
 #include <Windows.h>
 #include <windowsx.h>
 #include <shellscalingapi.h>
+#include <chrono>
 
 namespace LinaGX
 {
     LINAGX_MAP<HWND__*, Win32Window*> Win32Window::s_win32Windows;
 
-    LRESULT __stdcall Win32Window::WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
+    LRESULT HandleNonclientHitTest(HWND wnd, LPARAM lparam, const LGXRectui& dragRect)
     {
-        auto* win32Window = s_win32Windows[window];
+        RECT wnd_rect;
+        GetWindowRect(wnd, &wnd_rect);
+
+        int        width    = wnd_rect.right - wnd_rect.left;
+        int        height   = wnd_rect.bottom - wnd_rect.top;
+        const LONG margin   = 10;
+        const LONG trMargin = 5;
+
+        RECT title_bar = {dragRect.pos.x, dragRect.pos.y, dragRect.pos.x + dragRect.size.x, dragRect.pos.y + dragRect.size.y};
+        RECT tl        = {0, 0, margin, margin};
+        RECT tr        = {width - trMargin, 0, width, trMargin};
+        RECT bl        = {0, height - margin, margin, height};
+        RECT br        = {width - margin, height - margin, width, height};
+        RECT left      = {0, tl.bottom, margin, bl.top};
+        RECT right     = {width - margin, tr.bottom, width, br.top};
+        RECT bottom    = {bl.right, bl.top, br.left, br.bottom};
+        RECT top       = {tl.right, tl.top, tr.left, tr.bottom};
+
+        // std::tuple<RECT, LRESULT> rects[] = {{title_bar, HTCAPTION}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}};
+        std::tuple<RECT, LRESULT> rects[] = {{tl, HTTOPLEFT}, {tr, HTTOPRIGHT}, {bl, HTBOTTOMLEFT}, {br, HTBOTTOMRIGHT}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}, {top, HTTOP}};
+
+        POINT pt = {GET_X_LPARAM(lparam) - wnd_rect.left, GET_Y_LPARAM(lparam) - wnd_rect.top};
+
+        for (const auto& [r, code] : rects)
+        {
+            if (PtInRect(&r, pt))
+                return code;
+        }
+        return HTCLIENT;
+    }
+
+    LRESULT __stdcall Win32Window::WndProc(HWND__* hwnd, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
+    {
+        auto* win32Window = s_win32Windows[hwnd];
 
         if (win32Window == nullptr)
-            return DefWindowProcA(window, msg, wParam, lParam);
+            return DefWindowProcA(hwnd, msg, wParam, lParam);
 
         switch (msg)
         {
@@ -52,6 +86,15 @@ namespace LinaGX
                 win32Window->m_cbClose();
 
             return 0;
+        }
+        case WM_NCHITTEST: {
+            auto res = HandleNonclientHitTest(hwnd, lParam, win32Window->m_dragRect);
+            if (res == HTCLIENT)
+            {
+                win32Window->SetCursorType(win32Window->m_cursorType);
+            }
+
+            return res;
         }
         case WM_KILLFOCUS: {
 
@@ -62,6 +105,7 @@ namespace LinaGX
 
                 win32Window->m_hasFocus = false;
             }
+
             break;
         }
         case WM_SETFOCUS: {
@@ -78,6 +122,11 @@ namespace LinaGX
         case WM_DISPLAYCHANGE: {
             break;
         }
+        case WM_DESTROY: {
+            if (win32Window->m_icon)
+                DestroyIcon(win32Window->m_icon);
+            break;
+        }
         case WM_DPICHANGED: {
             const uint32 dpi = static_cast<uint32>((short)LOWORD(lParam));
             win32Window->OnDPIChanged(dpi);
@@ -85,6 +134,7 @@ namespace LinaGX
         }
         case WM_ACTIVATEAPP: {
             win32Window->m_input->WindowFeedActivateApp(wParam == TRUE ? true : false);
+
             break;
         }
         case WM_MOVE: {
@@ -103,7 +153,7 @@ namespace LinaGX
         case WM_SIZE: {
 
             RECT rect;
-            GetWindowRect(window, &rect);
+            GetWindowRect(hwnd, &rect);
 
             RECT clientRect;
             GetClientRect(win32Window->m_hwnd, &clientRect);
@@ -135,9 +185,9 @@ namespace LinaGX
             const InputAction action = isRepeated ? InputAction::Repeated : InputAction::Pressed;
 
             if (win32Window->m_cbKey)
-                win32Window->m_cbKey(key, static_cast<int32>(scanCode), action);
+                win32Window->m_cbKey(key, static_cast<int32>(scanCode), action, win32Window);
 
-            win32Window->m_input->WindowFeedKey(key, static_cast<int32>(scanCode), action);
+            win32Window->m_input->WindowFeedKey(key, static_cast<int32>(scanCode), action, win32Window);
 
             break;
         }
@@ -154,9 +204,9 @@ namespace LinaGX
                 key = extended ? VK_LCONTROL : VK_RCONTROL;
 
             if (win32Window->m_cbKey)
-                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), InputAction::Released);
+                win32Window->m_cbKey(key, static_cast<uint32>(scanCode), InputAction::Released, win32Window);
 
-            win32Window->m_input->WindowFeedKey(key, static_cast<uint32>(scanCode), InputAction::Released);
+            win32Window->m_input->WindowFeedKey(key, static_cast<uint32>(scanCode), InputAction::Released, win32Window);
 
             break;
         }
@@ -185,26 +235,19 @@ namespace LinaGX
 
             break;
         }
-        case WM_LBUTTONDBLCLK: {
-
-            if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Repeated);
-
-            if (win32Window->m_dragRect.IsPointInside(win32Window->m_mousePosition))
-            {
-                if (win32Window->GetIsMaximized())
-                    win32Window->Restore();
-                else
-                    win32Window->Maximize();
-            }
-            break;
-        }
         case WM_LBUTTONDOWN: {
 
-            if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Pressed);
+            static std::chrono::steady_clock::time_point lastTime = {};
+            auto                                         current  = std::chrono::high_resolution_clock::now();
+            auto                                         elapsed  = std::chrono::duration_cast<std::chrono::nanoseconds>(current - lastTime);
+            lastTime                                              = current;
 
-            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Pressed);
+            bool repeated = elapsed.count() < 250000000;
+
+            if (win32Window->m_cbMouse)
+                win32Window->m_cbMouse(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
+
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
 
             break;
         }
@@ -255,7 +298,7 @@ namespace LinaGX
         }
         }
 
-        return DefWindowProcA(window, msg, wParam, lParam);
+        return DefWindowProcA(hwnd, msg, wParam, lParam);
     }
 
     bool Win32Window::Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent)
@@ -272,7 +315,7 @@ namespace LinaGX
             wc.hInstance     = m_hinst;
             wc.lpszClassName = title;
             wc.hCursor       = NULL;
-            wc.style         = CS_DBLCLKS;
+            // wc.style         = CS_DBLCLKS;
 
             if (!RegisterClassA(&wc))
             {
@@ -318,11 +361,14 @@ namespace LinaGX
         m_title                = title;
         ShowWindow(m_hwnd, SW_SHOW);
         SetFocus(m_hwnd);
+        BringToFront();
+        CheckMaximizedState();
 
-        m_dpi      = GetDpiForWindow(m_hwnd);
-        m_dpiScale = m_dpi / 96.0f;
+        m_dpi         = GetDpiForWindow(m_hwnd);
+        m_dpiScale    = m_dpi / 96.0f;
+        m_restoreSize = m_trueSize;
+        m_restorePos  = m_position;
 
-        SetCursor(LoadCursor(NULL, IDC_ARROW));
         return true;
     }
 
@@ -406,7 +452,7 @@ namespace LinaGX
     uint32 Win32Window::GetStyle(WindowStyle style)
     {
         if (style == WindowStyle::Borderless)
-            return WS_POPUP;
+            return WS_POPUP | WS_MINIMIZEBOX;
 
         return WS_OVERLAPPEDWINDOW;
     }
@@ -415,6 +461,19 @@ namespace LinaGX
     {
         m_dpi      = GetDpiForWindow(m_hwnd);
         m_dpiScale = m_dpi / 96.0f;
+    }
+
+    void Win32Window::CheckMaximizedState()
+    {
+        const auto& mi = GetMonitorInfoFromWindow();
+        if (m_defaultMaxIsWorkArea)
+        {
+            m_isMaximized = m_trueSize.x == mi.workArea.x && m_trueSize.y == mi.workArea.y;
+        }
+        else
+        {
+            m_isMaximized = m_trueSize.x == mi.size.x && m_trueSize.y == mi.size.y;
+        }
     }
 
     void Win32Window::Close()
@@ -475,6 +534,7 @@ namespace LinaGX
         m_trueSize.x       = static_cast<uint32>(adjustedWidth);
         m_trueSize.y       = static_cast<uint32>(adjustedHeight);
         SetWindowPos(m_hwnd, NULL, 0, 0, adjustedWidth, adjustedHeight, SWP_NOMOVE | SWP_NOZORDER);
+        CheckMaximizedState();
     }
 
     void Win32Window::CenterPositionToCurrentMonitor()
@@ -516,7 +576,7 @@ namespace LinaGX
     void Win32Window::BringToFront()
     {
         OpenIcon(m_hwnd);
-        SetWindowPos(m_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+        SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
 
     void Win32Window::SetAlpha(float alpha)
@@ -533,34 +593,50 @@ namespace LinaGX
         m_titleChangeRequested = true;
     }
 
-    void Win32Window::SetInputPassthrough(bool isInputPassthrough)
+    void Win32Window::SetForceIsDragged(bool isDragged, const LGXVector2ui& offset)
     {
-        m_isInputPassThrough = isInputPassthrough;
+        m_isDragged = true;
 
-        if (m_isInputPassThrough)
+        if (m_isDragged)
         {
-            SetWindowLong(m_hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_TRANSPARENT | WS_EX_LAYERED);
+            m_isDragged      = true;
+            m_dragMouseDelta = offset;
+
+            if (m_cbDragBegin)
+                m_cbDragBegin();
         }
         else
         {
-            SetWindowLong(m_hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_LAYERED);
+            if (m_cbDragEnd)
+                m_cbDragEnd();
         }
+    }
+
+    void Win32Window::SetIcon(const LINAGX_STRING& name)
+    {
+        if (m_icon)
+            DestroyIcon(m_icon);
+
+        const LINAGX_STRING fullName = name + ".ico";
+        m_icon                       = (HICON)LoadImage(NULL, fullName.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+        SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)m_icon);
+        SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)m_icon);
     }
 
     void Win32Window::Maximize()
     {
-        SendMessage(m_hwnd, WM_SETREDRAW, FALSE, 0);
-        SetWindowLongPtr(m_hwnd, GWL_STYLE, WS_POPUP);
+        m_restoreSize = m_trueSize;
+        m_restorePos  = m_position;
 
-        const MonitorInfo mi = GetMonitorInfoFromWindow();
-        m_restoreSize        = m_trueSize;
-        m_restorePos         = m_position;
-        SetPosition(mi.workTopLeft);
-        SetSize(mi.workArea);
+        const auto& mi = GetMonitorInfoFromWindow();
+        SetPosition({mi.workTopLeft.x, mi.workTopLeft.y});
+
+        if (m_defaultMaxIsWorkArea)
+            SetSize({mi.workArea.x, mi.workArea.y});
+        else
+            SetSize({mi.size.x, mi.size.y});
+
         m_isMaximized = true;
-
-        SendMessage(m_hwnd, WM_SETREDRAW, TRUE, 0);
-        RedrawWindow(m_hwnd, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
     }
 
     void Win32Window::Minimize()
@@ -570,25 +646,14 @@ namespace LinaGX
 
     void Win32Window::Restore()
     {
-        m_isMaximized = false;
-
-        const MonitorInfo mi = GetMonitorInfoFromWindow();
-
-        if (m_restoreSize.x == 0 && m_restoreSize.y == 0)
+        if (m_restoreSize.x == m_trueSize.x && m_restoreSize.y == m_trueSize.y)
         {
-            m_restoreSize  = {static_cast<uint32>((float)mi.size.x * 0.5f, static_cast<uint32>((float)mi.size.y * 0.5f))};
-            m_restorePos.x = static_cast<int32>((float)mi.size.x * 0.5f - m_restoreSize.x * 0.5f);
-            m_restorePos.y = static_cast<int32>((float)mi.size.y * 0.5f - m_restoreSize.y * 0.5f);
+            return;
         }
 
-        SendMessage(m_hwnd, WM_SETREDRAW, FALSE, 0);
-        SetWindowLongPtr(m_hwnd, GWL_STYLE, WS_POPUP);
-
-        SetSize(m_restoreSize);
         SetPosition(m_restorePos);
-
-        SendMessage(m_hwnd, WM_SETREDRAW, TRUE, 0);
-        RedrawWindow(m_hwnd, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+        SetSize(m_restoreSize);
+        CheckMaximizedState();
     }
 
     MonitorInfo Win32Window::GetMonitorInfoFromWindow()

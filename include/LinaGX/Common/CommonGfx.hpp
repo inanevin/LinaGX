@@ -347,6 +347,7 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
+        uint32    queue        = 0;
         Format    format       = Format::B8G8R8A8_UNORM;
         Format    depthFormat  = Format::D32_SFLOAT;
         uint32    x            = 0;
@@ -640,7 +641,7 @@ namespace LinaGX
 
     struct VulkanConfiguration
     {
-        bool   flipViewport             = true;
+        bool flipViewport = true;
     };
 
     struct Configuration
@@ -703,18 +704,20 @@ namespace LinaGX
         Config.errorCallback(__VA_ARGS__);    \
     _ASSERT(condition);
 
-    typedef std::function<void()>                           CallbackNoArg;
-    typedef std::function<void(const LGXVector2i&)>         CallbackPosChanged;
-    typedef std::function<void(const LGXVector2ui&)>        CallbackMouseMove;
-    typedef std::function<void(const LGXVector2ui&)>        CallbackSizeChanged;
-    typedef std::function<void(uint32, int32, InputAction)> CallbackKey;
-    typedef std::function<void(uint32, InputAction)>        CallbackMouse;
-    typedef std::function<void(int32)>                      CallbackMouseWheel;
-    typedef std::function<void(bool)>                       CallbackFocus;
-    typedef std::function<void()>                           CallbackHoverBegin;
-    typedef std::function<void()>                           CallbackHoverEnd;
-    typedef std::function<void()>                           CallbackDragBegin;
-    typedef std::function<void()>                           CallbackDragEnd;
+    class Window;
+
+    typedef std::function<void()>                                    CallbackNoArg;
+    typedef std::function<void(const LGXVector2i&)>                  CallbackPosChanged;
+    typedef std::function<void(const LGXVector2ui&)>                 CallbackMouseMove;
+    typedef std::function<void(const LGXVector2ui&)>                 CallbackSizeChanged;
+    typedef std::function<void(uint32, int32, InputAction, Window*)> CallbackKey;
+    typedef std::function<void(uint32, InputAction)>                 CallbackMouse;
+    typedef std::function<void(int32)>                               CallbackMouseWheel;
+    typedef std::function<void(bool)>                                CallbackFocus;
+    typedef std::function<void()>                                    CallbackHoverBegin;
+    typedef std::function<void()>                                    CallbackHoverEnd;
+    typedef std::function<void()>                                    CallbackDragBegin;
+    typedef std::function<void()>                                    CallbackDragEnd;
 
 } // namespace LinaGX
 

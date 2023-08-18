@@ -99,8 +99,14 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        /// <param name="isInputPassthrough"></param>
-        virtual void SetInputPassthrough(bool isInputPassthrough) = 0;
+        /// <param name="isDragged"></param>
+        virtual void SetForceIsDragged(bool isDragged, const LGXVector2ui& offset) = 0;
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="name"></param>
+        virtual void SetIcon(const LINAGX_STRING& name) = 0;
 
         /// <summary>
         ///
@@ -299,6 +305,16 @@ namespace LinaGX
             return m_mouseDelta;
         }
 
+        inline void SetDefaultMaxIsWorkArea(bool isWorkArea)
+        {
+            m_defaultMaxIsWorkArea = isWorkArea;
+        }
+
+        inline const LGXRectui& GetDragRect() const
+        {
+            return m_dragRect;
+        }
+
     protected:
         friend class WindowManager;
         Window(Input* input)
@@ -334,17 +350,18 @@ namespace LinaGX
         LGXVector2ui             m_mousePosition = {};
         LGXVector2i              m_mouseDelta    = {};
         LGXRectui                m_dragRect;
-        uint32                   m_dpi                = 0;
-        float                    m_dpiScale           = 0.0f;
-        bool                     m_isVisible          = true;
-        bool                     m_isTransparent      = false;
-        float                    m_alpha              = 0.0f;
-        bool                     m_hasFocus           = true;
-        bool                     m_isDragged          = false;
-        bool                     m_isMaximized        = false;
-        bool                     m_isHovered          = false;
-        bool                     m_isInputPassThrough = false;
-        CursorType               m_cursorType         = CursorType::Default;
+        uint32                   m_dpi                  = 0;
+        float                    m_dpiScale             = 0.0f;
+        bool                     m_isVisible            = true;
+        bool                     m_isTransparent        = false;
+        float                    m_alpha                = 0.0f;
+        bool                     m_hasFocus             = true;
+        bool                     m_isDragged            = false;
+        bool                     m_isMaximized          = false;
+        bool                     m_isHovered            = false;
+        bool                     m_isInputPassThrough   = false;
+        bool                     m_defaultMaxIsWorkArea = false;
+        CursorType               m_cursorType           = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
     };
 } // namespace LinaGX

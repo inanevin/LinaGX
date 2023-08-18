@@ -616,7 +616,8 @@ namespace LinaGX
         waitInfo.semaphoreCount      = 1;
         waitInfo.pSemaphores         = &s;
         waitInfo.pValues             = &value;
-        vkWaitSemaphores(m_device, &waitInfo, timeout);
+        VkResult res                 = vkWaitSemaphores(m_device, &waitInfo, timeout);
+        VK_CHECK_RESULT(res, "Backend -> Failed waiting for semaphores!");
     }
 
     uint8 VKBackend::CreateSwapchain(const SwapchainDesc& desc)
@@ -676,6 +677,18 @@ namespace LinaGX
             swp.depthTextures.push_back(CreateTexture2D(depthDesc));
         }
 
+        VkSemaphoreCreateInfo smpInfo = VkSemaphoreCreateInfo{};
+        smpInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        smpInfo.pNext                 = nullptr;
+        smpInfo.flags                 = 0;
+
+        swp.imageAcquiredSemaphores.resize(m_initInfo.framesInFlight);
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        {
+            VkResult result = vkCreateSemaphore(m_device, &smpInfo, m_allocator, &swp.imageAcquiredSemaphores[i]);
+            VK_CHECK_RESULT(result, "Failed creating semaphore.");
+        }
+
         LOGT("Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
 
         return m_swapchains.AddItem(swp);
@@ -689,6 +702,9 @@ namespace LinaGX
             LOGE("Backend -> Swapchain to be destroyed is not valid!");
             return;
         }
+
+        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            vkDestroySemaphore(m_device, swp.imageAcquiredSemaphores[i], m_allocator);
 
         for (auto t : swp.depthTextures)
             DestroyTexture2D(t);
@@ -1598,6 +1614,13 @@ namespace LinaGX
                 const size_t increment = sizeof(LINAGX_TYPEID);
                 uint8*       cmd       = data + increment;
                 (this->*m_cmdFunctions[tid])(cmd, sr);
+
+                if (tid == LGX_GetTypeID<CMDBeginRenderPass>())
+                {
+                    CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(cmd);
+                    if (begin->isSwapchain)
+                        sr.swapchainWrites.push_back(begin->swapchain);
+                }
             }
 
             res = vkEndCommandBuffer(buffer);
@@ -1607,19 +1630,26 @@ namespace LinaGX
 
     void VKBackend::SubmitCommandStreams(const SubmitDesc& desc)
     {
-        auto& queue = m_queues.GetItemR(desc.targetQueue);
-        auto  flag  = m_flagsPerQueue.at(queue.queue);
+        auto& queue    = m_queues.GetItemR(desc.targetQueue);
+        auto& queuePfd = queue.pfd[m_currentFrameIndex];
+        auto  flag     = m_flagsPerQueue.at(queue.queue);
 
-        if (desc.isMultithreaded)
-        {
-            // Thread can't access.
-            while (flag->test_and_set(std::memory_order_acquire))
-            {
-            }
-        }
+        LINAGX_VEC<VkSubmitInfo> submitInfos;
+        submitInfos.resize(desc.streamCount);
+
+        // if (desc.isMultithreaded)
+        // {
+        //     // spinlock
+        //     while (flag->test_and_set(std::memory_order_acquire))
+        //     {
+        //     }
+        // }
+
+        queue.wasSubmitted[m_currentFrameIndex] = true;
 
         auto&                       frame = m_perFrameData[m_currentFrameIndex];
         LINAGX_VEC<VkCommandBuffer> _buffers;
+        LINAGX_VEC<uint8>           writesToSwapchains;
 
         // Push all valid command buffers into a list.
         for (uint32 i = 0; i < desc.streamCount; i++)
@@ -1633,6 +1663,11 @@ namespace LinaGX
 
             auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             _buffers.push_back(str.buffer);
+
+            if (!str.swapchainWrites.empty())
+                writesToSwapchains.insert(writesToSwapchains.end(), str.swapchainWrites.begin(), str.swapchainWrites.end());
+
+            str.swapchainWrites.clear();
         }
 
         VkPipelineStageFlags             waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1652,25 +1687,29 @@ namespace LinaGX
         if (queue.type == QueueType::Graphics)
         {
             queue.frameSemaphoreValue++;
-            queue.storedSemaphoreValues[m_currentFrameIndex] = queue.frameSemaphoreValue;
-            signalSemaphores.push_back(queue.semaphores[m_currentFrameIndex]);
-            signalSemaphoreValues.push_back(queue.storedSemaphoreValues[m_currentFrameIndex]);
+            queuePfd.storedStartFrameSemaphoreValue = queue.frameSemaphoreValue;
+            signalSemaphores.push_back(queuePfd.startFrameWaitSemaphore);
+            signalSemaphoreValues.push_back(queuePfd.storedStartFrameSemaphoreValue);
         }
 
-        // If primary graphics queue, we need to signal a binary semaphore, so that we can wait on it during presentation.
-        // Primary graphics queue also has to wait for all images to be acquired.
-        if (desc.targetQueue == GetPrimaryQueue(QueueType::Graphics))
+        // If graphics queue, we need to signal a binary semaphore, so that we can wait on it during presentation.
+        // Also need to wait for all images to be acquired.
+        if (queue.type == QueueType::Graphics && !writesToSwapchains.empty())
         {
-            signalSemaphores.push_back(frame.submitSemaphores[frame.submissionCount]);
-            signalSemaphoreValues.push_back(0);
-            frame.submissionCount++;
-
-            for (uint32 i = 0; i < m_imageAcqSemaphoresCount; i++)
+            for (auto swp : writesToSwapchains)
             {
-                waitSemaphores.push_back(frame.imageAcquiredSemaphores[i]);
+                auto& swap = m_swapchains.GetItemR(swp);
+
+                waitSemaphores.push_back(swap.imageAcquiredSemaphores[m_currentFrameIndex]);
                 waitStages.push_back(waitStage);
                 waitSemaphoreValues.push_back(0); // ignored binary semaphore.
+                swap._submittedQueue          = desc.targetQueue;
+                swap._submittedSemaphoreIndex = queuePfd.submitSemaphoreIndex;
             }
+
+            signalSemaphores.push_back(queuePfd.submitSemaphoreBuffer[queuePfd.submitSemaphoreIndex]);
+            signalSemaphoreValues.push_back(0);
+            queuePfd.submitSemaphoreIndex++;
         }
 
         // This is for USER signal mechanisms.
@@ -1717,7 +1756,10 @@ namespace LinaGX
         LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame + 1), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
 
         VkResult res = vkQueueSubmit(queue.queue, 1, &submitInfo, nullptr);
-        flag->clear(std::memory_order_release);
+
+        if (desc.isMultithreaded)
+            flag->clear(std::memory_order_release);
+
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
     }
 
@@ -1759,15 +1801,28 @@ namespace LinaGX
         info.pNext                 = &timelineCreateInfo;
         info.flags                 = 0;
 
-        item.semaphores.resize(m_initInfo.framesInFlight);
-        item.storedSemaphoreValues.resize(m_initInfo.framesInFlight);
-        item.queue = targetQueue;
+        item.pfd.resize(m_initInfo.framesInFlight);
 
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
-            VkResult res = vkCreateSemaphore(m_device, &info, m_allocator, &item.semaphores[i]);
+            info.pNext   = &timelineCreateInfo;
+            auto&    pfd = item.pfd[i];
+            VkResult res = vkCreateSemaphore(m_device, &info, m_allocator, &pfd.startFrameWaitSemaphore);
             VK_CHECK_RESULT(res, "Failed creating semaphore.");
+
+            info.pNext                     = nullptr;
+            const uint32 submitSemaphoreSz = m_initInfo.gpuLimits.maxSubmitsPerFrame / 2;
+            pfd.submitSemaphoreBuffer.resize(submitSemaphoreSz);
+
+            for (uint32 j = 0; j < submitSemaphoreSz; j++)
+            {
+                res = vkCreateSemaphore(m_device, &info, m_allocator, &pfd.submitSemaphoreBuffer[j]);
+                VK_CHECK_RESULT(res, "Failed creating semaphore.");
+            }
         }
+
+        item.queue = targetQueue;
+        item.wasSubmitted.resize(m_initInfo.framesInFlight);
 
         return m_queues.AddItem(item);
     }
@@ -1782,7 +1837,15 @@ namespace LinaGX
         }
 
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
-            vkDestroySemaphore(m_device, item.semaphores[i], m_allocator);
+        {
+            auto& pfd = item.pfd[i];
+
+            vkDestroySemaphore(m_device, pfd.startFrameWaitSemaphore, m_allocator);
+
+            const uint32 submitSemaphoreSz = m_initInfo.gpuLimits.maxSubmitsPerFrame / 2;
+            for (uint32 j = 0; j < submitSemaphoreSz; j++)
+                vkDestroySemaphore(m_device, pfd.submitSemaphoreBuffer[j], m_allocator);
+        }
 
         m_queues.RemoveItem(queue);
     }
@@ -2249,44 +2312,9 @@ namespace LinaGX
 
         // Per frame data
         {
-            VkFenceCreateInfo fenceInfo = VkFenceCreateInfo{};
-            fenceInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fenceInfo.pNext             = nullptr;
-            fenceInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
-
-            VkSemaphoreCreateInfo smpInfo = VkSemaphoreCreateInfo{};
-            smpInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            smpInfo.pNext                 = nullptr;
-            smpInfo.flags                 = 0;
-
             for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             {
                 VKBPerFrameData pfd = {};
-
-                pfd.submitFences.resize(m_initInfo.gpuLimits.maxSubmitsPerFrame, nullptr);
-                pfd.imageAcquiredSemaphores.resize(m_initInfo.gpuLimits.maxSubmitsPerFrame, nullptr);
-                pfd.submitSemaphores.resize(m_initInfo.gpuLimits.maxSubmitsPerFrame, nullptr);
-
-                for (uint32 j = 0; j < m_initInfo.gpuLimits.maxSubmitsPerFrame; j++)
-                {
-                    VkFence     fence      = nullptr;
-                    VkSemaphore semaphore1 = nullptr;
-                    VkSemaphore semaphore2 = nullptr;
-                    VkResult    result     = vkCreateFence(m_device, &fenceInfo, m_allocator, &fence);
-                    VK_CHECK_RESULT(result, "Failed creating fence!");
-
-                    result = vkCreateSemaphore(m_device, &smpInfo, m_allocator, &semaphore1);
-                    VK_CHECK_RESULT(result, "Failed creating semaphore.");
-                    result = vkCreateSemaphore(m_device, &smpInfo, m_allocator, &semaphore2);
-                    VK_CHECK_RESULT(result, "Failed creating semaphore.");
-
-                    pfd.submitSemaphores[j]        = semaphore1;
-                    pfd.imageAcquiredSemaphores[j] = semaphore2;
-                    pfd.submitFences[j]            = fence;
-                }
-
-                vkResetFences(m_device, m_initInfo.gpuLimits.maxSubmitsPerFrame, &pfd.submitFences[0]);
-
                 m_perFrameData.push_back(pfd);
             }
         }
@@ -2333,7 +2361,6 @@ namespace LinaGX
 
     void VKBackend::Shutdown()
     {
-
         for (const auto& [q, flag] : m_flagsPerQueue)
             delete flag;
 
@@ -2346,13 +2373,6 @@ namespace LinaGX
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];
-
-            for (uint32 j = 0; j < m_initInfo.gpuLimits.maxSubmitsPerFrame; j++)
-            {
-                vkDestroyFence(m_device, pfd.submitFences[j], m_allocator);
-                vkDestroySemaphore(m_device, pfd.submitSemaphores[j], m_allocator);
-                vkDestroySemaphore(m_device, pfd.imageAcquiredSemaphores[j], m_allocator);
-            }
         }
 
         for (auto& swp : m_swapchains)
@@ -2415,29 +2435,34 @@ namespace LinaGX
 
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
-            for (const auto& q : m_queues)
+            for (auto& q : m_queues)
             {
-                if (!q.isValid || q.type != QueueType::Graphics)
+                if (!q.isValid || q.type != QueueType::Graphics || q.wasSubmitted[i])
                     continue;
 
-                auto sem = q.semaphores[m_currentFrameIndex];
+                q.wasSubmitted[i] = false;
+
+                auto sem = q.pfd[i].startFrameWaitSemaphore;
 
                 if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [sem](VkSemaphore s) { return s == sem; }) == waitSemaphores.end())
                 {
                     waitSemaphores.push_back(sem);
-                    waitSemaphoreValues.push_back(q.storedSemaphoreValues[i]);
+                    waitSemaphoreValues.push_back(q.pfd[i].storedStartFrameSemaphoreValue);
                 }
             }
         }
 
-        VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
-        waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-        waitInfo.pNext               = nullptr;
-        waitInfo.flags               = 0;
-        waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
-        waitInfo.pSemaphores         = waitSemaphores.data();
-        waitInfo.pValues             = waitSemaphoreValues.data();
-        vkWaitSemaphores(m_device, &waitInfo, timeout);
+        if (!waitSemaphores.empty())
+        {
+            VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
+            waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+            waitInfo.pNext               = nullptr;
+            waitInfo.flags               = 0;
+            waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
+            waitInfo.pSemaphores         = waitSemaphores.data();
+            waitInfo.pValues             = waitSemaphoreValues.data();
+            vkWaitSemaphores(m_device, &waitInfo, timeout);
+        }
 
         vkDeviceWaitIdle(m_device);
     }
@@ -2451,46 +2476,55 @@ namespace LinaGX
         LINAGX_VEC<VkSemaphore> waitSemaphores;
         LINAGX_VEC<uint64>      waitSemaphoreValues;
 
-        for (const auto& q : m_queues)
+        for (auto& q : m_queues)
         {
-            if (!q.isValid || q.type != QueueType::Graphics)
+            if (!q.isValid || q.type != QueueType::Graphics || !q.wasSubmitted[m_currentFrameIndex])
                 continue;
 
-            auto sem = q.semaphores[m_currentFrameIndex];
+            q.wasSubmitted[m_currentFrameIndex]             = false;
+            q.pfd[m_currentFrameIndex].submitSemaphoreIndex = 0;
+
+            auto sem = q.pfd[m_currentFrameIndex].startFrameWaitSemaphore;
 
             if (std::find_if(waitSemaphores.begin(), waitSemaphores.end(), [sem](VkSemaphore s) { return s == sem; }) == waitSemaphores.end())
             {
                 waitSemaphores.push_back(sem);
-                waitSemaphoreValues.push_back(q.storedSemaphoreValues[frameIndex]);
+                waitSemaphoreValues.push_back(q.pfd[m_currentFrameIndex].storedStartFrameSemaphoreValue);
             }
         }
 
-        const uint64        timeout  = static_cast<uint64>(5000000000);
-        VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
-        waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-        waitInfo.pNext               = nullptr;
-        waitInfo.flags               = 0;
-        waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
-        waitInfo.pSemaphores         = waitSemaphores.data();
-        waitInfo.pValues             = waitSemaphoreValues.data();
-        vkWaitSemaphores(m_device, &waitInfo, timeout);
+        const uint64 timeout = static_cast<uint64>(5000000000);
 
-        m_imageAcqSemaphoresCount = 0;
-        frame.submissionCount     = 0;
+        if (!waitSemaphores.empty())
+        {
+            VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
+            waitInfo.sType               = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+            waitInfo.pNext               = nullptr;
+            waitInfo.flags               = 0;
+            waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
+            waitInfo.pSemaphores         = waitSemaphores.data();
+            waitInfo.pValues             = waitSemaphoreValues.data();
+            VkResult res                 = vkWaitSemaphores(m_device, &waitInfo, timeout);
+            VK_CHECK_RESULT(res, "Backend -> Failed waiting for semaphores!");
+        }
+
+        frame.submissionCount = 0;
 
         // Acquire images for each swapchain
-        for (auto& swp : m_swapchains)
+        const uint8 swpSize = m_swapchains.GetNextFreeID();
+        for (uint8 i = 0; i < swpSize; i++)
         {
+            auto& swp = m_swapchains.GetItemR(i);
+
             if (!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)
             {
                 continue;
             }
 
-            VkResult result = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, frame.imageAcquiredSemaphores[m_imageAcqSemaphoresCount], nullptr, &swp._imageIndex);
+            VkResult result = vkAcquireNextImageKHR(m_device, swp.ptr, timeout, swp.imageAcquiredSemaphores[m_currentFrameIndex], nullptr, &swp._imageIndex);
             if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
             {
                 swp.gotImage = true;
-                m_imageAcqSemaphoresCount++;
             }
             else
             {
@@ -2503,8 +2537,8 @@ namespace LinaGX
             }
         }
 
-        const uint32 next = m_cmdStreams.GetNextFreeID();
-        for (uint32 i = 0; i < next; i++)
+        const uint32 cmdSize = m_cmdStreams.GetNextFreeID();
+        for (uint32 i = 0; i < cmdSize; i++)
         {
             auto& cs = m_cmdStreams.GetItemR(i);
 
@@ -2528,8 +2562,12 @@ namespace LinaGX
     {
         LINAGX_VEC<VkSwapchainKHR> swaps;
         LINAGX_VEC<uint32>         imageIndices;
+        LINAGX_VEC<VkSemaphore>    waitSemaphores;
         swaps.reserve(present.swapchainCount);
         imageIndices.reserve(present.swapchainCount);
+        waitSemaphores.reserve(present.swapchainCount);
+
+        auto& frame = m_perFrameData[m_currentFrameIndex];
 
         for (uint32 i = 0; i < present.swapchainCount; i++)
         {
@@ -2546,13 +2584,11 @@ namespace LinaGX
 
             swaps.push_back(swp.ptr);
             imageIndices.push_back(swp._imageIndex);
+            waitSemaphores.push_back(m_queues.GetItemR(swp._submittedQueue).pfd[m_currentFrameIndex].submitSemaphoreBuffer[swp._submittedSemaphoreIndex]);
         }
 
-        auto&                   frame = m_perFrameData[m_currentFrameIndex];
-        LINAGX_VEC<VkSemaphore> waitSemaphores;
-
-        for (uint32 i = 0; i < frame.submissionCount; i++)
-            waitSemaphores.push_back(frame.submitSemaphores[i]);
+        if (swaps.empty())
+            return;
 
         VkPresentInfoKHR info   = VkPresentInfoKHR{};
         info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

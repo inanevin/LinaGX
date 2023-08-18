@@ -48,11 +48,12 @@ namespace LinaGX
 
     struct DX12Swapchain
     {
-        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr         = NULL;
-        bool                                    isValid     = false;
-        bool                                    isActive    = true;
-        Format                                  format      = Format::B8G8R8A8_UNORM;
-        Format                                  depthFormat = Format::D32_SFLOAT;
+        Microsoft::WRL::ComPtr<IDXGISwapChain3> ptr          = NULL;
+        bool                                    isValid      = false;
+        bool                                    isActive     = true;
+        bool                                    isFullscreen = false;
+        Format                                  format       = Format::B8G8R8A8_UNORM;
+        Format                                  depthFormat  = Format::D32_SFLOAT;
         LINAGX_VEC<uint32>                      colorTextures;
         LINAGX_VEC<uint32>                      depthTextures;
         uint32                                  width       = 0;
@@ -169,9 +170,9 @@ namespace LinaGX
         bool                                            isValid = false;
         QueueType                                       type    = QueueType::Graphics;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue>      queue;
-        LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12Fence>> frameFences;
         uint64                                          frameFenceValue = 0;
         LINAGX_VEC<uint64>                              storedFenceValues;
+        LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12Fence>> frameFences;
         std::atomic_flag*                               inUse = nullptr;
     };
 

@@ -60,6 +60,8 @@ use to index into another buffer for per-draw-call parameters.
 
 - Refactor so that CMDComputeBarrier is CMDComputeIndirectBarrier or something
 
+- Multiple queues can not write to the same swapchain at the same time.
+
 */
 
 #pragma once

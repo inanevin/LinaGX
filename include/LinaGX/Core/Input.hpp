@@ -39,6 +39,8 @@ namespace LinaGX
 #define NUM_KEY_STATES   380
 #define NUM_MOUSE_STATES 8
 
+    class Window;
+
 #ifdef LINAGX_PLATFORM_WINDOWS
     class Win32Window;
 #elif LINAGX_PLATFORM_APPLE
@@ -227,7 +229,7 @@ namespace LinaGX
 
         void PreTick();
         void Tick();
-        void WindowFeedKey(uint32 key, int32 scanCode, InputAction action);
+        void WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window);
         void WindowFeedMouseButton(uint32 button, InputAction action);
         void WindowFeedMousePosition(const LGXVector2ui& pos);
         void WindowFeedActivateApp(bool activate);

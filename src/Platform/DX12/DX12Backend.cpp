@@ -516,7 +516,7 @@ namespace LinaGX
         swapchainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapchainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapchainDesc.SampleDesc.Count      = 1;
-        swapchainDesc.Flags                 = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+        // swapchainDesc.Flags                 = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
         ComPtr<IDXGISwapChain1> swapchain;
 
@@ -525,7 +525,7 @@ namespace LinaGX
 
         try
         {
-            const auto& primaryGraphics = m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics));
+            const auto& primaryGraphics = m_queues.GetItemR(desc.queue);
             ThrowIfFailed(m_factory->CreateSwapChainForHwnd(primaryGraphics.queue.Get(), // Swap chain needs the queue so that it can force a flush on it.
                                                             (HWND)desc.window,
                                                             &swapchainDesc,
@@ -533,7 +533,9 @@ namespace LinaGX
                                                             nullptr,
                                                             &swapchain));
 
-            ThrowIfFailed(swapchain->SetFullscreenState(desc.isFullscreen, nullptr));
+            // ThrowIfFailed(swapchain->SetFullscreenState(desc.isFullscreen, nullptr));
+            // m_factory->MakeWindowAssociation((HWND)desc.window, DXGI_MWA_NO_ALT_ENTER);
+            // ThrowIfFailed(swapchain->ResizeBuffers(m_initInfo.backbufferCount, desc.width, desc.height, swapchainDesc.Format, swapchainDesc.Flags));
 
             DX12Swapchain swp = {};
             swp.isValid       = true;
@@ -542,6 +544,7 @@ namespace LinaGX
             swp.vsync         = desc.vsyncMode;
             swp.format        = desc.format;
             swp.depthFormat   = desc.depthFormat;
+            swp.isFullscreen  = desc.isFullscreen;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
             LOGT("Backend -> Successfuly created swapchain with size %d x %d", desc.width, desc.height);
@@ -602,7 +605,7 @@ namespace LinaGX
 
         try
         {
-            ThrowIfFailed(swp.ptr->SetFullscreenState(FALSE, nullptr));
+            // ThrowIfFailed(swp.ptr->SetFullscreenState(FALSE, nullptr));
         }
         catch (HrException e)
         {
@@ -631,8 +634,8 @@ namespace LinaGX
 
         try
         {
-            if (!m_allowTearing)
-                ThrowIfFailed(swp.ptr->SetFullscreenState(desc.isFullscreen, nullptr));
+            // if (!m_allowTearing)
+            //     ThrowIfFailed(swp.ptr->SetFullscreenState(desc.isFullscreen, nullptr));
 
             for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
             {
@@ -2215,7 +2218,7 @@ namespace LinaGX
 
         item.frameFences.resize(m_initInfo.framesInFlight);
         item.storedFenceValues.resize(m_initInfo.framesInFlight);
-        item.inUse = new std::atomic_flag();
+        // item.inUse = new std::atomic_flag();
 
         try
         {
@@ -2239,7 +2242,7 @@ namespace LinaGX
             return;
         }
 
-        delete item.inUse;
+        // delete item.inUse;
 
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
             item.frameFences[i].Reset();
@@ -2271,7 +2274,7 @@ namespace LinaGX
 
             try
             {
-                UINT   flags    = m_allowTearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+                UINT   flags    = (m_allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
                 uint32 interval = 0;
 
                 if (swp.vsync == VsyncMode::EveryVBlank)

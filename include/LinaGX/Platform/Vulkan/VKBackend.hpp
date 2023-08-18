@@ -86,16 +86,16 @@ namespace LinaGX
         LINAGX_VEC<VkImage>     imgs;
         LINAGX_VEC<VkImageView> views;
         LINAGX_VEC<uint32>      depthTextures;
-        uint32                  _imageIndex = 0;
-        bool                    gotImage    = false;
+        uint32                  _imageIndex                  = 0;
+        bool                    gotImage                     = false;
+        uint8                   _submittedQueue              = 0;
+        uint32                  _submittedSemaphoreIndex     = 0;
+        LINAGX_VEC<VkSemaphore> imageAcquiredSemaphores;
     };
 
     struct VKBPerFrameData
     {
-        LINAGX_VEC<VkFence>     submitFences;
-        LINAGX_VEC<VkSemaphore> submitSemaphores;
-        LINAGX_VEC<VkSemaphore> imageAcquiredSemaphores;
-        uint32                  submissionCount = 0;
+        uint32 submissionCount = 0;
     };
 
     struct VKBCommandStream
@@ -106,6 +106,7 @@ namespace LinaGX
         VkCommandBuffer            buffer      = nullptr;
         VkCommandPool              pool        = nullptr;
         LINAGX_MAP<uint32, uint64> intermediateResources;
+        LINAGX_VEC<uint8>          swapchainWrites;
     };
 
     struct VKBResource
@@ -131,14 +132,22 @@ namespace LinaGX
         VkDescriptorSetLayout layout  = nullptr;
     };
 
+    struct VKBQueuePerFrameData
+    {
+        VkSemaphore             startFrameWaitSemaphore;
+        uint64                  storedStartFrameSemaphoreValue = 0;
+        LINAGX_VEC<VkSemaphore> submitSemaphoreBuffer;
+        uint32                  submitSemaphoreIndex = 0;
+    };
+
     struct VKBQueue
     {
-        bool                    isValid             = false;
-        VkQueue                 queue               = nullptr;
-        QueueType               type                = QueueType::Graphics;
-        LINAGX_VEC<VkSemaphore> semaphores          = {nullptr};
-        uint64                  frameSemaphoreValue = 0;
-        LINAGX_VEC<uint64>      storedSemaphoreValues;
+        bool                             isValid             = false;
+        VkQueue                          queue               = nullptr;
+        QueueType                        type                = QueueType::Graphics;
+        uint64                           frameSemaphoreValue = 0;
+        LINAGX_VEC<VKBQueuePerFrameData> pfd;
+        LINAGX_VEC<bool>                 wasSubmitted = {false};
     };
 
     struct VKBQueueData
@@ -258,8 +267,7 @@ namespace LinaGX
         LINAGX_MAP<QueueType, uint8>               m_primaryQueues;
         LINAGX_MAP<VkQueue, std::atomic_flag*>     m_flagsPerQueue;
 
-        VkDescriptorPool           m_descriptorPool          = nullptr;
-        uint32                     m_imageAcqSemaphoresCount = 0;
+        VkDescriptorPool           m_descriptorPool = nullptr;
         VkPhysicalDeviceProperties m_gpuProperties;
 
         LINAGX_MAP<QueueType, VKBQueueData> m_queueData;
