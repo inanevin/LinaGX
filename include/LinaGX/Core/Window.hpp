@@ -76,11 +76,6 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        virtual void SetFullscreen() = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
         /// <returns></returns>
         virtual void SetVisible(bool isVisible) = 0;
 
@@ -357,7 +352,7 @@ namespace LinaGX
         bool                     m_isInputPassThrough = false;
         CursorType               m_cursorType         = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
-        WindowStyle              m_style = WindowStyle::Windowed;
+        WindowStyle              m_style = WindowStyle::WindowedApplication;
     };
 } // namespace LinaGX
 

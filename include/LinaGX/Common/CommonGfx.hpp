@@ -275,10 +275,12 @@ namespace LinaGX
 
     enum class WindowStyle
     {
-        Windowed,
+        WindowedApplication,
+        BorderlessApplication,
         Borderless,
-        BorderlessPlain,
-        BorderlessPlainLayered,
+        BorderlessAlpha,
+        BorderlessFullscreen,
+        Fullscreen,
     };
 
     enum ResourceTypeHint
@@ -646,12 +648,18 @@ namespace LinaGX
         bool flipViewport = true;
     };
 
+    struct DX12Configuration
+    {
+        bool allowTearing = true;
+    };
+
     struct Configuration
     {
         LogCallback         errorCallback = nullptr;
         LogCallback         infoCallback  = nullptr;
         LogLevel            logLevel      = LogLevel::Normal;
         VulkanConfiguration vulkanConfig  = {};
+        DX12Configuration   dx12Config    = {};
     };
 
     struct GPUFeatures

@@ -53,7 +53,6 @@ namespace LinaGX
         virtual void         SetPosition(const LGXVector2i& pos) override;
         virtual void         SetSize(const LGXVector2ui& size) override;
         virtual void         CenterPositionToCurrentMonitor() override;
-        virtual void         SetFullscreen() override;
         virtual void         SetVisible(bool isVisible) override;
         virtual void         BringToFront() override;
         virtual void         SetAlpha(float alpha) override;
@@ -105,6 +104,7 @@ namespace LinaGX
         HICON__*     m_icon                 = nullptr;
         bool         m_isMaximizeFullscreen = false;
         Win32Window* m_parent               = nullptr;
+        bool         m_setToFullscreen      = false;
     };
 } // namespace LinaGX
 

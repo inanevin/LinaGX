@@ -65,39 +65,6 @@ namespace LinaGX
         return composition_enabled && success;
     }
 
-    LRESULT HandleNonclientHitTest(HWND wnd, LPARAM lparam, const LGXRectui& dragRect)
-    {
-        RECT wnd_rect;
-        GetWindowRect(wnd, &wnd_rect);
-
-        int        width    = wnd_rect.right - wnd_rect.left;
-        int        height   = wnd_rect.bottom - wnd_rect.top;
-        const LONG margin   = 10;
-        const LONG trMargin = 5;
-
-        RECT title_bar = {dragRect.pos.x, dragRect.pos.y, dragRect.pos.x + dragRect.size.x, dragRect.pos.y + dragRect.size.y};
-        RECT tl        = {0, 0, margin, margin};
-        RECT tr        = {width - trMargin, 0, width, trMargin};
-        RECT bl        = {0, height - margin, margin, height};
-        RECT br        = {width - margin, height - margin, width, height};
-        RECT left      = {0, tl.bottom, margin, bl.top};
-        RECT right     = {width - margin, tr.bottom, width, br.top};
-        RECT bottom    = {bl.right, bl.top, br.left, br.bottom};
-        RECT top       = {tl.right, tl.top, tr.left, tr.bottom};
-
-        // std::tuple<RECT, LRESULT> rects[] = {{title_bar, HTCAPTION}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}};
-        std::tuple<RECT, LRESULT> rects[] = {{tl, HTTOPLEFT}, {tr, HTTOPRIGHT}, {bl, HTBOTTOMLEFT}, {br, HTBOTTOMRIGHT}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}, {top, HTTOP}};
-
-        POINT pt = {GET_X_LPARAM(lparam) - wnd_rect.left, GET_Y_LPARAM(lparam) - wnd_rect.top};
-
-        for (const auto& [r, code] : rects)
-        {
-            if (PtInRect(&r, pt))
-                return code;
-        }
-        return HTCLIENT;
-    }
-
     LRESULT HandleNonclientHitTest2(Win32Window* win32Window, LPARAM lParam, POINT cursor, HWND wnd)
     {
         // identify borders and corners to allow resizing the window.
@@ -172,56 +139,6 @@ namespace LinaGX
         }
     }
 
-    LRESULT HandleNonClientArea(HWND hwnd, LPARAM lParam, const LGXRectui& dragRect, unsigned int msg, unsigned __int64 wParam, bool canReturnCaption)
-    {
-        // Detect the mouse position
-        POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-        ScreenToClient(hwnd, &pt);
-
-        RECT rcClient;
-        // GetClientRect(hwnd, &rcClient);
-        rcClient.left   = dragRect.pos.x;
-        rcClient.right  = dragRect.pos.x + dragRect.size.x;
-        rcClient.top    = dragRect.pos.y;
-        rcClient.bottom = dragRect.pos.y + dragRect.size.y;
-
-        if (PtInRect(&rcClient, pt))
-        {
-            return canReturnCaption ? HTCAPTION : HTCLIENT;
-        }
-
-        // Detect the mouse position
-        RECT wnd_rect;
-        GetWindowRect(hwnd, &wnd_rect);
-
-        int        width    = wnd_rect.right - wnd_rect.left;
-        int        height   = wnd_rect.bottom - wnd_rect.top;
-        const LONG margin   = 10;
-        const LONG trMargin = 5;
-
-        RECT title_bar = {dragRect.pos.x, dragRect.pos.y, dragRect.pos.x + dragRect.size.x, dragRect.pos.y + dragRect.size.y};
-        RECT tl        = {0, 0, margin, margin};
-        RECT tr        = {width - trMargin, 0, width, trMargin};
-        RECT bl        = {0, height - margin, margin, height};
-        RECT br        = {width - margin, height - margin, width, height};
-        RECT left      = {0, tl.bottom, margin, bl.top};
-        RECT right     = {width - margin, tr.bottom, width, br.top};
-        RECT bottom    = {bl.right, bl.top, br.left, br.bottom};
-        RECT top       = {tl.right, tl.top, tr.left, tr.bottom};
-
-        // std::tuple<RECT, LRESULT> rects[] = {{title_bar, HTCAPTION}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}};
-        std::tuple<RECT, LRESULT> rects[] = {{tl, HTTOPLEFT}, {tr, HTTOPRIGHT}, {bl, HTBOTTOMLEFT}, {br, HTBOTTOMRIGHT}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}, {top, HTTOP}};
-
-        pt = {GET_X_LPARAM(lParam) - wnd_rect.left, GET_Y_LPARAM(lParam) - wnd_rect.top};
-
-        for (const auto& [r, code] : rects)
-        {
-            if (PtInRect(&r, pt))
-                return code;
-        }
-        return HTCLIENT;
-    }
-
     LRESULT __stdcall Win32Window::WndProc(HWND__* hwnd, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
     {
         auto* win32Window = s_win32Windows[hwnd];
@@ -249,7 +166,7 @@ namespace LinaGX
         {
         case WM_NCLBUTTONDOWN: {
 
-            if (win32Window->m_style == WindowStyle::Borderless)
+            if (win32Window->m_style == WindowStyle::BorderlessApplication)
                 win32Window->OnDrag(true);
             break;
         }
@@ -268,59 +185,27 @@ namespace LinaGX
                 win32Window->m_cbClose();
             return 0;
         }
-            // case WM_NCHITTEST: {
-            //     // When we have no border or title bar, we need to perform our
-            //     // own hit testing to allow resizing and moving.
-            //     if (win32Window->m_style == WindowStyle::Borderless)
-            //     {
-            //         return HandleNonclientHitTest2(POINT{
-            //                                            GET_X_LPARAM(lParam),
-            //                                            GET_Y_LPARAM(lParam)},
-            //                                        hwnd);
-            //     }
-            //     break;
-            // }
-            // case WM_NCHITTEST: {
-            //     if (win32Window->m_style == WindowStyle::Borderless)
-            //     {
-            //         auto res = HandleNonclientHitTest(hwnd, lParam, win32Window->m_dragRect);
-            //         if (res == HTCLIENT)
-            //         {
-            //             win32Window->SetCursorType(win32Window->m_cursorType);
-            //         }
-            //
-            //         return res;
-            //     }
-            //
-            //     break;
-            // }
-
         case WM_NCHITTEST: {
-            if (win32Window->m_style == WindowStyle::Borderless)
+            if (win32Window->m_style == WindowStyle::BorderlessApplication)
             {
                 // auto res = HandleNonClientArea(win32Window->m_hwnd, lParam, win32Window->m_dragRect, msg, wParam, true);
                 auto res = HandleNonclientHitTest2(win32Window, lParam, POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)},
                                                    hwnd);
                 if (res == HTCLIENT)
-                {
                     win32Window->SetCursorType(win32Window->m_cursorType);
-                }
-                else if (res == HTCAPTION)
-                {
-                }
-                else
-                {
-                }
                 return res;
             }
             break;
         }
         case WM_NCCALCSIZE: {
-            if (wParam == TRUE)
+            if (win32Window->m_style == WindowStyle::BorderlessApplication)
             {
-                auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
-                AdjustMaximizedClientRect(win32Window, hwnd, params.rgrc[0], win32Window->m_isMaximizeFullscreen);
-                return 0;
+                if (wParam == TRUE)
+                {
+                    auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+                    AdjustMaximizedClientRect(win32Window, hwnd, params.rgrc[0], win32Window->m_isMaximizeFullscreen);
+                    return 0;
+                }
             }
             break;
         }
@@ -362,7 +247,14 @@ namespace LinaGX
         }
         case WM_ACTIVATEAPP: {
             win32Window->m_input->WindowFeedActivateApp(wParam == TRUE ? true : false);
-
+            break;
+        }
+        case WM_ACTIVATE: {
+            if (win32Window->m_style == WindowStyle::BorderlessFullscreen)
+            {
+                win32Window->m_style = WindowStyle::WindowedApplication;
+                win32Window->SetStyle(WindowStyle::BorderlessFullscreen);
+            }
             break;
         }
         case WM_MOVE: {
@@ -392,7 +284,7 @@ namespace LinaGX
             win32Window->m_size.x = width;
             win32Window->m_size.y = height;
 
-            if (win32Window->m_style == WindowStyle::Windowed)
+            if (win32Window->m_style == WindowStyle::WindowedApplication)
             {
                 win32Window->m_trueSize.x = rect.right - rect.left;
                 win32Window->m_trueSize.y = rect.bottom - rect.top;
@@ -459,7 +351,7 @@ namespace LinaGX
             break;
         }
         case WM_NCMOUSEMOVE: {
-            if (win32Window->m_style == WindowStyle::Borderless)
+            if (win32Window->m_style == WindowStyle::BorderlessApplication)
                 handleMouseMove(win32Window, 0, 0);
             break;
         }
@@ -557,7 +449,7 @@ namespace LinaGX
             wc.hInstance     = m_hinst;
             wc.lpszClassName = title;
             wc.hCursor       = NULL;
-            wc.style         = CS_HREDRAW | CS_VREDRAW;
+            // wc.style         = CS_HREDRAW | CS_VREDRAW;
             // wc.style         = CS_DBLCLKS;
 
             if (!RegisterClassA(&wc))
@@ -578,7 +470,7 @@ namespace LinaGX
         RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
         AdjustWindowRect(&windowRect, stylew, FALSE);
 
-        if (style == WindowStyle::Windowed)
+        if (style == WindowStyle::WindowedApplication)
         {
             int adjustedWidth  = windowRect.right - windowRect.left;
             int adjustedHeight = windowRect.bottom - windowRect.top;
@@ -591,7 +483,7 @@ namespace LinaGX
             m_trueSize.y = height;
         }
 
-        if (style == WindowStyle::BorderlessPlainLayered)
+        if (style == WindowStyle::BorderlessAlpha)
             exStyle |= WS_EX_LAYERED;
 
         m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, m_trueSize.x, m_trueSize.y, parentWindow ? parentWindow->m_hwnd : NULL, NULL, m_hinst, this);
@@ -610,6 +502,7 @@ namespace LinaGX
         m_dpiScale    = m_dpi / 96.0f;
         m_restoreSize = m_trueSize;
         m_restorePos  = m_position;
+        m_isVisible   = true;
         SetFocus(m_hwnd);
         BringToFront();
         SetStyle(style);
@@ -684,10 +577,12 @@ namespace LinaGX
     {
         // THICKFRAME: aero snap
         // CAPTION: transitions
-        if (s == WindowStyle::Windowed)
+        if (s == WindowStyle::WindowedApplication)
             return static_cast<uint32>(WS_OVERLAPPEDWINDOW);
-        else if (s == WindowStyle::BorderlessPlain || s == WindowStyle::BorderlessPlainLayered)
+        else if (s == WindowStyle::BorderlessAlpha || s == WindowStyle::Borderless)
             return WS_POPUP;
+        else if (s == WindowStyle::BorderlessFullscreen || s == WindowStyle::Fullscreen)
+            return WS_POPUPWINDOW;
         else
         {
             DWORD style = 0;
@@ -695,6 +590,9 @@ namespace LinaGX
                 style = WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
             else
                 style = WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+
+            if (m_parent == nullptr)
+                style |= WS_CLIPCHILDREN;
 
             return style;
         }
@@ -716,10 +614,64 @@ namespace LinaGX
 
     void Win32Window::SetStyle(WindowStyle style)
     {
+        bool        wasExclusiveFullscreen = m_style == WindowStyle::Fullscreen;
+        const auto& mi                     = GetMonitorInfoFromWindow();
+
+        m_style = style;
         SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
-        // SetWindowLong(m_hwnd, GWL_EXSTYLE, GetExStyle(style));
         ::SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
-        //::ShowWindow(m_hwnd, SW_SHOW);
+        ShowWindow(m_hwnd, SW_SHOW);
+
+        if (style != WindowStyle::Fullscreen && wasExclusiveFullscreen)
+        {
+            int result = ChangeDisplaySettings(NULL, CDS_RESET);
+
+            // Check if we didn't receive a good return message From the function
+            if (result != DISP_CHANGE_SUCCESSFUL)
+            {
+                // Display the error message and quit the program
+                MessageBox(NULL, "Display Mode Not Compatible", "Error", MB_OK);
+                PostQuitMessage(0);
+            }
+        }
+
+        if (style == WindowStyle::BorderlessFullscreen)
+        {
+            // SetPosition({mi.workTopLeft.x, mi.workTopLeft.y});
+            SetWindowPos(m_hwnd, HWND_NOTOPMOST, mi.workTopLeft.x, mi.workTopLeft.y, mi.size.x, mi.size.y, SWP_SHOWWINDOW);
+        }
+        else if (style == WindowStyle::Fullscreen)
+        {
+            DEVMODE dmSettings; // Device Mode variable - Needed to change modes
+
+            memset(&dmSettings, 0, sizeof(dmSettings)); // Makes Sure Memory's Cleared
+
+            // Get the current display settings.  This function fills our the settings.
+            if (!EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dmSettings))
+            {
+                // Display error message if we couldn't get display settings
+                MessageBox(NULL, "Could Not Enum Display Settings", "Error", MB_OK);
+                return;
+            }
+
+            dmSettings.dmPelsWidth  = mi.size.x;                    // Set the desired Screen Width
+            dmSettings.dmPelsHeight = mi.size.y;                    // Set the desired Screen Height
+            dmSettings.dmFields     = DM_PELSWIDTH | DM_PELSHEIGHT; // Set the flags saying we're changing the Screen Width and Height
+
+            // This function actually changes the screen to full screen
+            // CDS_FULLSCREEN Gets Rid Of Start Bar.
+            // We always want to get a result from this function to check if we failed
+            int result = ChangeDisplaySettings(&dmSettings, CDS_FULLSCREEN);
+            SetWindowPos(m_hwnd, HWND_TOPMOST, mi.workTopLeft.x, mi.workTopLeft.y, mi.size.x, mi.size.y, SWP_SHOWWINDOW);
+
+            // Check if we didn't receive a good return message From the function
+            if (result != DISP_CHANGE_SUCCESSFUL)
+            {
+                // Display the error message and quit the program
+                MessageBox(NULL, "Display Mode Not Compatible", "Error", MB_OK);
+                PostQuitMessage(0);
+            }
+        }
     }
 
     void Win32Window::SetCursorType(CursorType type)
@@ -759,9 +711,10 @@ namespace LinaGX
 
     void Win32Window::SetSize(const LGXVector2ui& size)
     {
-        m_size = size;
+        m_setToFullscreen = false;
+        m_size            = size;
 
-        if (m_style == WindowStyle::Borderless)
+        if (m_style == WindowStyle::BorderlessApplication)
         {
             m_trueSize.x = size.x;
             m_trueSize.y = size.y;
@@ -795,22 +748,6 @@ namespace LinaGX
         SetWindowPos(m_hwnd, NULL, xPos, yPos, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     }
 
-    void Win32Window::SetFullscreen()
-    {
-        m_isMaximizeFullscreen = true;
-        SetWindowLong(m_hwnd, GWL_STYLE, WS_POPUPWINDOW | WS_VISIBLE);
-        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(hMonitor, &monitorInfo);
-        SetWindowPos(m_hwnd, HWND_TOP, monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
-                     monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
-                     monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
-                     SWP_NOZORDER | SWP_FRAMECHANGED);
-        ShowWindow(m_hwnd, SW_MAXIMIZE);
-        m_isMaximizeFullscreen = false;
-    }
-
     void Win32Window::SetVisible(bool isVisible)
     {
         m_isVisible = isVisible;
@@ -825,7 +762,7 @@ namespace LinaGX
 
     void Win32Window::SetAlpha(float alpha)
     {
-        if (m_style != WindowStyle::BorderlessPlainLayered)
+        if (m_style != WindowStyle::BorderlessAlpha)
         {
             LOGE("Window -> Alpha can only be set on plain layered windows!");
             return;
@@ -864,23 +801,37 @@ namespace LinaGX
 
     void Win32Window::Maximize()
     {
-        if (!GetIsMaximized())
-            ShowWindow(m_hwnd, SW_SHOWMAXIMIZED);
+        m_restoreSize = m_trueSize;
+        m_restorePos  = m_position;
+
+        if (m_style == WindowStyle::WindowedApplication || m_style == WindowStyle::BorderlessApplication)
+        {
+            ShowWindow(m_hwnd, SW_MAXIMIZE);
+        }
         else
-            ShowWindow(m_hwnd, SW_RESTORE);
+        {
+            const auto& mi = GetMonitorInfoFromWindow();
+            SetPosition({mi.workTopLeft.x, mi.workTopLeft.y});
+            SetSize({mi.workArea.x, mi.workArea.y});
+        }
     }
 
     void Win32Window::Minimize()
     {
-        ShowWindow(m_hwnd, SW_SHOWMINIMIZED);
+        ShowWindow(m_hwnd, SW_MINIMIZE);
     }
 
     void Win32Window::Restore()
     {
-        if (!GetIsMaximized())
-            ShowWindow(m_hwnd, SW_SHOWMAXIMIZED);
-        else
+        if (m_style == WindowStyle::WindowedApplication || m_style == WindowStyle::BorderlessApplication)
+        {
             ShowWindow(m_hwnd, SW_RESTORE);
+        }
+        else
+        {
+            SetPosition(m_restorePos);
+            SetSize(m_restoreSize);
+        }
     }
 
     MonitorInfo Win32Window::GetMonitorInfoFromWindow()

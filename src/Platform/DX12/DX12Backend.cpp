@@ -1806,7 +1806,7 @@ namespace LinaGX
                     facres = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
                 }
 
-                m_allowTearing = SUCCEEDED(facres) && allowTearing;
+                m_allowTearing = SUCCEEDED(facres) && allowTearing && Config.dx12Config.allowTearing;
             }
 
             // Choose gpu & create device
