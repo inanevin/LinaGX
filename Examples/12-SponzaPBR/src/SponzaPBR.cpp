@@ -237,10 +237,10 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Sponza", 0, 0, 800, 800, WindowStyle::Windowed);
+            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Sponza", 0, 0, 800, 800, WindowStyle::WindowedApplication);
             _window->SetCallbackClose([this]() { m_isRunning = false; });
 
-            _window->SetCallbackKey([](uint32 key, uint32 scanCode, InputAction action) {
+            _window->SetCallbackKey([](uint32 key, uint32 scanCode, InputAction action, LinaGX::Window* window) {
                 if (key == LINAGX_KEY_W)
                     _camera.moveForward = action != InputAction::Released;
                 else if (key == LINAGX_KEY_S)
