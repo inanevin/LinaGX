@@ -166,6 +166,12 @@ namespace LinaGX
         /// <returns></returns>
         virtual bool GetIsMaximized() = 0;
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual bool GetIsMinimized() = 0;
+
         inline void SetCallbackClose(CallbackNoArg&& cb)
         {
             m_cbClose = cb;
@@ -304,6 +310,11 @@ namespace LinaGX
         inline const LGXRectui& GetDragRect() const
         {
             return m_dragRect;
+        }
+
+        inline Input* GetInput() const
+        {
+            return m_input;
         }
 
     protected:

@@ -544,7 +544,7 @@ namespace LinaGX
     {
         if (!m_sizeRequests.empty())
         {
-            SetSize(*m_sizeRequests.end());
+            SetSize(m_sizeRequests[m_sizeRequests.size() - 1]);
             m_sizeRequests.clear();
         }
 
@@ -614,8 +614,9 @@ namespace LinaGX
 
     void Win32Window::SetStyle(WindowStyle style)
     {
-        bool        wasExclusiveFullscreen = m_style == WindowStyle::Fullscreen;
-        const auto& mi                     = GetMonitorInfoFromWindow();
+        const bool  wasExclusiveFullscreen  = m_style == WindowStyle::Fullscreen;
+        const bool  wasBorderlessFullscreen = m_style == WindowStyle::BorderlessFullscreen;
+        const auto& mi                      = GetMonitorInfoFromWindow();
 
         m_style = style;
         SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
@@ -626,10 +627,8 @@ namespace LinaGX
         {
             int result = ChangeDisplaySettings(NULL, CDS_RESET);
 
-            // Check if we didn't receive a good return message From the function
             if (result != DISP_CHANGE_SUCCESSFUL)
             {
-                // Display the error message and quit the program
                 MessageBox(NULL, "Display Mode Not Compatible", "Error", MB_OK);
                 PostQuitMessage(0);
             }
@@ -637,40 +636,35 @@ namespace LinaGX
 
         if (style == WindowStyle::BorderlessFullscreen)
         {
-            // SetPosition({mi.workTopLeft.x, mi.workTopLeft.y});
             SetWindowPos(m_hwnd, HWND_NOTOPMOST, mi.workTopLeft.x, mi.workTopLeft.y, mi.size.x, mi.size.y, SWP_SHOWWINDOW);
         }
         else if (style == WindowStyle::Fullscreen)
         {
-            DEVMODE dmSettings; // Device Mode variable - Needed to change modes
+            DEVMODE dmSettings;
+            memset(&dmSettings, 0, sizeof(dmSettings));
 
-            memset(&dmSettings, 0, sizeof(dmSettings)); // Makes Sure Memory's Cleared
-
-            // Get the current display settings.  This function fills our the settings.
             if (!EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dmSettings))
             {
-                // Display error message if we couldn't get display settings
                 MessageBox(NULL, "Could Not Enum Display Settings", "Error", MB_OK);
                 return;
             }
 
-            dmSettings.dmPelsWidth  = mi.size.x;                    // Set the desired Screen Width
-            dmSettings.dmPelsHeight = mi.size.y;                    // Set the desired Screen Height
-            dmSettings.dmFields     = DM_PELSWIDTH | DM_PELSHEIGHT; // Set the flags saying we're changing the Screen Width and Height
-
-            // This function actually changes the screen to full screen
-            // CDS_FULLSCREEN Gets Rid Of Start Bar.
-            // We always want to get a result from this function to check if we failed
-            int result = ChangeDisplaySettings(&dmSettings, CDS_FULLSCREEN);
+            dmSettings.dmPelsWidth  = mi.size.x;
+            dmSettings.dmPelsHeight = mi.size.y;
+            dmSettings.dmFields     = DM_PELSWIDTH | DM_PELSHEIGHT;
+            int result              = ChangeDisplaySettings(&dmSettings, CDS_FULLSCREEN);
             SetWindowPos(m_hwnd, HWND_TOPMOST, mi.workTopLeft.x, mi.workTopLeft.y, mi.size.x, mi.size.y, SWP_SHOWWINDOW);
 
-            // Check if we didn't receive a good return message From the function
             if (result != DISP_CHANGE_SUCCESSFUL)
             {
-                // Display the error message and quit the program
                 MessageBox(NULL, "Display Mode Not Compatible", "Error", MB_OK);
                 PostQuitMessage(0);
             }
+        }
+
+        if ((wasExclusiveFullscreen || wasBorderlessFullscreen) && m_style != WindowStyle::Fullscreen && m_style != WindowStyle::BorderlessFullscreen)
+        {
+            Maximize();
         }
     }
 
@@ -888,5 +882,8 @@ namespace LinaGX
 
         return placement.showCmd == SW_MAXIMIZE;
     }
-
+    bool Win32Window::GetIsMinimized()
+    {
+        return IsIconic(m_hwnd);
+    }
 } // namespace LinaGX

@@ -66,6 +66,7 @@ namespace LinaGX
         virtual LGXVector2ui GetMonitorWorkArea() override;
         virtual LGXVector2ui GetMonitorSize() override;
         virtual bool         GetIsMaximized() override;
+        virtual bool         GetIsMinimized() override;
 
         virtual void* GetWindowHandle() override
         {
