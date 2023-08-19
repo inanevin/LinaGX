@@ -277,6 +277,8 @@ namespace LinaGX
     {
         Windowed,
         Borderless,
+        BorderlessPlain,
+        BorderlessPlainLayered,
     };
 
     enum ResourceTypeHint

@@ -311,11 +311,6 @@ namespace LinaGX
             return m_dragRect;
         }
 
-        inline void SetMaximizeToWorkArea(bool max)
-        {
-            m_maximizeToWorkArea = max;
-        }
-
     protected:
         friend class WindowManager;
         Window(Input* input)
@@ -360,7 +355,6 @@ namespace LinaGX
         bool                     m_isDragged          = false;
         bool                     m_isHovered          = false;
         bool                     m_isInputPassThrough = false;
-        bool                     m_maximizeToWorkArea = false;
         CursorType               m_cursorType         = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
         WindowStyle              m_style = WindowStyle::Windowed;

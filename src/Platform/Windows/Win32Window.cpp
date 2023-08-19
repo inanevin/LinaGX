@@ -41,7 +41,7 @@ namespace LinaGX
 {
     LINAGX_MAP<HWND__*, Win32Window*> Win32Window::s_win32Windows;
 
-    auto AdjustMaximizedClientRect(Win32Window* win32, HWND window, RECT& rect) -> void
+    auto AdjustMaximizedClientRect(Win32Window* win32, HWND window, RECT& rect, bool fs) -> void
     {
         if (!win32->GetIsMaximized())
             return;
@@ -55,7 +55,7 @@ namespace LinaGX
         if (!::GetMonitorInfoW(monitor, &monitor_info))
             return;
 
-        rect = monitor_info.rcWork;
+        rect = fs ? monitor_info.rcMonitor : monitor_info.rcWork;
     }
 
     auto composition_enabled() -> bool
@@ -98,7 +98,7 @@ namespace LinaGX
         return HTCLIENT;
     }
 
-    LRESULT HandleNonclientHitTest2(POINT cursor, HWND wnd)
+    LRESULT HandleNonclientHitTest2(Win32Window* win32Window, LPARAM lParam, POINT cursor, HWND wnd)
     {
         // identify borders and corners to allow resizing the window.
         // Note: On Windows 10, windows behave differently and
@@ -112,8 +112,6 @@ namespace LinaGX
         {
             return HTNOWHERE;
         }
-
-        const auto drag = HTCAPTION;
 
         enum region_mask
         {
@@ -132,29 +130,96 @@ namespace LinaGX
 
         bool borderless_resize = true;
 
+        // Detect the mouse position
+        POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ScreenToClient(wnd, &pt);
+
+        auto dragRect = win32Window->GetDragRect();
+
+        RECT rcClient;
+        // GetClientRect(hwnd, &rcClient);
+        rcClient.left   = dragRect.pos.x;
+        rcClient.right  = dragRect.pos.x + dragRect.size.x;
+        rcClient.top    = dragRect.pos.y;
+        rcClient.bottom = dragRect.pos.y + dragRect.size.y;
+
+        DWORD drag = HTCLIENT;
+        if (PtInRect(&rcClient, pt))
+            drag = HTCAPTION;
+
         switch (result)
         {
         case left:
-            return borderless_resize ? HTLEFT : drag;
+            return HTLEFT;
         case right:
-            return borderless_resize ? HTRIGHT : drag;
+            return HTRIGHT;
         case top:
-            return borderless_resize ? HTTOP : drag;
+            return HTTOP;
         case bottom:
-            return borderless_resize ? HTBOTTOM : drag;
+            return HTBOTTOM;
         case top | left:
-            return borderless_resize ? HTTOPLEFT : drag;
+            return HTTOPLEFT;
         case top | right:
-            return borderless_resize ? HTTOPRIGHT : drag;
+            return HTTOPRIGHT;
         case bottom | left:
-            return borderless_resize ? HTBOTTOMLEFT : drag;
+            return HTBOTTOMLEFT;
         case bottom | right:
-            return borderless_resize ? HTBOTTOMRIGHT : drag;
+            return HTBOTTOMRIGHT;
         case client:
-            return HTCLIENT;
+            return drag;
         default:
-            return HTNOWHERE;
+            return HTCLIENT;
         }
+    }
+
+    LRESULT HandleNonClientArea(HWND hwnd, LPARAM lParam, const LGXRectui& dragRect, unsigned int msg, unsigned __int64 wParam, bool canReturnCaption)
+    {
+        // Detect the mouse position
+        POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ScreenToClient(hwnd, &pt);
+
+        RECT rcClient;
+        // GetClientRect(hwnd, &rcClient);
+        rcClient.left   = dragRect.pos.x;
+        rcClient.right  = dragRect.pos.x + dragRect.size.x;
+        rcClient.top    = dragRect.pos.y;
+        rcClient.bottom = dragRect.pos.y + dragRect.size.y;
+
+        if (PtInRect(&rcClient, pt))
+        {
+            return canReturnCaption ? HTCAPTION : HTCLIENT;
+        }
+
+        // Detect the mouse position
+        RECT wnd_rect;
+        GetWindowRect(hwnd, &wnd_rect);
+
+        int        width    = wnd_rect.right - wnd_rect.left;
+        int        height   = wnd_rect.bottom - wnd_rect.top;
+        const LONG margin   = 10;
+        const LONG trMargin = 5;
+
+        RECT title_bar = {dragRect.pos.x, dragRect.pos.y, dragRect.pos.x + dragRect.size.x, dragRect.pos.y + dragRect.size.y};
+        RECT tl        = {0, 0, margin, margin};
+        RECT tr        = {width - trMargin, 0, width, trMargin};
+        RECT bl        = {0, height - margin, margin, height};
+        RECT br        = {width - margin, height - margin, width, height};
+        RECT left      = {0, tl.bottom, margin, bl.top};
+        RECT right     = {width - margin, tr.bottom, width, br.top};
+        RECT bottom    = {bl.right, bl.top, br.left, br.bottom};
+        RECT top       = {tl.right, tl.top, tr.left, tr.bottom};
+
+        // std::tuple<RECT, LRESULT> rects[] = {{title_bar, HTCAPTION}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}};
+        std::tuple<RECT, LRESULT> rects[] = {{tl, HTTOPLEFT}, {tr, HTTOPRIGHT}, {bl, HTBOTTOMLEFT}, {br, HTBOTTOMRIGHT}, {left, HTLEFT}, {right, HTRIGHT}, {bottom, HTBOTTOM}, {top, HTTOP}};
+
+        pt = {GET_X_LPARAM(lParam) - wnd_rect.left, GET_Y_LPARAM(lParam) - wnd_rect.top};
+
+        for (const auto& [r, code] : rects)
+        {
+            if (PtInRect(&r, pt))
+                return code;
+        }
+        return HTCLIENT;
     }
 
     LRESULT __stdcall Win32Window::WndProc(HWND__* hwnd, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
@@ -170,9 +235,24 @@ namespace LinaGX
         if (win32Window == nullptr)
             return DefWindowProcA(hwnd, msg, wParam, lParam);
 
+        auto handleMouseMove = [](Win32Window* win32Window, uint32 xPos, uint32 yPos) {
+            const LGXVector2ui mp        = {xPos, yPos};
+            win32Window->m_mouseDelta    = {static_cast<int32>(mp.x - win32Window->m_mousePosition.x), static_cast<int32>(mp.y - win32Window->m_mousePosition.y)};
+            win32Window->m_mousePosition = mp;
+            win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
+
+            if (win32Window->m_cbMouseMove)
+                win32Window->m_cbMouseMove(win32Window->m_mousePosition);
+        };
+
         switch (msg)
         {
+        case WM_NCLBUTTONDOWN: {
 
+            if (win32Window->m_style == WindowStyle::Borderless)
+                win32Window->OnDrag(true);
+            break;
+        }
         case WM_NCACTIVATE: {
 
             if (!composition_enabled())
@@ -186,7 +266,6 @@ namespace LinaGX
         case WM_CLOSE: {
             if (win32Window->m_cbClose != nullptr)
                 win32Window->m_cbClose();
-
             return 0;
         }
             // case WM_NCHITTEST: {
@@ -201,25 +280,46 @@ namespace LinaGX
             //     }
             //     break;
             // }
+            // case WM_NCHITTEST: {
+            //     if (win32Window->m_style == WindowStyle::Borderless)
+            //     {
+            //         auto res = HandleNonclientHitTest(hwnd, lParam, win32Window->m_dragRect);
+            //         if (res == HTCLIENT)
+            //         {
+            //             win32Window->SetCursorType(win32Window->m_cursorType);
+            //         }
+            //
+            //         return res;
+            //     }
+            //
+            //     break;
+            // }
+
         case WM_NCHITTEST: {
             if (win32Window->m_style == WindowStyle::Borderless)
             {
-                auto res = HandleNonclientHitTest(hwnd, lParam, win32Window->m_dragRect);
+                // auto res = HandleNonClientArea(win32Window->m_hwnd, lParam, win32Window->m_dragRect, msg, wParam, true);
+                auto res = HandleNonclientHitTest2(win32Window, lParam, POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)},
+                                                   hwnd);
                 if (res == HTCLIENT)
                 {
                     win32Window->SetCursorType(win32Window->m_cursorType);
                 }
-
+                else if (res == HTCAPTION)
+                {
+                }
+                else
+                {
+                }
                 return res;
             }
-
             break;
         }
         case WM_NCCALCSIZE: {
             if (wParam == TRUE)
             {
                 auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
-                AdjustMaximizedClientRect(win32Window, hwnd, params.rgrc[0]);
+                AdjustMaximizedClientRect(win32Window, hwnd, params.rgrc[0], win32Window->m_isMaximizeFullscreen);
                 return 0;
             }
             break;
@@ -289,8 +389,8 @@ namespace LinaGX
             RECT clientRect;
             GetClientRect(win32Window->m_hwnd, &clientRect);
 
-            win32Window->m_size.x = clientRect.right - clientRect.left;
-            win32Window->m_size.y = clientRect.bottom - clientRect.top;
+            win32Window->m_size.x = width;
+            win32Window->m_size.y = height;
 
             if (win32Window->m_style == WindowStyle::Windowed)
             {
@@ -353,18 +453,14 @@ namespace LinaGX
             break;
         }
         case WM_MOUSEMOVE: {
-
             uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
             uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
-
-            const LGXVector2ui mp        = {xPos, yPos};
-            win32Window->m_mouseDelta    = {static_cast<int32>(mp.x - win32Window->m_mousePosition.x), static_cast<int32>(mp.y - win32Window->m_mousePosition.y)};
-            win32Window->m_mousePosition = mp;
-            win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
-
-            if (win32Window->m_cbMouseMove)
-                win32Window->m_cbMouseMove(win32Window->m_mousePosition);
-
+            handleMouseMove(win32Window, xPos, yPos);
+            break;
+        }
+        case WM_NCMOUSEMOVE: {
+            if (win32Window->m_style == WindowStyle::Borderless)
+                handleMouseMove(win32Window, 0, 0);
             break;
         }
         case WM_MOUSEWHEEL: {
@@ -413,6 +509,11 @@ namespace LinaGX
         }
         case WM_LBUTTONUP: {
 
+            if (win32Window->m_isDragged)
+            {
+                win32Window->OnDrag(false);
+            }
+
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_LBUTTON, InputAction::Released);
 
@@ -439,7 +540,6 @@ namespace LinaGX
             break;
         }
         }
-
         return DefWindowProcA(hwnd, msg, wParam, lParam);
     }
 
@@ -458,7 +558,6 @@ namespace LinaGX
             wc.lpszClassName = title;
             wc.hCursor       = NULL;
             wc.style         = CS_HREDRAW | CS_VREDRAW;
-
             // wc.style         = CS_DBLCLKS;
 
             if (!RegisterClassA(&wc))
@@ -468,32 +567,32 @@ namespace LinaGX
             }
         }
 
+        Win32Window* parentWindow = nullptr;
+        if (parent != nullptr)
+            parentWindow = static_cast<Win32Window*>(parent);
+        m_parent = parentWindow;
+
         DWORD exStyle = WS_EX_APPWINDOW;
         DWORD stylew  = GetStyle(style);
 
         RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
         AdjustWindowRect(&windowRect, stylew, FALSE);
 
-        if (style == WindowStyle::Borderless)
-        {
-            m_trueSize.x = width;
-            m_trueSize.y = height;
-        }
-        else
+        if (style == WindowStyle::Windowed)
         {
             int adjustedWidth  = windowRect.right - windowRect.left;
             int adjustedHeight = windowRect.bottom - windowRect.top;
             m_trueSize.x       = static_cast<uint32>(adjustedWidth);
             m_trueSize.y       = static_cast<uint32>(adjustedHeight);
         }
-
-        Win32Window* parentWindow = nullptr;
-
-        if (parent != nullptr)
+        else
         {
-            parentWindow = static_cast<Win32Window*>(parent);
-            exStyle |= WS_EX_LAYERED;
+            m_trueSize.x = width;
+            m_trueSize.y = height;
         }
+
+        if (style == WindowStyle::BorderlessPlainLayered)
+            exStyle |= WS_EX_LAYERED;
 
         m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, m_trueSize.x, m_trueSize.y, parentWindow ? parentWindow->m_hwnd : NULL, NULL, m_hinst, this);
 
@@ -503,14 +602,14 @@ namespace LinaGX
             return false;
         }
 
-        m_size.x        = static_cast<uint32>(width);
-        m_size.y        = static_cast<uint32>(height);
-        m_title         = title;
-        m_style         = style;
-        m_dpi           = GetDpiForWindow(m_hwnd);
-        m_dpiScale      = m_dpi / 96.0f;
-        m_restoreSize   = m_trueSize;
-        m_restorePos    = m_position;
+        m_size.x      = static_cast<uint32>(width);
+        m_size.y      = static_cast<uint32>(height);
+        m_title       = title;
+        m_style       = style;
+        m_dpi         = GetDpiForWindow(m_hwnd);
+        m_dpiScale    = m_dpi / 96.0f;
+        m_restoreSize = m_trueSize;
+        m_restorePos  = m_position;
         SetFocus(m_hwnd);
         BringToFront();
         SetStyle(style);
@@ -531,6 +630,23 @@ namespace LinaGX
         m_mouseDelta = {0, 0};
     }
 
+    void Win32Window::OnDrag(bool begin)
+    {
+        if (begin)
+        {
+            m_isDragged      = true;
+            m_dragMouseDelta = m_mousePosition;
+
+            if (m_cbDragBegin)
+                m_cbDragBegin();
+        }
+        else
+        {
+            m_isDragged = false;
+            if (m_cbDragEnd)
+                m_cbDragEnd();
+        }
+    }
     void Win32Window::Tick()
     {
         if (!m_sizeRequests.empty())
@@ -562,52 +678,25 @@ namespace LinaGX
             if (m_cbHoverEnd)
                 m_cbHoverEnd();
         }
-
-        // Custom dragging by drag rect.
-        {
-            if (!m_isDragged)
-            {
-                if (m_input->GetMouseButtonDown(VK_LBUTTON) && m_dragRect.IsPointInside(m_mousePosition) && m_hasFocus)
-                {
-                    m_isDragged      = true;
-                    m_dragMouseDelta = m_mousePosition;
-
-                    if (m_cbDragBegin)
-                        m_cbDragBegin();
-                }
-            }
-
-            if (m_isDragged)
-            {
-                if (!m_input->GetMouseButton(VK_LBUTTON))
-                {
-                    m_isDragged = false;
-
-                    if (m_cbDragEnd)
-                        m_cbDragEnd();
-
-                    return;
-                }
-
-                const LGXVector2i absMouse  = m_input->GetMousePositionAbs();
-                const LGXVector2i targetPos = {absMouse.x - static_cast<int32>(m_dragMouseDelta.x), absMouse.y - static_cast<int32>(m_dragMouseDelta.y)};
-                SetPosition(targetPos);
-            }
-        }
     }
 
-    uint32 Win32Window::GetStyle(WindowStyle style)
+    uint32 Win32Window::GetStyle(WindowStyle s)
     {
         // THICKFRAME: aero snap
         // CAPTION: transitions
-        if (style == WindowStyle::Windowed)
+        if (s == WindowStyle::Windowed)
             return static_cast<uint32>(WS_OVERLAPPEDWINDOW);
+        else if (s == WindowStyle::BorderlessPlain || s == WindowStyle::BorderlessPlainLayered)
+            return WS_POPUP;
         else
         {
+            DWORD style = 0;
             if (composition_enabled())
-                return WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+                style = WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
             else
-                return WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+                style = WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+
+            return style;
         }
     }
 
@@ -628,6 +717,7 @@ namespace LinaGX
     void Win32Window::SetStyle(WindowStyle style)
     {
         SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
+        // SetWindowLong(m_hwnd, GWL_EXSTYLE, GetExStyle(style));
         ::SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
         //::ShowWindow(m_hwnd, SW_SHOW);
     }
@@ -707,6 +797,7 @@ namespace LinaGX
 
     void Win32Window::SetFullscreen()
     {
+        m_isMaximizeFullscreen = true;
         SetWindowLong(m_hwnd, GWL_STYLE, WS_POPUPWINDOW | WS_VISIBLE);
         HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitorInfo;
@@ -717,6 +808,7 @@ namespace LinaGX
                      monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
                      SWP_NOZORDER | SWP_FRAMECHANGED);
         ShowWindow(m_hwnd, SW_MAXIMIZE);
+        m_isMaximizeFullscreen = false;
     }
 
     void Win32Window::SetVisible(bool isVisible)
@@ -733,9 +825,15 @@ namespace LinaGX
 
     void Win32Window::SetAlpha(float alpha)
     {
+        if (m_style != WindowStyle::BorderlessPlainLayered)
+        {
+            LOGE("Window -> Alpha can only be set on plain layered windows!");
+            return;
+        }
+
         const BYTE     finalAlpha = static_cast<BYTE>(alpha * 255.0f);
         const COLORREF colorKey   = RGB(1, 1, 1);
-        SetLayeredWindowAttributes(m_hwnd, colorKey, finalAlpha, LWA_ALPHA);
+        SetLayeredWindowAttributes(m_hwnd, colorKey, finalAlpha, LWA_ALPHA | LWA_COLORKEY);
         m_isTransparent = alpha < 0.99f;
     }
 
@@ -747,21 +845,10 @@ namespace LinaGX
 
     void Win32Window::SetForceIsDragged(bool isDragged, const LGXVector2ui& offset)
     {
-        m_isDragged = true;
-
+        m_isDragged = isDragged;
+        OnDrag(m_isDragged);
         if (m_isDragged)
-        {
-            m_isDragged      = true;
             m_dragMouseDelta = offset;
-
-            if (m_cbDragBegin)
-                m_cbDragBegin();
-        }
-        else
-        {
-            if (m_cbDragEnd)
-                m_cbDragEnd();
-        }
     }
 
     void Win32Window::SetIcon(const LINAGX_STRING& name)

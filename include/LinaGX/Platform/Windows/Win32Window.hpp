@@ -73,7 +73,7 @@ namespace LinaGX
             return static_cast<void*>(m_hwnd);
         }
 
-        virtual void* GetOSHandle() override 
+        virtual void* GetOSHandle() override
         {
             return static_cast<void*>(m_hinst);
         }
@@ -92,6 +92,7 @@ namespace LinaGX
     private:
         uint32 GetStyle(WindowStyle style);
         void   OnDPIChanged(uint32 dpi);
+        void   OnDrag(bool begin);
 
     private:
         HWND__*      m_hwnd                 = nullptr;
@@ -102,6 +103,8 @@ namespace LinaGX
         LGXVector2i  m_restorePos           = {};
         LGXVector2ui m_restoreSize          = {};
         HICON__*     m_icon                 = nullptr;
+        bool         m_isMaximizeFullscreen = false;
+        Win32Window* m_parent               = nullptr;
     };
 } // namespace LinaGX
 
