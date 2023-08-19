@@ -165,6 +165,12 @@ namespace LinaGX
         /// <returns></returns>
         virtual void* GetOSHandle() = 0;
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual bool GetIsMaximized() = 0;
+
         inline void SetCallbackClose(CallbackNoArg&& cb)
         {
             m_cbClose = cb;
@@ -285,11 +291,6 @@ namespace LinaGX
             return m_isDragged;
         }
 
-        inline bool GetIsMaximized() const
-        {
-            return m_isMaximized;
-        }
-
         inline bool GetIsHovered() const
         {
             return m_isHovered;
@@ -305,14 +306,14 @@ namespace LinaGX
             return m_mouseDelta;
         }
 
-        inline void SetDefaultMaxIsWorkArea(bool isWorkArea)
-        {
-            m_defaultMaxIsWorkArea = isWorkArea;
-        }
-
         inline const LGXRectui& GetDragRect() const
         {
             return m_dragRect;
+        }
+
+        inline void SetMaximizeToWorkArea(bool max)
+        {
+            m_maximizeToWorkArea = max;
         }
 
     protected:
@@ -350,19 +351,19 @@ namespace LinaGX
         LGXVector2ui             m_mousePosition = {};
         LGXVector2i              m_mouseDelta    = {};
         LGXRectui                m_dragRect;
-        uint32                   m_dpi                  = 0;
-        float                    m_dpiScale             = 0.0f;
-        bool                     m_isVisible            = true;
-        bool                     m_isTransparent        = false;
-        float                    m_alpha                = 0.0f;
-        bool                     m_hasFocus             = true;
-        bool                     m_isDragged            = false;
-        bool                     m_isMaximized          = false;
-        bool                     m_isHovered            = false;
-        bool                     m_isInputPassThrough   = false;
-        bool                     m_defaultMaxIsWorkArea = false;
-        CursorType               m_cursorType           = CursorType::Default;
+        uint32                   m_dpi                = 0;
+        float                    m_dpiScale           = 0.0f;
+        bool                     m_isVisible          = true;
+        bool                     m_isTransparent      = false;
+        float                    m_alpha              = 0.0f;
+        bool                     m_hasFocus           = true;
+        bool                     m_isDragged          = false;
+        bool                     m_isHovered          = false;
+        bool                     m_isInputPassThrough = false;
+        bool                     m_maximizeToWorkArea = false;
+        CursorType               m_cursorType         = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
+        WindowStyle              m_style = WindowStyle::Windowed;
     };
 } // namespace LinaGX
 

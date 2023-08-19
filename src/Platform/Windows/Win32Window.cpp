@@ -34,10 +34,36 @@ SOFTWARE.
 #include <windowsx.h>
 #include <shellscalingapi.h>
 #include <chrono>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 
 namespace LinaGX
 {
     LINAGX_MAP<HWND__*, Win32Window*> Win32Window::s_win32Windows;
+
+    auto AdjustMaximizedClientRect(Win32Window* win32, HWND window, RECT& rect) -> void
+    {
+        if (!win32->GetIsMaximized())
+            return;
+
+        auto monitor = ::MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+        if (!monitor)
+            return;
+
+        MONITORINFO monitor_info{};
+        monitor_info.cbSize = sizeof(monitor_info);
+        if (!::GetMonitorInfoW(monitor, &monitor_info))
+            return;
+
+        rect = monitor_info.rcWork;
+    }
+
+    auto composition_enabled() -> bool
+    {
+        BOOL composition_enabled = FALSE;
+        bool success             = ::DwmIsCompositionEnabled(&composition_enabled) == S_OK;
+        return composition_enabled && success;
+    }
 
     LRESULT HandleNonclientHitTest(HWND wnd, LPARAM lparam, const LGXRectui& dragRect)
     {
@@ -72,29 +98,131 @@ namespace LinaGX
         return HTCLIENT;
     }
 
+    LRESULT HandleNonclientHitTest2(POINT cursor, HWND wnd)
+    {
+        // identify borders and corners to allow resizing the window.
+        // Note: On Windows 10, windows behave differently and
+        // allow resizing outside the visible window frame.
+        // This implementation does not replicate that behavior.
+        const POINT border{
+            ::GetSystemMetrics(SM_CXFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER),
+            ::GetSystemMetrics(SM_CYFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER)};
+        RECT window;
+        if (!::GetWindowRect(wnd, &window))
+        {
+            return HTNOWHERE;
+        }
+
+        const auto drag = HTCAPTION;
+
+        enum region_mask
+        {
+            client = 0b0000,
+            left   = 0b0001,
+            right  = 0b0010,
+            top    = 0b0100,
+            bottom = 0b1000,
+        };
+
+        const auto result =
+            left * (cursor.x < (window.left + border.x)) |
+            right * (cursor.x >= (window.right - border.x)) |
+            top * (cursor.y < (window.top + border.y)) |
+            bottom * (cursor.y >= (window.bottom - border.y));
+
+        bool borderless_resize = true;
+
+        switch (result)
+        {
+        case left:
+            return borderless_resize ? HTLEFT : drag;
+        case right:
+            return borderless_resize ? HTRIGHT : drag;
+        case top:
+            return borderless_resize ? HTTOP : drag;
+        case bottom:
+            return borderless_resize ? HTBOTTOM : drag;
+        case top | left:
+            return borderless_resize ? HTTOPLEFT : drag;
+        case top | right:
+            return borderless_resize ? HTTOPRIGHT : drag;
+        case bottom | left:
+            return borderless_resize ? HTBOTTOMLEFT : drag;
+        case bottom | right:
+            return borderless_resize ? HTBOTTOMRIGHT : drag;
+        case client:
+            return HTCLIENT;
+        default:
+            return HTNOWHERE;
+        }
+    }
+
     LRESULT __stdcall Win32Window::WndProc(HWND__* hwnd, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
     {
         auto* win32Window = s_win32Windows[hwnd];
+
+        if (msg == WM_NCCREATE)
+        {
+            auto userData        = reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams;
+            s_win32Windows[hwnd] = static_cast<Win32Window*>(userData);
+        }
 
         if (win32Window == nullptr)
             return DefWindowProcA(hwnd, msg, wParam, lParam);
 
         switch (msg)
         {
+
+        case WM_NCACTIVATE: {
+
+            if (!composition_enabled())
+            {
+                // Prevents window frame reappearing on window activation
+                // in "basic" theme, where no aero shadow is present.
+                return 1;
+            }
+            break;
+        }
         case WM_CLOSE: {
             if (win32Window->m_cbClose != nullptr)
                 win32Window->m_cbClose();
 
             return 0;
         }
+            // case WM_NCHITTEST: {
+            //     // When we have no border or title bar, we need to perform our
+            //     // own hit testing to allow resizing and moving.
+            //     if (win32Window->m_style == WindowStyle::Borderless)
+            //     {
+            //         return HandleNonclientHitTest2(POINT{
+            //                                            GET_X_LPARAM(lParam),
+            //                                            GET_Y_LPARAM(lParam)},
+            //                                        hwnd);
+            //     }
+            //     break;
+            // }
         case WM_NCHITTEST: {
-            auto res = HandleNonclientHitTest(hwnd, lParam, win32Window->m_dragRect);
-            if (res == HTCLIENT)
+            if (win32Window->m_style == WindowStyle::Borderless)
             {
-                win32Window->SetCursorType(win32Window->m_cursorType);
+                auto res = HandleNonclientHitTest(hwnd, lParam, win32Window->m_dragRect);
+                if (res == HTCLIENT)
+                {
+                    win32Window->SetCursorType(win32Window->m_cursorType);
+                }
+
+                return res;
             }
 
-            return res;
+            break;
+        }
+        case WM_NCCALCSIZE: {
+            if (wParam == TRUE)
+            {
+                auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+                AdjustMaximizedClientRect(win32Window, hwnd, params.rgrc[0]);
+                return 0;
+            }
+            break;
         }
         case WM_KILLFOCUS: {
 
@@ -152,6 +280,9 @@ namespace LinaGX
         }
         case WM_SIZE: {
 
+            UINT width  = LOWORD(lParam);
+            UINT height = HIWORD(lParam);
+
             RECT rect;
             GetWindowRect(hwnd, &rect);
 
@@ -161,8 +292,15 @@ namespace LinaGX
             win32Window->m_size.x = clientRect.right - clientRect.left;
             win32Window->m_size.y = clientRect.bottom - clientRect.top;
 
-            win32Window->m_trueSize.x = rect.right - rect.left;
-            win32Window->m_trueSize.y = rect.bottom - rect.top;
+            if (win32Window->m_style == WindowStyle::Windowed)
+            {
+                win32Window->m_trueSize.x = rect.right - rect.left;
+                win32Window->m_trueSize.y = rect.bottom - rect.top;
+            }
+            else
+            {
+                win32Window->m_trueSize = win32Window->m_size;
+            }
 
             if (win32Window->m_cbSizeChanged)
                 win32Window->m_cbSizeChanged(win32Window->m_size);
@@ -184,6 +322,10 @@ namespace LinaGX
 
             const InputAction action = isRepeated ? InputAction::Repeated : InputAction::Pressed;
 
+            if (key == VK_SPACE)
+            {
+                win32Window->Minimize();
+            }
             if (win32Window->m_cbKey)
                 win32Window->m_cbKey(key, static_cast<int32>(scanCode), action, win32Window);
 
@@ -315,6 +457,8 @@ namespace LinaGX
             wc.hInstance     = m_hinst;
             wc.lpszClassName = title;
             wc.hCursor       = NULL;
+            wc.style         = CS_HREDRAW | CS_VREDRAW;
+
             // wc.style         = CS_DBLCLKS;
 
             if (!RegisterClassA(&wc))
@@ -330,12 +474,18 @@ namespace LinaGX
         RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
         AdjustWindowRect(&windowRect, stylew, FALSE);
 
-        int adjustedWidth  = windowRect.right - windowRect.left;
-        int adjustedHeight = windowRect.bottom - windowRect.top;
-        m_trueSize.x       = static_cast<uint32>(adjustedWidth);
-        m_trueSize.y       = static_cast<uint32>(adjustedHeight);
-        m_size.x           = static_cast<uint32>(width);
-        m_size.y           = static_cast<uint32>(height);
+        if (style == WindowStyle::Borderless)
+        {
+            m_trueSize.x = width;
+            m_trueSize.y = height;
+        }
+        else
+        {
+            int adjustedWidth  = windowRect.right - windowRect.left;
+            int adjustedHeight = windowRect.bottom - windowRect.top;
+            m_trueSize.x       = static_cast<uint32>(adjustedWidth);
+            m_trueSize.y       = static_cast<uint32>(adjustedHeight);
+        }
 
         Win32Window* parentWindow = nullptr;
 
@@ -345,7 +495,7 @@ namespace LinaGX
             exStyle |= WS_EX_LAYERED;
         }
 
-        m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, adjustedWidth, adjustedHeight, parentWindow ? parentWindow->m_hwnd : NULL, NULL, m_hinst, NULL);
+        m_hwnd = CreateWindowExA(exStyle, title, title, stylew, x, y, m_trueSize.x, m_trueSize.y, parentWindow ? parentWindow->m_hwnd : NULL, NULL, m_hinst, this);
 
         if (m_hwnd == nullptr)
         {
@@ -353,21 +503,18 @@ namespace LinaGX
             return false;
         }
 
-        if (parentWindow != nullptr)
-            SetAlpha(1.0f);
-
-        s_win32Windows[m_hwnd] = this;
-        m_isVisible            = true;
-        m_title                = title;
-        ShowWindow(m_hwnd, SW_SHOW);
+        m_size.x        = static_cast<uint32>(width);
+        m_size.y        = static_cast<uint32>(height);
+        m_title         = title;
+        m_style         = style;
+        m_dpi           = GetDpiForWindow(m_hwnd);
+        m_dpiScale      = m_dpi / 96.0f;
+        m_restoreSize   = m_trueSize;
+        m_restorePos    = m_position;
         SetFocus(m_hwnd);
         BringToFront();
-        CheckMaximizedState();
-
-        m_dpi         = GetDpiForWindow(m_hwnd);
-        m_dpiScale    = m_dpi / 96.0f;
-        m_restoreSize = m_trueSize;
-        m_restorePos  = m_position;
+        SetStyle(style);
+        SetVisible(true);
 
         return true;
     }
@@ -451,29 +598,23 @@ namespace LinaGX
 
     uint32 Win32Window::GetStyle(WindowStyle style)
     {
-        if (style == WindowStyle::Borderless)
-            return WS_POPUP | WS_MINIMIZEBOX;
-
-        return WS_OVERLAPPEDWINDOW;
+        // THICKFRAME: aero snap
+        // CAPTION: transitions
+        if (style == WindowStyle::Windowed)
+            return static_cast<uint32>(WS_OVERLAPPEDWINDOW);
+        else
+        {
+            if (composition_enabled())
+                return WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+            else
+                return WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+        }
     }
 
     void Win32Window::OnDPIChanged(uint32 dpi)
     {
         m_dpi      = GetDpiForWindow(m_hwnd);
         m_dpiScale = m_dpi / 96.0f;
-    }
-
-    void Win32Window::CheckMaximizedState()
-    {
-        const auto& mi = GetMonitorInfoFromWindow();
-        if (m_defaultMaxIsWorkArea)
-        {
-            m_isMaximized = m_trueSize.x == mi.workArea.x && m_trueSize.y == mi.workArea.y;
-        }
-        else
-        {
-            m_isMaximized = m_trueSize.x == mi.size.x && m_trueSize.y == mi.size.y;
-        }
     }
 
     void Win32Window::Close()
@@ -487,6 +628,8 @@ namespace LinaGX
     void Win32Window::SetStyle(WindowStyle style)
     {
         SetWindowLong(m_hwnd, GWL_STYLE, GetStyle(style));
+        ::SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
+        //::ShowWindow(m_hwnd, SW_SHOW);
     }
 
     void Win32Window::SetCursorType(CursorType type)
@@ -521,20 +664,29 @@ namespace LinaGX
     void Win32Window::SetPosition(const LGXVector2i& pos)
     {
         m_position = pos;
-        SetWindowPos(m_hwnd, NULL, pos.x, pos.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+        SetWindowPos(m_hwnd, NULL, pos.x, pos.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOREDRAW);
     }
 
     void Win32Window::SetSize(const LGXVector2ui& size)
     {
-        m_size          = size;
-        RECT windowRect = {0, 0, static_cast<LONG>(m_size.x), static_cast<LONG>(m_size.y)};
-        AdjustWindowRect(&windowRect, GetWindowLong(m_hwnd, GWL_STYLE), FALSE);
-        int adjustedWidth  = windowRect.right - windowRect.left;
-        int adjustedHeight = windowRect.bottom - windowRect.top;
-        m_trueSize.x       = static_cast<uint32>(adjustedWidth);
-        m_trueSize.y       = static_cast<uint32>(adjustedHeight);
-        SetWindowPos(m_hwnd, NULL, 0, 0, adjustedWidth, adjustedHeight, SWP_NOMOVE | SWP_NOZORDER);
-        CheckMaximizedState();
+        m_size = size;
+
+        if (m_style == WindowStyle::Borderless)
+        {
+            m_trueSize.x = size.x;
+            m_trueSize.y = size.y;
+        }
+        else
+        {
+            RECT windowRect = {0, 0, static_cast<LONG>(m_size.x), static_cast<LONG>(m_size.y)};
+            AdjustWindowRect(&windowRect, GetWindowLong(m_hwnd, GWL_STYLE), FALSE);
+            int adjustedWidth  = windowRect.right - windowRect.left;
+            int adjustedHeight = windowRect.bottom - windowRect.top;
+            m_trueSize.x       = static_cast<uint32>(adjustedWidth);
+            m_trueSize.y       = static_cast<uint32>(adjustedHeight);
+        }
+
+        SetWindowPos(m_hwnd, NULL, 0, 0, m_trueSize.x, m_trueSize.y, SWP_NOMOVE | SWP_NOZORDER);
     }
 
     void Win32Window::CenterPositionToCurrentMonitor()
@@ -555,7 +707,7 @@ namespace LinaGX
 
     void Win32Window::SetFullscreen()
     {
-        SetWindowLong(m_hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        SetWindowLong(m_hwnd, GWL_STYLE, WS_POPUPWINDOW | WS_VISIBLE);
         HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitorInfo;
         monitorInfo.cbSize = sizeof(monitorInfo);
@@ -625,35 +777,23 @@ namespace LinaGX
 
     void Win32Window::Maximize()
     {
-        m_restoreSize = m_trueSize;
-        m_restorePos  = m_position;
-
-        const auto& mi = GetMonitorInfoFromWindow();
-        SetPosition({mi.workTopLeft.x, mi.workTopLeft.y});
-
-        if (m_defaultMaxIsWorkArea)
-            SetSize({mi.workArea.x, mi.workArea.y});
+        if (!GetIsMaximized())
+            ShowWindow(m_hwnd, SW_SHOWMAXIMIZED);
         else
-            SetSize({mi.size.x, mi.size.y});
-
-        m_isMaximized = true;
+            ShowWindow(m_hwnd, SW_RESTORE);
     }
 
     void Win32Window::Minimize()
     {
-        ShowWindow(m_hwnd, SW_MINIMIZE);
+        ShowWindow(m_hwnd, SW_SHOWMINIMIZED);
     }
 
     void Win32Window::Restore()
     {
-        if (m_restoreSize.x == m_trueSize.x && m_restoreSize.y == m_trueSize.y)
-        {
-            return;
-        }
-
-        SetPosition(m_restorePos);
-        SetSize(m_restoreSize);
-        CheckMaximizedState();
+        if (!GetIsMaximized())
+            ShowWindow(m_hwnd, SW_SHOWMAXIMIZED);
+        else
+            ShowWindow(m_hwnd, SW_RESTORE);
     }
 
     MonitorInfo Win32Window::GetMonitorInfoFromWindow()
@@ -700,6 +840,15 @@ namespace LinaGX
         ret.x = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
         ret.y = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
         return ret;
+    }
+
+    bool Win32Window::GetIsMaximized()
+    {
+        WINDOWPLACEMENT placement;
+        if (!::GetWindowPlacement(m_hwnd, &placement))
+            return false;
+
+        return placement.showCmd == SW_MAXIMIZE;
     }
 
 } // namespace LinaGX

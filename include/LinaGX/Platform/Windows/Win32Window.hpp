@@ -66,13 +66,14 @@ namespace LinaGX
         virtual MonitorInfo  GetMonitorInfoFromWindow() override;
         virtual LGXVector2ui GetMonitorWorkArea() override;
         virtual LGXVector2ui GetMonitorSize() override;
+        virtual bool         GetIsMaximized() override;
 
         virtual void* GetWindowHandle() override
         {
             return static_cast<void*>(m_hwnd);
         }
 
-        virtual void* GetOSHandle() override
+        virtual void* GetOSHandle() override 
         {
             return static_cast<void*>(m_hinst);
         }
@@ -91,7 +92,6 @@ namespace LinaGX
     private:
         uint32 GetStyle(WindowStyle style);
         void   OnDPIChanged(uint32 dpi);
-        void   CheckMaximizedState();
 
     private:
         HWND__*      m_hwnd                 = nullptr;
