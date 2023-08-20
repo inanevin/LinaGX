@@ -288,8 +288,8 @@ namespace LinaGX::Examples
             const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
             const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
             ShaderLayout                              outLayout  = {};
-            ShaderCompileData                         dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
-            ShaderCompileData                         dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                         dataVertex = {vtxShader, "Resources/Shaders/Include"};
+            ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
@@ -334,8 +334,8 @@ namespace LinaGX::Examples
             const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
             const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
             ShaderLayout                              outLayout  = {};
-            ShaderCompileData                         dataVertex = {vtxShader.c_str(), "Resources/Shaders/Include"};
-            ShaderCompileData                         dataFrag   = {fragShader.c_str(), "Resources/Shaders/Include"};
+            ShaderCompileData                         dataVertex = {vtxShader, "Resources/Shaders/Include"};
+            ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 

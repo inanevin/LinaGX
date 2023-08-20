@@ -153,7 +153,7 @@ namespace LinaGX
         resources.limits.generalConstantMatrixVectorIndexing  = 1;
     }
 
-    void SPIRVUtility::GetShaderTextWithIncludes(LINAGX_STRING& outStr, const char* shader, const char* includePath)
+    void SPIRVUtility::GetShaderTextWithIncludes(LINAGX_STRING& outStr, const LINAGX_STRING& shader, const LINAGX_STRING& includePath)
     {
         std::istringstream f(shader);
         LINAGX_STRING      line = "";
@@ -186,7 +186,7 @@ namespace LinaGX
                 if (firstQuote != std::string::npos && lastQuote != std::string::npos && firstQuote != lastQuote)
                 {
                     std::string         filename = line.substr(firstQuote + 1, lastQuote - firstQuote - 1);
-                    const LINAGX_STRING str      = LINAGX_STRING(includePath) + "/" + filename;
+                    const LINAGX_STRING str      = includePath + "/" + filename;
 
                     LINAGX_STRING contents      = ReadFileContentsAsString(str.c_str());
                     const size_t  endOfComments = contents.find("*/");
@@ -433,7 +433,7 @@ namespace LinaGX
         }
     };
 
-    bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const char* pShader, const char* includePath, DataBlob& compiledBlob, ShaderLayout& outLayout, BackendAPI targetAPI)
+    bool SPIRVUtility::GLSL2SPV(ShaderStage stg, const LINAGX_STRING& pShader, const LINAGX_STRING& includePath, DataBlob& compiledBlob, ShaderLayout& outLayout, BackendAPI targetAPI)
     {
         LINAGX_STRING fullShaderStr = "";
         GetShaderTextWithIncludes(fullShaderStr, pShader, includePath);

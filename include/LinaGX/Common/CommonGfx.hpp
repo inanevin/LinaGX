@@ -472,8 +472,8 @@ namespace LinaGX
 
     struct ShaderCompileData
     {
-        const char* text        = "";
-        const char* includePath = "";
+        LINAGX_STRING text        = "";
+        LINAGX_STRING includePath = "";
     };
 
     struct ShaderDesc
