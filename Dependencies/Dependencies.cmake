@@ -40,6 +40,23 @@ target_link_libraries(${PROJECT_NAME}
 
 endif()
 
+if(APPLE)
+target_include_directories(${PROJECT_NAME} PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/metal-cpp-macos12/metal-cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/metal-cpp-macos12/metal-cpp-extensions"
+        )
+
+target_link_libraries(${PROJECT_NAME}
+PUBLIC "-framework Metal"
+PUBLIC "-framework MetalKit"
+PUBLIC "-framework AppKit"
+PUBLIC "-framework Foundation"
+PUBLIC "-framework QuartzCore"
+)
+
+message("LinaGX -> metal-cpp has been linked.")
+endif()
+
 add_subdirectory(Dependencies/glslang-12.2.0)
 target_link_libraries(${PROJECT_NAME} PUBLIC GenericCodeGen)
 target_link_libraries(${PROJECT_NAME} PUBLIC glslang-default-resource-limits)
@@ -49,8 +66,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC OGLCompiler)
 target_link_libraries(${PROJECT_NAME} PUBLIC OSDependent)
 target_link_libraries(${PROJECT_NAME} PUBLIC SPIRV)
 message("LinaGX -> glslang has been linked.")
-
-target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/glslang-12.2.0/")
 
 
 add_subdirectory(Dependencies/SPIRV-Cross-MoltenVK-1.1.5)
