@@ -304,6 +304,8 @@ namespace LinaGX
         uint32          m_defaultStep = 50;
     };
 
+
+
 // https://gist.github.com/hwei/1950649d523afd03285c
 class FnvHash
     {
@@ -330,6 +332,11 @@ class FnvHash
             Wrapper(const char* str) : str (str) { }
             const char* str;
         };
+        
+        static constexpr unsigned int fnvHashConstexpr(const char* str, std::size_t len, unsigned int hash = OFFSET_BASIS) {
+            return len == 0 ? hash : fnvHashConstexpr(str + 1, len - 1, (hash ^ *str) * FNV_PRIME);
+        }
+        
         unsigned int hash_value;
     public:
         // calulate in run-time
@@ -337,6 +344,9 @@ class FnvHash
         // calulate in compile-time
         template <unsigned int N>
         constexpr FnvHash(const char (&str)[N]) : hash_value(fnvHashConst(str)) { }
+        
+        constexpr FnvHash(const char* str, std::size_t len) : hash_value(fnvHashConstexpr(str, len)) { }
+        
         // output result
         constexpr operator unsigned int() const { return this->hash_value; }
     };
@@ -347,8 +357,9 @@ LINAGX_TYPEID LGX_GetTypeID() {
 }
 
 constexpr LINAGX_STRINGID operator"" _hs(const char* str, std::size_t len) noexcept {
-    return FnvHash(str);
+    return FnvHash(str, len);
 }
+
 
     template <typename T>
     class RingBuffer
