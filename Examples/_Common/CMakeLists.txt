@@ -62,8 +62,10 @@ target_link_libraries(${PROJECT_NAME}
 PUBLIC Lina::GX
 )
 
-include(_Vendor/glm/link.cmake)
-link_glm()
+set(glm_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/glm-0.9.9.8/cmake/glm/) # if necessary
+find_package(glm REQUIRED)
+target_link_libraries(${PROJECT_NAME} PUBLIC glm::glm)
+
 
 #--------------------------------------------------------------------
 # Folder Structuring 
