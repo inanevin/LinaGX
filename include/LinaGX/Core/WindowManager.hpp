@@ -36,7 +36,7 @@ SOFTWARE.
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
 #elif LINAGX_PLATFORM_APPLE
-#include "LinaGX/Platform/Apple/AppleWindow.hpp"
+#include "LinaGX/Platform/Apple/OSXWindow.hpp"
 #endif
 
 namespace LinaGX

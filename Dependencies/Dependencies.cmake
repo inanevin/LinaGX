@@ -50,6 +50,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC OSDependent)
 target_link_libraries(${PROJECT_NAME} PUBLIC SPIRV)
 message("LinaGX -> glslang has been linked.")
 
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/glslang-12.2.0/")
+
+
 add_subdirectory(Dependencies/SPIRV-Cross-MoltenVK-1.1.5)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-c)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-core)

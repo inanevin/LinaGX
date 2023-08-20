@@ -30,7 +30,6 @@ SOFTWARE.
 
 */
 
-#pragma once
 
 #include "LinaGX/Common/CommonGfx.hpp"
 

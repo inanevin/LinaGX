@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
 
 #include "LinaGX/Core/Backend.hpp"
 
@@ -43,21 +42,17 @@ namespace LinaGX
 {
     Backend* LinaGX::Backend::CreateBackend(BackendAPI api, Instance* renderer)
     {
-        switch (api)
-        {
-        case BackendAPI::Vulkan:
+        
+#ifdef LINAGX_PLATFORM_WINDOWS
+        if(api == BackendAPI::Vulkan)
             return new VKBackend(renderer);
-        case BackendAPI::DX12:
+        else if (api == BackendAPI::DX12)
             return new DX12Backend(renderer);
+#endif
 
 #ifdef LINAGX_PLATFORM_APPLE
-        case BackendAPI::Metal:
-            return new MTLBackend(renderer);
+        return new MTLBackend(renderer);
 #endif
-        default:
-            return nullptr;
-        }
-
         return nullptr;
     }
 } // namespace LinaGX

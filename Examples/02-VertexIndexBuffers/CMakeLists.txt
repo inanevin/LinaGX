@@ -35,7 +35,6 @@ Resources/Shaders/vert.glsl
 # Create executable project
 #--------------------------------------------------------------------
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ExampleProjectSettings.cmake)
 
 set_target_properties(
@@ -68,13 +67,6 @@ PUBLIC LinaGX::ExamplesCommon
 
 
 #--------------------------------------------------------------------
-# Folder structuring in visual studio
+# Folder Structuring 
 #--------------------------------------------------------------------
-if(MSVC_IDE)
-	foreach(source IN LISTS HEADERS SOURCES)
-		get_filename_component(source_path "${source}" PATH)
-		string(REPLACE "${SOURCE_DIR}" "" relative_source_path "${source_path}")
-		string(REPLACE "/" "\\" source_path_msvc "${relative_source_path}")
-				source_group("${source_path_msvc}" FILES "${source}")
-	endforeach()
-endif()
+include(${LINAGX_SOURCE_DIR}/CMake/ProjectStructure.cmake)

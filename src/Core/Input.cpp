@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
 
 #include "LinaGX/Core/Input.hpp"
 #include "LinaGX/Core/InputMappings.hpp"
@@ -127,7 +126,7 @@ namespace LinaGX
 
     bool Input::IsControlPressed()
     {
-        return GetKey(LINAGX_KEY_LCTRL) || GetKey(LINAGX_KEY_RCTRL) || GetKey(LINAGX_KEY_LALT) || GetKey(LINAGX_KEY_RALT) || GetKey(LINAGX_KEY_TAB) || GetKey(LINAGX_KEY_CAPSLOCK) || GetKey(LINAGX_KEY_LWIN) || GetKey(LINAGX_KEY_RWIN);
+        return GetKey(LINAGX_KEY_LCTRL) || GetKey(LINAGX_KEY_RCTRL) || GetKey(LINAGX_KEY_LALT) || GetKey(LINAGX_KEY_RALT) || GetKey(LINAGX_KEY_TAB) || GetKey(LINAGX_KEY_CAPSLOCK);
     }
 
     bool Input::IsPointInRect(const LGXVector2ui& point, const LGXRectui& rect)
@@ -261,15 +260,21 @@ namespace LinaGX
 
     void Input::Tick()
     {
+        uint32 targetX = 0, targetY = 0;
+        
 #ifdef LINAGX_PLATFORM_WINDOWS
         POINT point;
         GetCursorPos(&point);
-#else
-
+        targetX = point.x;
+        targetY = point.y;
+#endif
+        
+#ifdef LINAGX_PLATFORM_APPLE
+        LOGE("NOT IMPLEMENTED");
 #endif
         m_previousMousePosition     = m_currentMousePositionAbs;
-        m_currentMousePositionAbs.x = point.x;
-        m_currentMousePositionAbs.y = point.y;
+        m_currentMousePositionAbs.x = targetX;
+        m_currentMousePositionAbs.y = targetY;
         m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
         m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
     }

@@ -27,9 +27,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CMAKE_SUPPRESS_REGENERATION true)
 set(LINAGX_ITERATOR_DEBUG_LEVEL 0)
+set(LINAGX_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+if(MSVC)
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+endif()
 
 #--------------------------------------------------------------------
 # Set sources
@@ -146,12 +149,12 @@ if(APPLE)
 
 set(LinaGX_PLATFORM_HEADERS
 include/LinaGX/Platform/Metal/MTLBackend.hpp
-include/LinaGX/Platform/Apple/AppleWindow.hpp
+include/LinaGX/Platform/Apple/OSXWindow.hpp
 )
 
 set(LinaGX_PLATFORM_SOURCES
 src/Platform/Metal/MTLBackend.cpp
-src/Platform/Apple/AppleWindow.cpp
+src/Platform/Apple/OSXWindow.cpp
 )
 
 endif()
@@ -172,7 +175,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MAJOR=1)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MINOR=0)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_PATCH=0)
-
 
 include(Dependencies/Dependencies.cmake)
 
@@ -199,16 +201,17 @@ if(LINAGX_BUILD_EXAMPLES)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()
 
-#--------------------------------------------------------------------
-# Folder structuring in visual studio
-#--------------------------------------------------------------------
-if(MSVC_IDE)
+if(MSVC_IDE OR APPLE)
 	foreach(source IN LISTS LinaGX_HEADERS LinaGX_SOURCES LinaGX_PLATFORM_HEADERS LinaGX_PLATFORM_SOURCES)
 		get_filename_component(source_path "${source}" PATH)
-		string(REPLACE "${LinaVG_SOURCE_DIR}" "" relative_source_path "${source_path}")
-		string(REPLACE "/" "\\" source_path_msvc "${relative_source_path}")
-				source_group("${source_path_msvc}" FILES "${source}")
+		string(REPLACE "${LinaGX_SOURCE_DIR}" "" relative_source_path "${source_path}")
+
+		if (MSVC_IDE)
+			string(REPLACE "/" "\\" source_path_ide "${relative_source_path}")
+		elseif (APPLE)
+			set(source_path_ide "${relative_source_path}")
+		endif()
+
+		source_group("${source_path_ide}" FILES "${source}")
 	endforeach()
-
 endif()
-

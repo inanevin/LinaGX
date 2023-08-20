@@ -28,8 +28,8 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_DX12Backend_HPP
-#define LINAGX_DX12Backend_HPP
+#ifndef LINAGX_DX12BACKEND_HPP
+#define LINAGX_DX12BACKEND_HPP
 
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Platform/DX12/DX12Common.hpp"
@@ -192,7 +192,7 @@ namespace LinaGX
         virtual uint8  CreateSwapchain(const SwapchainDesc& desc) override;
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
-        virtual void   SetSwapchainActive(uint8 swp, bool isActive);
+        virtual void   SetSwapchainActive(uint8 swp, bool isActive) override;
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;

@@ -32,8 +32,8 @@ SOFTWARE.
 #include "spirv_msl.hpp"
 #include "spirv_hlsl.hpp"
 #include "glslang/Include/glslang_c_interface.h"
-#include "glslang/SPIRV/spirv.hpp"
 #include "glslang/Public/ShaderLang.h"
+#include "SPIRV/spirv.hpp"
 #include <sstream>
 
 namespace LinaGX

@@ -27,8 +27,8 @@ SOFTWARE.
 */
 
 #pragma once
-#ifndef LINAGX_InputMappings_HPP
-#define LINAGX_InputMappings_HPP
+#ifndef LINAGX_INPUTMAPPINGS_HPP
+#define LINAGX_INPUTMAPPINGS_HPP
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>
@@ -37,6 +37,7 @@ SOFTWARE.
 
 namespace LinaGX
 {
+
 #ifdef LINAGX_PLATFORM_WINDOWS
 
 #define LINAGX_MOUSE_0      VK_LBUTTON
@@ -349,6 +350,7 @@ namespace LinaGX
 #define LINAGX_KEY_RSHIFT 344
 #define LINAGX_KEY_RALT   346
 #define LINAGX_KEY_RGUI   347
+
 #endif
 
     enum InputCode

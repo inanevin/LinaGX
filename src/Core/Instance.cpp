@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
 
 #include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/Backend.hpp"
@@ -45,10 +44,10 @@ namespace LinaGX
     {
 #ifdef LINAGX_PLATFORM_APPLE
 
-        if (initInfo.api != BackendAPI::Metal && initInfo.api != BackendAPI::OpenGL)
+        if (info.api != BackendAPI::Metal)
         {
-            if (initInfo.errorCallback)
-                initInfo.errorCallback("LinaGX Error: Backend API needs to be either Metal or OpenGL on MacOS platform!");
+            if (Config.errorCallback)
+                Config.errorCallback("Backend API needs to be Metal for Apple platforms!");
             return false;
         }
 #endif

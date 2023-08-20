@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
 
 #include "LinaGX/Core/WindowManager.hpp"
 #include "LinaGX/Core/Input.hpp"
@@ -48,7 +47,7 @@ namespace LinaGX
 #ifdef LINAGX_PLATFORM_WINDOWS
         Window* win = new Win32Window(m_input);
 #else
-        Window* win = new AppleWindow(m_input);
+        Window* win = new OSXWindow(m_input);
 #endif
 
         if (!win->Create(sid, title, x, y, width, height, style, parent))

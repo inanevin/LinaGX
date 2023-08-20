@@ -10,6 +10,8 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+.DS_Store
+
 #Project Files
 [Gg]enerated_project_files
 [Bb]uild

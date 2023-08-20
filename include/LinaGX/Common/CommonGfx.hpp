@@ -33,6 +33,7 @@ SOFTWARE.
 
 #include "CommonData.hpp"
 #include "Math.hpp"
+#include <assert.h>
 
 namespace LinaGX
 {
@@ -709,10 +710,12 @@ namespace LinaGX
     if (Config.infoCallback && Config.logLevel == LogLevel::Verbose) \
         Config.infoCallback(__VA_ARGS__);
 
+
 #define LOGA(condition, ...)                  \
     if (!(condition) && Config.errorCallback) \
         Config.errorCallback(__VA_ARGS__);    \
-    _ASSERT(condition);
+    assert(condition);
+
 
     class Window;
 

@@ -33,6 +33,11 @@ SOFTWARE.
 #include <codecvt>
 #include <locale>
 #include <string>
+
+#ifdef LINAGX_PLATFORM_APPLE
+#include <iconv.h>
+#endif
+
 namespace LinaGX
 {
 
@@ -55,6 +60,7 @@ namespace LinaGX
 
     LINAGX_API const wchar_t* CharToWChar(const char* ch)
     {
+#ifdef LINAGX_PLATFORM_WINDOWS
         std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
         std::wstring                                     wideStr = converter.from_bytes(ch);
 
@@ -62,6 +68,37 @@ namespace LinaGX
         wcscpy_s(wideStrCopy, wideStr.size() + 1, wideStr.c_str());
 
         return wideStrCopy;
+#endif
+        
+#ifdef LINAGX_PLATFORM_APPLE
+        size_t len = strlen(ch);
+            size_t wchar_size = len * sizeof(wchar_t);
+            wchar_t* wideStrCopy = new wchar_t[wchar_size + 1];
+
+            iconv_t conv = iconv_open("WCHAR_T", "UTF-8");
+            if (conv == (iconv_t)-1) {
+                // Conversion not supported, handle the error
+                delete[] wideStrCopy;
+                return nullptr;
+            }
+
+            char* inbuf = (char*)ch;
+            char* outbuf = (char*)wideStrCopy;
+            size_t inbytesleft = len;
+            size_t outbytesleft = wchar_size;
+
+            size_t res = iconv(conv, &inbuf, &inbytesleft, &outbuf, &outbytesleft);
+            if (res == (size_t)-1) {
+                // Conversion failed, handle the error
+                iconv_close(conv);
+                delete[] wideStrCopy;
+                return nullptr;
+            }
+
+            iconv_close(conv);
+            wideStrCopy[wchar_size - outbytesleft] = 0; // Null-terminate the wide string
+            return wideStrCopy;
+#endif
     }
 
     LINAGX_STRING ReadFileContentsAsString(const char* filePath)

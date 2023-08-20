@@ -28,11 +28,11 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_SPIRVUtility_HPP
-#define LINAGX_SPIRVUtility_HPP
+#ifndef LINAGX_SPIRVUTILITY_HPP
+#define LINAGX_SPIRVUTILITY_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
-#include "glslang/SPIRV/GlslangToSpv.h"
+#include "SPIRV/GlslangToSpv.h"
 
 namespace LinaGX
 {
