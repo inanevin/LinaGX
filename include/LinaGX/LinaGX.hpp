@@ -75,6 +75,8 @@ use to index into another buffer for per-draw-call parameters.
  
  - no render pass load store selection
  
+ - Metal 2 minimum, needs to support argument buffers.
+ 
 - blend logic operations are not supported on Metal.
 - compare op NotEqual is not supported on Metal.
 - format checking is not supported on metal.

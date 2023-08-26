@@ -19,10 +19,20 @@ project(03-Textures)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/Textures.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/Textures.cpp
+)
+endif()
+
 
 set(HEADERS
 include/Main.hpp

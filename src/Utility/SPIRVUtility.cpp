@@ -589,6 +589,7 @@ namespace LinaGX
                 ubo.set       = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ubo.binding   = compiler.get_decoration(id, spv::DecorationBinding);
                 outLayout.setsAndBindings[ubo.set].push_back(ubo.binding);
+                outLayout.setsAndStages[ubo.set].push_back(stg);
 
                 auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const ShaderUBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
                 if (it != outLayout.ubos.end())
@@ -642,6 +643,7 @@ namespace LinaGX
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
                 outLayout.setsAndBindings[txt.set].push_back(txt.binding);
+                outLayout.setsAndStages[txt.set].push_back(stg);
 
                 auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.combinedImageSamplers.end())
@@ -678,6 +680,7 @@ namespace LinaGX
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
                 outLayout.setsAndBindings[txt.set].push_back(txt.binding);
+                outLayout.setsAndStages[txt.set].push_back(stg);
 
                 auto it = std::find_if(outLayout.separateImages.begin(), outLayout.separateImages.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.separateImages.end())
@@ -714,6 +717,7 @@ namespace LinaGX
                 sampler.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 sampler.binding = compiler.get_decoration(id, spv::DecorationBinding);
                 outLayout.setsAndBindings[sampler.set].push_back(sampler.binding);
+                outLayout.setsAndStages[sampler.set].push_back(stg);
 
                 auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const ShaderSampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
                 if (it != outLayout.samplers.end())
@@ -750,6 +754,7 @@ namespace LinaGX
                 ssbo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ssbo.binding = compiler.get_decoration(id, spv::DecorationBinding);
                 outLayout.setsAndBindings[ssbo.set].push_back(ssbo.binding);
+                outLayout.setsAndStages[ssbo.set].push_back(stg);
 
                 auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const ShaderSSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
                 if (it != outLayout.ssbos.end())
@@ -825,26 +830,37 @@ namespace LinaGX
 
     bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, ShaderLayout& layoutReflection)
     {
-        try
-        {
-            spirv_cross::CompilerMSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
-
-            spv::ExecutionModel exec = spv::ExecutionModelVertex;
+        
+        auto getExecStage = [](ShaderStage stg) {
             
             if(stg == ShaderStage::Fragment)
-                exec = spv::ExecutionModelFragment;
+                return spv::ExecutionModelFragment;
             else if(stg == ShaderStage::Tesellation)
-                exec = spv::ExecutionModelTessellationControl;
+                return spv::ExecutionModelTessellationControl;
             else if(stg == ShaderStage::Geometry)
             {
                 LOGA(false, "Geometry shaders are not supported on Metal!");
             }
             else if(stg == ShaderStage::Compute)
-                exec = spv::ExecutionModelGLCompute;
+               return spv::ExecutionModelGLCompute;
+            
+            return spv::ExecutionModelVertex;
+        };
+        
+        
+        try
+        {
+            spirv_cross::CompilerMSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
 
+            spv::ExecutionModel exec = getExecStage(stg);
+            
             spirv_cross::CompilerMSL::Options options;
-         
-            // Perform the conversion
+            options.set_msl_version(3);
+            options.argument_buffers = true;
+            options.enable_decoration_binding = true;
+            
+            compiler.set_msl_options(options);
+            
             out = compiler.compile();
             
             auto entry = compiler.get_entry_point("main", exec);

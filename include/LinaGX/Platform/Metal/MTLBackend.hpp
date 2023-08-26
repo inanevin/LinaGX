@@ -40,6 +40,7 @@ namespace LinaGX
 struct MTLTexture2D
 {
     bool isValid = false;
+    void* ptr = nullptr;
 };
 
 struct MTLCommandStream
@@ -57,6 +58,7 @@ struct MTLCommandStream
     uint32 currentShader = 0;
     uint32 currentIndexBuffer = 0;
     uint8 indexBufferType = 0;
+    LINAGX_MAP<uint32, uint64> intermediateResources;
 };
 
 struct MTLSwapchain
@@ -81,6 +83,8 @@ struct MTLShader
     void* pso = nullptr;
     void* dsso = nullptr;
     void* cso = nullptr;
+    
+    LINAGX_MAP<uint32, void*> setEncoders;
 };
 
 struct MTLFence
@@ -107,11 +111,24 @@ struct MTLUserSemaphore
 struct MTLSampler
 {
     bool isValid = false;
+    void* ptr = nullptr;
+};
+
+struct MTLBinding
+{
+    LINAGX_VEC<ShaderStage> stages;
+    LINAGX_VEC<uint32> resources;
+    LINAGX_VEC<uint32> additionalResources;
+    uint32 descriptorCount = 0;
+    DescriptorType type = DescriptorType::UBO;
 };
 
 struct MTLDescriptorSet
 {
     bool isValid = false;
+    void* buffer = nullptr;
+    DescriptorSetDesc desc = {};
+    LINAGX_MAP<uint32, MTLBinding> bindings = {};
 };
 
 struct MTLQueue

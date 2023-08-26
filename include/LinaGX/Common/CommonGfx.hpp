@@ -458,18 +458,19 @@ namespace LinaGX
 
     struct ShaderLayout
     {
-        LINAGX_VEC<ShaderStageInput>           vertexInputs;
-        LINAGX_VEC<ShaderUBO>                  ubos;
-        LINAGX_VEC<ShaderSSBO>                 ssbos;
-        LINAGX_VEC<ShaderSRVTexture2D>         combinedImageSamplers;
-        LINAGX_VEC<ShaderSRVTexture2D>         separateImages;
-        LINAGX_VEC<ShaderSampler>              samplers;
-        LINAGX_MAP<uint32, LINAGX_VEC<uint32>> setsAndBindings;
-        ShaderConstantBlock                    constantBlock;
-        uint32                                 totalDescriptors = 0;
-        bool                                   hasGLDrawID      = false;
-        uint32                                 drawIDBinding    = 0;
-        LINAGX_MAP<ShaderStage, LINAGX_STRING> entryPoints;
+        LINAGX_VEC<ShaderStageInput>                vertexInputs;
+        LINAGX_VEC<ShaderUBO>                       ubos;
+        LINAGX_VEC<ShaderSSBO>                      ssbos;
+        LINAGX_VEC<ShaderSRVTexture2D>              combinedImageSamplers;
+        LINAGX_VEC<ShaderSRVTexture2D>              separateImages;
+        LINAGX_VEC<ShaderSampler>                   samplers;
+        LINAGX_MAP<uint32, LINAGX_VEC<uint32>>      setsAndBindings;
+        LINAGX_MAP<uint32, LINAGX_VEC<ShaderStage>> setsAndStages;
+        ShaderConstantBlock                         constantBlock;
+        uint32                                      totalDescriptors = 0;
+        bool                                        hasGLDrawID      = false;
+        uint32                                      drawIDBinding    = 0;
+        LINAGX_MAP<ShaderStage, LINAGX_STRING>      entryPoints;
     };
 
     struct ShaderCompileData
