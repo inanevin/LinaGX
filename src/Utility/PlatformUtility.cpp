@@ -33,10 +33,7 @@ SOFTWARE.
 #include <codecvt>
 #include <locale>
 #include <string>
-
-#ifdef LINAGX_PLATFORM_APPLE
-#include <iconv.h>
-#endif
+#include <iostream>
 
 namespace LinaGX
 {
@@ -71,33 +68,14 @@ namespace LinaGX
 #endif
         
 #ifdef LINAGX_PLATFORM_APPLE
-        size_t len = strlen(ch);
-            size_t wchar_size = len * sizeof(wchar_t);
-            wchar_t* wideStrCopy = new wchar_t[wchar_size + 1];
+        // Convert the input char string to a wchar_t string on Apple platform
+       size_t length = strlen(ch);
+       wchar_t* wideStrCopy = new wchar_t[length + 1];
 
-            iconv_t conv = iconv_open("WCHAR_T", "UTF-8");
-            if (conv == (iconv_t)-1) {
-                // Conversion not supported, handle the error
-                delete[] wideStrCopy;
-                return nullptr;
-            }
+       mbstowcs(wideStrCopy, ch, length);
+       wideStrCopy[length] = L'\0'; // Null-terminate the wide string
 
-            char* inbuf = (char*)ch;
-            char* outbuf = (char*)wideStrCopy;
-            size_t inbytesleft = len;
-            size_t outbytesleft = wchar_size;
-
-            size_t res = iconv(conv, &inbuf, &inbytesleft, &outbuf, &outbytesleft);
-            if (res == (size_t)-1) {
-                // Conversion failed, handle the error
-                iconv_close(conv);
-                delete[] wideStrCopy;
-                return nullptr;
-            }
-
-            iconv_close(conv);
-            wideStrCopy[wchar_size - outbytesleft] = 0; // Null-terminate the wide string
-            return wideStrCopy;
+       return wideStrCopy;
 #endif
     }
 

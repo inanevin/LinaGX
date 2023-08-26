@@ -70,24 +70,8 @@ namespace LinaGX
         m_windows.erase(it);
     }
 
-    void WindowManager::PollWindow()
+    void WindowManager::PollWindowsAndInput()
     {
-        m_input->PreTick();
-
-        for (const auto [sid, w] : m_windows)
-            w->PreTick();
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-        MSG msg    = {0};
-        msg.wParam = 0;
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-#else
-
-#endif
         m_input->Tick();
 
         for (const auto [sid, w] : m_windows)

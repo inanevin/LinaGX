@@ -32,6 +32,7 @@
 #define LINAGX_METAL_BACKEND_HPP
 
 #include "LinaGX/Core/Backend.hpp"
+#include <atomic>
 
 namespace LinaGX
 {
@@ -44,16 +45,42 @@ struct MTLTexture2D
 struct MTLCommandStream
 {
     bool isValid = false;
+    QueueType type = QueueType::Graphics;
+    void* currentBuffer = nullptr;
+    void* currentEncoder = nullptr;
+    void* currentBlitEncoder = nullptr;
+    void* currentComputeEncoder = nullptr;
+    LINAGX_VEC<void*> allBlitEncoders;
+    LINAGX_VEC<void*> allRenderEncoders;
+    LINAGX_VEC<void*> allComputeEncoders;
+    LINAGX_VEC<uint8> writtenSwapchains;
+    uint32 currentShader = 0;
+    uint32 currentIndexBuffer = 0;
+    uint8 indexBufferType = 0;
 };
 
 struct MTLSwapchain
 {
     bool isValid = false;
+    bool isActive = true;
+    void* layer = nullptr;
+    void* _currentDrawable = nullptr;
+    void* window = nullptr;
+    uint32 width = 0;
+    uint32 height = 0;
 };
 
 struct MTLShader
 {
     bool isValid = false;
+    bool isCompute = false;
+    PolygonMode    polygonMode           = PolygonMode::Fill;
+    CullMode       cullMode              = CullMode::None;
+    FrontFace      frontFace             = FrontFace::CW;
+    Topology topology = Topology::TriangleList;
+    void* pso = nullptr;
+    void* dsso = nullptr;
+    void* cso = nullptr;
 };
 
 struct MTLFence
@@ -65,11 +92,16 @@ struct MTLFence
 struct MTLResource
 {
     bool isValid = false;
+    void* ptr = nullptr;
+    ResourceHeap heapType = ResourceHeap::StagingHeap;
+    size_t size = 0;
 };
 
 struct MTLUserSemaphore
 {
     bool isValid = false;
+    void* semaphore = nullptr;
+    uint64 reachValue = 0;
 };
 
 struct MTLSampler
@@ -85,11 +117,14 @@ struct MTLDescriptorSet
 struct MTLQueue
 {
     bool isValid = false;
+    void* queue = nullptr;
+    QueueType type = QueueType::Graphics;
 };
 
 struct MTLPerFrameData
 {
-
+    uint32 submits = 0;
+    uint32 reachedSubmits = 0;
 };
 
 
@@ -183,6 +218,12 @@ private:
     
     InitInfo            m_initInfo           = {};
     std::atomic<uint32> m_submissionPerFrame = 0;
+    void* m_device = nullptr;
+    
+    uint8 m_primaryQueues[3];
+    
+    LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
+    std::atomic_flag m_submissionFlag;
 };
 
 

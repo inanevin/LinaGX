@@ -41,10 +41,6 @@ target_link_libraries(${PROJECT_NAME}
 endif()
 
 if(APPLE)
-target_include_directories(${PROJECT_NAME} PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/metal-cpp-macos12/metal-cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/metal-cpp-macos12/metal-cpp-extensions"
-        )
 
 target_link_libraries(${PROJECT_NAME}
 PUBLIC "-framework Metal"

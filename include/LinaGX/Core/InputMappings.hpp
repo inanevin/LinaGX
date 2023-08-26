@@ -35,6 +35,10 @@ SOFTWARE.
 #include <Xinput.h>
 #endif
 
+#ifdef LINAGX_PLATFORM_APPLE
+
+#endif
+
 namespace LinaGX
 {
 
@@ -118,9 +122,7 @@ namespace LinaGX
 #define LINAGX_KEY_SPACE     VK_SPACE
 
 #define LINAGX_KEY_MINUS VK_OEM_MINUS
-
 #define LINAGX_KEY_GRAVE VK_OEM_3 // 41 // ?
-
 #define LINAGX_KEY_COMMA    VK_OEM_COMMA
 #define LINAGX_KEY_PERIOD   VK_OEM_PERIOD
 #define LINAGX_KEY_SLASH    VK_DIVIDE
@@ -141,24 +143,11 @@ namespace LinaGX
 #define LINAGX_KEY_F13 VK_F13
 #define LINAGX_KEY_F14 VK_F14
 #define LINAGX_KEY_F15 VK_F15
-#define LINAGX_KEY_F16 VK_F16
-#define LINAGX_KEY_F17 VK_F17
-#define LINAGX_KEY_F18 VK_F18
-#define LINAGX_KEY_F19 VK_F19
-#define LINAGX_KEY_F20 VK_F20
-#define LINAGX_KEY_F21 VK_F21
-#define LINAGX_KEY_F22 VK_F22
-#define LINAGX_KEY_F23 VK_F23
-#define LINAGX_KEY_F24 VK_F24
-
-#define LINAGX_KEY_LWIN VK_LWIN
-#define LINAGX_KEY_RWIN VK_RWIN
 
 #define LINAGX_KEY_PRINTSCREEN VK_PRINT
 #define LINAGX_KEY_SCROLLLOCK  VK_SCROLL
 #define LINAGX_KEY_PAUSE       VK_PAUSE
 #define LINAGX_KEY_INSERT      VK_INSERT
-
 #define LINAGX_KEY_HOME         VK_HOME
 #define LINAGX_KEY_PAGEUP       VK_PRIOR
 #define LINAGX_KEY_DELETE       VK_DELETE
@@ -196,7 +185,9 @@ namespace LinaGX
 #define LINAGX_KEY_RALT   VK_RMENU
 #define LINAGX_KEY_RGUI   VK_RMENU
 
-#else
+#endif
+
+#ifdef LINAGX_PLATFORM_APPLE
 
 #define LINAGX_MOUSE_0      0
 #define LINAGX_MOUSE_1      1
@@ -231,125 +222,115 @@ namespace LinaGX
 #define LINAGX_GAMEPAD_LAST          LINAGX_GAMEPAD_RIGHT_TRIGGER
 
 #define LINAGX_KEY_UNKNOWN -1
-#define LINAGX_KEY_A       65
-#define LINAGX_KEY_B       66
-#define LINAGX_KEY_C       67
-#define LINAGX_KEY_D       68
-#define LINAGX_KEY_E       69
-#define LINAGX_KEY_F       70
-#define LINAGX_KEY_G       71
-#define LINAGX_KEY_H       72
-#define LINAGX_KEY_I       73
-#define LINAGX_KEY_J       74
-#define LINAGX_KEY_K       75
-#define LINAGX_KEY_L       76
-#define LINAGX_KEY_M       77
-#define LINAGX_KEY_N       78
-#define LINAGX_KEY_O       79
-#define LINAGX_KEY_P       80
-#define LINAGX_KEY_Q       81
-#define LINAGX_KEY_R       82
-#define LINAGX_KEY_S       83
-#define LINAGX_KEY_T       84
-#define LINAGX_KEY_U       85
-#define LINAGX_KEY_V       86
-#define LINAGX_KEY_W       87
-#define LINAGX_KEY_X       88
-#define LINAGX_KEY_Y       89
-#define LINAGX_KEY_Z       90
+#define LINAGX_KEY_A       0x00
+#define LINAGX_KEY_B       0x0B
+#define LINAGX_KEY_C       0x08
+#define LINAGX_KEY_D       0x02
+#define LINAGX_KEY_E       0x0E
+#define LINAGX_KEY_F       0x03
+#define LINAGX_KEY_G       0x05
+#define LINAGX_KEY_H       0x04
+#define LINAGX_KEY_I       0x22
+#define LINAGX_KEY_J       0x26
+#define LINAGX_KEY_K       0x28
+#define LINAGX_KEY_L       0x25
+#define LINAGX_KEY_M       0x2E
+#define LINAGX_KEY_N       0x2D
+#define LINAGX_KEY_O       0x1F
+#define LINAGX_KEY_P       0x23
+#define LINAGX_KEY_Q       0x0C
+#define LINAGX_KEY_R       0x0F
+#define LINAGX_KEY_S       0x01
+#define LINAGX_KEY_T       0x11
+#define LINAGX_KEY_U       0x20
+#define LINAGX_KEY_V       0x09
+#define LINAGX_KEY_W       0x0D
+#define LINAGX_KEY_X       0x07
+#define LINAGX_KEY_Y       0x10
+#define LINAGX_KEY_Z       0x06
 
-#define LINAGX_KEY_0 48
-#define LINAGX_KEY_1 49
-#define LINAGX_KEY_2 50
-#define LINAGX_KEY_3 51
-#define LINAGX_KEY_4 52
-#define LINAGX_KEY_5 53
-#define LINAGX_KEY_6 54
-#define LINAGX_KEY_7 55
-#define LINAGX_KEY_8 56
-#define LINAGX_KEY_9 57
+#define LINAGX_KEY_0 0x1D
+#define LINAGX_KEY_1 0x12
+#define LINAGX_KEY_2 0x13
+#define LINAGX_KEY_3 0x14
+#define LINAGX_KEY_4 0x15
+#define LINAGX_KEY_5 0x17
+#define LINAGX_KEY_6 0x16
+#define LINAGX_KEY_7 0x1A
+#define LINAGX_KEY_8 0x1C
+#define LINAGX_KEY_9 0x19
 
-#define LINAGX_KEY_RETURN    257
-#define LINAGX_KEY_ESCAPE    256
-#define LINAGX_KEY_BACKSPACE 259
-#define LINAGX_KEY_TAB       258
-#define LINAGX_KEY_SPACE     32
+#define LINAGX_KEY_RETURN    0x24
+#define LINAGX_KEY_ESCAPE    0x35
+#define LINAGX_KEY_BACKSPACE 0x33
+#define LINAGX_KEY_TAB       0x30
+#define LINAGX_KEY_SPACE     0x31
 
-#define LINAGX_KEY_MINUS 45
-#define LINAGX_KEY_GRAVE 96
+#define LINAGX_KEY_MINUS     0x1B  // '-'
+#define LINAGX_KEY_GRAVE     0x32  // '`'
+#define LINAGX_KEY_COMMA     0x2B  // ','
+#define LINAGX_KEY_PERIOD    0x2F  // '.'
+#define LINAGX_KEY_SLASH     0x2C  // '/'
+#define LINAGX_KEY_CAPSLOCK  0x39
 
-#define LINAGX_KEY_COMMA    44
-#define LINAGX_KEY_PERIOD   46
-#define LINAGX_KEY_SLASH    47
-#define LINAGX_KEY_CAPSLOCK 280
 
-#define LINAGX_KEY_F1  290
-#define LINAGX_KEY_F2  291
-#define LINAGX_KEY_F3  292
-#define LINAGX_KEY_F4  293
-#define LINAGX_KEY_F5  294
-#define LINAGX_KEY_F6  295
-#define LINAGX_KEY_F7  296
-#define LINAGX_KEY_F8  297
-#define LINAGX_KEY_F9  298
-#define LINAGX_KEY_F10 299
-#define LINAGX_KEY_F11 300
-#define LINAGX_KEY_F12 301
+#define LINAGX_KEY_F1  0x7A
+#define LINAGX_KEY_F2  0x78
+#define LINAGX_KEY_F3  0x63
+#define LINAGX_KEY_F4  0x76
+#define LINAGX_KEY_F5  0x60
+#define LINAGX_KEY_F6  0x61
+#define LINAGX_KEY_F7  0x62
+#define LINAGX_KEY_F8  0x64
+#define LINAGX_KEY_F9  0x65
+#define LINAGX_KEY_F10 0x6D
+#define LINAGX_KEY_F11 0x67
+#define LINAGX_KEY_F12 0x6F
+#define LINAGX_KEY_F13 0x69
+#define LINAGX_KEY_F14 0x6B
+#define LINAGX_KEY_F15 0x71
 
 #define LINAGX_KEY_PRINTSCREEN LINAGX_KEY_UNKNOWN
-#define LINAGX_KEY_SCROLLLOCK  281
-#define LINAGX_KEY_PAUSE       284
-#define LINAGX_KEY_INSERT      260
+#define LINAGX_KEY_SCROLLLOCK  LINAGX_KEY_UNKNOWN
+#define LINAGX_KEY_PAUSE       LINAGX_KEY_UNKNOWN
 
-#define LINAGX_KEY_HOME         268
-#define LINAGX_KEY_PAGEUP       266
-#define LINAGX_KEY_DELETE       261
-#define LINAGX_KEY_END          269
-#define LINAGX_KEY_PAGEDOWN     267
-#define LINAGX_KEY_RIGHT        262
-#define LINAGX_KEY_LEFT         263
-#define LINAGX_KEY_DOWN         264
-#define LINAGX_KEY_UP           265
-#define LINAGX_KEY_NUMLOCKCLEAR 282
+#define LINAGX_KEY_INSERT 0x72 // "Help" key on some older Mac keyboards
+#define LINAGX_KEY_HOME   0x73
+#define LINAGX_KEY_PAGEUP 0x74
+#define LINAGX_KEY_DELETE 0x75
+#define LINAGX_KEY_END    0x77
+#define LINAGX_KEY_PAGEDOWN 0x79
+#define LINAGX_KEY_RIGHT  0x7C
+#define LINAGX_KEY_LEFT   0x7B
+#define LINAGX_KEY_DOWN   0x7D
+#define LINAGX_KEY_UP     0x7E
+#define LINAGX_KEY_NUMLOCKCLEAR LINAGX_KEY_UNKNOWN
 
-#define LINAGX_KEY_KP_DECIMAL  330
-#define LINAGX_KEY_KP_DIVIDE   331
-#define LINAGX_KEY_KP_MULTIPLY 332
-#define LINAGX_KEY_KP_MINUS    333
-#define LINAGX_KEY_KP_PLUS     334
-#define LINAGX_KEY_KP_ENTER    335
-#define LINAGX_KEY_KP_1        321
-#define LINAGX_KEY_KP_2        322
-#define LINAGX_KEY_KP_3        323
-#define LINAGX_KEY_KP_4        324
-#define LINAGX_KEY_KP_5        325
-#define LINAGX_KEY_KP_6        326
-#define LINAGX_KEY_KP_7        327
-#define LINAGX_KEY_KP_8        328
-#define LINAGX_KEY_KP_9        329
-#define LINAGX_KEY_KP_0        320
+#define LINAGX_KEY_KP_DECIMAL  0x41
+#define LINAGX_KEY_KP_DIVIDE   0x4B
+#define LINAGX_KEY_KP_MULTIPLY 0x43
+#define LINAGX_KEY_KP_MINUS    0x4E
+#define LINAGX_KEY_KP_PLUS     0x45
+#define LINAGX_KEY_KP_ENTER    0x4C
+#define LINAGX_KEY_KP_1        0x53
+#define LINAGX_KEY_KP_2        0x54
+#define LINAGX_KEY_KP_3        0x55
+#define LINAGX_KEY_KP_4        0x56
+#define LINAGX_KEY_KP_5        0x57
+#define LINAGX_KEY_KP_6        0x58
+#define LINAGX_KEY_KP_7        0x59
+#define LINAGX_KEY_KP_8        0x5B
+#define LINAGX_KEY_KP_9        0x5C
+#define LINAGX_KEY_KP_0        0x52
 
-#define LINAGX_KEY_F13 302
-#define LINAGX_KEY_F14 303
-#define LINAGX_KEY_F15 304
-#define LINAGX_KEY_F16 305
-#define LINAGX_KEY_F17 306
-#define LINAGX_KEY_F18 307
-#define LINAGX_KEY_F19 308
-#define LINAGX_KEY_F20 309
-#define LINAGX_KEY_F21 310
-#define LINAGX_KEY_F22 311
-#define LINAGX_KEY_F23 312
-#define LINAGX_KEY_F24 313
-
-#define LINAGX_KEY_LCTRL  341
-#define LINAGX_KEY_LSHIFT 340
-#define LINAGX_KEY_LALT   342
-#define LINAGX_KEY_LGUI   343
-#define LINAGX_KEY_RCTRL  345
-#define LINAGX_KEY_RSHIFT 344
-#define LINAGX_KEY_RALT   346
-#define LINAGX_KEY_RGUI   347
+#define LINAGX_KEY_LCTRL  0x3B
+#define LINAGX_KEY_LSHIFT 0x38
+#define LINAGX_KEY_LALT   0x3A // Option key
+#define LINAGX_KEY_LGUI   0x37 // Command key
+#define LINAGX_KEY_RCTRL  0x3E
+#define LINAGX_KEY_RSHIFT 0x3C
+#define LINAGX_KEY_RALT   0x3D // Option key
+#define LINAGX_KEY_RGUI   0x36 // Command key
 
 #endif
 
@@ -448,15 +429,6 @@ namespace LinaGX
         KeyF13            = LINAGX_KEY_F13,
         KeyF14            = LINAGX_KEY_F14,
         KeyF15            = LINAGX_KEY_F15,
-        KeyF16            = LINAGX_KEY_F16,
-        KeyF17            = LINAGX_KEY_F17,
-        KeyF18            = LINAGX_KEY_F18,
-        KeyF19            = LINAGX_KEY_F19,
-        KeyF20            = LINAGX_KEY_F20,
-        KeyF21            = LINAGX_KEY_F21,
-        KeyF22            = LINAGX_KEY_F22,
-        KeyF23            = LINAGX_KEY_F23,
-        KeyF24            = LINAGX_KEY_F24,
         KeyLCTRL          = LINAGX_KEY_LCTRL,
         KeyLSHIFT         = LINAGX_KEY_LSHIFT,
         KeyLALT           = LINAGX_KEY_LALT,

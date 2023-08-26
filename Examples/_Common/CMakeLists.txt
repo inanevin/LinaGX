@@ -19,13 +19,20 @@ project(Common)
 # Set sources
 #--------------------------------------------------------------------
 
-set(COMMON_SOURCES 
-
+if(WIN32)
+set(SOURCES 
 src/App.cpp
-
 )
 
-set(COMMON_HEADERS
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/App.mm
+)
+endif()
+
+set(HEADERS
 
 include/App.hpp
 )
@@ -34,7 +41,7 @@ include/App.hpp
 #--------------------------------------------------------------------
 # Create executable project
 #--------------------------------------------------------------------
-add_library(${PROJECT_NAME} ${COMMON_SOURCES} ${COMMON_HEADERS})
+add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 add_library(LinaGX::ExamplesCommon ALIAS ${PROJECT_NAME})
 set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
 
@@ -62,9 +69,18 @@ target_link_libraries(${PROJECT_NAME}
 PUBLIC Lina::GX
 )
 
-set(glm_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/glm-0.9.9.8/cmake/glm/) # if necessary
+set(glm_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/glm-0.9.9.8/cmake/glm/) 
 find_package(glm REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC glm::glm)
+
+
+if(APPLE)
+
+target_link_libraries(${PROJECT_NAME}
+PUBLIC "-framework AppKit"
+)
+
+endif()
 
 
 #--------------------------------------------------------------------

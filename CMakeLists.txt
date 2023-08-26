@@ -70,7 +70,6 @@ src/Common/CommonGfx.cpp
 src/Common/CommonData.cpp
 src/Common/Math.cpp
 src/Core/Backend.cpp
-src/Core/Input.cpp
 src/Core/Instance.cpp
 src/Core/CommandStream.cpp
 src/Core/WindowManager.cpp
@@ -130,6 +129,7 @@ set(LinaGX_PLATFORM_SOURCES
 
 # Windows
 src/Platform/Windows/Win32Window.cpp
+src/PlatForm/Windows/Win32Input.cpp
 
 # Vulkan
 src/Platform/Vulkan/VKBackend.cpp
@@ -150,12 +150,16 @@ if(APPLE)
 set(LinaGX_PLATFORM_HEADERS
 include/LinaGX/Platform/Metal/MTLBackend.hpp
 include/LinaGX/Platform/Apple/OSXWindow.hpp
+include/LinaGX/Platform/Apple/OSXNSWindow.hh
 )
 
 set(LinaGX_PLATFORM_SOURCES
-src/Platform/Metal/MTLBackend.cpp
-src/Platform/Apple/OSXWindow.cpp
+src/Platform/Metal/MTLBackend.mm
+src/Platform/Apple/OSXWindow.mm
+src/Platform/Apple/OSXNSWindow.mm
+src/Platform/Apple/OSXInput.mm
 )
+
 
 endif()
 

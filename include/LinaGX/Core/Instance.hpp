@@ -267,7 +267,7 @@ namespace LinaGX
         /// </summary>
         void PollWindow()
         {
-            m_windowManager.PollWindow();
+            m_windowManager.PollWindowsAndInput();
         }
 
         inline uint32 GetCurrentFrameIndex()

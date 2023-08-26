@@ -32,6 +32,8 @@ SOFTWARE.
 #include "LinaGX/Common/CommonGfx.hpp"
 #include <iostream>
 #include <cstdarg>
+#include <chrono>
+
 
 namespace LinaGX
 {
@@ -68,13 +70,18 @@ namespace LinaGX
             virtual void Run();
             virtual void Shutdown();
             virtual void OnTick(){};
-
+            virtual void Tick();
+            virtual void Quit();
+            
         protected:
             bool   m_isRunning         = false;
             uint64 m_deltaMicroseconds = 0;
             uint64 m_framesPerSecond   = 0;
             float  m_deltaSeconds      = 0.0f;
             float  m_elapsedSeconds    = 0.0f;
+            std::chrono::steady_clock::time_point m_prevTime;
+            uint64 m_lastFrames = 0;
+            
         };
 
     } // namespace Examples

@@ -219,7 +219,7 @@ namespace LinaGX
 
     enum class QueueType
     {
-        Graphics,
+        Graphics = 0,
         Transfer,
         Compute
     };
@@ -469,6 +469,7 @@ namespace LinaGX
         uint32                                 totalDescriptors = 0;
         bool                                   hasGLDrawID      = false;
         uint32                                 drawIDBinding    = 0;
+        LINAGX_MAP<ShaderStage, LINAGX_STRING> entryPoints;
     };
 
     struct ShaderCompileData
@@ -729,8 +730,6 @@ namespace LinaGX
     typedef std::function<void(bool)>                                CallbackFocus;
     typedef std::function<void()>                                    CallbackHoverBegin;
     typedef std::function<void()>                                    CallbackHoverEnd;
-    typedef std::function<void()>                                    CallbackDragBegin;
-    typedef std::function<void()>                                    CallbackDragEnd;
 
 } // namespace LinaGX
 

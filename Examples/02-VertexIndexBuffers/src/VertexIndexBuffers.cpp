@@ -1,4 +1,4 @@
-﻿/*
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -102,7 +102,7 @@ namespace LinaGX::Examples
         //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Vertex Index Buffers", 0, 0, 800, 600, WindowStyle::WindowedApplication);
-            _window->SetCallbackClose([this]() { m_isRunning = false; });
+            _window->SetCallbackClose([this]() { Quit(); });
         }
 
         //******************* SHADER CREATION

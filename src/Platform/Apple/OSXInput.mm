@@ -29,10 +29,9 @@ SOFTWARE.
 
 #include "LinaGX/Core/Input.hpp"
 #include "LinaGX/Core/InputMappings.hpp"
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-#include <Windows.h>
-#endif
+#import <Cocoa/Cocoa.h>
+#import <CoreGraphics/CoreGraphics.h>
+#import <Carbon/Carbon.h>
 
 namespace LinaGX
 {
@@ -41,20 +40,18 @@ namespace LinaGX
         uint16       mask    = 0;
         const uint32 keycode = GetKeycode(ch);
 
-#ifdef LINAGX_PLATFORM_WINDOWS
-
         if (ch == L' ')
             mask |= Whitespace;
         else
         {
-            if (IsCharAlphaNumericW(ch))
+            if (iswalnum(ch))
             {
                 if (keycode >= '0' && keycode <= '9')
                     mask |= Number;
                 else
                     mask |= Letter;
             }
-            else if (iswctype(ch, _PUNCT))
+            else if (iswpunct(ch))
             {
                 mask |= Symbol;
 
@@ -74,53 +71,20 @@ namespace LinaGX
         if (mask & (Letter | Number | Whitespace | Separator | Symbol))
             mask |= Printable;
 
-#else
-        LOGA(false, "Not implemented!");
-#endif
+
         return mask;
     }
 
     uint32 Input::GetKeycode(char32_t c)
     {
-#ifdef LINAGX_PLATFORM_WINDOWS
-        return VkKeyScanExW(static_cast<WCHAR>(c), GetKeyboardLayout(0));
-#else
-        LOGA(false, "Not implemented!");
-#endif
+        LOGA(false, "Not implemented on macOS!");
         return 0;
     }
 
     wchar_t Input::GetCharacterFromKey(uint32 key)
     {
         wchar_t ch = 0;
-#ifdef LINAGX_PLATFORM_WINDOWS
-        BYTE keyboardState[256];
-
-        // Get the current keyboard state
-        if (!GetKeyboardState(keyboardState))
-        {
-            return ch;
-        }
-
-        // Set the keyboard state to a known state
-        // memset(keyboardState, 0, sizeof(keyboardState));
-
-        // Map the virtual keycode to a scan code
-        UINT scanCode = MapVirtualKeyEx(key, MAPVK_VK_TO_VSC, GetKeyboardLayout(0));
-
-        // Convert the scan code to a character
-        WCHAR unicodeChar[2] = {0};
-        int   result         = ToUnicodeEx(key, scanCode, keyboardState, unicodeChar, 2, 0, GetKeyboardLayout(0));
-
-        // If the conversion is successful and the character is a printable character
-        if (result == 1)
-        {
-            ch = unicodeChar[0];
-        }
-#else
-        LOGA(false, "Not implemented!");
-#endif
-
+        LOGA(false, "Not implemented on macOS!");
         return ch;
     }
 
@@ -129,37 +93,12 @@ namespace LinaGX
         return GetKey(LINAGX_KEY_LCTRL) || GetKey(LINAGX_KEY_RCTRL) || GetKey(LINAGX_KEY_LALT) || GetKey(LINAGX_KEY_RALT) || GetKey(LINAGX_KEY_TAB) || GetKey(LINAGX_KEY_CAPSLOCK);
     }
 
-    bool Input::IsPointInRect(const LGXVector2ui& point, const LGXRectui& rect)
-    {
-#ifdef LINAGX_PLATFORM_WINDOWS
-        RECT r;
-        r.left   = rect.pos.x;
-        r.top    = rect.pos.y;
-        r.right  = rect.pos.x + rect.size.x;
-        r.bottom = rect.pos.y + rect.size.y;
-        POINT pt;
-        pt.x = point.x;
-        pt.y = point.y;
-        return PtInRect(&r, pt);
-#else
-        LOGA(false, "Not implemented!");
-        return false;
-#endif
-    }
-
     bool Input::GetKey(int keycode)
     {
         if (!m_appActive)
             return false;
 
-        int keyState = 0;
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-        keyState = GetKeyState(keycode) & 0x8000 ? 1 : 0;
-#else
-        LOGA(false, "Not implemented!");
-#endif
-
+        int keyState = CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, keycode) ? 1 : 0;
         m_currentStates[keycode] = keyState;
         return keyState == 1;
     }
@@ -188,12 +127,8 @@ namespace LinaGX
     {
         if (!m_appActive)
             return false;
-
-        int keyState = 0;
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-        keyState = GetKeyState(button) & 0x8000 ? 1 : 0;
-#endif
+        
+        int keyState = m_globalMouseStates[button] ? 1 : 0;
         m_currentStates[button] = keyState;
         return keyState == 1;
     }
@@ -227,27 +162,13 @@ namespace LinaGX
         switch (mode)
         {
         case CursorMode::Visible:
-#ifdef LINAGX_PLATFORM_WINDOWS
-            ShowCursor(true);
-#else
-            LOGA(false, "Not implemented!!");
-#endif
+            [NSCursor unhide];
             break;
-
         case CursorMode::Hidden:
-#ifdef LINAGX_PLATFORM_WINDOWS
-            ShowCursor(false);
-#else
-            LOGA(false, "Not implemented!!");
-#endif
+            [NSCursor hide];
             break;
-
         case CursorMode::Disabled:
-#ifdef LINAGX_PLATFORM_WINDOWS
-            ShowCursor(false);
-#else
-            LOGA(false, "Not implemented!!");
-#endif
+            [NSCursor hide];
             break;
         }
     }
@@ -260,21 +181,10 @@ namespace LinaGX
 
     void Input::Tick()
     {
-        uint32 targetX = 0, targetY = 0;
-        
-#ifdef LINAGX_PLATFORM_WINDOWS
-        POINT point;
-        GetCursorPos(&point);
-        targetX = point.x;
-        targetY = point.y;
-#endif
-        
-#ifdef LINAGX_PLATFORM_APPLE
-        LOGE("NOT IMPLEMENTED");
-#endif
+        NSPoint point = [NSEvent mouseLocation]; // get current mouse position
         m_previousMousePosition     = m_currentMousePositionAbs;
-        m_currentMousePositionAbs.x = targetX;
-        m_currentMousePositionAbs.y = targetY;
+        m_currentMousePositionAbs.x = point.x;
+        m_currentMousePositionAbs.y = [[NSScreen mainScreen] frame].size.height - point.y;
         m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
         m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
     }
@@ -287,6 +197,7 @@ namespace LinaGX
 
     void Input::WindowFeedMouseButton(uint32 button, InputAction action)
     {
+        m_globalMouseStates[button] = action == InputAction::Released ? false : true;
         if (m_cbMouse)
             m_cbMouse(button, action);
     }

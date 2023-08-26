@@ -19,10 +19,20 @@ project(02-VertexIndexBuffers)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/VertexIndexBuffers.cpp
 )
+
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/VertexIndexBuffers.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

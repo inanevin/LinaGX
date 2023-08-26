@@ -1,4 +1,4 @@
-﻿/*
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -143,7 +143,7 @@ namespace LinaGX::Examples
         //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF Render Target", 0, 0, 800, 800, WindowStyle::WindowedApplication);
-            _window->SetCallbackClose([this]() { m_isRunning = false; });
+            _window->SetCallbackClose([this]() { Quit(); });
         }
 
         //******************* DEFAULT SHADER CREATION

@@ -91,17 +91,6 @@ namespace LinaGX
         /// <param name="str"></param>
         virtual void SetTitle(const LINAGX_STRING& str) = 0;
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="isDragged"></param>
-        virtual void SetForceIsDragged(bool isDragged, const LGXVector2ui& offset) = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="name"></param>
-        virtual void SetIcon(const LINAGX_STRING& name) = 0;
 
         /// <summary>
         ///
@@ -212,16 +201,6 @@ namespace LinaGX
             m_cbFocus = cb;
         }
 
-        inline void SetCallbackDragBegin(CallbackDragBegin&& cb)
-        {
-            m_cbDragBegin = cb;
-        }
-
-        inline void SetCallbackDragEnd(CallbackDragEnd&& cb)
-        {
-            m_cbDragEnd = cb;
-        }
-
         inline void SetCallbackHoverBegin(CallbackHoverBegin&& cb)
         {
             m_cbHoverBegin = cb;
@@ -287,11 +266,6 @@ namespace LinaGX
             m_dragRect = rect;
         }
 
-        inline bool GetIsDragged() const
-        {
-            return m_isDragged;
-        }
-
         inline bool GetIsHovered() const
         {
             return m_isHovered;
@@ -339,8 +313,6 @@ namespace LinaGX
         CallbackFocus       m_cbFocus       = nullptr;
         CallbackHoverBegin  m_cbHoverBegin  = nullptr;
         CallbackHoverEnd    m_cbHoverEnd    = nullptr;
-        CallbackDragBegin   m_cbDragBegin   = nullptr;
-        CallbackDragEnd     m_cbDragEnd     = nullptr;
 
     protected:
         LINAGX_STRINGID          m_sid   = 0;
@@ -358,9 +330,7 @@ namespace LinaGX
         bool                     m_isTransparent      = false;
         float                    m_alpha              = 0.0f;
         bool                     m_hasFocus           = true;
-        bool                     m_isDragged          = false;
         bool                     m_isHovered          = false;
-        bool                     m_isInputPassThrough = false;
         CursorType               m_cursorType         = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
         WindowStyle              m_style = WindowStyle::WindowedApplication;

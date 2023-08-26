@@ -57,8 +57,6 @@ namespace LinaGX
         virtual void         BringToFront() override;
         virtual void         SetAlpha(float alpha) override;
         virtual void         SetTitle(const LINAGX_STRING& str) override;
-        virtual void         SetForceIsDragged(bool isDragged, const LGXVector2ui& offset) override;
-        virtual void         SetIcon(const LINAGX_STRING& name) override;
         virtual void         Maximize() override;
         virtual void         Minimize() override;
         virtual void         Restore() override;
@@ -86,26 +84,24 @@ namespace LinaGX
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) override;
         virtual void Destroy() override;
-        virtual void PreTick() override;
         virtual void Tick() override;
 
     private:
         uint32 GetStyle(WindowStyle style);
         void   OnDPIChanged(uint32 dpi);
-        void   OnDrag(bool begin);
 
     private:
         HWND__*      m_hwnd                 = nullptr;
         HINSTANCE__* m_hinst                = nullptr;
         bool         m_titleChangeRequested = false;
         bool         m_markedDestroy        = false;
-        LGXVector2ui m_dragMouseDelta       = {};
         LGXVector2i  m_restorePos           = {};
         LGXVector2ui m_restoreSize          = {};
         HICON__*     m_icon                 = nullptr;
         bool         m_isMaximizeFullscreen = false;
         Win32Window* m_parent               = nullptr;
         bool         m_setToFullscreen      = false;
+        bool         m_mouseMoved = false;
     };
 } // namespace LinaGX
 

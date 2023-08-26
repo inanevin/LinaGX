@@ -1,4 +1,4 @@
-﻿/*
+/*
 This file is a part of: LinaVG
 https://github.com/inanevin/LinaVG
 
@@ -30,6 +30,7 @@ SOFTWARE.
 #include "WindowCreation.hpp"
 
 using namespace LinaGX::Examples;
+
 
 int main(int argc, char* argv[])
 {

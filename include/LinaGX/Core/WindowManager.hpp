@@ -48,7 +48,6 @@ namespace LinaGX
     public:
         Window* CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style = WindowStyle::WindowedApplication, Window* parent = nullptr);
         void    DestroyApplicationWindow(LINAGX_STRINGID sid);
-        void    PollWindow();
 
         inline Window* GetWindow(LINAGX_STRINGID sid)
         {
@@ -76,6 +75,7 @@ namespace LinaGX
 
         void Initialize();
         void Shutdown();
+        void PollWindowsAndInput();
 
     private:
         LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows = {};

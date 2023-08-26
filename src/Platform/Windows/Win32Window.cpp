@@ -164,12 +164,6 @@ namespace LinaGX
 
         switch (msg)
         {
-        case WM_NCLBUTTONDOWN: {
-
-            if (win32Window->m_style == WindowStyle::BorderlessApplication)
-                win32Window->OnDrag(true);
-            break;
-        }
         case WM_NCACTIVATE: {
 
             if (!composition_enabled())
@@ -227,17 +221,6 @@ namespace LinaGX
 
             win32Window->m_hasFocus = true;
 
-            break;
-        }
-        case WM_WINDOWPOSCHANGED: {
-            break;
-        }
-        case WM_DISPLAYCHANGE: {
-            break;
-        }
-        case WM_DESTROY: {
-            if (win32Window->m_icon)
-                DestroyIcon(win32Window->m_icon);
             break;
         }
         case WM_DPICHANGED: {
@@ -348,7 +331,8 @@ namespace LinaGX
             uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
             uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
             handleMouseMove(win32Window, xPos, yPos);
-            break;
+            win32Window->m_mouseMoved = true;
+            return 0;
         }
         case WM_NCMOUSEMOVE: {
             if (win32Window->m_style == WindowStyle::BorderlessApplication)
@@ -400,11 +384,6 @@ namespace LinaGX
             break;
         }
         case WM_LBUTTONUP: {
-
-            if (win32Window->m_isDragged)
-            {
-                win32Window->OnDrag(false);
-            }
 
             if (win32Window->m_cbMouse)
                 win32Window->m_cbMouse(VK_LBUTTON, InputAction::Released);
@@ -517,31 +496,13 @@ namespace LinaGX
         DestroyWindow(m_hwnd);
     }
 
-    void Win32Window::PreTick()
-    {
-        // Reset as this will be called pre-pump messages
-        m_mouseDelta = {0, 0};
-    }
-
-    void Win32Window::OnDrag(bool begin)
-    {
-        if (begin)
-        {
-            m_isDragged      = true;
-            m_dragMouseDelta = m_mousePosition;
-
-            if (m_cbDragBegin)
-                m_cbDragBegin();
-        }
-        else
-        {
-            m_isDragged = false;
-            if (m_cbDragEnd)
-                m_cbDragEnd();
-        }
-    }
     void Win32Window::Tick()
     {
+        if(!m_mouseMoved)
+            m_mouseDelta = {0,0};
+        
+        m_mouseMoved = false;
+        
         if (!m_sizeRequests.empty())
         {
             SetSize(m_sizeRequests[m_sizeRequests.size() - 1]);
@@ -772,25 +733,6 @@ namespace LinaGX
     {
         m_title                = str;
         m_titleChangeRequested = true;
-    }
-
-    void Win32Window::SetForceIsDragged(bool isDragged, const LGXVector2ui& offset)
-    {
-        m_isDragged = isDragged;
-        OnDrag(m_isDragged);
-        if (m_isDragged)
-            m_dragMouseDelta = offset;
-    }
-
-    void Win32Window::SetIcon(const LINAGX_STRING& name)
-    {
-        if (m_icon)
-            DestroyIcon(m_icon);
-
-        const LINAGX_STRING fullName = name + ".ico";
-        m_icon                       = (HICON)LoadImage(NULL, fullName.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
-        SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)m_icon);
-        SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)m_icon);
     }
 
     void Win32Window::Maximize()

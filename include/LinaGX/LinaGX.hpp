@@ -29,6 +29,9 @@ SOFTWARE.
 /*
 NOTES:
 
+- name your shader functions main
+
+ 
 - 16 byte alignment per element in each struct for SSBO and UBOs.
 
 - Projection matrices should produce depth for range 0.0f and 1.0f.
@@ -61,7 +64,24 @@ use to index into another buffer for per-draw-call parameters.
 - Refactor so that CMDComputeBarrier is CMDComputeIndirectBarrier or something
 
 - Multiple queues can not write to the same swapchain at the same time.
+ 
+ - stencil not supported yet
+ 
+ - subpasses not supported yet
+ 
+ - only 1 vertex buffer index/slot is supported atm.
+ 
+ - single write mask only for psos.
+ 
+ - no render pass load store selection
+ 
+- blend logic operations are not supported on Metal.
+- compare op NotEqual is not supported on Metal.
+- format checking is not supported on metal.
+- no geometry shaders in metal.
+- no separate tesellation shaders?
 
+ 
 */
 
 #pragma once

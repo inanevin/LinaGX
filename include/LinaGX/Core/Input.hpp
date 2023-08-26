@@ -44,7 +44,7 @@ namespace LinaGX
 #ifdef LINAGX_PLATFORM_WINDOWS
     class Win32Window;
 #elif LINAGX_PLATFORM_APPLE
-    class AppleWindow;
+    class OSXWindow;
 #endif
 
     class Input
@@ -76,14 +76,6 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         bool IsControlPressed();
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="point"></param>
-        /// <param name="rect"></param>
-        /// <returns></returns>
-        bool IsPointInRect(const LGXVector2ui& point, const LGXRectui& rect);
 
         /// <summary>
         ///
@@ -224,7 +216,7 @@ namespace LinaGX
 #ifdef LINAGX_PLATFORM_WINDOWS
         friend class Win32Window;
 #elif LINAGX_PLATFORM_APPLE
-        friend class AppleWindow;
+        friend class OSXWindow;
 #endif
 
         void PreTick();
@@ -255,6 +247,7 @@ namespace LinaGX
         CallbackMouse      m_cbMouse      = nullptr;
         CallbackMouseWheel m_cbMouseWheel = nullptr;
         CallbackMouseMove  m_cbMouseMove  = nullptr;
+        LINAGX_MAP<uint32, bool> m_globalMouseStates;
     };
 } // namespace LinaGX
 

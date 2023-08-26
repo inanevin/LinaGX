@@ -28,50 +28,39 @@ SOFTWARE.
 
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
-#include <chrono>
+
+#import <Cocoa/Cocoa.h>
 
 namespace LinaGX::Examples
 {
     void App::Initialize()
     {
-
+        
     }
 
     void App::Run()
     {
         m_isRunning = true;
         m_prevTime       = std::chrono::high_resolution_clock::now();
-
-        while (m_isRunning)
-        {
-            Tick();
-        }
-
-        Shutdown();
     }
 
     void App::Tick()
     {
+        if(!m_isRunning)
+            return;
+        
         auto now            = std::chrono::high_resolution_clock::now();
         auto duration       = std::chrono::duration_cast<std::chrono::microseconds>(now - m_prevTime);
-        m_prevTime                = now;
+        m_prevTime          = now;
         m_deltaMicroseconds = duration.count();
         m_deltaSeconds      = static_cast<float>(m_deltaMicroseconds) / 1000000.0f;
         m_elapsedSeconds += m_deltaSeconds;
-
-        MSG msg    = {0};
-        msg.wParam = 0;
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
         
         OnTick();
-
+        
         static uint64 fpsCounter = 0;
         fpsCounter += m_deltaMicroseconds;
-
+        
         if (fpsCounter > 2000000)
         {
             fpsCounter        = 0;
@@ -84,10 +73,12 @@ namespace LinaGX::Examples
     void App::Quit()
     {
         m_isRunning = false;
+        [NSApp stop:nil];
     }
 
     void App::Shutdown()
     {
+        
     }
 
 } // namespace LinaGX::Examples

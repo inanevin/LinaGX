@@ -1637,13 +1637,13 @@ namespace LinaGX
         LINAGX_VEC<VkSubmitInfo> submitInfos;
         submitInfos.resize(desc.streamCount);
 
-        // if (desc.isMultithreaded)
-        // {
-        //     // spinlock
-        //     while (flag->test_and_set(std::memory_order_acquire))
-        //     {
-        //     }
-        // }
+        if (desc.isMultithreaded)
+        {
+            // spinlock
+            while (flag->test_and_set(std::memory_order_acquire))
+            {
+            }
+        }
 
         queue.wasSubmitted[m_currentFrameIndex] = true;
 

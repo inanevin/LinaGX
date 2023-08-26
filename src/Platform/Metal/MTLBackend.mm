@@ -1,0 +1,1251 @@
+/*
+This file is a part of: LinaGX
+https://github.com/inanevin/LinaGX
+
+Author: Inan Evin
+http://www.inanevin.com
+
+Copyright (c) [2022-] [Inan Evin]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+#include "LinaGX/Platform/Metal/MTLBackend.hpp"
+#include "LinaGX/Utility/PlatformUtility.hpp"
+#include "LinaGX/Core/Commands.hpp"
+#include "LinaGX/Core/Instance.hpp"
+#include "LinaGX/Core/CommandStream.hpp"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import <QuartzCore/CAMetalLayer.h>
+#import <Cocoa/Cocoa.h>
+
+namespace LinaGX
+{
+
+#define AS_MTL(X,Y) static_cast<Y>(X)
+#define AS_VOID(X) static_cast<void*>(X)
+
+#ifndef NDEBUG
+
+#define NAME_OBJ_CSTR(X,Y) NSString *debugNSString = [NSString stringWithUTF8String:Y]; \
+[X setLabel:debugNSString]
+
+#else
+
+#define NAME_OBJ_CSTR(X,Y)
+
+#endif
+
+MTLPixelFormat GetMTLFormat(Format format)
+{
+    switch (format)
+    {
+    case Format::UNDEFINED:
+        return MTLPixelFormatInvalid;
+    case Format::B8G8R8A8_SRGB:
+        return MTLPixelFormatBGRA8Unorm_sRGB;
+    case Format::B8G8R8A8_UNORM:
+        return MTLPixelFormatBGRA8Unorm;
+    case Format::R32G32B32_SFLOAT:
+        return MTLPixelFormatInvalid;
+    case Format::R32G32B32_SINT:
+        return MTLPixelFormatInvalid;
+    case Format::R32G32B32A32_SFLOAT:
+        return MTLPixelFormatRGBA32Float;
+    case Format::R32G32B32A32_SINT:
+        return MTLPixelFormatRGBA32Sint;
+    case Format::R16G16B16A16_SFLOAT:
+        return MTLPixelFormatRGBA16Float;
+    case Format::R32G32_SFLOAT:
+        return MTLPixelFormatRG32Float;
+    case Format::R32G32_SINT:
+        return MTLPixelFormatRG32Sint;
+    case Format::D32_SFLOAT:
+        return MTLPixelFormatDepth32Float;
+    case Format::R8G8B8A8_UNORM:
+        return MTLPixelFormatRGBA8Unorm;
+    case Format::R8G8B8A8_SRGB:
+        return MTLPixelFormatRGBA8Unorm_sRGB;
+    case Format::R8G8_UNORM:
+        return MTLPixelFormatRG8Unorm;
+    case Format::R8_UNORM:
+        return MTLPixelFormatR8Unorm;
+    case Format::R8_UINT:
+        return MTLPixelFormatR8Uint;
+    case Format::R16_SFLOAT:
+        return MTLPixelFormatR16Float;
+    case Format::R16_SINT:
+        return MTLPixelFormatR16Sint;
+    case Format::R32_SFLOAT:
+        return MTLPixelFormatR32Float;
+    case Format::R32_SINT:
+        return MTLPixelFormatR32Sint;
+    case Format::R32_UINT:
+        return MTLPixelFormatR32Uint;
+    default:
+        return MTLPixelFormatInvalid;
+    }
+
+    return MTLPixelFormatInvalid;
+}
+
+MTLBlendFactor GetMTLBlendFactor(BlendFactor factor)
+{
+    switch (factor)
+    {
+        case BlendFactor::Zero:
+            return MTLBlendFactorZero;
+        case BlendFactor::One:
+            return MTLBlendFactorOne;
+        case BlendFactor::SrcColor:
+            return MTLBlendFactorSourceColor;
+        case BlendFactor::OneMinusSrcColor:
+            return MTLBlendFactorOneMinusSourceColor;
+        case BlendFactor::DstColor:
+            return MTLBlendFactorDestinationColor;
+        case BlendFactor::OneMinusDstColor:
+            return MTLBlendFactorOneMinusDestinationColor;
+        case BlendFactor::SrcAlpha:
+            return MTLBlendFactorSourceAlpha;
+        case BlendFactor::OneMinusSrcAlpha:
+            return MTLBlendFactorOneMinusSourceAlpha;
+        case BlendFactor::DstAlpha:
+            return MTLBlendFactorDestinationAlpha;
+        case BlendFactor::OneMinusDstAlpha:
+            return MTLBlendFactorOneMinusDestinationAlpha;
+        default:
+            return MTLBlendFactorZero;
+    }
+}
+
+MTLBlendOperation GetMTLBlendOp(BlendOp op) {
+    switch (op) {
+        case BlendOp::Add:
+            return MTLBlendOperationAdd;
+        case BlendOp::Subtract:
+            return MTLBlendOperationSubtract;
+        case BlendOp::ReverseSubtract:
+            return MTLBlendOperationReverseSubtract;
+        case BlendOp::Min:
+            return MTLBlendOperationMin;
+        case BlendOp::Max:
+            return MTLBlendOperationMax;
+        default:
+            return MTLBlendOperationAdd;
+    }
+}
+
+MTLCompareFunction GetMTLCompareOp(CompareOp op) {
+    switch (op) {
+        case CompareOp::Never:
+            return MTLCompareFunctionNever;
+        case CompareOp::Less:
+            return MTLCompareFunctionLess;
+        case CompareOp::Equal:
+            return MTLCompareFunctionEqual;
+        case CompareOp::LEqual:
+            return MTLCompareFunctionLessEqual;
+        case CompareOp::Greater:
+            return MTLCompareFunctionGreater;
+        case CompareOp::NotEqual:
+            // Metal does not have a direct equivalent for "NotEqual"
+            // You may have to implement this in shader code.
+            return MTLCompareFunctionNever; // Placeholder
+        case CompareOp::GEqual:
+            return MTLCompareFunctionGreaterEqual;
+        case CompareOp::Always:
+            return MTLCompareFunctionAlways;
+        default:
+            return MTLCompareFunctionAlways;
+    }
+}
+
+MTLVertexFormat GetMTLVertexFormat(Format format)
+{
+    switch(format)
+    {
+        case Format::R32G32B32A32_SFLOAT:
+            return MTLVertexFormatFloat4;
+        case Format::R32G32B32A32_SINT:
+            return MTLVertexFormatInt4;
+        case Format::R32G32B32_SFLOAT:
+            return MTLVertexFormatFloat3;
+        case Format::R32G32B32_SINT:
+            return MTLVertexFormatInt3;
+        case Format::R32G32_SFLOAT:
+            return MTLVertexFormatFloat2;
+        case Format::R32G32_SINT:
+            return MTLVertexFormatInt2;
+        case Format::R32_SINT:
+            return MTLVertexFormatInt;
+        case Format::R32_SFLOAT:
+            return MTLVertexFormatFloat;
+        default:
+            LOGA(false, "Not supported yet!");
+            return MTLVertexFormatInvalid;
+    }
+}
+
+MTLCullMode GetMTLCullMode(CullMode mode)
+{
+        switch(mode)
+        {
+            case CullMode::Back:
+                return MTLCullModeBack;
+            case CullMode::Front:
+                return MTLCullModeFront;
+            case CullMode::None:
+                return MTLCullModeNone;
+            default:
+                return MTLCullModeNone;
+        }
+}
+
+MTLPrimitiveTopologyClass GetMTLTopology(Topology topology)
+{
+    switch(topology)
+    {
+        case Topology::PointList:
+            return MTLPrimitiveTopologyClassPoint;
+        case Topology::LineList:
+        case Topology::LineStrip:
+            return MTLPrimitiveTopologyClassLine;
+        case Topology::TriangleList:
+        case Topology::TriangleStrip:
+        case Topology::TriangleFan:
+        case Topology::TriangleListAdjacency:
+        case Topology::TriangleStripAdjacency:
+        default:
+            return MTLPrimitiveTopologyClassTriangle;
+    }
+}
+
+MTLPrimitiveType GetMTLPrimitive(Topology topology)
+{
+    switch(topology)
+    {
+        case Topology::PointList:
+            return MTLPrimitiveTypePoint;
+        case Topology::LineList:
+            return MTLPrimitiveTypeLine;
+        case Topology::LineStrip:
+            return MTLPrimitiveTypeLineStrip;
+        case Topology::TriangleStrip:
+            return MTLPrimitiveTypeTriangleStrip;
+        case Topology::TriangleFan:
+        case Topology::TriangleList:
+        case Topology::TriangleListAdjacency:
+        case Topology::TriangleStripAdjacency:
+        default:
+            return MTLPrimitiveTypeTriangle;
+    }
+}
+
+uint16 MTLBackend::CreateUserSemaphore() {
+    MTLUserSemaphore item = {};
+    item.isValid = true;
+    
+    auto device = AS_MTL(m_device, id<MTLDevice>);
+    id<MTLSharedEvent> ev = [device newSharedEvent];
+    [ev retain];
+    item.semaphore = AS_VOID(ev);
+    
+    return m_userSemaphores.AddItem(item);
+}
+
+void MTLBackend::DestroyUserSemaphore(uint16 handle) {
+    auto& semaphore = m_userSemaphores.GetItemR(handle);
+    
+    if (!semaphore.isValid)
+    {
+        LOGE("Backend -> Semaphore to be destroyed is not valid!");
+        return;
+    }
+    
+    id<MTLSharedEvent> ev = AS_MTL(semaphore.semaphore, id<MTLSharedEvent>);
+    [ev release];
+
+    m_userSemaphores.RemoveItem(handle);
+}
+
+void MTLBackend::WaitForUserSemaphore(uint16 handle, uint64 value)
+{
+    auto& semaphore = m_userSemaphores.GetItemR(handle);
+    
+    id<MTLSharedEvent> ev = AS_MTL(semaphore.semaphore, id<MTLSharedEvent>);
+    
+    while(ev.signaledValue < value)
+    {
+        
+    }
+    // waited.
+}
+
+uint8 MTLBackend::CreateSwapchain(const SwapchainDesc &desc) {
+    MTLSwapchain item = {};
+    item.isValid = true;
+    
+    CAMetalLayer* layer = [CAMetalLayer layer];
+    [layer retain];
+    layer.device = AS_MTL(m_device, id<MTLDevice>);
+    layer.pixelFormat = GetMTLFormat(desc.format);
+    layer.maximumDrawableCount = 3;
+    item.layer = AS_VOID(layer);
+    item.width = desc.width;
+    item.height = desc.height;
+    
+    NSWindow* wnd = AS_MTL(desc.window, NSWindow*);
+    item.window = AS_VOID(wnd);
+    
+    CGSize sz;
+    sz.width = desc.width;
+    sz.height = desc.height;
+    layer.drawableSize = sz;
+    layer.contentsScale = wnd.backingScaleFactor;
+    
+    NSView* view = AS_MTL(desc.osHandle, NSView*);
+    [view setWantsLayer:YES];
+    [view setLayer:layer];
+    // TODO: vsync.
+
+    return m_swapchains.AddItem(item);
+}
+
+void MTLBackend::DestroySwapchain(uint8 handle) {
+    auto& swp = m_swapchains.GetItemR(handle);
+    if (!swp.isValid)
+    {
+        LOGE("Backend -> Swapchain to be destroyed is not valid!");
+        return;
+    }
+    
+    CAMetalLayer* layer = AS_MTL(swp.layer, CAMetalLayer*);
+    [layer release];
+    
+    m_swapchains.RemoveItem(handle);
+}
+
+void MTLBackend::RecreateSwapchain(const SwapchainRecreateDesc &desc) {
+    auto& swap = m_swapchains.GetItemR(desc.swapchain);
+    swap.width = desc.width;
+    swap.height = desc.height;
+    CAMetalLayer* layer = AS_MTL(swap.layer, CAMetalLayer*);
+    NSWindow* wnd = AS_MTL(swap.window, NSWindow*);
+    CGSize sz;
+    sz.width = desc.width;
+    sz.height = desc.height;
+    layer.drawableSize = sz;
+    layer.contentsScale = wnd.backingScaleFactor;
+    // TODO: vsync.
+}
+
+void MTLBackend::SetSwapchainActive(uint8 swp, bool isActive) {
+    auto& swap = m_swapchains.GetItemR(swp);
+    swap.isActive = isActive;
+}
+
+bool MTLBackend::CompileShader(ShaderStage stage, const std::string &source, DataBlob &outBlob) {
+    auto device = AS_MTL(m_device, id<MTLDevice>);
+    outBlob.ptr = (uint8*)LINAGX_MALLOC(source.size());
+    outBlob.size = source.size();
+    LINAGX_MEMCPY(outBlob.ptr, source.data(), source.size());
+    return true;
+}
+
+uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
+    MTLShader item = {};
+    item.isValid = true;
+    item.polygonMode = shaderDesc.polygonMode;
+    item.cullMode = shaderDesc.cullMode;
+    item.frontFace = shaderDesc.frontFace;
+    item.topology = shaderDesc.topology;
+    
+    for (const auto& [stage, blob] : shaderDesc.stages)
+    {
+        if (stage == ShaderStage::Compute)
+        {
+            if (shaderDesc.stages.size() == 1)
+            {
+                item.isCompute = true;
+                break;
+            }
+            else
+            {
+                LOGA(false, "Shader contains a compute stage but that is not the only stage, which is forbidden!");
+            }
+        }
+    }
+    
+    auto device = AS_MTL(m_device, id<MTLDevice>);
+    
+    if(item.isCompute)
+    {
+        const auto& blob = shaderDesc.stages.at(ShaderStage::Compute);
+        
+        NSString* src = [[NSString alloc] initWithBytes:blob.ptr length:blob.size encoding:NSUTF8StringEncoding];
+        NSError* err = nil;
+
+        id<MTLLibrary> lib = [device newLibraryWithSource:src options:nil error:&err];
+        [lib retain];
+        id<MTLFunction> computeFunc = [lib newFunctionWithName:@"main"];
+        [computeFunc retain];
+        
+        id<MTLComputePipelineState> cso = [device newComputePipelineStateWithFunction:computeFunc error:&err];
+        [cso retain];
+        item.cso = AS_VOID(cso);
+        
+        [lib release];
+        [computeFunc release];
+        		
+        return m_shaders.AddItem(item);
+
+    }
+    
+    MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    pipelineDescriptor.inputPrimitiveTopology = GetMTLTopology(shaderDesc.topology);
+    
+    // Depth
+    MTLDepthStencilDescriptor * depthStencilDescriptor = [[MTLDepthStencilDescriptor alloc] init];
+    depthStencilDescriptor.depthWriteEnabled = shaderDesc.depthWrite;
+    depthStencilDescriptor.depthCompareFunction = GetMTLCompareOp(shaderDesc.depthCompare);
+    pipelineDescriptor.depthAttachmentPixelFormat = shaderDesc.depthTest ? GetMTLFormat(shaderDesc.depthAttachmentFormat) : MTLPixelFormatInvalid;
+
+    // Color attachment
+    pipelineDescriptor.colorAttachments[0].writeMask = MTLColorWriteMaskAll;
+    pipelineDescriptor.colorAttachments[0].pixelFormat = GetMTLFormat(shaderDesc.colorAttachmentFormat);
+    pipelineDescriptor.colorAttachments[0].blendingEnabled = shaderDesc.blendAttachment.blendEnabled;
+    pipelineDescriptor.colorAttachments[0].rgbBlendOperation = GetMTLBlendOp(shaderDesc.blendAttachment.colorBlendOp);
+    pipelineDescriptor.colorAttachments[0].alphaBlendOperation = GetMTLBlendOp(shaderDesc.blendAttachment.alphaBlendOp);
+    pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor= GetMTLBlendFactor(shaderDesc.blendAttachment.srcColorBlendFactor);
+    pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = GetMTLBlendFactor(shaderDesc.blendAttachment.dstColorBlendFactor);
+    pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = GetMTLBlendFactor(shaderDesc.blendAttachment.srcAlphaBlendFactor);
+    pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor= GetMTLBlendFactor(shaderDesc.blendAttachment.dstAlphaBlendFactor);
+    // shaderDesc.blendLogicOp;
+    // shaderDesc.blendLogicOpEnabled;
+    
+    // misc
+    pipelineDescriptor.alphaToCoverageEnabled = false;
+    
+    MTLVertexDescriptor* vertexDescriptor = [[MTLVertexDescriptor alloc] init];
+    
+    uint32 i = 0;
+    size_t totalSize = 0;
+    for (const auto& input : shaderDesc.layout.vertexInputs)
+    {
+        vertexDescriptor.attributes[i].format = GetMTLVertexFormat(input.format);
+        vertexDescriptor.attributes[i].offset = input.offset;
+        vertexDescriptor.attributes[i].bufferIndex = 0;
+        totalSize += input.size;
+        i++;
+    }
+    
+    if(!shaderDesc.layout.vertexInputs.empty())
+    {
+        vertexDescriptor.layouts[0].stride = totalSize;
+        vertexDescriptor.layouts[0].stepRate = 1;
+        vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+        [pipelineDescriptor setVertexDescriptor:vertexDescriptor];
+    }
+  
+
+    // Stages
+    LINAGX_MAP<ShaderStage, id<MTLLibrary>> libs;
+    
+    for(const auto& [stg, blob] : shaderDesc.stages)
+    {
+        void* data = LINAGX_MALLOC(blob.size);
+        LINAGX_MEMCPY(data, blob.ptr, blob.size);
+        std::string readData ((char*)data, blob.size);
+        LINAGX_FREE(data);
+        
+        NSString* src = [NSString stringWithUTF8String:readData.c_str()];
+        NSError* error = nil;
+        libs[stg] = [device newLibraryWithSource:src options:nil error:&error];
+        [libs[stg] retain];
+        
+        NSString* entryPoint = [NSString stringWithUTF8String:shaderDesc.layout.entryPoints.at(stg).c_str()];
+        
+        id<MTLFunction> f = [libs[stg] newFunctionWithName:entryPoint];
+        
+        if(stg == ShaderStage::Compute)
+        {
+            LOGA(false, "!!");
+        }
+        else if(stg == ShaderStage::Fragment)
+            pipelineDescriptor.fragmentFunction = f;
+        else if(stg == ShaderStage::Vertex)
+            pipelineDescriptor.vertexFunction = f;
+        else{
+            LOGA(false, "Unsupported stage!!");
+        }
+    }
+    
+    // Debug
+    NAME_OBJ_CSTR(pipelineDescriptor, shaderDesc.debugName);
+
+    // TODO: Set cull mode, winding order and topology when beginning a render pass via its configuration
+    
+    NSError *error = nil;
+    id<MTLRenderPipelineState> pso = [device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:&error];
+    [pso retain];
+    item.pso = AS_VOID(pso);
+    
+    if(error != nil)
+    {
+        const char *cString = [error.description UTF8String];
+        LOGE("Backend -> Error creating shader! %s", cString);
+    }
+
+    id<MTLDepthStencilState> dsso = [device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    [dsso retain];
+    item.dsso = AS_VOID(dsso);
+
+    
+    for(const auto& [stg, blob] : shaderDesc.stages)
+    {
+        [libs[stg] release];
+    }
+    
+    return m_shaders.AddItem(item);
+}
+
+void MTLBackend::DestroyShader(uint16 handle) {
+    auto& shader = m_shaders.GetItemR(handle);
+    if (!shader.isValid)
+    {
+        LOGE("Backend -> Shader to be destroyed is not valid!");
+        return;
+    }
+    
+    if(shader.isCompute)
+    {
+        id<MTLComputePipelineState> cso = AS_MTL(shader.cso, id<MTLComputePipelineState>);
+        [cso release];
+    }
+    else{
+        id<MTLRenderPipelineState> pso = AS_MTL(shader.pso, id<MTLRenderPipelineState>);
+        id<MTLDepthStencilState> dsso = AS_MTL(shader.dsso, id<MTLDepthStencilState>);
+        [pso release];
+        [dsso release];
+    }
+
+    m_shaders.RemoveItem(handle);
+}
+
+uint32 MTLBackend::CreateTexture2D(const Texture2DDesc &desc) {
+    MTLTexture2D item = {};
+    item.isValid = true;
+    
+    return m_texture2Ds.AddItem(item);
+}
+
+void MTLBackend::DestroyTexture2D(uint32 handle) {
+    auto& txt = m_texture2Ds.GetItemR(handle);
+    if (!txt.isValid)
+    {
+        LOGE("Backend -> Texture to be destroyed is not valid!");
+        return;
+    }
+    
+    m_texture2Ds.RemoveItem(handle);
+}
+
+uint32 MTLBackend::CreateSampler(const SamplerDesc &desc) {
+    MTLSampler item ={};
+    item.isValid = true;
+    
+    return m_samplers.AddItem(item);
+}
+
+void MTLBackend::DestroySampler(uint32 handle) {
+    auto& item = m_samplers.GetItemR(handle);
+    if (!item.isValid)
+    {
+        LOGE("Backend -> Sampler to be destroyed is not valid!");
+        return;
+    }
+    
+    m_samplers.RemoveItem(handle);
+}
+
+uint32 MTLBackend::CreateResource(const ResourceDesc &desc) {
+    MTLResource item = {};
+    item.isValid = true;
+    item.heapType = desc.heapType;
+    item.size = desc.size;
+    
+    auto device = AS_MTL(m_device, id<MTLDevice>);
+    
+    MTLResourceOptions options = 0;
+   
+    if(desc.heapType == ResourceHeap::GPUOnly)
+        options |= MTLResourceStorageModePrivate;
+    else if(desc.heapType == ResourceHeap::StagingHeap)
+        options |= MTLStorageModeManaged;
+    else if(desc.heapType == ResourceHeap::CPUVisibleGPUMemory)
+        options |= MTLStorageModeShared;
+    
+    id<MTLBuffer> buffer = [device newBufferWithLength:desc.size options:options];
+    [buffer retain];
+    item.ptr = AS_VOID(buffer);
+    
+    return m_resources.AddItem(item);
+}
+
+void MTLBackend::MapResource(uint32 handle, uint8 *&ptr) {
+    auto& item = m_resources.GetItemR(handle);
+    
+    if(item.heapType == ResourceHeap::GPUOnly)
+    {
+        LOGE("Backend -> Can not map gpu only resources!");
+        return;
+    }
+    
+    id<MTLBuffer> buffer = AS_MTL(item.ptr, id<MTLBuffer>);
+    ptr = static_cast<uint8*>([buffer contents]);
+}
+
+void MTLBackend::UnmapResource(uint32 handle) {
+    auto& item = m_resources.GetItemR(handle);
+}
+
+void MTLBackend::DestroyResource(uint32 handle) {
+    auto& res = m_resources.GetItemR(handle);
+    if (!res.isValid)
+    {
+        LOGE("Backend -> Resource to be destroyed is not valid!");
+        return;
+    }
+    
+    id<MTLBuffer> buffer = AS_MTL(res.ptr, id<MTLBuffer>);
+    [buffer release];
+    
+    m_resources.RemoveItem(handle);
+}
+
+uint16 MTLBackend::CreateDescriptorSet(const DescriptorSetDesc &desc) {
+    MTLDescriptorSet item = {};
+    item.isValid = true;
+    
+    return m_descriptorSets.AddItem(item);
+}
+
+void MTLBackend::DestroyDescriptorSet(uint16 handle) {
+    auto& item = m_descriptorSets.GetItemR(handle);
+    if (!item.isValid)
+    {
+        LOGE("Backend -> Descriptor set to be destroyed is not valid!");
+        return;
+    }
+
+    m_descriptorSets.RemoveItem(handle);
+}
+
+void MTLBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc &desc) {
+        ;
+}
+
+void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
+        ;
+}
+
+uint32 MTLBackend::CreateCommandStream(QueueType cmdType) {
+    MTLCommandStream item = {};
+    item.isValid = true;
+    item.type = cmdType;
+    
+    return m_cmdStreams.AddItem(item);
+}
+
+void MTLBackend::DestroyCommandStream(uint32 handle) {
+    auto& stream = m_cmdStreams.GetItemR(handle);
+    if (!stream.isValid)
+    {
+        LOGE("Backend -> Command Stream to be destroyed is not valid!");
+        return;
+    }
+
+    m_cmdStreams.RemoveItem(handle);
+}
+
+void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount) {
+    
+    
+    const auto& q = m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics));
+    id<MTLCommandQueue> queue = AS_MTL(q.queue, id<MTLCommandQueue>);
+    
+    for (uint32 i = 0; i < streamCount; i++)
+    {
+        auto  stream    = streams[i];
+        auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+    
+        
+        if (stream->m_commandCount == 0)
+            continue;
+
+        id<MTLCommandBuffer> buffer = [queue commandBuffer];
+        [buffer retain];
+        sr.currentBuffer = AS_VOID(buffer);
+        
+        
+         for (uint32 i = 0; i < stream->m_commandCount; i++)
+         {
+             uint8*        data = stream->m_commands[i];
+             LINAGX_TYPEID tid  = 0;
+             LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
+             const size_t increment = sizeof(LINAGX_TYPEID);
+             
+             if(tid == LGX_GetTypeID<CMDCopyResource>() || tid == LGX_GetTypeID<CMDCopyBufferToTexture2D>())
+             {
+                 if(sr.currentBlitEncoder == nullptr)
+                 {
+                     id<MTLBlitCommandEncoder> blitEncoder = [buffer blitCommandEncoder];
+                     [blitEncoder retain];
+                     sr.currentBlitEncoder = AS_VOID(blitEncoder);
+                     sr.allBlitEncoders.push_back(sr.currentBlitEncoder);
+                 }
+             }
+             else{
+                 if(sr.currentEncoder != nullptr)
+                 {
+                     id<MTLBlitCommandEncoder> blitEncoder = AS_MTL(sr.currentBlitEncoder, id<MTLBlitCommandEncoder>);
+                     [blitEncoder endEncoding];
+                     sr.currentBlitEncoder = nullptr;
+                 }
+             }
+             
+             uint8*       cmd       = data + increment;
+             (this->*m_cmdFunctions[tid])(cmd, sr);
+         }
+        
+        if(sr.currentBlitEncoder)
+        {
+            id<MTLBlitCommandEncoder> blitEncoder = AS_MTL(sr.currentBlitEncoder, id<MTLBlitCommandEncoder>);
+            [blitEncoder endEncoding];
+        }
+    }
+}
+
+void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
+          
+    auto& pfd = m_perFrameData[m_currentFrameIndex];
+    
+    if (desc.isMultithreaded)
+    {
+        // spinlock
+        while (m_submissionFlag.test_and_set(std::memory_order_acquire))
+        {
+            
+        }
+    }
+    
+    const auto& queue = m_queues.GetItemR(desc.targetQueue);
+    
+    if(queue.type == QueueType::Graphics)
+        pfd.submits++;
+    
+    if(desc.isMultithreaded)
+        m_submissionFlag.clear();
+  
+    for (uint32 i = 0; i < desc.streamCount; i++)
+    {
+        auto stream = desc.streams[i];
+        if (stream->m_commandCount == 0)
+        {
+            LOGE("Backend -> Can not execute stream as no commands were recorded!");
+            continue;
+        }
+
+        auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+       
+        
+        id<MTLCommandBuffer> buffer = AS_MTL(str.currentBuffer, id<MTLCommandBuffer>);
+        
+        if(desc.useWait)
+        {
+            for (uint32 j = 0; j < desc.waitCount; j++)
+            {
+                const auto& us = m_userSemaphores.GetItemR(desc.waitSemaphores[j]);
+                id<MTLSharedEvent> ev = AS_MTL(us.semaphore, id<MTLSharedEvent>);
+                [buffer encodeWaitForEvent:ev value:desc.waitValues[j]];
+            }
+        }
+        
+        if(queue.type == QueueType::Graphics)
+        {
+            [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+                while (m_submissionFlag.test_and_set(std::memory_order_acquire))
+                {
+                }
+                pfd.reachedSubmits++;
+                m_submissionFlag.clear();
+            }];
+            
+        }
+    
+        if(desc.useSignal)
+        {
+            for (uint32 j = 0; j < desc.signalCount; j++)
+            {
+                const auto& us = m_userSemaphores.GetItemR(desc.signalSemaphores[j]);
+                id<MTLSharedEvent> ev = AS_MTL(us.semaphore, id<MTLSharedEvent>);
+                [buffer encodeSignalEvent:ev value:desc.signalValues[j]];
+            }
+        }
+        
+        for(auto swp : str.writtenSwapchains)
+        {
+            const auto& swap = m_swapchains.GetItemR(swp);
+            id<CAMetalDrawable> drawable = AS_MTL(swap._currentDrawable, id<CAMetalDrawable>);
+            [buffer presentDrawable:drawable];
+        }
+        
+        [buffer commit];
+        [buffer release];
+        
+        for(auto ptr : str.allBlitEncoders)
+        {
+            id<MTLBlitCommandEncoder> encoder = AS_MTL(ptr, id<MTLBlitCommandEncoder>);
+            [encoder release];
+        }
+        
+        for(auto ptr : str.allRenderEncoders)
+        {
+            id<MTLRenderCommandEncoder> encoder = AS_MTL(ptr, id<MTLRenderCommandEncoder>);
+            [encoder release];
+        }
+        
+        for(auto ptr : str.allComputeEncoders)
+        {
+            id<MTLComputeCommandEncoder> encoder = AS_MTL(ptr, id<MTLComputeCommandEncoder>);
+            [encoder release];
+        }
+        
+        str.currentShader = 0;
+        str.currentEncoder =  str.currentBlitEncoder = str.currentComputeEncoder = str.currentBuffer = nullptr;
+        str.writtenSwapchains.clear();
+        str.allBlitEncoders.clear();
+        str.allRenderEncoders.clear();
+        str.allComputeEncoders.clear();
+        
+        m_submissionPerFrame.store(m_submissionPerFrame + 1);
+    }
+    
+    }
+
+uint8 MTLBackend::CreateQueue(const QueueDesc &desc) {
+    MTLQueue item = {};
+    item.isValid = true;
+    item.type = desc.type;
+    
+    auto device = AS_MTL(m_device, id<MTLDevice>);
+    
+    if(m_queues.GetNextFreeID() == 0)
+    {
+        id<MTLCommandQueue> q = [device newCommandQueue];
+        item.queue = AS_VOID(q);
+        NAME_OBJ_CSTR(q, desc.debugName);
+        [q retain];
+    }
+    else{
+        item.queue = m_queues.GetItemR(0).queue;
+    }
+    
+    return m_queues.AddItem(item);
+}
+
+void MTLBackend::DestroyQueue(uint8 queue) {
+    auto& item = m_queues.GetItemR(queue);
+    if (!item.isValid)
+    {
+        LOGE("Backend -> Queue to be destroyed is not valid!");
+        return;
+    }
+    
+    if(queue == 0)
+    {
+        id<MTLCommandQueue> q = AS_MTL(item.queue, id<MTLCommandQueue>);
+        [q release];
+    }
+    
+    m_queues.RemoveItem(queue);
+}
+
+uint8 MTLBackend::GetPrimaryQueue(QueueType type) {
+    return m_primaryQueues[static_cast<uint32>(type)];
+}
+
+
+bool MTLBackend::Initialize(const InitInfo &initInfo) {
+        
+    m_initInfo = initInfo;
+    
+    NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
+        NSLog(@"Current directory: %@", currentDirectory);
+    
+    NSArray<id<MTLDevice>> *availableDevices = MTLCopyAllDevices();
+    id<MTLDevice> selectedDevice = nil;
+
+    for (id<MTLDevice> device in availableDevices) {
+        if (m_initInfo.gpu == PreferredGPUType::Discrete && [device isLowPower]) {
+            continue;
+        }
+        if (m_initInfo.gpu == PreferredGPUType::Integrated && ![device isLowPower]) {
+            continue;
+        }
+        selectedDevice = device;
+        break;  // Found a device that meets our criteria
+    }
+    
+    if(selectedDevice == nil)
+        selectedDevice = MTLCreateSystemDefaultDevice();
+    
+    [selectedDevice retain];
+    m_device = AS_VOID(selectedDevice);
+    
+    id<MTLDevice> target = AS_MTL(m_device, id<MTLDevice>);
+    
+    if (!m_device) {
+        LOGE("Backend -> Failed creating system default device!");
+        return false;
+    }
+    
+    
+    // Primary queues.
+    {
+        QueueDesc desc;
+        desc.type                         = QueueType::Graphics;
+        desc.debugName                    = "Primary Queue";
+        m_primaryQueues[0] = CreateQueue(desc);
+        desc.type = QueueType::Transfer;
+        m_primaryQueues[1] = CreateQueue(desc);
+        desc.type = QueueType::Compute;
+        m_primaryQueues[2] = CreateQueue(desc);
+    }
+    
+    // Per frame
+    {
+        for (uint32 i = 0; i < initInfo.framesInFlight; i++)
+        {
+            MTLPerFrameData pfd = {};
+            m_perFrameData.push_back(pfd);
+        }
+    }
+    
+    // Command functions
+    {
+        BACKEND_BIND_COMMANDS(MTLBackend);
+    }
+    
+    // TODO: CPU visible GPU memory stuff.
+    
+    // TODO: pixel format support?
+    // const uint32 last = static_cast<uint32>(Format::FORMAT_MAX);
+    // for (uint32 i = 0; i < last; i++)
+    // {
+    //     const Format lgxFormat = static_cast<Format>(i);
+    //     MTLPixelFormat pf = GetMTLFormat(lgxFormat);
+    //
+    // }
+    //
+    // for (auto& f : m_initInfo.checkForFormatSupport)
+    // {
+    //     auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
+    //     if (it == GPUInfo.supportedImageFormats.end())
+    //         LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+    // }
+    
+    
+    return true;
+}
+
+void MTLBackend::Shutdown() {
+            
+    for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+    {
+        MTLPerFrameData& pfd = m_perFrameData[i];
+    }
+    
+    DestroyQueue(m_primaryQueues[0]);
+    DestroyQueue(m_primaryQueues[1]);
+    DestroyQueue(m_primaryQueues[2]);
+    
+    auto device = AS_MTL(m_device, id<MTLDevice>);
+    [device release];
+    
+    for (auto& swp : m_swapchains)
+    {
+        LOGA(!swp.isValid, "Backend -> Some swapchains were not destroyed!");
+    }
+
+    for (auto& shader : m_shaders)
+    {
+        LOGA(!shader.isValid, "Backend -> Some shaders were not destroyed!");
+    }
+
+    for (auto& txt : m_texture2Ds)
+    {
+        LOGA(!txt.isValid, "Backend -> Some textures were not destroyed!");
+    }
+
+    for (auto& str : m_cmdStreams)
+    {
+        LOGA(!str.isValid, "Backend -> Some command streams were not destroyed!");
+    }
+
+    for (auto& r : m_resources)
+    {
+        LOGA(!r.isValid, "Backend -> Some resources were not destroyed!");
+    }
+
+    for (auto& r : m_userSemaphores)
+    {
+        LOGA(!r.isValid, "Backend ->Some semaphores were not destroyed!");
+    }
+
+    for (auto& r : m_samplers)
+    {
+        LOGA(!r.isValid, "Backend -> Some samplers were not destroyed!");
+    }
+
+    for (auto& r : m_descriptorSets)
+    {
+        LOGA(!r.isValid, "Backend -> Some descriptor sets were not destroyed!");
+    }
+
+    for (auto& q : m_queues)
+    {
+        LOGA(!q.isValid, "Backend -> Some queues were not destroyed!");
+    }
+}
+
+void MTLBackend::Join() {
+        
+    for(uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+    {
+        const auto& pfd = m_perFrameData[i];
+        
+        // block.
+        while(pfd.reachedSubmits < pfd.submits)
+        {
+            
+        }
+    }
+}
+
+void MTLBackend::StartFrame(uint32 frameIndex) {
+        
+    m_submissionPerFrame = 0;
+    m_currentFrameIndex = frameIndex;
+    auto& pfd = m_perFrameData[m_currentFrameIndex];
+    
+    // Block.
+    while(pfd.reachedSubmits < pfd.submits)
+    {
+        
+    }
+    
+    pfd.submits = 0;
+    
+    for(auto& swp : m_swapchains)
+    {
+        if(!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)
+            continue;
+        
+        CAMetalLayer* layer = AS_MTL(swp.layer, CAMetalLayer*);
+        id<CAMetalDrawable> drawable = [layer nextDrawable];
+        [drawable retain];
+        
+        if(drawable)
+            swp._currentDrawable = AS_VOID(drawable);
+    }
+}
+
+void MTLBackend::Present(const PresentDesc &present) {
+            
+}
+
+void MTLBackend::EndFrame() {
+    
+    LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+}
+
+
+void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
+    CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
+    id<MTLCommandBuffer> buffer = AS_MTL(stream.currentBuffer, id<MTLCommandBuffer>);
+    
+    MTLRenderPassDescriptor* passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    passDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+    passDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+    passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(begin->clearColor[0], begin->clearColor[1], begin->clearColor[2], begin->clearColor[3]);
+    
+    if(begin->isSwapchain)
+    {
+        const auto& swp = m_swapchains.GetItemR(begin->swapchain);
+        id<CAMetalDrawable> drawable = AS_MTL(swp._currentDrawable, id<CAMetalDrawable>);
+        passDescriptor.colorAttachments[0].texture = drawable.texture;
+                stream.writtenSwapchains.push_back(begin->swapchain);
+    }
+    
+    id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:passDescriptor];
+    [encoder retain];
+
+    MTLViewport vp;
+    vp.width = begin->viewport.width;
+    vp.height = begin->viewport.height;
+    vp.originX = begin->viewport.x;
+    vp.originY = begin->viewport.y;
+    vp.znear = begin->viewport.minDepth;
+    vp.zfar = begin->viewport.maxDepth;
+    
+    MTLScissorRect sc;
+    sc.width = begin->scissors.width;
+    sc.height = begin->scissors.height;
+    sc.x = begin->scissors.x;
+    sc.y = begin->scissors.y;
+    
+    [encoder setScissorRect:sc];
+    [encoder setViewport:vp];
+    stream.currentEncoder = AS_VOID(encoder);
+    stream.allRenderEncoders.push_back(stream.currentEncoder);
+}
+
+void MTLBackend::CMD_EndRenderPass(uint8 *data, MTLCommandStream &stream) {
+    CMDEndRenderPass* end  = reinterpret_cast<CMDEndRenderPass*>(data);
+
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    [encoder endEncoding];
+    // TODO: encoder release?
+    // TODO: buffer release?
+}
+
+void MTLBackend::CMD_SetViewport(uint8 *data, MTLCommandStream &stream) {
+    CMDSetViewport* cmd  = reinterpret_cast<CMDSetViewport*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    MTLViewport vp;
+    vp.width = cmd->width;
+    vp.height = cmd->height;
+    vp.originX = cmd->x;
+    vp.originY = cmd->y;
+    vp.znear = cmd->minDepth;
+    vp.zfar = cmd->maxDepth;
+    [encoder setViewport:vp];
+}
+
+void MTLBackend::CMD_SetScissors(uint8 *data, MTLCommandStream &stream) {
+    CMDSetScissors* cmd  = reinterpret_cast<CMDSetScissors*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    MTLScissorRect sc;
+    sc.width = cmd->width;
+    sc.height = cmd->height;
+    sc.x = cmd->x;
+    sc.y = cmd->y;
+    [encoder setScissorRect:sc];
+}
+
+void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
+    CMDBindPipeline* cmd  = reinterpret_cast<CMDBindPipeline*>(data);
+    const auto& shader = m_shaders.GetItemR(cmd->shader);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    
+    if(shader.isCompute)
+    {
+      // need to bind a compute stuff.
+    }
+    else
+    {
+        [encoder setRenderPipelineState:AS_MTL(shader.pso, id<MTLRenderPipelineState>)];
+        [encoder setCullMode:GetMTLCullMode(shader.cullMode)];
+        [encoder setFrontFacingWinding:shader.frontFace == FrontFace::CW ? MTLWindingClockwise : MTLWindingCounterClockwise];
+    }
+    
+    stream.currentShader = cmd->shader;
+}
+
+void MTLBackend::CMD_DrawInstanced(uint8 *data, MTLCommandStream &stream) {
+    CMDDrawInstanced* cmd  = reinterpret_cast<CMDDrawInstanced*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    const auto& shader = m_shaders.GetItemR(stream.currentShader);
+    [encoder drawPrimitives:GetMTLPrimitive(shader.topology) vertexStart:cmd->startVertexLocation vertexCount:cmd->vertexCountPerInstance instanceCount:cmd->instanceCount];
+}
+
+void MTLBackend::CMD_DrawIndexedInstanced(uint8 *data, MTLCommandStream &stream) {
+    CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    const auto& resource = m_resources.GetItemR(stream.currentIndexBuffer);
+    id<MTLBuffer> buffer = AS_MTL(resource.ptr, id<MTLBuffer>);
+    const auto& shader = m_shaders.GetItemR(stream.currentShader);
+
+    auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
+    [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexCount:cmd->indexCountPerInstance indexType:indexBufferType indexBuffer:buffer indexBufferOffset:cmd->startIndexLocation instanceCount:cmd->instanceCount baseVertex:cmd->baseVertexLocation baseInstance:cmd->startInstanceLocation];
+}
+
+void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) {
+    CMDDrawIndexedIndirect* cmd    = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+}
+
+void MTLBackend::CMD_BindVertexBuffers(uint8 *data, MTLCommandStream &stream) {
+    CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    const auto& resource = m_resources.GetItemR(cmd->resource);
+    id<MTLBuffer> buffer = AS_MTL(resource.ptr, id<MTLBuffer>);
+    [encoder setVertexBuffer:buffer offset:cmd->offset atIndex:cmd->slot];
+}
+
+void MTLBackend::CMD_BindIndexBuffers(uint8 *data, MTLCommandStream &stream) {
+    CMDBindIndexBuffers*    cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
+    stream.currentIndexBuffer = cmd->resource;
+    stream.indexBufferType = static_cast<uint8>(cmd->indexFormat);
+}
+
+void MTLBackend::CMD_CopyResource(uint8 *data, MTLCommandStream &stream) {
+    CMDCopyResource* cmd     = reinterpret_cast<CMDCopyResource*>(data);
+    id<MTLBlitCommandEncoder> encoder = AS_MTL(stream.currentBlitEncoder, id<MTLBlitCommandEncoder>);
+    const auto& srcResource = m_resources.GetItemR(cmd->source);
+    const auto& dstResource = m_resources.GetItemR(cmd->destination);
+    id<MTLBuffer> srcBuffer = AS_MTL(srcResource.ptr, id<MTLBuffer>);
+    id<MTLBuffer> dstBuffer = AS_MTL(dstResource.ptr, id<MTLBuffer>);
+    [encoder copyFromBuffer:srcBuffer sourceOffset:0 toBuffer:dstBuffer destinationOffset:0 size:srcResource.size];
+}
+
+void MTLBackend::CMD_CopyBufferToTexture2D(uint8 *data, MTLCommandStream &stream) {
+    CMDCopyBufferToTexture2D* cmd        = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
+}
+
+void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
+    CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
+}
+
+void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
+    CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
+}
+
+void MTLBackend::CMD_Dispatch(uint8 *data, MTLCommandStream &stream) {
+    CMDDispatch* cmd  = reinterpret_cast<CMDDispatch*>(data);
+}
+
+void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {
+    CMDComputeBarrier* cmd  = reinterpret_cast<CMDComputeBarrier*>(data);
+}
+
+} // namespace LinaVG
+

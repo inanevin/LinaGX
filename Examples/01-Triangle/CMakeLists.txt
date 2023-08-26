@@ -19,13 +19,21 @@ project(01-Triangle)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/Triangle.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/Triangle.cpp
+)
+endif()
 
 set(HEADERS
-include/Main.hpp
 include/Triangle.hpp
 Resources/Shaders/frag.glsl
 Resources/Shaders/vert.glsl

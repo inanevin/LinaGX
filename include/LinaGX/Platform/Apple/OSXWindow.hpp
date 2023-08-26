@@ -35,6 +35,7 @@ SOFTWARE.
 #include "LinaGX/Common/Math.hpp"
 #include "LinaGX/Core/Window.hpp"
 
+
 namespace LinaGX
 {
     class OSXWindow : public Window
@@ -51,8 +52,6 @@ namespace LinaGX
         virtual void         BringToFront() override;
         virtual void         SetAlpha(float alpha) override;
         virtual void         SetTitle(const LINAGX_STRING& str) override;
-        virtual void         SetForceIsDragged(bool isDragged, const LGXVector2ui& offset) override;
-        virtual void         SetIcon(const LINAGX_STRING& name) override;
         virtual void         Maximize() override;
         virtual void         Minimize() override;
         virtual void         Restore() override;
@@ -64,12 +63,12 @@ namespace LinaGX
 
         virtual void* GetWindowHandle() override
         {
-            return nullptr;
+            return m_nsWindow;
         }
 
         virtual void* GetOSHandle() override
         {
-            return nullptr;
+            return m_nsView;
         }
 
     protected:
@@ -82,10 +81,22 @@ namespace LinaGX
         virtual void Destroy() override;
         virtual void PreTick() override;
         virtual void Tick() override;
+        
+    private:
+        
+        float ConvertY(float desiredY);
+        uint32 ConvertYInt(uint32 desiredY);
+        void CalculateDPI();
+        uint32 GetStyle(WindowStyle style);
 
     private:
         bool         m_titleChangeRequested = false;
         OSXWindow*   m_parent               = nullptr;
+        void* m_nsWindow = nullptr;
+        void* m_nsView = nullptr;
+        bool m_lmDownForDrag = false;
+        LGXVector2ui m_lmDragDelta = {};
+        bool m_mouseMoved = false;
     };
 } // namespace LinaGX
 

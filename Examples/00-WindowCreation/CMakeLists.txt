@@ -19,13 +19,25 @@ project(00-WindowCreation)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
+
 set(SOURCES 
 src/Main.cpp
 src/WindowCreation.cpp
 )
 
+endif()
+
+if(APPLE)
+
+set(SOURCES 
+src/Main.mm
+src/WindowCreation.cpp
+)
+
+endif()
+
 set(HEADERS
-include/Main.hpp
 include/WindowCreation.hpp
 )
 
@@ -36,6 +48,16 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ProjectSettings.cmake)
+
+
+if(APPLE)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_INFO_PLIST ${LINAGX_SOURCE_DIR}/CMake/MacOSXBundleInfo.plist
+)
+
+endif()
 
 set_target_properties(
     ${PROJECT_NAME}

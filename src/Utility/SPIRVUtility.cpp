@@ -823,16 +823,32 @@ namespace LinaGX
         return true;
     }
 
-    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, const ShaderLayout& layoutReflection)
+    bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, ShaderLayout& layoutReflection)
     {
         try
         {
             spirv_cross::CompilerMSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
 
-            spirv_cross::CompilerMSL::Options options;
+            spv::ExecutionModel exec = spv::ExecutionModelVertex;
+            
+            if(stg == ShaderStage::Fragment)
+                exec = spv::ExecutionModelFragment;
+            else if(stg == ShaderStage::Tesellation)
+                exec = spv::ExecutionModelTessellationControl;
+            else if(stg == ShaderStage::Geometry)
+            {
+                LOGA(false, "Geometry shaders are not supported on Metal!");
+            }
+            else if(stg == ShaderStage::Compute)
+                exec = spv::ExecutionModelGLCompute;
 
+            spirv_cross::CompilerMSL::Options options;
+         
             // Perform the conversion
             out = compiler.compile();
+            
+            auto entry = compiler.get_entry_point("main", exec);
+            layoutReflection.entryPoints[stg] = entry.name;
         }
         catch (spirv_cross::CompilerError& e)
         {
