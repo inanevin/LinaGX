@@ -438,9 +438,9 @@ namespace LinaGX
         LINAGX_STRING fullShaderStr = "";
         GetShaderTextWithIncludes(fullShaderStr, pShader, includePath);
 
-        // gl_DrawID is not supported in HLSL, so we will replace it with our custom cbuffer at post processing
+        // gl_DrawID is not supported in HLSL/MSL, so we will replace it with our custom cbuffer at post processing
         // But we need to have the identifier generated in HLSL from SPV.
-        if (targetAPI == BackendAPI::DX12)
+        if (targetAPI == BackendAPI::DX12 || targetAPI == BackendAPI::Metal)
         {
             const LINAGX_STRING searchString  = "gl_DrawID";
             const LINAGX_STRING replaceString = "LGX_GET_DRAW_ID()";
@@ -465,6 +465,7 @@ namespace LinaGX
                 }
             }
         }
+   
 
         glslang_stage_t stage = GetStage(stg);
 
@@ -900,9 +901,16 @@ namespace LinaGX
             };
             
             uint32 bufferID = 0, textureID = 0, samplerID = 0;
+            uint32 drawIDInputBufferID = 0;
             
             if(stg == ShaderStage::Vertex && !layoutReflection.vertexInputs.empty() && bufferID == 0)
                 bufferID++;
+            
+            if(layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
+            {
+                drawIDInputBufferID = bufferID;
+                bufferID++;
+            }
             
             for(auto pcstg : layoutReflection.constantBlock.stages)
             {
@@ -1058,14 +1066,47 @@ namespace LinaGX
                 }
             }
             
-            
+            layoutReflection.mslMaxBufferIDs[stg] = bufferID;
             
             compiler.set_msl_options(options);
             out = compiler.compile();
 
             auto entry = compiler.get_entry_point("main", exec);
-            
             layoutReflection.entryPoints[stg] = entry.name;
+            
+            if(layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
+            {
+                layoutReflection.drawIDBinding = drawIDInputBufferID;
+                
+                LINAGX_STRING insertStr = "";
+                if(!layoutReflection.vertexInputs.empty())
+                   insertStr = layoutReflection.entryPoints[stg] + "(" + layoutReflection.entryPoints[stg] + "_in in [[stage_in]],";
+                else
+                    insertStr = layoutReflection.entryPoints[stg] + "(";
+                
+                // Insert struct definition.
+                LINAGX_STRING structStr =   "struct LGXDrawID\n{\n int value;\n};\n\n";
+            
+                LINAGX_STRING mainVertexLine = "vertex " + layoutReflection.entryPoints[stg] + "_out";
+                auto mainVertexLinePos = out.find(mainVertexLine);
+                LOGA(mainVertexLinePos  != std::string::npos, "SPIRVUtility -> Failed inserting for gl_DrawID!");
+                out.insert(mainVertexLinePos, structStr);
+                
+                // Insert struct argument.
+                LINAGX_STRING toBeInserted = " constant LGXDrawID& lgxDrawID [[buffer(" + LINAGX_TOSTRING(drawIDInputBufferID) + ")]],";
+                auto pos = out.find(insertStr) ;
+                LOGA(pos != std::string::npos, "SPIRVUtility -> Failed inserting for gl_DrawID!");
+                out.insert(pos + insertStr.length(), toBeInserted);
+
+                const LINAGX_STRING lgxUsageSearchStr = "LGX_GET_DRAW_ID()";
+                const LINAGX_STRING lgxUsageReplaceStr = "lgxDrawID.value";
+                size_t             lgxUsagePos           = 0;
+                while ((pos = out.find(lgxUsageSearchStr, pos)) != std::string::npos)
+                {
+                    out.replace(pos, lgxUsageSearchStr.length(), lgxUsageReplaceStr);
+                    lgxUsagePos += lgxUsageReplaceStr.length();
+                }
+            }
         }
         catch (spirv_cross::CompilerError& e)
         {

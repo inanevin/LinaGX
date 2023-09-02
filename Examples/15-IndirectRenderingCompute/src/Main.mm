@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 
-#include "Textures.hpp"
+#include "IndirectRenderingCompute.hpp"
 
 using namespace LinaGX::Examples;
 

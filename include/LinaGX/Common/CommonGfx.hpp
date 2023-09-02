@@ -533,6 +533,7 @@ namespace LinaGX
         uint32                                      drawIDBinding    = 0;
         LINAGX_MAP<ShaderStage, LINAGX_STRING>      entryPoints;
         LINAGX_MAP<ShaderLayoutMSLKey, ShaderLayoutMSLBinding, ShaderLayoutMSLKeyHash, ShaderLayoutMSLKeyEqual> mslLayout;
+        LINAGX_MAP<ShaderStage, uint32> mslMaxBufferIDs;
     };
 
     struct ShaderCompileData

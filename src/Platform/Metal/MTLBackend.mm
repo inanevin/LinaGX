@@ -542,11 +542,13 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
 
         id<MTLLibrary> lib = [device newLibraryWithSource:src options:nil error:&err];
         [lib retain];
-        id<MTLFunction> computeFunc = [lib newFunctionWithName:@"main"];
+        
+        NSString* entryPoint = [NSString stringWithUTF8String:shaderDesc.layout.entryPoints.at(ShaderStage::Compute).c_str()];
+        id<MTLFunction> computeFunc = [lib newFunctionWithName:entryPoint];
         [computeFunc retain];
         
         createArgEncodersForStage(ShaderStage::Compute, computeFunc);
-      
+
         id<MTLComputePipelineState> cso = [device newComputePipelineStateWithFunction:computeFunc error:&err];
         [cso retain];
         item.cso = AS_VOID(cso);
@@ -1001,6 +1003,13 @@ void MTLBackend::DestroyCommandStream(uint32 handle) {
     
     for (const auto [id, frame] : stream.intermediateResources)
         DestroyResource(id);
+    
+    if(stream.indirectCommandBuffer != nullptr)
+    {
+        id<MTLIndirectCommandBuffer> buf = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+        [buf release];
+        stream.indirectCommandBuffer = nullptr;
+    }
     
     stream.intermediateResources.clear();
 
@@ -1567,6 +1576,44 @@ void MTLBackend::CMD_DrawIndexedInstanced(uint8 *data, MTLCommandStream &stream)
 void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) {
     CMDDrawIndexedIndirect* cmd    = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    const auto& shader = m_shaders.GetItemR(stream.currentShader);
+    const auto& resource = m_resources.GetItemR(cmd->indirectBuffer);
+    id<MTLBuffer> buffer = AS_MTL(resource.ptr, id<MTLBuffer>);
+    
+   // if(stream.indirectCommandBuffer != nullptr)
+   // {
+   //     if(stream.indirectCommandBufferMaxCommands < cmd->count * 2)
+   //     {
+   //         id<MTLIndirectCommandBuffer> buf = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+   //         [buf release];
+   //         stream.indirectCommandBuffer = nullptr;
+   //     }
+   // }
+   //
+   // if(stream.indirectCommandBuffer == nullptr)
+   // {
+   //     auto device = AS_MTL(m_device, id<MTLDevice>);
+   //     MTLIndirectCommandBufferDescriptor * descriptor = [[MTLIndirectCommandBufferDescriptor alloc] init];
+   //     descriptor.commandTypes = MTLIndirectCommandTypeDrawIndexed;
+   //
+   //     id<MTLIndirectCommandBuffer> buf = [device newIndirectCommandBufferWithDescriptor:descriptor maxCommandCount:cmd->count * 2 options:0];
+   //     [buf retain];
+   //     stream.indirectCommandBuffer = AS_VOID(buf);
+   //     stream.indirectCommandBufferMaxCommands = cmd->count*2;
+   // }
+   //
+   // id<MTLIndirectCommandBuffer> indCmd = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+    
+    const auto& indexRes = m_resources.GetItemR(stream.currentIndexBuffer);
+    id<MTLBuffer> indexBuf = AS_MTL(indexRes.ptr, id<MTLBuffer>);
+    
+    // LGXDrawID is fed into the first element so offset by it.
+    for(uint32 i = 0; i < cmd->count; i++)
+    {
+        const uint32 drawId = i;
+        [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:1];
+        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:MTLIndexTypeUInt16 indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:buffer indirectBufferOffset: sizeof(IndexedIndirectCommand) * i + 4];
+    }
 }
 
 void MTLBackend::CMD_BindVertexBuffers(uint8 *data, MTLCommandStream &stream) {
@@ -1933,6 +1980,13 @@ void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
 
 void MTLBackend::CMD_Dispatch(uint8 *data, MTLCommandStream &stream) {
     CMDDispatch* cmd  = reinterpret_cast<CMDDispatch*>(data);
+    id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
+
+    MTLSize threadgroups = MTLSizeMake(cmd->groupSizeX, cmd->groupSizeY, cmd->groupSizeZ);
+    MTLSize threadsPerThreadgroup = MTLSizeMake(8,8,8);
+
+    // Dispatching the compute command
+    [computeEncoder dispatchThreadgroups:threadgroups threadsPerThreadgroup:threadsPerThreadgroup];
 }
 
 void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {

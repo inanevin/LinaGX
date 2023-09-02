@@ -52,6 +52,8 @@ struct MTLCommandStream
     void* currentBlitEncoder = nullptr;
     void* currentComputeEncoder = nullptr;
     void* currentEncoderDepthStencil = nullptr;
+    void* indirectCommandBuffer = nullptr;
+    uint32 indirectCommandBufferMaxCommands = 0;
     LINAGX_VEC<void*> allBlitEncoders;
     LINAGX_VEC<void*> allRenderEncoders;
     LINAGX_VEC<void*> allComputeEncoders;

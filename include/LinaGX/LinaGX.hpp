@@ -52,7 +52,31 @@ use to index into another buffer for per-draw-call parameters.
 
 - Sets need to be starting from 0. (e.g. cant have set =1 when there is not set = 0)
 
+ - we have a problem regarding our understanding of descriptor sets, work on that, in regards to binding them each time a shader has changed.
+ 
+ - fuuuu gl_DrawID will always be 0 for cases where there is no multi-draw-indirect support.
+ - Should we enforce users to create a constant buffer?
+ 
+- count buffers in indirect.
+ 
+- also should we just use a CBV for per-draw data?
+ 
+ - draw indirect (without indexed)
+ 
+ - vulkan users need to check if multi draw indirect is supported.
+ - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
+ - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
+ - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
+ 
+ - gl_InstanceIndex and whatever, check their support on HLSL and MSL.
+ 
+ - dispatch indirect
+ 
+ - array textures, sampler2D array?
+ 
 - #version 460 required
+ 
+ 
 
 - Align buffers 16 bytes always, if using constants buffers on top, align 256 for DX12
 
