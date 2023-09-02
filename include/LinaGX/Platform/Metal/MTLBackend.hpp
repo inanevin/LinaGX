@@ -51,10 +51,12 @@ struct MTLCommandStream
     void* currentEncoder = nullptr;
     void* currentBlitEncoder = nullptr;
     void* currentComputeEncoder = nullptr;
+    void* currentEncoderDepthStencil = nullptr;
     LINAGX_VEC<void*> allBlitEncoders;
     LINAGX_VEC<void*> allRenderEncoders;
     LINAGX_VEC<void*> allComputeEncoders;
     LINAGX_VEC<uint8> writtenSwapchains;
+    LINAGX_VEC<uint16> boundDescriptorSets;
     uint32 currentShader = 0;
     uint32 currentIndexBuffer = 0;
     uint8 indexBufferType = 0;
@@ -78,8 +80,6 @@ struct MTLArgEncoder
 {
     void* encoder = nullptr;
     void* encoderSecondary = nullptr;
-    void* argBuffer = nullptr;
-    void* argBufferSecondary = nullptr;
 };
 
 struct MTLShader
@@ -132,8 +132,8 @@ struct MTLBinding
     uint32 descriptorCount = 0;
     DescriptorType type = DescriptorType::UBO;
     bool isUnbounded = false;
-    void* unboundedBuffer = nullptr;
-    void* unboundedBufferSecondary = nullptr;
+    void* argBuffer = nullptr;
+    void* argBufferSecondary = nullptr;
 };
 
 struct MTLDescriptorSet
@@ -142,6 +142,7 @@ struct MTLDescriptorSet
     void* buffer = nullptr;
     DescriptorSetDesc desc = {};
     LINAGX_MAP<uint32, MTLBinding> bindings = {};
+    
 };
 
 struct MTLQueue

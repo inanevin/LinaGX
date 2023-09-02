@@ -61,6 +61,10 @@ use to index into another buffer for per-draw-call parameters.
 - Don't forget to set isMultithreaded flag if submitting from multiple threads.
 
 - Refactor so that CMDComputeBarrier is CMDComputeIndirectBarrier or something
+ 
+ - dynamic descriptor set stuff, offsetting into buffers take a look at that.
+ 
+ - Updating descriptor sets after binding is not allowed.
 
 - Multiple queues can not write to the same swapchain at the same time.
  
@@ -98,6 +102,8 @@ use to index into another buffer for per-draw-call parameters.
  - secondary command buffers
  
  - subpasses
+ 
+ - Feature support needs to be better, bindless is not supported on all devices, need to inform users so they can do their own shaiba.
  
  - Always bind unbounded desciptors to the last element of the set. You can only bind unbounded data one after another given they are different types of data.
  - Take a look at the limitation above, see if there is a way to fix that for DX12, adding an extra space if same kind of data is already unbounded in the same space.

@@ -302,6 +302,24 @@ MTLSamplerMipFilter GetMTLMipFilter(MipmapMode mode)
     }
 }
 
+MTLRenderStages GetMTLRenderStage(ShaderStage stage)
+{
+    switch(stage)
+    {
+        case ShaderStage::Fragment:
+            return MTLRenderStageFragment;
+        case ShaderStage::Vertex:
+            return MTLRenderStageVertex;
+        case ShaderStage::Tesellation:
+        case ShaderStage::Geometry:
+            LOGA(false, "Backend -> Not supported yet!");
+            return MTLRenderStageVertex;
+        case ShaderStage::Compute:
+            return MTLRenderStageObject;
+            
+    }
+}
+
 
 uint16 MTLBackend::CreateUserSemaphore() {
     MTLUserSemaphore item = {};
@@ -468,23 +486,11 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         [encoder retain];
         item.argEncoders[key].encoder = AS_VOID(encoder);
         
-        id<MTLBuffer> argBuffer = [device newBufferWithLength:encoder.encodedLength options:0];
-        [argBuffer retain];
-        item.argEncoders[key].argBuffer = AS_VOID(argBuffer);
-        
-        [encoder setArgumentBuffer:argBuffer offset:0];
-        
         if(isCombinedImageSampler)
         {
             id<MTLArgumentEncoder> encoder2 = [func newArgumentEncoderWithBufferIndex:shaderDesc.layout.mslLayout.at(key).bufferIDSecondary];
             [encoder2 retain];
             item.argEncoders[key].encoderSecondary = AS_VOID(encoder2);
-            
-            id<MTLBuffer> argBuffer2 = [device newBufferWithLength:encoder2.encodedLength options:0];
-            [argBuffer2 retain];
-            item.argEncoders[key].argBufferSecondary = AS_VOID(argBuffer2);
-            
-            [encoder2 setArgumentBuffer:argBuffer2 offset:0];
         }
     };
     
@@ -685,16 +691,10 @@ void MTLBackend::DestroyShader(uint16 handle) {
         id<MTLArgumentEncoder> encoder = AS_MTL(argData.encoder, id<MTLArgumentEncoder>);
         [encoder release];
         
-        id<MTLBuffer> buffer = AS_MTL(argData.argBuffer, id<MTLBuffer>);
-        [buffer release];
-        
-        if(argData.argBufferSecondary != nullptr)
+        if(argData.encoderSecondary != nullptr)
         {
             id<MTLArgumentEncoder> encoder2 = AS_MTL(argData.encoderSecondary, id<MTLArgumentEncoder>);
             [encoder2 release];
-            
-            id<MTLBuffer> buffer2 = AS_MTL(argData.argBufferSecondary, id<MTLBuffer>);
-            [buffer2 release];
         }
     }
     
@@ -764,6 +764,8 @@ uint32 MTLBackend::CreateSampler(const SamplerDesc &desc) {
     samplerDesc.lodMinClamp = desc.minLod;
     samplerDesc.maxAnisotropy = desc.anisotropy;
     samplerDesc.lodMaxClamp = desc.maxLod;
+    samplerDesc.supportArgumentBuffers = true;
+    
     id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
     [sampler retain];
     item.ptr = AS_VOID(sampler);
@@ -868,20 +870,16 @@ void MTLBackend::DestroyDescriptorSet(uint16 handle) {
     
     for(const auto& [set, bindingData] : item.bindings)
     {
-        if(bindingData.unboundedBuffer)
+        if(bindingData.argBuffer != nullptr)
         {
-            if(bindingData.unboundedBuffer != nullptr)
-            {
-                id<MTLBuffer> buf = AS_MTL(bindingData.unboundedBuffer, id<MTLBuffer>);
-                [buf release];
-            }
-            
-            if(bindingData.unboundedBufferSecondary != nullptr)
-            {
-                id<MTLBuffer> buf = AS_MTL(bindingData.unboundedBufferSecondary, id<MTLBuffer>);
-                [buf release];
-            }
-      
+            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
+            [argBuffer release];
+        }
+        
+        if(bindingData.argBufferSecondary != nullptr)
+        {
+            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBufferSecondary, id<MTLBuffer>);
+            [argBuffer release];
         }
     }
 
@@ -909,26 +907,17 @@ void MTLBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc &desc) 
             
             if(bindingData.isUnbounded)
             {
-                if(bindingData.unboundedBuffer != nullptr)
+                LOGA(desc.descriptorType != DescriptorType::SSBO, "Backend -> Can't use SSBO's as unbounded!");
+                
+                if(bindingData.argBuffer != nullptr)
                 {
-                    id<MTLBuffer> b = AS_MTL(bindingData.unboundedBuffer, id<MTLBuffer>);
-                    [b release];
-                    bindingData.unboundedBuffer = nullptr;
+                    id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
+                    [argBuffer release];
                 }
-                
-                LINAGX_VEC<uint64> bufs;
-                bufs.resize(desc.descriptorCount);
-                
-                for(uint32 i = 0; i < desc.descriptorCount; i++)
-                {
-                    const auto& res = m_resources.GetItemR(desc.resources[i]);
-                    id<MTLBuffer> b = AS_MTL(res.ptr, id<MTLBuffer>);
-                    bufs[i] = [b gpuAddress];
-                }
-                
-                id<MTLBuffer> buffer1 = [device newBufferWithBytes:&bufs[0] length:sizeof(bufs) options:MTLResourceStorageModeShared];
-                [buffer1 retain];
-                bindingData.unboundedBuffer = AS_VOID(buffer1);
+               
+                id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * desc.descriptorCount options:0];
+                [argBuffer retain];
+                bindingData.argBuffer = AS_VOID(argBuffer);
             }
         }
     }
@@ -966,82 +955,28 @@ void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
             
             if(bindingData.isUnbounded)
             {
-                
-                if(bindingData.unboundedBuffer != nullptr)
+                if(bindingData.argBuffer != nullptr)
                 {
-                    id<MTLBuffer> b = AS_MTL(bindingData.unboundedBuffer, id<MTLBuffer>);
-                    [b release];
-                    bindingData.unboundedBuffer = nullptr;
+                    id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
+                    [argBuffer release];
                 }
                 
-                if(bindingData.unboundedBufferSecondary != nullptr)
+                if(bindingData.argBufferSecondary != nullptr)
                 {
-                    id<MTLBuffer> b = AS_MTL(bindingData.unboundedBufferSecondary, id<MTLBuffer>);
-                    [b release];
-                    bindingData.unboundedBufferSecondary = nullptr;
+                    id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBufferSecondary, id<MTLBuffer>);
+                    [argBuffer release];
                 }
                 
-                LINAGX_VEC<MTLResourceID> textures;
-                LINAGX_VEC<MTLResourceID> samplers;
-                textures.resize(desc.descriptorCount);
-                samplers.resize(desc.descriptorCount);
-                
-                
+                id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * desc.descriptorCount options:0];
+                [argBuffer retain];
+                bindingData.argBuffer = AS_VOID(argBuffer);
+      
                 if(desc.descriptorType == DescriptorType::CombinedImageSampler)
                 {
-                    for(uint32 i = 0; i < desc.descriptorCount; i++)
-                    {
-                        const auto& txtRes = m_texture2Ds.GetItemR(desc.textures[i]);
-                        const auto& samplerRes = m_samplers.GetItemR(desc.samplers[i]);
-                        
-                        id<MTLTexture> txt = AS_MTL(txtRes.ptr, id<MTLTexture>);
-                        id<MTLSamplerState> smp = AS_MTL(samplerRes.ptr, id<MTLSamplerState>);
-                       
-                        textures[i] = {[txt gpuResourceID]};
-                        samplers[i] = {[smp gpuResourceID]};
-                    }
-                    
-                    auto sz = sizeof(MTLResourceID) * textures.size();
-                    auto sz2 = sizeof(MTLResourceID) * samplers.size();
-                    
-                    id<MTLBuffer> buffer1 = [device newBufferWithBytes:textures.data() length:sz options:MTLResourceStorageModeShared];
-                    id<MTLBuffer> buffer2 = [device newBufferWithBytes:samplers.data() length:sz2 options:MTLResourceStorageModeShared];
-                    
-                    [buffer1 retain];
-                    [buffer2 retain];
-                    bindingData.unboundedBuffer = AS_VOID(buffer1);
-                    bindingData.unboundedBufferSecondary = AS_VOID(buffer2);
+                    id<MTLBuffer> argBuffer2 = [device newBufferWithLength:sizeof(id<MTLSamplerState>) * desc.descriptorCount options:0];
+                    [argBuffer2 retain];
+                    bindingData.argBufferSecondary = AS_VOID(argBuffer2);
                 }
-                else if(desc.descriptorType == DescriptorType::SeparateImage)
-                {
-                    for(uint32 i = 0; i < desc.descriptorCount; i++)
-                    {
-                        const auto& txtRes = m_texture2Ds.GetItemR(desc.textures[i]);
-                        id<MTLTexture> txt = AS_MTL(txtRes.ptr, id<MTLTexture>);
-
-                        textures[i] = {[txt gpuResourceID]};
-                    }
-                    auto sz = sizeof(MTLResourceID) * textures.size();
-
-                    id<MTLBuffer> buffer1 = [device newBufferWithBytes:textures.data() length:sz options:MTLResourceStorageModeShared];
-                    [buffer1 retain];
-                    bindingData.unboundedBuffer = AS_VOID(buffer1);
-                }
-                else
-                {
-                    for(uint32 i = 0; i < desc.descriptorCount; i++)
-                    {
-                        const auto& samplerRes = m_texture2Ds.GetItemR(desc.samplers[i]);
-                        id<MTLSamplerState> smp = AS_MTL(samplerRes.ptr, id<MTLSamplerState>);
-                        samplers[i] = {[smp gpuResourceID]};
-                    }
-                    auto sz = sizeof(MTLResourceID) * samplers.size();
-
-                    id<MTLBuffer> buffer1 = [device newBufferWithBytes:samplers.data() length:sz options:MTLResourceStorageModeShared];
-                    [buffer1 retain];
-                    bindingData.unboundedBuffer = AS_VOID(buffer1);
-                }
-                
             }
         }
     }
@@ -1074,7 +1009,6 @@ void MTLBackend::DestroyCommandStream(uint32 handle) {
 
 void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount) {
     
-    
     const auto& q = m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics));
     id<MTLCommandQueue> queue = AS_MTL(q.queue, id<MTLCommandQueue>);
     
@@ -1090,7 +1024,6 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
         id<MTLCommandBuffer> buffer = [queue commandBuffer];
         [buffer retain];
         sr.currentBuffer = AS_VOID(buffer);
-        
         
          for (uint32 i = 0; i < stream->m_commandCount; i++)
          {
@@ -1127,6 +1060,8 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
             id<MTLBlitCommandEncoder> blitEncoder = AS_MTL(sr.currentBlitEncoder, id<MTLBlitCommandEncoder>);
             [blitEncoder endEncoding];
         }
+        
+        sr.boundDescriptorSets.clear();
     }
 }
 
@@ -1592,13 +1527,17 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     
     if(shader.isCompute)
     {
-      // need to bind a compute stuff.
         [computeEncoder setComputePipelineState:AS_MTL(shader.cso, id<MTLComputePipelineState>)];
     }
     else
     {
         [encoder setRenderPipelineState:AS_MTL(shader.pso, id<MTLRenderPipelineState>)];
-        [encoder setDepthStencilState:AS_MTL(shader.dsso, id<MTLDepthStencilState>)];
+        
+        if(shader.dsso != stream.currentEncoderDepthStencil)
+        {
+            [encoder setDepthStencilState:AS_MTL(shader.dsso, id<MTLDepthStencilState>)];
+            stream.currentEncoderDepthStencil = shader.dsso;
+        }
         
         [encoder setCullMode:GetMTLCullMode(shader.cullMode)];
         [encoder setFrontFacingWinding:shader.frontFace == FrontFace::CW ? MTLWindingClockwise : MTLWindingCounterClockwise];
@@ -1769,8 +1708,14 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
     
     for(uint32 i = 0; i < cmd->setCount; i++)
     {
-        uint32 setIndex = i + cmd->firstSet;
-       auto& set = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]);
+        const uint32 setHandle = cmd->descriptorSetHandles[i];
+        const uint32 setIndex = i + cmd->firstSet;
+        auto& set = m_descriptorSets.GetItemR(setHandle);
+        
+        if(std::find_if(stream.boundDescriptorSets.begin(), stream.boundDescriptorSets.end(), [setHandle](uint32 set){ return setHandle == set;}) != stream.boundDescriptorSets.end())
+            continue;
+        
+        stream.boundDescriptorSets.push_back(setHandle);
         
         for(auto [bindingIndex, binding] : set.bindings)
         {
@@ -1807,11 +1752,32 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                     }
                     else
                     {
-                        id<MTLBuffer> buf = AS_MTL(binding.unboundedBuffer, id<MTLBuffer>);
-                        id<MTLBuffer> buf2 = AS_MTL(binding.unboundedBufferSecondary, id<MTLBuffer>);
+                        ShaderLayoutMSLKey key = ShaderLayoutMSLKey(setIndex, bindingIndex, stg);
+                        id<MTLArgumentEncoder> argEncoder = AS_MTL(shader.argEncoders[key].encoder, id<MTLArgumentEncoder>);
+                        id<MTLArgumentEncoder> argEncoder2 = AS_MTL(shader.argEncoders[key].encoderSecondary, id<MTLArgumentEncoder>);
                         
-                        setBuffer(&buf, bufferID, 1, stg);
-                        setBuffer(&buf, bufferIDSecondary, 1, stg);
+                        id<MTLBuffer> argBuffer = AS_MTL(binding.argBuffer, id<MTLBuffer>);
+                                                
+                        for(uint32 k = 0; k < dcCount; k++)
+                        {
+                            [argEncoder setArgumentBuffer:argBuffer offset:argEncoder.encodedLength * k];
+                            [argEncoder setTexture:textures[k] atIndex:0];
+                        }
+                        
+                        id<MTLBuffer> argBuffer2 = AS_MTL(binding.argBufferSecondary, id<MTLBuffer>);
+
+                        auto hmm = argEncoder2.encodedLength;
+                        
+                        for(uint32 k = 0; k < dcCount; k++)
+                        {
+                            [argEncoder2 setArgumentBuffer:argBuffer2 offset:argEncoder2.encodedLength * k];
+                            [argEncoder2 setSamplerState:samplers[k] atIndex:0];
+                        }
+                        
+                        [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
+
+                        setBuffer(&argBuffer, bufferID, 1, stg);
+                        setBuffer(&argBuffer2, bufferIDSecondary, 1, stg);
                     }
                    
                 }
@@ -1832,8 +1798,19 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                         setTexture(&textures[0], bufferID, dcCount, stg);
                     else
                     {
-                      id<MTLBuffer> buf = AS_MTL(binding.unboundedBuffer, id<MTLBuffer>);
-                      setBuffer(&buf, bufferID, 1, stg);
+                        ShaderLayoutMSLKey key = ShaderLayoutMSLKey(setIndex, bindingIndex, stg);
+                        id<MTLArgumentEncoder> argEncoder = AS_MTL(shader.argEncoders[key].encoder, id<MTLArgumentEncoder>);
+                        
+                        id<MTLBuffer> argBuffer = AS_MTL(binding.argBuffer, id<MTLBuffer>);
+                                                
+                        for(uint32 k = 0; k < dcCount; k++)
+                        {
+                            [argEncoder setArgumentBuffer:argBuffer offset:argEncoder.encodedLength * k];
+                            [argEncoder setTexture:textures[k] atIndex:0];
+                        }
+                        
+                        [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
+                        setBuffer(&argBuffer, bufferID, 1, stg);
                     }
                     
                 }
@@ -1853,8 +1830,18 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                         setSampler(&samplers[0], bufferID, dcCount, stg);
                     else
                     {
-                        id<MTLBuffer> buf = AS_MTL(binding.unboundedBuffer, id<MTLBuffer>);
-                        setBuffer(&buf, bufferID, 1, stg);
+                        ShaderLayoutMSLKey key = ShaderLayoutMSLKey(setIndex, bindingIndex, stg);
+                        id<MTLArgumentEncoder> argEncoder = AS_MTL(shader.argEncoders[key].encoder, id<MTLArgumentEncoder>);
+                        
+                        id<MTLBuffer> argBuffer = AS_MTL(binding.argBuffer, id<MTLBuffer>);
+                                                
+                        for(uint32 k = 0; k < dcCount; k++)
+                        {
+                            [argEncoder setArgumentBuffer:argBuffer offset:argEncoder.encodedLength * k];
+                            [argEncoder setSamplerState:samplers[k] atIndex:0];
+                        }
+
+                        setBuffer(&argBuffer, bufferID, 1, stg);
                     }
                 }
                 else if(binding.type == DescriptorType::UBO)
@@ -1874,8 +1861,20 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                         setBuffer(&ubos[0], bufferID, dcCount, stg);
                     else
                     {
-                        id<MTLBuffer> buf = AS_MTL(binding.unboundedBuffer, id<MTLBuffer>);
-                        setBuffer(&buf, bufferID, 1, stg);
+                        ShaderLayoutMSLKey key = ShaderLayoutMSLKey(setIndex, bindingIndex, stg);
+                        id<MTLArgumentEncoder> argEncoder = AS_MTL(shader.argEncoders[key].encoder, id<MTLArgumentEncoder>);
+                        
+                        id<MTLBuffer> argBuffer = AS_MTL(binding.argBuffer, id<MTLBuffer>);
+                                                
+                        for(uint32 k = 0; k < dcCount; k++)
+                        {
+                            [argEncoder setArgumentBuffer:argBuffer offset:argEncoder.encodedLength * k];
+                            [argEncoder setBuffer:ubos[k] offset:0 atIndex:0];
+                        }
+                        
+                        [encoder useResources:&ubos[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
+
+                        setBuffer(&argBuffer, bufferID, 1, stg);
                     }
                 }
                 else if(binding.type == DescriptorType::SSBO)
@@ -1895,8 +1894,7 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                         setBuffer(&ssbo[0], bufferID, dcCount, stg);
                     else
                     {
-                        id<MTLBuffer> buf = AS_MTL(binding.unboundedBuffer, id<MTLBuffer>);
-                        setBuffer(&buf, bufferID, 1, stg);
+                        LOGA(false, "Backend -> Can't use SSBOs as unbounded!");
                     }
                 }
             }
