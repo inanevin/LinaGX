@@ -19,10 +19,20 @@ project(08-GLTF)
 # Set sources
 #--------------------------------------------------------------------
 
+
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/GLTF.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/GLTF.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

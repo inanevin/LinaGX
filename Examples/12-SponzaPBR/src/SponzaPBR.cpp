@@ -51,8 +51,6 @@ namespace LinaGX::Examples
         LGXVector3 position      = {};
         LGXVector2 uv            = {};
         LGXVector3 normal        = {};
-        LGXVector4 tangents      = {};
-        LGXVector4 colors        = {};
         LGXVector4 inBoneIndices = {};
         LGXVector4 inBoneWeights = {};
     };
@@ -654,12 +652,6 @@ namespace LinaGX::Examples
 
                                 if (!prim->normals.empty())
                                     vtx.normal = prim->normals[k];
-
-                                if (!prim->tangents.empty())
-                                    vtx.tangents = prim->tangents[k];
-
-                                if (!prim->colors.empty())
-                                    vtx.colors = prim->colors[k];
 
                                 mesh.vertices.push_back(vtx);
                             }

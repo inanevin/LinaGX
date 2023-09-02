@@ -19,10 +19,19 @@ project(05-UBO)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/UBO.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/UBO.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

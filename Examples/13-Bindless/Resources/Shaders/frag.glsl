@@ -21,7 +21,7 @@ struct Material1
 {
 	vec4 baseColor;
 	vec4 tint;
-	uint albedoIndex;
+	uint albedoIndex[3];
 };
 
 Material1 AsMaterial1(uint startIndex)
@@ -42,7 +42,7 @@ Material1 AsMaterial1(uint startIndex)
 	mat.tint.a = uintBitsToFloat(materials.data[index++]);
 
 	// albedo index
-	mat.albedoIndex = materials.data[index++];
+	mat.albedoIndex[0] = materials.data[index++];
 
 	return mat;
 }
@@ -50,7 +50,7 @@ Material1 AsMaterial1(uint startIndex)
 void main()
 {
 	Material1 mat = AsMaterial1(Constants.materialByteIndex);
-	vec4 albedo = texture(textures[mat.albedoIndex], inUV);
+	vec4 albedo = texture(textures[mat.albedoIndex[0]], inUV);
 	FragColor = albedo * mat.baseColor * mat.tint;
 }
 

@@ -169,14 +169,17 @@ namespace LinaGX
         if (outLayout.constantBlock.size != 0)
         {
             uint32 maxSet = 0;
-            for (const auto& [set, bindings] : outLayout.setsAndBindings)
+            for (const auto& [set, bindingData] : outLayout.perSetData)
             {
                 if (set > maxSet)
                     maxSet = set;
             }
 
             uint32 maxBinding = 0;
-            for (const auto& binding : outLayout.setsAndBindings.at(maxSet))
+            
+            const auto& bindingsPerSet = outLayout.perSetData.at(maxSet).bindings;
+            
+            for (const auto& [binding, data] : bindingsPerSet)
             {
                 if (binding > maxBinding)
                     maxBinding = binding;

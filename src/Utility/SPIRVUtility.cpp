@@ -532,7 +532,14 @@ namespace LinaGX
 
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
-
+        
+        auto addSetStage = [&](uint32 set, ShaderStage stage) {
+            
+            auto& vec = outLayout.perSetData[set].stages;
+            auto it = std::find_if(vec.begin(), vec.end(), [stage](ShaderStage vstg){ return vstg == stage;});
+            if(it == vec.end())
+                vec.push_back(stage);
+                    };
         // Stage Inputs
         {
             if (stg == ShaderStage::Vertex)
@@ -588,8 +595,8 @@ namespace LinaGX
                 ShaderUBO ubo = {};
                 ubo.set       = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ubo.binding   = compiler.get_decoration(id, spv::DecorationBinding);
-                outLayout.setsAndBindings[ubo.set].push_back(ubo.binding);
-                outLayout.setsAndStages[ubo.set].push_back(stg);
+                ubo.spvID = id;
+                addSetStage(ubo.set, stg);
 
                 auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const ShaderUBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
                 if (it != outLayout.ubos.end())
@@ -602,7 +609,10 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 ubo.size                          = compiler.get_declared_struct_size(type);
                 ubo.name                          = compiler.get_name(resource.id);
-
+                auto& psData = outLayout.perSetData[ubo.set].bindings[ubo.binding];
+                psData.name = ubo.name;
+                psData.type = DescriptorType::UBO;
+                
                 if (type.array.size() > 0)
                     ubo.elementSize = type.array[0];
 
@@ -642,8 +652,8 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                outLayout.setsAndBindings[txt.set].push_back(txt.binding);
-                outLayout.setsAndStages[txt.set].push_back(stg);
+                txt.spvID = id;
+                addSetStage(txt.set, stg);
 
                 auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.combinedImageSamplers.end())
@@ -656,7 +666,10 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
-
+                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
+                psData.name = txt.name;
+                psData.type = DescriptorType::CombinedImageSampler;
+                
                 if (type.array_size_literal[0])
                 {
                     if (type.array[0] != 1)
@@ -679,8 +692,8 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                outLayout.setsAndBindings[txt.set].push_back(txt.binding);
-                outLayout.setsAndStages[txt.set].push_back(stg);
+                txt.spvID = id;
+                addSetStage(txt.set, stg);
 
                 auto it = std::find_if(outLayout.separateImages.begin(), outLayout.separateImages.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
                 if (it != outLayout.separateImages.end())
@@ -693,7 +706,10 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
-
+                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
+                psData.name = txt.name;
+                psData.type = DescriptorType::SeparateImage;
+                
                 if (type.array_size_literal[0])
                 {
                     if (type.array[0] != 1)
@@ -716,8 +732,8 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 sampler.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 sampler.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                outLayout.setsAndBindings[sampler.set].push_back(sampler.binding);
-                outLayout.setsAndStages[sampler.set].push_back(stg);
+                sampler.spvID = id;
+                addSetStage(sampler.set, stg);
 
                 auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const ShaderSampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
                 if (it != outLayout.samplers.end())
@@ -730,7 +746,10 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 sampler.name                      = compiler.get_name(resource.id);
-
+                auto& psData = outLayout.perSetData[sampler.set].bindings[sampler.binding];
+                psData.name = sampler.name;
+                psData.type = DescriptorType::SeparateSampler;
+                
                 if (type.array_size_literal[0])
                 {
                     if (type.array[0] != 1)
@@ -753,8 +772,8 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 ssbo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ssbo.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                outLayout.setsAndBindings[ssbo.set].push_back(ssbo.binding);
-                outLayout.setsAndStages[ssbo.set].push_back(stg);
+                ssbo.spvID = id;
+                addSetStage(ssbo.set, stg);
 
                 auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const ShaderSSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
                 if (it != outLayout.ssbos.end())
@@ -767,7 +786,10 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 ssbo.name                         = compiler.get_name(resource.id);
-
+                auto& psData =  outLayout.perSetData[ssbo.set].bindings[ssbo.binding];
+                psData.name = ssbo.name;
+                psData.type = DescriptorType::SSBO;
+                
                 spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
                 ssbo.isReadOnly                  = buffer_flags.get(spv::DecorationNonWritable);
 
@@ -828,6 +850,8 @@ namespace LinaGX
         return true;
     }
 
+   
+
     bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, ShaderLayout& layoutReflection)
     {
         
@@ -856,14 +880,191 @@ namespace LinaGX
             
             spirv_cross::CompilerMSL::Options options;
             options.set_msl_version(3);
-            options.argument_buffers = true;
-            options.enable_decoration_binding = true;
+            options.argument_buffers_tier = spirv_cross::CompilerMSL::Options::ArgumentBuffersTier::Tier2;
+            // options.force_active_argument_buffer_resources = true;
+            // options.argument_buffers = true;
+            //options.enable_decoration_binding = true;
+            // options.runtime_array_rich_descriptor = true;
+            // compiler.set_argument_buffer_device_address_space(0, true);
+            // options.pad_argument_buffer_resources = true;
+                        
+            auto find = [stg](const LINAGX_VEC<ShaderStage>& stgVec)
+            {
+                for(auto stage : stgVec)
+                {
+                    if(stg == stage)
+                        return true;
+                }
+                
+                return false;
+            };
+            
+            uint32 bufferID = 0, textureID = 0, samplerID = 0;
+            
+            if(stg == ShaderStage::Vertex && !layoutReflection.vertexInputs.empty() && bufferID == 0)
+                bufferID++;
+            
+            for(auto pcstg : layoutReflection.constantBlock.stages)
+            {
+                if(pcstg == stg)
+                {
+                    spirv_cross::MSLResourceBinding mslb;
+                    mslb.stage = exec;
+                    mslb.count = 1;
+                    mslb.binding = spirv_cross::ResourceBindingPushConstantBinding;
+                    mslb.desc_set = spirv_cross::ResourceBindingPushConstantDescriptorSet;
+                    mslb.basetype = spirv_cross::SPIRType::BaseType::Struct;
+                    mslb.msl_buffer = bufferID;
+                    compiler.add_msl_resource_binding(mslb);
+                    layoutReflection.constantBlock.mslBuffers[stg] = bufferID;
+                    bufferID++;
+                }
+            }
+            
+            
+            for(const auto& ubo : layoutReflection.ubos)
+            {
+                if(!find(layoutReflection.perSetData[ubo.set].stages))
+                    continue;
+                
+                spirv_cross::MSLResourceBinding mslb;
+                mslb.stage = exec;
+                mslb.count = ubo.elementSize == 0 ? 1 : ubo.elementSize;
+                mslb.desc_set = ubo.set;
+                mslb.binding = ubo.binding;
+                mslb.msl_buffer = bufferID;
+                mslb.basetype = spirv_cross::SPIRType::BaseType::Struct;
+                compiler.add_msl_resource_binding(mslb);
+                
+                auto key = ShaderLayoutMSLKey(ubo.set, ubo.binding, stg);
+                layoutReflection.mslLayout[key].bufferID = bufferID;
+                bufferID += ubo.elementSize == 0 ? 1 : ubo.elementSize;
+
+            }
+            
+            for(const auto& ssbo : layoutReflection.ssbos)
+            {
+                if(!find(layoutReflection.perSetData[ssbo.set].stages))
+                    continue;
+                
+                spirv_cross::MSLResourceBinding mslb;
+                mslb.count = 1;
+                mslb.stage = exec;
+                mslb.desc_set = ssbo.set;
+                mslb.binding = ssbo.binding;
+                mslb.msl_buffer = bufferID;
+                compiler.add_msl_resource_binding(mslb);
+                
+                auto key = ShaderLayoutMSLKey(ssbo.set, ssbo.binding, stg);
+                layoutReflection.mslLayout[key].bufferID = bufferID;
+                bufferID++;
+            }
+            
+            for(const auto& txt : layoutReflection.separateImages)
+            {
+                if(!find(layoutReflection.perSetData[txt.set].stages))
+                    continue;
+                
+                spirv_cross::MSLResourceBinding mslb;
+                mslb.stage = exec;
+                mslb.desc_set = txt.set;
+                mslb.binding = txt.binding;
+                auto key = ShaderLayoutMSLKey(txt.set, txt.binding, stg);
+
+                if(txt.elementSize == 0)
+                {
+                    mslb.count = 0;
+                    mslb.msl_texture = bufferID;
+                    layoutReflection.mslLayout[key].bufferID = bufferID;
+                    bufferID++;
+                }
+                else
+                {
+                    mslb.count = txt.elementSize;
+                    mslb.msl_texture = textureID;
+                    layoutReflection.mslLayout[key].bufferID = textureID;
+                    textureID += txt.elementSize;
+                }
+               
+                compiler.add_msl_resource_binding(mslb);
+            }
+            
+            for(const auto& smp : layoutReflection.samplers)
+            {
+                if(!find(layoutReflection.perSetData[smp.set].stages))
+                    continue;
+                
+                spirv_cross::MSLResourceBinding mslb;
+                mslb.stage = exec;
+                mslb.desc_set = smp.set;
+                mslb.binding = smp.binding;
+                auto key = ShaderLayoutMSLKey(smp.set, smp.binding, stg);
+
+                if(smp .elementSize == 0)
+                {
+                    mslb.count = 0;
+                    mslb.msl_sampler = bufferID;
+                    layoutReflection.mslLayout[key].bufferID = bufferID;
+                    bufferID++;
+                }
+                else
+                {
+                    mslb.count = smp.elementSize;
+                    mslb.msl_sampler = samplerID;
+                    layoutReflection.mslLayout[key].bufferID = samplerID;
+                    samplerID += smp.elementSize;
+                }
+                
+                compiler.add_msl_resource_binding(mslb);
+            }
+            
+            for(const auto& txt : layoutReflection.combinedImageSamplers)
+            {
+                if(!find(layoutReflection.perSetData[txt.set].stages))
+                    continue;
+                
+                spirv_cross::MSLResourceBinding mslb;
+                mslb.stage = exec;
+                mslb.desc_set = txt.set;
+                mslb.binding = txt.binding;
+                auto key = ShaderLayoutMSLKey(txt.set, txt.binding, stg);
+
+                if(txt.elementSize == 0)
+                {
+                    mslb.count = 0;
+                    mslb.msl_texture= bufferID;
+                    layoutReflection.mslLayout[key].bufferID = bufferID;
+                    bufferID++;
+                    compiler.add_msl_resource_binding(mslb);
+                    
+                    mslb.msl_sampler= bufferID;
+                    layoutReflection.mslLayout[key].bufferIDSecondary = bufferID;
+                    bufferID++;
+                    compiler.add_msl_resource_binding(mslb);
+                }
+                else
+                {
+                    mslb.count = txt.elementSize;
+                    
+                    mslb.msl_texture = textureID;
+                    layoutReflection.mslLayout[key].bufferID = textureID;
+                    textureID  += txt.elementSize;
+                    compiler.add_msl_resource_binding(mslb);
+
+                    mslb.msl_sampler =   samplerID;
+                    layoutReflection.mslLayout[key].bufferIDSecondary = samplerID;
+                    samplerID  += txt.elementSize;
+                    compiler.add_msl_resource_binding(mslb);
+                }
+            }
+            
+            
             
             compiler.set_msl_options(options);
-            
             out = compiler.compile();
-            
+
             auto entry = compiler.get_entry_point("main", exec);
+            
             layoutReflection.entryPoints[stg] = entry.name;
         }
         catch (spirv_cross::CompilerError& e)
@@ -873,7 +1074,7 @@ namespace LinaGX
             LOGE(log.c_str());
             return false;
         }
-
+             
         return true;
     }
 

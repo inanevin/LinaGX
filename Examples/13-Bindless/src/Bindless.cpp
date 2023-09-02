@@ -50,11 +50,6 @@ namespace LinaGX::Examples
     {
         LGXVector3 position      = {};
         LGXVector2 uv            = {};
-        LGXVector3 normal        = {};
-        LGXVector4 tangents      = {};
-        LGXVector4 colors        = {};
-        LGXVector4 inBoneIndices = {};
-        LGXVector4 inBoneWeights = {};
     };
 
     struct Mesh
@@ -105,13 +100,13 @@ namespace LinaGX::Examples
     {
         glm::vec4 baseColor;
         glm::vec4 baseColorTint;
-        uint32    albedoIndex = 0;
+        uint32    albedoIndex[3];
     };
 
     struct GPUMaterialData2
     {
         glm::vec4 baseColor;
-        uint32    albedoIndex = 0;
+        uint32    albedoIndex;
     };
 
     // Shaders.
@@ -422,26 +417,6 @@ namespace LinaGX::Examples
                                 Vertex vtx   = {};
                                 vtx.position = prim->positions[k];
                                 vtx.uv       = prim->texCoords[k];
-
-                                if (!prim->weights.empty())
-                                    vtx.inBoneWeights = prim->weights[k];
-
-                                if (!prim->joints.empty())
-                                {
-                                    vtx.inBoneIndices.x = static_cast<float>(prim->joints[k].x);
-                                    vtx.inBoneIndices.y = static_cast<float>(prim->joints[k].y);
-                                    vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
-                                    vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
-                                }
-
-                                if (!prim->normals.empty())
-                                    vtx.normal = prim->normals[k];
-
-                                if (!prim->tangents.empty())
-                                    vtx.tangents = prim->tangents[k];
-
-                                if (!prim->colors.empty())
-                                    vtx.colors = prim->colors[k];
 
                                 mesh.vertices.push_back(vtx);
                             }
@@ -784,6 +759,14 @@ namespace LinaGX::Examples
 
     void DrawObject(const PerFrameData& currentFrame, Object& obj)
     {
+  
+        CMDBindConstants* constants = currentFrame.stream->AddCommand<CMDBindConstants>();
+        constants->size             = sizeof(ConstantsData);
+        constants->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Vertex, ShaderStage::Fragment);
+        constants->stagesSize       = 2;
+        constants->offset           = 0;
+        constants->data             = currentFrame.stream->EmplaceAuxMemory<ConstantsData>(obj.constants);
+
         // Bind the descriptors
         {
             CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
@@ -793,13 +776,7 @@ namespace LinaGX::Examples
             bindSets->isCompute             = false;
         }
 
-        CMDBindConstants* constants = currentFrame.stream->AddCommand<CMDBindConstants>();
-        constants->size             = sizeof(ConstantsData);
-        constants->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Vertex, ShaderStage::Fragment);
-        constants->stagesSize       = 2;
-        constants->offset           = 0;
-        constants->data             = currentFrame.stream->EmplaceAuxMemory<ConstantsData>(obj.constants);
-
+        
         for (const auto& mesh : obj.meshes)
         {
             CMDBindVertexBuffers* vtx = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();
@@ -864,9 +841,9 @@ namespace LinaGX::Examples
 
             _material1.baseColor     = glm::vec4(1, 1, 1, 1);
             _material1.baseColorTint = glm::vec4(1, 1, 1, 1);
-            _material1.albedoIndex   = 0;
+            _material1.albedoIndex[0]   = 0;
             _material2.baseColor     = glm::vec4(1, 1, 1, 1);
-            _material2.albedoIndex   = 3;
+            _material2.albedoIndex  = 3;
 
             std::memcpy(currentFrame.ssboMaterialsMapping, &_material1, sizeof(GPUMaterialData1));
             std::memcpy(currentFrame.ssboMaterialsMapping + sizeof(GPUMaterialData1), &_material2, sizeof(GPUMaterialData2));

@@ -36,13 +36,13 @@ include(GNUInstallDirs)
 option(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS "Instead of throwing exceptions assert" OFF)
 option(SPIRV_CROSS_SHARED "Build the C API as a single shared library." OFF)
 option(SPIRV_CROSS_STATIC "Build the C and C++ API as static libraries." ON)
-option(SPIRV_CROSS_CLI "Build the CLI binary. Requires SPIRV_CROSS_STATIC." OFF)
-option(SPIRV_CROSS_ENABLE_TESTS "Enable SPIRV-Cross tests." OFF)
+option(SPIRV_CROSS_CLI "Build the CLI binary. Requires SPIRV_CROSS_STATIC." ON)
+option(SPIRV_CROSS_ENABLE_TESTS "Enable SPIRV-Cross tests." ON)
 
 option(SPIRV_CROSS_ENABLE_GLSL "Enable GLSL support." ON)
 option(SPIRV_CROSS_ENABLE_HLSL "Enable HLSL target support." ON)
 option(SPIRV_CROSS_ENABLE_MSL "Enable MSL target support." ON)
-option(SPIRV_CROSS_ENABLE_CPP "Enable C++ target support." OFF)
+option(SPIRV_CROSS_ENABLE_CPP "Enable C++ target support." ON)
 option(SPIRV_CROSS_ENABLE_REFLECT "Enable JSON reflection target support." ON)
 option(SPIRV_CROSS_ENABLE_C_API "Enable C API wrapper support in static library." ON)
 option(SPIRV_CROSS_ENABLE_UTIL "Enable util module support." ON)
@@ -55,7 +55,7 @@ option(SPIRV_CROSS_SANITIZE_UNDEFINED "Sanitize undefined" OFF)
 option(SPIRV_CROSS_NAMESPACE_OVERRIDE "" "Override the namespace used in the C++ API.")
 option(SPIRV_CROSS_FORCE_STL_TYPES "Force use of STL types instead of STL replacements in certain places. Might reduce performance." OFF)
 
-option(SPIRV_CROSS_SKIP_INSTALL "Skips installation targets." ON)
+option(SPIRV_CROSS_SKIP_INSTALL "Skips installation targets." OFF)
 
 option(SPIRV_CROSS_WERROR "Fail build on warnings." OFF)
 option(SPIRV_CROSS_MISC_WARNINGS "Misc warnings useful for Travis runs." OFF)
@@ -166,7 +166,6 @@ endmacro()
 
 macro(spirv_cross_add_library name config_name library_type)
 	add_library(${name} ${library_type} ${ARGN})
-	set_property(TARGET ${name} PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
 	extract_headers(hdrs "${ARGN}")
 	target_include_directories(${name} PUBLIC
 			$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -243,8 +242,19 @@ set(spirv-cross-util-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross_util.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross_util.hpp)
 
+set(spirv-cross-abi-major 0)
+set(spirv-cross-abi-minor 57)
+set(spirv-cross-abi-patch 0)
+set(SPIRV_CROSS_VERSION ${spirv-cross-abi-major}.${spirv-cross-abi-minor}.${spirv-cross-abi-patch})
 
 if (SPIRV_CROSS_STATIC)
+	if (NOT SPIRV_CROSS_SKIP_INSTALL)
+		configure_file(
+			${CMAKE_CURRENT_SOURCE_DIR}/pkg-config/spirv-cross-c.pc.in
+			${CMAKE_CURRENT_BINARY_DIR}/spirv-cross-c.pc @ONLY)
+		install(FILES ${CMAKE_CURRENT_BINARY_DIR}/spirv-cross-c.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+	endif()
+
 	spirv_cross_add_library(spirv-cross-core spirv_cross_core STATIC
 			${spirv-cross-core-sources})
 
@@ -269,7 +279,6 @@ if (SPIRV_CROSS_STATIC)
 		if (SPIRV_CROSS_ENABLE_GLSL)
 			spirv_cross_add_library(spirv-cross-reflect spirv_cross_reflect STATIC
 					${spirv-cross-reflect-sources})
-
 		else()
 			message(FATAL_ERROR "Must enable GLSL support to enable JSON reflection support.")
 		endif()
@@ -278,10 +287,8 @@ if (SPIRV_CROSS_STATIC)
 	if (SPIRV_CROSS_ENABLE_MSL)
 		spirv_cross_add_library(spirv-cross-msl spirv_cross_msl STATIC
 				${spirv-cross-msl-sources})
-
 		if (SPIRV_CROSS_ENABLE_GLSL)
 			target_link_libraries(spirv-cross-msl PRIVATE spirv-cross-glsl)
-
 		else()
 			message(FATAL_ERROR "Must enable GLSL support to enable MSL support.")
 		endif()
@@ -290,7 +297,6 @@ if (SPIRV_CROSS_STATIC)
 	if (SPIRV_CROSS_ENABLE_HLSL)
 		spirv_cross_add_library(spirv-cross-hlsl spirv_cross_hlsl STATIC
 				${spirv-cross-hlsl-sources})
-
 		if (SPIRV_CROSS_ENABLE_GLSL)
 			target_link_libraries(spirv-cross-hlsl PRIVATE spirv-cross-glsl)
 		else()
@@ -301,7 +307,6 @@ if (SPIRV_CROSS_STATIC)
 	if (SPIRV_CROSS_ENABLE_UTIL)
 		spirv_cross_add_library(spirv-cross-util spirv_cross_util STATIC
 				${spirv-cross-util-sources})
-
 		target_link_libraries(spirv-cross-util PRIVATE spirv-cross-core)
 	endif()
 
@@ -338,13 +343,7 @@ if (SPIRV_CROSS_STATIC)
 	endif()
 endif()
 
-set(spirv-cross-abi-major 0)
-set(spirv-cross-abi-minor 48)
-set(spirv-cross-abi-patch 0)
-
 if (SPIRV_CROSS_SHARED)
-	set(SPIRV_CROSS_VERSION ${spirv-cross-abi-major}.${spirv-cross-abi-minor}.${spirv-cross-abi-patch})
-
 	if (NOT SPIRV_CROSS_SKIP_INSTALL)
 		configure_file(
 			${CMAKE_CURRENT_SOURCE_DIR}/pkg-config/spirv-cross-c-shared.pc.in

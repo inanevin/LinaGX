@@ -42,7 +42,7 @@ namespace LinaGX
 }
 
 @interface CustomView : NSView
-
+- (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback;
 @end
 
 @interface CustomWindowDelegate : NSObject <NSWindowDelegate>
@@ -61,7 +61,6 @@ namespace LinaGX
 @property (assign) LinaGX::OSXWindow* window;
 - (void)setKeyCallback:(std::function<void(int, LinaGX::InputAction action)>)callback;
 - (void)setMouseCallback:(std::function<void(int, LinaGX::InputAction action)>)callback;
-- (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback;
 - (void)setMouseEnteredCallback:(std::function<void()>)callback;
 - (void)setMouseExitedCallback:(std::function<void()>)callback;
 - (void)setMouseWheelCallback:(std::function<void(int)>)callback;

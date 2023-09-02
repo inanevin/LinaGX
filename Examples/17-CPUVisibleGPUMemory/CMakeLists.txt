@@ -19,10 +19,19 @@ project(17-CPUVisibleGPUMemory)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/CPUVisibleGPUMemory.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/CPUVisibleGPUMemory.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

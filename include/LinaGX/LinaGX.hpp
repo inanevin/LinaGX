@@ -31,8 +31,7 @@ NOTES:
 
 - name your shader functions main
 
- 
-- 16 byte alignment per element in each struct for SSBO and UBOs.
+ - 16 byte alignment per element in each struct for SSBO and UBOs.
 
 - Projection matrices should produce depth for range 0.0f and 1.0f.
 
@@ -69,19 +68,53 @@ use to index into another buffer for per-draw-call parameters.
  
  - subpasses not supported yet
  
+ - take a look at the depth stuff in DX12, how do we not use the depth texture at all?
+ - Also we always assume a depth texture with vulkan, what if no depth is enabled?
+ 
  - only 1 vertex buffer index/slot is supported atm.
  
  - single write mask only for psos.
+ 
+ - Custom barriers man.
+ 
+ - Confine and restrict mouse
+ 
+ - 16 Byte or 32 byte alignment for constant buffers in METAL? Idk, check all alignment requirements properly and document.
  
  - no render pass load store selection
  
  - Metal 2 minimum, needs to support argument buffers.
  
+ - rename isBindless to isUnbounded
+ 
+ - makeResidency and binding e.g 10000 textures.
+ 
+ - matrices will be unrolled to vectors in vertex input layouts, check that out.
+ 
+ - In bindless model, take a look at binding descriptor 0 global once, not PER SHADER.
+ 
+ - loading fero model got fucked
+ 
+ - secondary command buffers
+ 
+ - subpasses
+ 
+ - Always bind unbounded desciptors to the last element of the set. You can only bind unbounded data one after another given they are different types of data.
+ - Take a look at the limitation above, see if there is a way to fix that for DX12, adding an extra space if same kind of data is already unbounded in the same space.
+ - e.g. textures1 [] and textures2[] -> automatically move textures2[] to different space (do we want that?)
+ 
+ - compute shaders don't use a seperate queue but use a resource barrier on the resource?
+ 
+- metl index stuff is different uint16, uint32 in shader? take a look at that?
+- descriptor names cant end with "_"
+- Use unique names for descriptor. Descriptor named "GlobalData", if it's Set 0 Binding 0 in Vertex shader, gotta be the same layout in other stages.
+- Can't name any descriptor ending with Smplr_ if targeting metal too for reflection purposes.
 - blend logic operations are not supported on Metal.
 - compare op NotEqual is not supported on Metal.
 - format checking is not supported on metal.
 - no geometry shaders in metal.
 - no separate tesellation shaders?
+ - dont bind resource if already bound
 
  
 */

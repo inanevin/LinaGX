@@ -19,10 +19,20 @@ project(09-GLTFSkinning)
 # Set sources
 #--------------------------------------------------------------------
 
+
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/GLTFSkinning.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/GLTFSkinning.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

@@ -19,10 +19,19 @@ project(13-Bindless)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/Bindless.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/Bindless.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

@@ -51,9 +51,6 @@ namespace LinaGX::Examples
     {
         LGXVector3 position      = {};
         LGXVector2 uv            = {};
-        LGXVector3 normal        = {};
-        LGXVector4 tangents      = {};
-        LGXVector4 colors        = {};
         LGXVector4 inBoneIndices = {};
         LGXVector4 inBoneWeights = {};
     };
@@ -111,7 +108,7 @@ namespace LinaGX::Examples
     struct GPUMaterialData
     {
         glm::vec4 baseColorTint;
-        float     alphaCutoff;
+        glm::vec4 alphaCutoff;
     };
 
     struct CameraData
@@ -234,11 +231,15 @@ namespace LinaGX::Examples
             _window->SetCallbackMouse([this](uint32 button, InputAction action) {
                 if (button == LINAGX_MOUSE_0)
                     _camera.isPressed = action != InputAction::Released;
+                
             });
 
             _window->SetCallbackMouseMove([this](const LGXVector2ui& pos) {
+                
+
                 if (_camera.isPressed)
                 {
+                    
                     int32 deltaX = static_cast<int32>(pos.x) - static_cast<int32>(_camera.prevMouseX);
                     int32 deltaY = static_cast<int32>(pos.y) - static_cast<int32>(_camera.prevMouseY);
 
@@ -420,7 +421,7 @@ namespace LinaGX::Examples
                     _lgx->MapResource(material.ubo, material.uboMapping);
 
                     GPUMaterialData gpuMatData;
-                    gpuMatData.alphaCutoff   = modMat->alphaCutoff;
+                    gpuMatData.alphaCutoff.x   = modMat->alphaCutoff;
                     gpuMatData.baseColorTint = glm::vec4(modMat->baseColor.x, modMat->baseColor.y, modMat->baseColor.z, modMat->baseColor.w);
                     std::memcpy(material.uboMapping, &gpuMatData, sizeof(GPUMaterialData));
                     _lgx->UnmapResource(material.ubo);
@@ -504,16 +505,6 @@ namespace LinaGX::Examples
                                     vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
                                     vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
                                 }
-
-                                if (!prim->normals.empty())
-                                    vtx.normal = prim->normals[k];
-
-                                if (!prim->tangents.empty())
-                                    vtx.tangents = prim->tangents[k];
-
-                                if (!prim->colors.empty())
-                                    vtx.colors = prim->colors[k];
-
                                 mesh.vertices.push_back(vtx);
                             }
                         }

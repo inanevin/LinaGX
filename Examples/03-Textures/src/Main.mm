@@ -55,6 +55,11 @@ CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink,
 
 @implementation AppDelegate
 
+- (void)applicationWillTerminate:(NSNotification *)notification
+{
+    CVDisplayLinkStop(displayLink);
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     
     if (self.myApp) {

@@ -20,7 +20,7 @@ layout (set = 2, binding = 1) uniform sampler2D textures[];
 struct Material2
 {
 	vec4 baseColor;
-	uint albedoIndex;
+    uint albedoIndex;
 };
 
 Material2 AsMaterial2(uint startIndex)
@@ -35,7 +35,7 @@ Material2 AsMaterial2(uint startIndex)
 	mat.baseColor.a = uintBitsToFloat(materials.data[index++]);
 
 	// albedo index
-	mat.albedoIndex = materials.data[index++];
+    mat.albedoIndex = materials.data[index++];
 
 	return mat;
 }

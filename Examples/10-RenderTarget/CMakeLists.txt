@@ -19,10 +19,19 @@ project(10-RenderTarget)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/RenderTarget.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/RenderTarget.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

@@ -19,10 +19,20 @@ project(06-Constants)
 # Set sources
 #--------------------------------------------------------------------
 
+
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/Constants.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/Constants.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

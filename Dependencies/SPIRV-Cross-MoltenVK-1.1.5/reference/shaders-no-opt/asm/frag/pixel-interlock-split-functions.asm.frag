@@ -1,49 +1,61 @@
 #version 450
-#extension GL_ARB_fragment_shader_interlock : require
+#ifdef GL_ARB_fragment_shader_interlock
+#extension GL_ARB_fragment_shader_interlock : enable
+#define SPIRV_Cross_beginInvocationInterlock() beginInvocationInterlockARB()
+#define SPIRV_Cross_endInvocationInterlock() endInvocationInterlockARB()
+#elif defined(GL_INTEL_fragment_shader_ordering)
+#extension GL_INTEL_fragment_shader_ordering : enable
+#define SPIRV_Cross_beginInvocationInterlock() beginFragmentShaderOrderingINTEL()
+#define SPIRV_Cross_endInvocationInterlock()
+#endif
+#if defined(GL_ARB_fragment_shader_interlock)
 layout(pixel_interlock_ordered) in;
+#elif !defined(GL_INTEL_fragment_shader_ordering)
+#error Fragment Shader Interlock/Ordering extension missing!
+#endif
 
 layout(binding = 1, std430) buffer SSBO1
 {
     uint values1[];
-} _7;
+} _11;
 
 layout(binding = 0, std430) buffer SSBO0
 {
     uint values0[];
-} _9;
+} _13;
 
 void callee2()
 {
-    int _37 = int(gl_FragCoord.x);
-    _7.values1[_37]++;
+    int _25 = int(gl_FragCoord.x);
+    _11.values1[_25]++;
 }
 
 void callee()
 {
-    int _45 = int(gl_FragCoord.x);
-    _9.values0[_45]++;
+    int _38 = int(gl_FragCoord.x);
+    _13.values0[_38]++;
     callee2();
 }
 
-void _29()
+void _46()
 {
 }
 
-void _31()
+void _48()
 {
 }
 
 void spvMainInterlockedBody()
 {
     callee();
-    _29();
-    _31();
+    _46();
+    _48();
 }
 
 void main()
 {
     // Interlocks were used in a way not compatible with GLSL, this is very slow.
-    beginInvocationInterlockARB();
+    SPIRV_Cross_beginInvocationInterlock();
     spvMainInterlockedBody();
-    endInvocationInterlockARB();
+    SPIRV_Cross_endInvocationInterlock();
 }

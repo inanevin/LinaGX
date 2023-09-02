@@ -35,6 +35,7 @@ SOFTWARE.
 #include "Math.hpp"
 #include <assert.h>
 
+
 namespace LinaGX
 {
     enum class BackendAPI
@@ -413,6 +414,7 @@ namespace LinaGX
         size_t                      size    = 0;
         uint32                      set     = 0;
         uint32                      binding = 0;
+        LINAGX_MAP<ShaderStage, uint32> mslBuffers;
         LINAGX_VEC<ShaderUBOMember> members;
         LINAGX_VEC<ShaderStage>     stages;
         LINAGX_STRING               name = "";
@@ -420,6 +422,7 @@ namespace LinaGX
 
     struct ShaderUBO
     {
+        uint32 spvID = 0;
         uint32                      set     = 0;
         uint32                      binding = 0;
         size_t                      size    = 0;
@@ -431,6 +434,7 @@ namespace LinaGX
 
     struct ShaderSSBO
     {
+        uint32 spvID = 0;
         uint32                  set     = 0;
         uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
@@ -440,6 +444,7 @@ namespace LinaGX
 
     struct ShaderSRVTexture2D
     {
+        uint32 spvID = 0;
         uint32                  set     = 0;
         uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
@@ -449,11 +454,68 @@ namespace LinaGX
 
     struct ShaderSampler
     {
+        uint32 spvID = 0;
         uint32                  set     = 0;
         uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
         LINAGX_STRING           name        = "";
         uint32                  elementSize = 1;
+    };
+
+    struct ShaderLayoutBindingData
+    {
+        LINAGX_STRING name = "";
+        DescriptorType type = DescriptorType::UBO;
+    };
+
+    struct ShaderLayoutPerSetData
+    {
+        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_MAP<uint32, ShaderLayoutBindingData> bindings;
+    };
+
+    struct ShaderLayoutMSLBinding
+    {
+        uint32 bufferID = 0;
+        uint32 bufferIDSecondary = 0;
+    };
+
+    struct ShaderLayoutMSLKey
+    {
+        uint32 set = 0;
+        uint32 binding = 0;
+        ShaderStage stage = ShaderStage::Vertex;
+        
+        ShaderLayoutMSLKey(uint32 s, uint32 b, ShaderStage stg){
+            set = s;
+            binding = b;
+            stage = stg;
+        }
+        
+
+
+            bool operator==(const ShaderLayoutMSLKey& other) const {
+                return set == other.set &&
+                       binding == other.binding &&
+                       stage == other.stage;
+            }
+
+    };
+
+
+    struct ShaderLayoutMSLKeyHash {
+        std::size_t operator()(const ShaderLayoutMSLKey& k) const {
+            std::size_t h1 = std::hash<uint32_t>{}(k.set);
+            std::size_t h2 = std::hash<uint32_t>{}(k.binding);
+            std::size_t h3 = std::hash<int>{}(static_cast<int>(k.stage));
+            return h1 ^ (h2 << 1) ^ (h3 << 2);
+        }
+    };
+
+    struct ShaderLayoutMSLKeyEqual {
+        bool operator()(const ShaderLayoutMSLKey& lhs, const ShaderLayoutMSLKey& rhs) const {
+            return lhs == rhs;
+        }
     };
 
     struct ShaderLayout
@@ -464,13 +526,13 @@ namespace LinaGX
         LINAGX_VEC<ShaderSRVTexture2D>              combinedImageSamplers;
         LINAGX_VEC<ShaderSRVTexture2D>              separateImages;
         LINAGX_VEC<ShaderSampler>                   samplers;
-        LINAGX_MAP<uint32, LINAGX_VEC<uint32>>      setsAndBindings;
-        LINAGX_MAP<uint32, LINAGX_VEC<ShaderStage>> setsAndStages;
+        LINAGX_MAP<uint32, ShaderLayoutPerSetData>  perSetData;
         ShaderConstantBlock                         constantBlock;
         uint32                                      totalDescriptors = 0;
         bool                                        hasGLDrawID      = false;
         uint32                                      drawIDBinding    = 0;
         LINAGX_MAP<ShaderStage, LINAGX_STRING>      entryPoints;
+        LINAGX_MAP<ShaderLayoutMSLKey, ShaderLayoutMSLBinding, ShaderLayoutMSLKeyHash, ShaderLayoutMSLKeyEqual> mslLayout;
     };
 
     struct ShaderCompileData

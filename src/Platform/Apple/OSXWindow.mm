@@ -96,14 +96,12 @@ bool OSXWindow::Create(uint32_t sid, const char *title, LinaGX::int32 x, LinaGX:
         m_mousePosition = {x, m_size.y - y};
         m_mouseMoved = true;
         m_input->WindowFeedMousePosition(m_mousePosition);
-        
         if(m_cbMouseMove)
             m_cbMouseMove(m_mousePosition);
     };
     
     std::function<void()> mouseEnteredCallback = [this]() {
         m_isHovered = true;
-        
         if(m_cbHoverBegin)
             m_cbHoverBegin();
     };
@@ -171,7 +169,6 @@ bool OSXWindow::Create(uint32_t sid, const char *title, LinaGX::int32 x, LinaGX:
         {
             const LGXVector2i absMouse = m_input->GetMousePositionAbs();
             const LGXVector2i p = {absMouse.x - static_cast<int32>(m_lmDragDelta.x), absMouse.y - static_cast<int32>(m_lmDragDelta.y)};
-            LOGT("SHOULD SET POS TO %d %d", p.x, p.y);
            SetPosition(p);
         }
     };
@@ -190,12 +187,12 @@ bool OSXWindow::Create(uint32_t sid, const char *title, LinaGX::int32 x, LinaGX:
     [wndContent retain];
     m_nsView = static_cast<void*>(wndContent);
     [wndContent setWantsLayer:YES];
+    [wndContent setMouseMovedCallback:mouseMovedCallback];
     [wnd setContentView:wndContent];
     
     // Window events.
     [wnd setKeyCallback:keyCallback];
     [wnd setMouseCallback:mouseCallback];
-    [wnd setMouseMovedCallback:mouseMovedCallback];
     [wnd setMouseEnteredCallback:mouseEnteredCallback];
     [wnd setMouseExitedCallback:mouseExitedCallback];
     [wnd setMouseWheelCallback:mouseWheelCallback];

@@ -19,10 +19,19 @@ project(16-IndirectRenderingComputeQueue)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/IndirectRenderingComputeQueue.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/IndirectRenderingComputeQueue.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

@@ -19,10 +19,19 @@ project(04-Mipmaps)
 # Set sources
 #--------------------------------------------------------------------
 
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/Mipmaps.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/Mipmaps.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp

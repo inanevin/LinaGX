@@ -3,15 +3,9 @@
  
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 uv;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec4 tangent;
-layout(location = 4) in vec4 color;
-layout(location = 5) in vec4 inBoneIndices;
-layout(location = 6) in vec4 inBoneWeights;
+
 
 layout(location = 0) out vec2 outUV;
-
-#define TESTO 0
 
 layout(set = 0, binding = 0) uniform SceneData
 {

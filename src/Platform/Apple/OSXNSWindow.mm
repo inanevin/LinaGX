@@ -33,11 +33,12 @@ SOFTWARE.
 
 
 @implementation CustomView
+std::function<void(int, int)> mouseMovedCallback;
 
 - (void)updateTrackingAreas {
     [super updateTrackingAreas];
     
-    NSTrackingAreaOptions options = (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow);
+    NSTrackingAreaOptions options = (NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow);
     NSTrackingArea *trackingArea = [[NSTrackingArea alloc] initWithRect:[self bounds]
                                                                  options:options
                                                                    owner:self
@@ -45,6 +46,37 @@ SOFTWARE.
     [self addTrackingArea:trackingArea];
 }
 
+- (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback {
+   mouseMovedCallback = callback;
+}
+
+- (void)mouseMoved:(NSEvent *)event
+{
+    NSPoint loc = event.locationInWindow;
+    mouseMovedCallback(loc.x, loc.y);
+    [super mouseMoved:event];
+}
+
+- (void)mouseDragged:(NSEvent *)event
+{
+    NSPoint loc = event.locationInWindow;
+    mouseMovedCallback(loc.x, loc.y);
+    [super mouseDragged:event];
+}
+
+- (void)otherMouseDragged:(NSEvent *)event
+{
+    NSPoint loc = event.locationInWindow;
+    mouseMovedCallback(loc.x, loc.y);
+    [super otherMouseDragged:event];
+}
+
+- (void)rightMouseDragged:(NSEvent *)event
+{
+    NSPoint loc = event.locationInWindow;
+    mouseMovedCallback(loc.x, loc.y);
+    [super rightMouseDragged:event];
+}
 
 @end
 
@@ -127,7 +159,6 @@ std::function<void()> windowClosedCallback;
 
 std::function<void(int, LinaGX::InputAction)> keyCallback;
 std::function<void(int, LinaGX::InputAction)> mouseCallback;
-std::function<void(int, int)> mouseMovedCallback;
 std::function<void()> mouseEnteredCallback;
 std::function<void()> mouseExitedCallback;
 std::function<void(int)> mouseWheelCallback;
@@ -139,10 +170,6 @@ std::function<void()> mouseDraggedCallback;
 
 - (void)setMouseCallback:(std::function<void(int, LinaGX::InputAction action)>)callback {
    mouseCallback = callback;
-}
-
-- (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback {
-   mouseMovedCallback = callback;
 }
 
 - (void)setMouseEnteredCallback:(std::function<void()>)callback {
@@ -202,12 +229,10 @@ std::function<void()> mouseDraggedCallback;
 
 - (void)keyDown:(NSEvent *)theEvent {
     keyCallback(theEvent.keyCode, LinaGX::InputAction::Pressed);
-    [super keyDown:theEvent];
 }
 
 - (void)keyUp:(NSEvent *)theEvent {
     keyCallback(theEvent.keyCode, LinaGX::InputAction::Released);
-    [super keyUp:theEvent];
 }
 
 - (void)mouseEntered:(NSEvent *)event{
@@ -219,13 +244,6 @@ std::function<void()> mouseDraggedCallback;
 {
     mouseExitedCallback();
     [super mouseExited:event];
-}
-
-- (void)mouseMoved:(NSEvent *)event
-{
-    NSPoint loc = event.locationInWindow;
-    mouseMovedCallback(loc.x, loc.y);
-    [super mouseMoved:event];
 }
 
 - (void)scrollWheel:(NSEvent *)event

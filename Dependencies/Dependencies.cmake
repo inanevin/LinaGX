@@ -64,7 +64,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC SPIRV)
 message("LinaGX -> glslang has been linked.")
 
 
-add_subdirectory(Dependencies/SPIRV-Cross-MoltenVK-1.1.5)
+add_subdirectory(Dependencies/SPIRV-Cross)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-c)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-core)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-glsl)

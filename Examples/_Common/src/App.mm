@@ -74,6 +74,7 @@ namespace LinaGX::Examples
     {
         m_isRunning = false;
         [NSApp stop:nil];
+        [NSApp terminate:nil];
     }
 
     void App::Shutdown()

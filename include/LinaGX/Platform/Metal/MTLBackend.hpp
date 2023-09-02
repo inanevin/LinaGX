@@ -70,6 +70,16 @@ struct MTLSwapchain
     void* window = nullptr;
     uint32 width = 0;
     uint32 height = 0;
+    LINAGX_VEC<uint32> depthTextures;
+    uint32 _currentDrawableIndex = 0;
+};
+
+struct MTLArgEncoder
+{
+    void* encoder = nullptr;
+    void* encoderSecondary = nullptr;
+    void* argBuffer = nullptr;
+    void* argBufferSecondary = nullptr;
 };
 
 struct MTLShader
@@ -83,8 +93,8 @@ struct MTLShader
     void* pso = nullptr;
     void* dsso = nullptr;
     void* cso = nullptr;
-    
-    LINAGX_MAP<uint32, void*> setEncoders;
+    ShaderLayout layout = {};
+    LINAGX_MAP<ShaderLayoutMSLKey, MTLArgEncoder, ShaderLayoutMSLKeyHash, ShaderLayoutMSLKeyEqual> argEncoders;
 };
 
 struct MTLFence
@@ -121,6 +131,9 @@ struct MTLBinding
     LINAGX_VEC<uint32> additionalResources;
     uint32 descriptorCount = 0;
     DescriptorType type = DescriptorType::UBO;
+    bool isUnbounded = false;
+    void* unboundedBuffer = nullptr;
+    void* unboundedBufferSecondary = nullptr;
 };
 
 struct MTLDescriptorSet

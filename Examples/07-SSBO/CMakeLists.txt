@@ -19,10 +19,21 @@ project(07-SSBO)
 # Set sources
 #--------------------------------------------------------------------
 
+
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/SSBO.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/SSBO.cpp
+)
+endif()
+
 
 set(HEADERS
 include/Main.hpp

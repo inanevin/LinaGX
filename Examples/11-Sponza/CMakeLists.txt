@@ -19,10 +19,20 @@ project(11-Sponza)
 # Set sources
 #--------------------------------------------------------------------
 
+
+if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/Sponza.cpp
 )
+endif()
+
+if(APPLE)
+set(SOURCES 
+src/Main.mm
+src/Sponza.cpp
+)
+endif()
 
 set(HEADERS
 include/Main.hpp
