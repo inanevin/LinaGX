@@ -29,23 +29,21 @@ SOFTWARE.
 /*
 THINGS TO ADD ALL BACKENDS/FIX:
 
- - Make proper use depth write, use depth test etc. Testing for depth is different than writing to depth texture.
  - Proper feature support. Find all features we are using, categorize them, make sure users are able to know if particular thing is supported or not.
  - Rename isBindless to isUnbounded.
- - Try sending a matrix as a vertex input.
  - Fero model won't load.
  - Go through all shaders and remove unnecessary vertex attributes
  - Local thread group size limit on metal.
  - PreTick() :D.
+ - App utilities / common main.
+ - Fero'da format/hdr problemi.
  
 THINGS TO RESEARCH:
  
 - Proper alignment. Alignment between struct elements in SSBO and UBO in different platforms. Also alignment between lets say array ubos. Or alignment between different bindings. UBO alignment 256 for example?
-- Descriptor set binding. Can we bind without a shader?
 - What was the reason for 226 in compute group?
 - gl_InstanceIndex and alike and their support.
 - Minimium #version we require?
-- Dynamically indexing into descriptor sets.
 - How crucial it is to allow update after bind bit?
 - Blend Logic operations on Metal?
 - CompareOp NotEqual on Metal?
@@ -53,26 +51,46 @@ THINGS TO RESEARCH:
 - Tesellation shaders across supported APIs.
 - Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
  
-FEATURES TO IMPLEMENT:
+FEATURES TO IMPLEMENT & THINGS TO TEST:
  
-- Indirect rendering count buffer.
-- DrawIndirect (without indexed)
-- DispatchIndirect for computes.
-- Array textures and sampler2Darray and alike.
-- Proper custom barriers?
-- Compute barrier?
-- Stencil buffer.
-- Subpasses.
-- Render pass load/store selection per attachment.
-- Different vertex buffer slots.
 - PSO write mask.
-- Mouse confinement and restriction.
+- Render pass multiple attachments, load/store actions per attachment.
+- Stencil buffer.
+- Finalize/test depth stuff.
+- Subpasses.
+- Matrix as a vertex input.
+- Different vertex buffer slots.
+- Binding without shader test.
+- Dynamic descriptor set UBO and SSBO bindings.
+- Array textures and sampler2Darray and alike.
 - Secondary command buffers.
+- DrawIndirect (without indexed)
+- Indirect rendering count buffer.
+- DispatchIndirect for computes.
+- Proper custom barriers.
+- Compute barrier.
+- Mouse confinement and restriction.
  
-NEW EPIC DEMO:
+POSSIBLE EPIC DEMO:
  
+- Some sort of alley, semi outdoors.
+- PBR shaders.
+- Proper IBL.
+- Sun light + point lights.
+- Shadows.
+- HDR + tonemapping.
+- Deferred rendering.
+- Forward pass transparency.
+- GPU driven occlusion culling.
+- Instanced particles maybe.
+- Some AA.
+- SSBO.
+- Fast + performant, bindless.
+- Resolution selection.
  
+OR INSTEAD OF AN EPIC DEMO, maybe make a smaller one :).
  
+- Fox GLTF using PBR, light and a shadow map, a mirror on the side.
  
 NOTES TO DOCUMENT:
  
@@ -89,10 +107,8 @@ NOTES TO DOCUMENT:
  - Make sure you do not end descriptor names with "_". Can't end with "Smplr_" if targeting Metal.
  - Geometry shaders are not supported on Metal.
  
-MISC:
- 
- 
-NOTES:
+
+INDIRECT NOTES:
 
 - Indirect: You need to always use IndexedIndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can
 use to index into another buffer for per-draw-call parameters.
