@@ -628,6 +628,8 @@ namespace LinaGX
         if (desc.width == 0 || desc.height == 0)
             return;
 
+        Join();
+        
         auto&                swp     = m_swapchains.GetItemR(desc.swapchain);
         DXGI_SWAP_CHAIN_DESC swpDesc = {};
         swp.ptr->GetDesc(&swpDesc);

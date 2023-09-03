@@ -25,6 +25,7 @@ struct IndirectArguments
 {
     int objectID;
     int materialByteIndex;
+    int padding[2];
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectData

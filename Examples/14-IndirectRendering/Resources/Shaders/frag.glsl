@@ -9,6 +9,7 @@ struct IndirectArguments
 {
     int objectID;
     int materialByteIndex;
+    int padding[2];
 };
 
 layout(set = 1, binding = 1) readonly buffer IndirectArgumentsData

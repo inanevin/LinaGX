@@ -40,6 +40,7 @@ namespace LinaGX
     {
         void*        extension;
         bool         isSwapchain;
+        bool         useDepthAttachment;
         uint8        swapchain;
         uint32       colorTexture;
         uint32       depthTexture;

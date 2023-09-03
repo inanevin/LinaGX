@@ -40,7 +40,7 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 #define MAIN_WINDOW_ID   0
-#define FRAMES_IN_FLIGHT 2
+#define FRAMES_IN_FLIGHT 1
 
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
@@ -50,11 +50,6 @@ namespace LinaGX::Examples
     {
         LGXVector3 position      = {};
         LGXVector2 uv            = {};
-        LGXVector3 normal        = {};
-        LGXVector4 tangents      = {};
-        LGXVector4 colors        = {};
-        LGXVector4 inBoneIndices = {};
-        LGXVector4 inBoneWeights = {};
     };
 
     struct Mesh
@@ -71,6 +66,7 @@ namespace LinaGX::Examples
     {
         uint32 index             = 0;
         uint32 materialByteIndex = 0;
+        uint32 padding[2];
     };
 
     struct Object
@@ -318,7 +314,7 @@ namespace LinaGX::Examples
             _objects.push_back({});
 
             glm::mat4 mat = glm::mat4(1.0f);
-            glm::quat q   = glm::quat(glm::vec3(0.0f, DEG2RAD(180.0f), 0.0f));
+            glm::quat q   = glm::quat(glm::vec3(0.0f, DEG2RAD(155.0f), 0.0f));
             mat           = TranslateRotateScale({-150.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {3000, 3000, 3000});
 
             auto& avacado                       = _objects[0];
@@ -377,26 +373,6 @@ namespace LinaGX::Examples
                                 Vertex vtx   = {};
                                 vtx.position = prim->positions[k];
                                 vtx.uv       = prim->texCoords[k];
-
-                                if (!prim->weights.empty())
-                                    vtx.inBoneWeights = prim->weights[k];
-
-                                if (!prim->joints.empty())
-                                {
-                                    vtx.inBoneIndices.x = static_cast<float>(prim->joints[k].x);
-                                    vtx.inBoneIndices.y = static_cast<float>(prim->joints[k].y);
-                                    vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
-                                    vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
-                                }
-
-                                if (!prim->normals.empty())
-                                    vtx.normal = prim->normals[k];
-
-                                if (!prim->tangents.empty())
-                                    vtx.tangents = prim->tangents[k];
-
-                                if (!prim->colors.empty())
-                                    vtx.colors = prim->colors[k];
 
                                 mesh.vertices.push_back(vtx);
                             }
@@ -810,6 +786,9 @@ namespace LinaGX::Examples
             copyRes2->source          = currentFrame.indirectArgsStaging;
             copyRes2->destination     = currentFrame.indirectArgsGPU;
         }
+        
+        static float aq = 0.0f;
+        aq += 1;
 
         // Copy SSBO data on copy queue
         {
@@ -883,6 +862,7 @@ namespace LinaGX::Examples
             beginRenderPass->clearColor[3]      = 1.0f;
             beginRenderPass->viewport           = viewport;
             beginRenderPass->scissors           = sc;
+            beginRenderPass->useDepthAttachment = true;
         }
 
         // Set shader
@@ -914,6 +894,7 @@ namespace LinaGX::Examples
             indx->resource            = _mergedIndexBufferGPU;
         }
 
+       
         // Indirect draw call.
         {
             CMDDrawIndexedIndirect* indirect = currentFrame.stream->AddCommand<CMDDrawIndexedIndirect>();

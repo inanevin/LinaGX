@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 
-#include "Textures.hpp"
+#include "CPUVisibleGPUMemory.hpp"
 
 using namespace LinaGX::Examples;
 

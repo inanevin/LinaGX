@@ -27,125 +27,86 @@ SOFTWARE.
 */
 
 /*
+THINGS TO ADD ALL BACKENDS/FIX:
+
+ - Make proper use depth write, use depth test etc. Testing for depth is different than writing to depth texture.
+ - Proper feature support. Find all features we are using, categorize them, make sure users are able to know if particular thing is supported or not.
+ - Rename isBindless to isUnbounded.
+ - Try sending a matrix as a vertex input.
+ - Fero model won't load.
+ - Go through all shaders and remove unnecessary vertex attributes
+ - Local thread group size limit on metal.
+ - PreTick() :D.
+ 
+THINGS TO RESEARCH:
+ 
+- Proper alignment. Alignment between struct elements in SSBO and UBO in different platforms. Also alignment between lets say array ubos. Or alignment between different bindings. UBO alignment 256 for example?
+- Descriptor set binding. Can we bind without a shader?
+- What was the reason for 226 in compute group?
+- gl_InstanceIndex and alike and their support.
+- Minimium #version we require?
+- Dynamically indexing into descriptor sets.
+- How crucial it is to allow update after bind bit?
+- Blend Logic operations on Metal?
+- CompareOp NotEqual on Metal?
+- Format checking on Metal?
+- Tesellation shaders across supported APIs.
+- Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
+ 
+FEATURES TO IMPLEMENT:
+ 
+- Indirect rendering count buffer.
+- DrawIndirect (without indexed)
+- DispatchIndirect for computes.
+- Array textures and sampler2Darray and alike.
+- Proper custom barriers?
+- Compute barrier?
+- Stencil buffer.
+- Subpasses.
+- Render pass load/store selection per attachment.
+- Different vertex buffer slots.
+- PSO write mask.
+- Mouse confinement and restriction.
+- Secondary command buffers.
+ 
+NEW EPIC DEMO:
+ 
+ 
+ 
+ 
+NOTES TO DOCUMENT:
+ 
+ - All entry points to your shaders must be named main.
+ - Only single push_constants can be used.
+ - Don't do bindless SSBO its pointless. You can do binless texture2D, sampler, sampler2D and UBO.
+ - If dynamically indexing into unsized array, don't forget the nonuniform extension: #extension GL_EXT_nonuniform_qualifier : enable
+ - If you statically index a unsized array, it will be converted to a sized one.
+ - Set numbers must be properly increasing. Can't have set 1 if the shader does not define a set 0. Of course this is across all stages. (e.g. vertex have Set 1, fragment has Set 0, its valid.)
+ - If you are writing to a swapchain, make sure you submit that draw to a primary queue.
+ - Don't forget to set isMultithreaded flag if submitting queues from multiple threads (Vulkan and Metal).
+ - And of course don't write to the same texture/swapchain from multiple queues.
+ - Always bind unbounded desciptors to the last element of the set. You can only bind unbounded data one after another given they are different types of data.
+ - Make sure you do not end descriptor names with "_". Can't end with "Smplr_" if targeting Metal.
+ - Geometry shaders are not supported on Metal.
+ 
+MISC:
+ 
+ 
 NOTES:
-
-- name your shader functions main
-
- - 16 byte alignment per element in each struct for SSBO and UBOs.
-
-- Projection matrices should produce depth for range 0.0f and 1.0f.
-
-- Only 1 type of PushConstants are supported.
-
-- All matrices and their operations are column-major.
-
-- Bindless is only supported for texture2D, sampler and sampler2D and of course SSBOs.
-
-- If using bindless, need to: #extension GL_EXT_nonuniform_qualifier : enable
-
-- If using bindless, it is forbidden to statically index the unbounded array in the glsl shader.
-
-- UBO buffers need to be 256 byte aligned.
 
 - Indirect: You need to always use IndexedIndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can
 use to index into another buffer for per-draw-call parameters.
-
-- Sets need to be starting from 0. (e.g. cant have set =1 when there is not set = 0)
-
- - we have a problem regarding our understanding of descriptor sets, work on that, in regards to binding them each time a shader has changed.
  
  - fuuuu gl_DrawID will always be 0 for cases where there is no multi-draw-indirect support.
  - Should we enforce users to create a constant buffer?
  
-- count buffers in indirect.
- 
 - also should we just use a CBV for per-draw data?
- 
- - draw indirect (without indexed)
  
  - vulkan users need to check if multi draw indirect is supported.
  - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
  - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
  - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
  
- - gl_InstanceIndex and whatever, check their support on HLSL and MSL.
- 
- - dispatch indirect
- 
- - array textures, sampler2D array?
- 
-- #version 460 required
- 
- 
-
-- Align buffers 16 bytes always, if using constants buffers on top, align 256 for DX12
-
-- Any submissions made containing writes to the swapchain image must be sent to the primary queue.
-
-- Don't forget to set isMultithreaded flag if submitting from multiple threads.
-
-- Refactor so that CMDComputeBarrier is CMDComputeIndirectBarrier or something
- 
- - dynamic descriptor set stuff, offsetting into buffers take a look at that.
- 
- - Updating descriptor sets after binding is not allowed.
-
-- Multiple queues can not write to the same swapchain at the same time.
- 
- - stencil not supported yet
- 
- - subpasses not supported yet
- 
- - take a look at the depth stuff in DX12, how do we not use the depth texture at all?
- - Also we always assume a depth texture with vulkan, what if no depth is enabled?
- 
- - only 1 vertex buffer index/slot is supported atm.
- 
- - single write mask only for psos.
- 
- - Custom barriers man.
- 
- - Confine and restrict mouse
- 
- - 16 Byte or 32 byte alignment for constant buffers in METAL? Idk, check all alignment requirements properly and document.
- 
- - no render pass load store selection
- 
- - Metal 2 minimum, needs to support argument buffers.
- 
- - rename isBindless to isUnbounded
- 
- - makeResidency and binding e.g 10000 textures.
- 
- - matrices will be unrolled to vectors in vertex input layouts, check that out.
- 
- - In bindless model, take a look at binding descriptor 0 global once, not PER SHADER.
- 
- - loading fero model got fucked
- 
- - secondary command buffers
- 
- - subpasses
- 
- - Feature support needs to be better, bindless is not supported on all devices, need to inform users so they can do their own shaiba.
- 
- - Always bind unbounded desciptors to the last element of the set. You can only bind unbounded data one after another given they are different types of data.
- - Take a look at the limitation above, see if there is a way to fix that for DX12, adding an extra space if same kind of data is already unbounded in the same space.
- - e.g. textures1 [] and textures2[] -> automatically move textures2[] to different space (do we want that?)
- 
- - compute shaders don't use a seperate queue but use a resource barrier on the resource?
- 
-- metl index stuff is different uint16, uint32 in shader? take a look at that?
-- descriptor names cant end with "_"
-- Use unique names for descriptor. Descriptor named "GlobalData", if it's Set 0 Binding 0 in Vertex shader, gotta be the same layout in other stages.
-- Can't name any descriptor ending with Smplr_ if targeting metal too for reflection purposes.
-- blend logic operations are not supported on Metal.
-- compare op NotEqual is not supported on Metal.
-- format checking is not supported on metal.
-- no geometry shaders in metal.
-- no separate tesellation shaders?
- - dont bind resource if already bound
-
  
 */
 

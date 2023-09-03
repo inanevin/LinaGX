@@ -356,7 +356,7 @@ void MTLBackend::WaitForUserSemaphore(uint16 handle, uint64 value)
     
     while(ev.signaledValue < value)
     {
-        
+      
     }
     // waited.
 }
@@ -426,6 +426,13 @@ void MTLBackend::DestroySwapchain(uint8 handle) {
 }
 
 void MTLBackend::RecreateSwapchain(const SwapchainRecreateDesc &desc) {
+    
+    if (desc.width == 0 || desc.height == 0 || m_frameOnGoing)
+        return;
+
+    Join();
+    
+    LOGT("Recreating swapchain to new size %d %d", desc.width, desc.height);
     auto& swap = m_swapchains.GetItemR(desc.swapchain);
     swap.width = desc.width;
     swap.height = desc.height;
@@ -562,6 +569,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
     pipelineDescriptor.inputPrimitiveTopology = GetMTLTopology(shaderDesc.topology);
+    // pipelineDescriptor.supportIndirectCommandBuffers = YES;
     
     // Stencil
     // MTLStencilDescriptor* stencilDescriptor = [[MTLStencilDescriptor alloc] init];
@@ -582,6 +590,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = GetMTLBlendFactor(shaderDesc.blendAttachment.dstColorBlendFactor);
     pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = GetMTLBlendFactor(shaderDesc.blendAttachment.srcAlphaBlendFactor);
     pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor= GetMTLBlendFactor(shaderDesc.blendAttachment.dstAlphaBlendFactor);
+
     // shaderDesc.blendLogicOp;
     // shaderDesc.blendLogicOpEnabled;
     
@@ -653,8 +662,6 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     
     // Debug
     NAME_OBJ_CSTR(pipelineDescriptor, shaderDesc.debugName);
-
-    // TODO: Set cull mode, winding order and topology when beginning a render pass via its configuration
     
     NSError *error = nil;
     id<MTLRenderPipelineState> pso = [device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:&error];
@@ -723,7 +730,7 @@ uint32 MTLBackend::CreateTexture2D(const Texture2DDesc &desc) {
     
     MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:GetMTLFormat(desc.format) width:desc.width height:desc.height mipmapped:desc.mipLevels > 1];
     textureDescriptor.mipmapLevelCount = desc.mipLevels;
-    textureDescriptor.storageMode = MTLStorageModePrivate;
+    textureDescriptor.storageMode =  MTLStorageModePrivate;
     
     if(desc.usage == Texture2DUsage::ColorTexture || desc.usage == Texture2DUsage::ColorTextureDynamic)
         textureDescriptor.usage = MTLTextureUsageShaderRead;
@@ -731,6 +738,8 @@ uint32 MTLBackend::CreateTexture2D(const Texture2DDesc &desc) {
         textureDescriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
     else if(desc.usage == Texture2DUsage::DepthStencilTexture)
         textureDescriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
+    
+    
         
     id<MTLTexture> texture = [device newTextureWithDescriptor:textureDescriptor];
     [texture retain];
@@ -837,7 +846,7 @@ void MTLBackend::DestroyResource(uint32 handle) {
         LOGE("Backend -> Resource to be destroyed is not valid!");
         return;
     }
-    
+   
     id<MTLBuffer> buffer = AS_MTL(res.ptr, id<MTLBuffer>);
     [buffer release];
     
@@ -1033,6 +1042,18 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
         id<MTLCommandBuffer> buffer = [queue commandBuffer];
         [buffer retain];
         sr.currentBuffer = AS_VOID(buffer);
+    
+        auto endCurrentComputeEncoder = [&](){
+            id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(sr.currentComputeEncoder, id<MTLComputeCommandEncoder>);
+            [computeEncoder endEncoding];
+            sr.currentComputeEncoder = nullptr;
+        };
+        
+        auto endCurrentBlitEncoder = [&] () {
+            id<MTLBlitCommandEncoder> blitEncoder = AS_MTL(sr.currentBlitEncoder, id<MTLBlitCommandEncoder>);
+            [blitEncoder endEncoding];
+            sr.currentBlitEncoder = nullptr;
+        };
         
          for (uint32 i = 0; i < stream->m_commandCount; i++)
          {
@@ -1040,35 +1061,81 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
              LINAGX_TYPEID tid  = 0;
              LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
              const size_t increment = sizeof(LINAGX_TYPEID);
-             
+             uint8*       cmd       = data + increment;
+
+             // Starting blit ops but no blit encoder.
              if(tid == LGX_GetTypeID<CMDCopyResource>() || tid == LGX_GetTypeID<CMDCopyBufferToTexture2D>())
              {
                  if(sr.currentBlitEncoder == nullptr)
                  {
                      id<MTLBlitCommandEncoder> blitEncoder = [buffer blitCommandEncoder];
                      [blitEncoder retain];
-                     sr.currentBlitEncoder = AS_VOID(blitEncoder);
+                     sr.currentBlitEncoder = blitEncoder;
                      sr.allBlitEncoders.push_back(sr.currentBlitEncoder);
                  }
              }
-             else{
-                 if(sr.currentEncoder != nullptr)
+             else if(tid == LGX_GetTypeID<CMDBindPipeline>())
+             {
+                 // Binding pipeline, if blit encoder end it.
+                 // If compute encoder, end if it binding non-compute pipeline.
+                 // If no compute encoder, but binding compute pipeline, create it.
+                 
+                 CMDBindPipeline* pipeline = reinterpret_cast<CMDBindPipeline*>(cmd);
+                 const auto& shader = m_shaders.GetItemR(pipeline->shader);
+                 
+                 if(sr.currentBlitEncoder != nullptr)
+                     endCurrentBlitEncoder();
+                 
+                 if(!shader.isCompute && sr.currentComputeEncoder != nullptr)
                  {
-                     id<MTLBlitCommandEncoder> blitEncoder = AS_MTL(sr.currentBlitEncoder, id<MTLBlitCommandEncoder>);
-                     [blitEncoder endEncoding];
-                     sr.currentBlitEncoder = nullptr;
+                     endCurrentComputeEncoder();
+                 }
+                 else if(shader.isCompute && sr.currentComputeEncoder == nullptr)
+                 {
+                     id<MTLComputeCommandEncoder> computeEncoder = [buffer computeCommandEncoder];
+                     [computeEncoder retain];
+                     sr.currentComputeEncoder = computeEncoder;
+                     sr.allComputeEncoders.push_back(sr.currentComputeEncoder);
                  }
              }
+             else if(tid == LGX_GetTypeID<CMDBindDescriptorSets>() || tid == LGX_GetTypeID<CMDBindConstants>())
+             {
+                 // computer encoder exists, binding resources on non-compute shader(shouldn't be possible tbh)
+                 // end blit if exists & compute.
+                 
+                 if(sr.currentBlitEncoder != nullptr)
+                     endCurrentBlitEncoder();
+                 
+                 if(sr.currentComputeEncoder && !sr.currentShaderIsCompute)
+                     endCurrentComputeEncoder();
+             }
+             else if(tid == LGX_GetTypeID<CMDDispatch>())
+             {
+                 if(sr.currentComputeEncoder == nullptr)
+                 {
+                     id<MTLComputeCommandEncoder> computeEncoder = [buffer computeCommandEncoder];
+                     [computeEncoder retain];
+                     sr.currentComputeEncoder = computeEncoder;
+                     sr.allComputeEncoders.push_back(sr.currentComputeEncoder);
+                 }
+             }
+             else{
+              
+                 if(sr.currentBlitEncoder != nullptr)
+                     endCurrentBlitEncoder();
+                 
+                 if(sr.currentComputeEncoder != nullptr)
+                     endCurrentComputeEncoder();
+             }
              
-             uint8*       cmd       = data + increment;
              (this->*m_cmdFunctions[tid])(cmd, sr);
          }
         
         if(sr.currentBlitEncoder)
-        {
-            id<MTLBlitCommandEncoder> blitEncoder = AS_MTL(sr.currentBlitEncoder, id<MTLBlitCommandEncoder>);
-            [blitEncoder endEncoding];
-        }
+            endCurrentBlitEncoder();
+        
+        if(sr.currentComputeEncoder != nullptr)
+            endCurrentComputeEncoder();
         
         sr.boundDescriptorSets.clear();
     }
@@ -1105,7 +1172,6 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         }
 
         auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-       
         
         id<MTLCommandBuffer> buffer = AS_MTL(str.currentBuffer, id<MTLCommandBuffer>);
         
@@ -1122,6 +1188,13 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         if(queue.type == QueueType::Graphics)
         {
             [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+                
+                CFTimeInterval start = buffer.GPUStartTime;
+                  CFTimeInterval end = buffer.GPUEndTime;
+
+
+                  CFTimeInterval gpuRuntimeDuration = end - start;
+              
                 while (m_submissionFlag.test_and_set(std::memory_order_acquire))
                 {
                 }
@@ -1171,6 +1244,8 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         
         str.currentShader = 0;
         str.currentEncoder =  str.currentBlitEncoder = str.currentComputeEncoder = str.currentBuffer = nullptr;
+        str.currentRenderPassUseDepth = false;
+        str.currentEncoderDepthStencil = nullptr;
         str.writtenSwapchains.clear();
         str.allBlitEncoders.clear();
         str.allRenderEncoders.clear();
@@ -1178,8 +1253,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         
         m_submissionPerFrame.store(m_submissionPerFrame + 1);
     }
-    
-    }
+}
 
 uint8 MTLBackend::CreateQueue(const QueueDesc &desc) {
     MTLQueue item = {};
@@ -1387,13 +1461,12 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
     m_currentFrameIndex = frameIndex;
     auto& pfd = m_perFrameData[m_currentFrameIndex];
     
+    m_frameOnGoing = true;
+    
     // Block.
     while(pfd.reachedSubmits < pfd.submits)
     {
-        
     }
-    
-    pfd.submits = 0;
     
     for(auto& swp : m_swapchains)
     {
@@ -1436,7 +1509,7 @@ void MTLBackend::Present(const PresentDesc &present) {
 }
 
 void MTLBackend::EndFrame() {
-    
+    m_frameOnGoing = false;
     LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
 }
 
@@ -1445,14 +1518,20 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
     id<MTLCommandBuffer> buffer = AS_MTL(stream.currentBuffer, id<MTLCommandBuffer>);
     
+    stream.currentRenderPassUseDepth = begin->useDepthAttachment;
+    
     MTLRenderPassDescriptor* passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     passDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     passDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
     passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(begin->clearColor[0], begin->clearColor[1], begin->clearColor[2], begin->clearColor[3]);
     
-    passDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
-    passDescriptor.depthAttachment.clearDepth = 1.0f;
-    passDescriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+    if(begin->useDepthAttachment)
+    {
+        passDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
+        passDescriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+        passDescriptor.depthAttachment.clearDepth = 1.0f;
+    }
+    
     
     if(begin->isSwapchain)
     {
@@ -1461,15 +1540,20 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.colorAttachments[0].texture = drawable.texture;
         stream.writtenSwapchains.push_back(begin->swapchain);
         
-        id<MTLTexture> depthTxt = AS_MTL(m_texture2Ds.GetItemR(swp.depthTextures[swp._currentDrawableIndex]).ptr, id<MTLTexture>);
-        passDescriptor.depthAttachment.texture = depthTxt;
+        if(begin->useDepthAttachment)
+        {
+            id<MTLTexture> depthTxt = AS_MTL(m_texture2Ds.GetItemR(swp.depthTextures[swp._currentDrawableIndex]).ptr, id<MTLTexture>);
+            passDescriptor.depthAttachment.texture = depthTxt;
+        }
+       
     }
     else{
         id<MTLTexture> txt = AS_MTL(m_texture2Ds.GetItemR(begin->colorTexture).ptr, id<MTLTexture>);
         id<MTLTexture> depth = AS_MTL(m_texture2Ds.GetItemR(begin->depthTexture).ptr, id<MTLTexture>);
         passDescriptor.colorAttachments[0].texture = txt;
-        passDescriptor.depthAttachment.texture = depth;
-
+        
+        if(begin->useDepthAttachment)
+            passDescriptor.depthAttachment.texture = depth;
     }
     
     id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:passDescriptor];
@@ -1500,8 +1584,8 @@ void MTLBackend::CMD_EndRenderPass(uint8 *data, MTLCommandStream &stream) {
 
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     [encoder endEncoding];
-    // TODO: encoder release?
-    // TODO: buffer release?
+    [encoder release];
+
 }
 
 void MTLBackend::CMD_SetViewport(uint8 *data, MTLCommandStream &stream) {
@@ -1542,17 +1626,18 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     {
         [encoder setRenderPipelineState:AS_MTL(shader.pso, id<MTLRenderPipelineState>)];
         
-        if(shader.dsso != stream.currentEncoderDepthStencil)
-        {
-            [encoder setDepthStencilState:AS_MTL(shader.dsso, id<MTLDepthStencilState>)];
-            stream.currentEncoderDepthStencil = shader.dsso;
-        }
+       if(stream.currentRenderPassUseDepth && shader.dsso != stream.currentEncoderDepthStencil)
+       {
+           [encoder setDepthStencilState:AS_MTL(shader.dsso, id<MTLDepthStencilState>)];
+           stream.currentEncoderDepthStencil = shader.dsso;
+       }
         
         [encoder setCullMode:GetMTLCullMode(shader.cullMode)];
         [encoder setFrontFacingWinding:shader.frontFace == FrontFace::CW ? MTLWindingClockwise : MTLWindingCounterClockwise];
     }
     
     stream.currentShader = cmd->shader;
+    stream.currentShaderIsCompute = shader.isCompute;
 }
 
 void MTLBackend::CMD_DrawInstanced(uint8 *data, MTLCommandStream &stream) {
@@ -1578,41 +1663,48 @@ void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) 
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     const auto& shader = m_shaders.GetItemR(stream.currentShader);
     const auto& resource = m_resources.GetItemR(cmd->indirectBuffer);
-    id<MTLBuffer> buffer = AS_MTL(resource.ptr, id<MTLBuffer>);
+    id<MTLBuffer> indirectBuffer= AS_MTL(resource.ptr, id<MTLBuffer>);
     
-   // if(stream.indirectCommandBuffer != nullptr)
-   // {
-   //     if(stream.indirectCommandBufferMaxCommands < cmd->count * 2)
-   //     {
-   //         id<MTLIndirectCommandBuffer> buf = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
-   //         [buf release];
-   //         stream.indirectCommandBuffer = nullptr;
-   //     }
-   // }
-   //
-   // if(stream.indirectCommandBuffer == nullptr)
-   // {
-   //     auto device = AS_MTL(m_device, id<MTLDevice>);
-   //     MTLIndirectCommandBufferDescriptor * descriptor = [[MTLIndirectCommandBufferDescriptor alloc] init];
-   //     descriptor.commandTypes = MTLIndirectCommandTypeDrawIndexed;
-   //
-   //     id<MTLIndirectCommandBuffer> buf = [device newIndirectCommandBufferWithDescriptor:descriptor maxCommandCount:cmd->count * 2 options:0];
-   //     [buf retain];
-   //     stream.indirectCommandBuffer = AS_VOID(buf);
-   //     stream.indirectCommandBufferMaxCommands = cmd->count*2;
-   // }
-   //
-   // id<MTLIndirectCommandBuffer> indCmd = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+    if(stream.indirectCommandBuffer != nullptr)
+    {
+        if(stream.indirectCommandBufferMaxCommands < cmd->count * 2)
+        {
+            id<MTLIndirectCommandBuffer> buf = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+            [buf release];
+            stream.indirectCommandBuffer = nullptr;
+        }
+    }
+   
+    if(stream.indirectCommandBuffer == nullptr)
+    {
+        auto device = AS_MTL(m_device, id<MTLDevice>);
+        MTLIndirectCommandBufferDescriptor * descriptor = [[MTLIndirectCommandBufferDescriptor alloc] init];
+        descriptor.commandTypes = MTLIndirectCommandTypeDrawIndexed;
+        descriptor.inheritBuffers = YES;
+        descriptor.inheritPipelineState = YES;
+        
+        id<MTLIndirectCommandBuffer> buf = [device newIndirectCommandBufferWithDescriptor:descriptor maxCommandCount:cmd->count * 2 options:0];
+        [buf retain];
+        stream.indirectCommandBuffer = AS_VOID(buf);
+        stream.indirectCommandBufferMaxCommands = cmd->count*2;
+    }
+   
+    id<MTLIndirectCommandBuffer> indCmd = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
     
     const auto& indexRes = m_resources.GetItemR(stream.currentIndexBuffer);
     id<MTLBuffer> indexBuf = AS_MTL(indexRes.ptr, id<MTLBuffer>);
     
     // LGXDrawID is fed into the first element so offset by it.
-    for(uint32 i = 0; i < cmd->count; i++)
+    for(int32 i = 0; i < cmd->count; i++)
     {
-        const uint32 drawId = i;
-        [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:1];
-        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:MTLIndexTypeUInt16 indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:buffer indirectBufferOffset: sizeof(IndexedIndirectCommand) * i + 4];
+        if(shader.layout.hasGLDrawID)
+        {
+            const int32 drawId = i;
+            [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:1];
+        }
+        
+        auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
+        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:sizeof(IndexedIndirectCommand) * i + sizeof(uint32)];
     }
 }
 
@@ -1759,10 +1851,10 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
         const uint32 setIndex = i + cmd->firstSet;
         auto& set = m_descriptorSets.GetItemR(setHandle);
         
-        if(std::find_if(stream.boundDescriptorSets.begin(), stream.boundDescriptorSets.end(), [setHandle](uint32 set){ return setHandle == set;}) != stream.boundDescriptorSets.end())
-            continue;
+        // if(std::find_if(stream.boundDescriptorSets.begin(), stream.boundDescriptorSets.end(), [setHandle](uint32 set){ return setHandle == set;}) != stream.boundDescriptorSets.end())
+        //     continue;
         
-        stream.boundDescriptorSets.push_back(setHandle);
+        // bstream.boundDescriptorSets.push_back(setHandle);
         
         for(auto [bindingIndex, binding] : set.bindings)
         {

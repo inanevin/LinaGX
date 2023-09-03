@@ -723,16 +723,16 @@ namespace LinaGX
 
     void VKBackend::RecreateSwapchain(const SwapchainRecreateDesc& desc)
     {
-        auto& swp       = m_swapchains.GetItemR(desc.swapchain);
-        swp.width       = desc.width;
-        swp.height      = desc.height;
-        swp.presentMode = GetVKPresentMode(desc.vsyncMode);
-
         if (desc.width == 0 || desc.height == 0)
             return;
 
         Join();
-
+        
+        auto& swp       = m_swapchains.GetItemR(desc.swapchain);
+        swp.width       = desc.width;
+        swp.height      = desc.height;
+        swp.presentMode = GetVKPresentMode(desc.vsyncMode);
+        
         if (!swp.isValid)
         {
             LOGE("Backend -> Swapchain to be re-created is not valid!");

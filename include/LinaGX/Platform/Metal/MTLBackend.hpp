@@ -46,6 +46,7 @@ struct MTLTexture2D
 struct MTLCommandStream
 {
     bool isValid = false;
+    bool currentRenderPassUseDepth = false;
     QueueType type = QueueType::Graphics;
     void* currentBuffer = nullptr;
     void* currentEncoder = nullptr;
@@ -62,6 +63,7 @@ struct MTLCommandStream
     uint32 currentShader = 0;
     uint32 currentIndexBuffer = 0;
     uint8 indexBufferType = 0;
+    bool currentShaderIsCompute = false;
     LINAGX_MAP<uint32, uint64> intermediateResources;
 };
 
@@ -156,8 +158,8 @@ struct MTLQueue
 
 struct MTLPerFrameData
 {
-    uint32 submits = 0;
-    uint32 reachedSubmits = 0;
+    uint64 submits = 0;
+    uint64 reachedSubmits = 0;
 };
 
 
@@ -257,6 +259,7 @@ private:
     
     LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
     std::atomic_flag m_submissionFlag;
+    bool m_frameOnGoing = false;
 };
 
 

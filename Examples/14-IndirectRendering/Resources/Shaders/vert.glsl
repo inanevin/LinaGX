@@ -2,11 +2,6 @@
  
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 uv;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec4 tangent;
-layout(location = 4) in vec4 color;
-layout(location = 5) in vec4 inBoneIndices;
-layout(location = 6) in vec4 inBoneWeights;
 
 layout(location = 0) out vec2 outUV;
 layout(location = 1) flat out uint outDrawID;
@@ -25,6 +20,7 @@ struct IndirectArguments
 {
     int objectID;
     int materialByteIndex;
+    int padding[2];
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectData

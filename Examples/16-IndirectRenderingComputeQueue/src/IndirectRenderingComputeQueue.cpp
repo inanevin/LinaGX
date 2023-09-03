@@ -991,6 +991,7 @@ namespace LinaGX::Examples
             beginRenderPass->clearColor[3]      = 1.0f;
             beginRenderPass->viewport           = viewport;
             beginRenderPass->scissors           = sc;
+            beginRenderPass->useDepthAttachment = true;
         }
 
         // Set shader
