@@ -126,16 +126,21 @@ namespace LinaGX::Examples
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
+            ShaderColorAttachment colorAttachment = ShaderColorAttachment {
+                .format = Format::B8G8R8A8_UNORM,
+                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
+                .colorWriteMask = ColorWriteMask::All,
+            };
+            
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
                 .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
+                .colorAttachments = {colorAttachment},
                 .layout                = outLayout,
                 .polygonMode           = PolygonMode::Fill,
                 .cullMode              = CullMode::None,
                 .frontFace             = FrontFace::CCW,
                 .topology              = Topology::TriangleList,
-                .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
             _shaderProgram = _lgx->CreateShader(shaderDesc);
 
@@ -459,12 +464,14 @@ namespace LinaGX::Examples
             Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
             CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
-            beginRenderPass->isSwapchain        = true;
-            beginRenderPass->swapchain          = _swapchain;
-            beginRenderPass->clearColor[0]      = 0.79f;
-            beginRenderPass->clearColor[1]      = 0.4f;
-            beginRenderPass->clearColor[2]      = 1.0f;
-            beginRenderPass->clearColor[3]      = 1.0f;
+            RenderPassColorAttachment colorAttachment;
+            colorAttachment.clearColor = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain = true;
+            colorAttachment.loadOp = LoadOp::Clear;
+            colorAttachment.storeOp = StoreOp::Store;
+            beginRenderPass->colorAttachmentCount = 1;
+            beginRenderPass->colorAttachments = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
             beginRenderPass->viewport           = viewport;
             beginRenderPass->scissors           = sc;
         }
@@ -511,8 +518,6 @@ namespace LinaGX::Examples
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
-            end->isSwapchain      = true;
-            end->swapchain        = _swapchain;
         }
 
         // This does the actual *recording* of every single command stream alive.

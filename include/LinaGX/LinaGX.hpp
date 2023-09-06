@@ -32,11 +32,11 @@ THINGS TO ADD ALL BACKENDS/FIX:
  - Proper feature support. Find all features we are using, categorize them, make sure users are able to know if particular thing is supported or not.
  - Rename isBindless to isUnbounded.
  - Fero model won't load.
- - Go through all shaders and remove unnecessary vertex attributes
  - Local thread group size limit on metal.
  - PreTick() :D.
  - App utilities / common main.
  - Fero'da format/hdr problemi.
+ - Metal debug.
  
 THINGS TO RESEARCH:
  
@@ -44,32 +44,43 @@ THINGS TO RESEARCH:
 - What was the reason for 226 in compute group?
 - gl_InstanceIndex and alike and their support.
 - Minimium #version we require?
-- How crucial it is to allow update after bind bit?
-- Blend Logic operations on Metal?
-- CompareOp NotEqual on Metal?
-- Format checking on Metal?
 - Tesellation shaders across supported APIs.
 - Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
  
-FEATURES TO IMPLEMENT & THINGS TO TEST:
+FEATURES TO IMPLEMENT
  
-- PSO write mask.
-- Render pass multiple attachments, load/store actions per attachment.
-- Stencil buffer.
-- Finalize/test depth stuff.
-- Subpasses.
-- Matrix as a vertex input.
-- Different vertex buffer slots.
-- Binding without shader test.
+- PSO write mask. (+Metal)
+- Shader multiple attachments. (+Metal)
+- Render pass multiple attachments, load/store actions per attachment. (+Metal)
+- Stencil buffer. (+Metal)
+- Finalize/test depth stuff. (+Metal)
+- Array textures and sampler2Darray and alike (+Metal). (Used MipMaps example)
 - Dynamic descriptor set UBO and SSBO bindings.
-- Array textures and sampler2Darray and alike.
+- Allow for binding without shader.
 - Secondary command buffers.
-- DrawIndirect (without indexed)
-- Indirect rendering count buffer.
-- DispatchIndirect for computes.
 - Proper custom barriers.
 - Compute barrier.
 - Mouse confinement and restriction.
+- DrawIndirect (without indexed)
+- Indirect rendering count buffer.
+- DispatchIndirect for computes.
+ 
+THINGS TO TEST:
+ 
+ - Matrix as a vertex input.
+ - Different vertex buffer slots.
+ - Binding without shader test.
+ 
+INDIRECT NOTES:
+
+- Indirect: You need to always use IndexedIndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can use to index into another buffer for per-draw-call parameters.
+ - fuuuu gl_DrawID will always be 0 for cases where there is no multi-draw-indirect support.
+ - Should we enforce users to create a constant buffer?
+ - also should we just use a CBV for per-draw data?
+ - vulkan users need to check if multi draw indirect is supported.
+ - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
+ - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
+ - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
  
 POSSIBLE EPIC DEMO:
  
@@ -106,22 +117,8 @@ NOTES TO DOCUMENT:
  - Always bind unbounded desciptors to the last element of the set. You can only bind unbounded data one after another given they are different types of data.
  - Make sure you do not end descriptor names with "_". Can't end with "Smplr_" if targeting Metal.
  - Geometry shaders are not supported on Metal.
- 
-
-INDIRECT NOTES:
-
-- Indirect: You need to always use IndexedIndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can
-use to index into another buffer for per-draw-call parameters.
- 
- - fuuuu gl_DrawID will always be 0 for cases where there is no multi-draw-indirect support.
- - Should we enforce users to create a constant buffer?
- 
-- also should we just use a CBV for per-draw data?
- 
- - vulkan users need to check if multi draw indirect is supported.
- - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
- - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
- - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
+ - In Metal, you need to check Format support from Metal docs, along with CPU visible GPU memory considerations. (its gonna be 1 if device has unified memory, thats it).
+ - Bindings need to be in order while creating descriptor sets.
  
  
 */

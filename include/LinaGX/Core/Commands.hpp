@@ -35,16 +35,36 @@ SOFTWARE.
 
 namespace LinaGX
 {
+    struct RenderPassColorAttachment
+    {
+        LoadOp loadOp;
+        StoreOp storeOp;
+        LGXVector4 clearColor;
+        uint32 texture = 0;
+        bool isSwapchain = false;
+    };
+
+    struct RenderPassDepthStencilAttachment
+    {
+        bool depthWrite;
+        uint32 depthTexture;
+        LoadOp depthLoadOp;
+        StoreOp depthStoreOp;
+        float clearDepth;
+
+        bool useStencil;
+        uint32 stencilTexture;
+        LoadOp stencilLoadOp;
+        StoreOp stencilStoreOp;
+        uint32 clearStencil;
+    };
 
     struct CMDBeginRenderPass
     {
         void*        extension;
-        bool         isSwapchain;
-        bool         useDepthAttachment;
-        uint8        swapchain;
-        uint32       colorTexture;
-        uint32       depthTexture;
-        float        clearColor[4];
+        RenderPassColorAttachment* colorAttachments;
+        uint32 colorAttachmentCount;
+        RenderPassDepthStencilAttachment depthStencilAttachment;
         Viewport     viewport;
         ScissorsRect scissors;
     };
@@ -52,9 +72,6 @@ namespace LinaGX
     struct CMDEndRenderPass
     {
         void*  extension;
-        uint32 texture;
-        uint8  swapchain;
-        bool   isSwapchain;
     };
 
     struct CMDSetViewport
@@ -139,6 +156,7 @@ namespace LinaGX
         void*          extension;
         uint32         destTexture;
         uint32         mipLevels;
+        uint32         destinationSlice;
         TextureBuffer* buffers;
     };
 

@@ -59,12 +59,12 @@ struct MTLCommandStream
     LINAGX_VEC<void*> allRenderEncoders;
     LINAGX_VEC<void*> allComputeEncoders;
     LINAGX_VEC<uint8> writtenSwapchains;
-    LINAGX_VEC<uint16> boundDescriptorSets;
     uint32 currentShader = 0;
     uint32 currentIndexBuffer = 0;
     uint8 indexBufferType = 0;
     bool currentShaderIsCompute = false;
     LINAGX_MAP<uint32, uint64> intermediateResources;
+    LINAGX_MAP<uint32, uint16> boundDescriptorSets;
 };
 
 struct MTLSwapchain
@@ -76,7 +76,6 @@ struct MTLSwapchain
     void* window = nullptr;
     uint32 width = 0;
     uint32 height = 0;
-    LINAGX_VEC<uint32> depthTextures;
     uint32 _currentDrawableIndex = 0;
 };
 
@@ -98,7 +97,6 @@ struct MTLShader
     void* dsso = nullptr;
     void* cso = nullptr;
     ShaderLayout layout = {};
-    LINAGX_MAP<ShaderLayoutMSLKey, MTLArgEncoder, ShaderLayoutMSLKeyHash, ShaderLayoutMSLKeyEqual> argEncoders;
 };
 
 struct MTLFence
@@ -128,16 +126,24 @@ struct MTLSampler
     void* ptr = nullptr;
 };
 
+struct MTLDescriptorSetPerStageData
+{
+    uint32 localBufferID = 0;
+    uint32 localTextureID = 0;
+    uint32 localSamplerID = 0;
+};
+
 struct MTLBinding
 {
-    LINAGX_VEC<ShaderStage> stages;
+    DescriptorBinding lgxBinding;
     LINAGX_VEC<uint32> resources;
     LINAGX_VEC<uint32> additionalResources;
-    uint32 descriptorCount = 0;
-    DescriptorType type = DescriptorType::UBO;
-    bool isUnbounded = false;
     void* argBuffer = nullptr;
     void* argBufferSecondary = nullptr;
+    void* argEncoder = nullptr;
+    void* argEncoderSecondary = nullptr;
+    uint32 localBufferID = 0;
+    uint32 localBufferIDSecondary = 0;
 };
 
 struct MTLDescriptorSet
@@ -145,8 +151,10 @@ struct MTLDescriptorSet
     bool isValid = false;
     void* buffer = nullptr;
     DescriptorSetDesc desc = {};
-    LINAGX_MAP<uint32, MTLBinding> bindings = {};
-    
+    LINAGX_VEC<MTLBinding> bindings;
+    uint32 localBufferID = 0;
+    uint32 localTextureID = 0;
+    uint32 localSamplerID = 0;
 };
 
 struct MTLQueue

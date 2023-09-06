@@ -1077,7 +1077,7 @@ namespace LinaGX
             psoDesc.InputLayout = {&inputLayout[0], static_cast<UINT>(inputLayout.size())};
 
         D3D12_BLEND_DESC blendDesc                      = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        blendDesc.AlphaToCoverageEnable                 = false;
+        blendDesc.AlphaToCoverageEnable                 = shaderDesc.alphaToCoverage;
         blendDesc.IndependentBlendEnable                = false;
         blendDesc.RenderTarget[0].BlendEnable           = shaderDesc.blendAttachment.blendEnabled;
         blendDesc.RenderTarget[0].SrcBlend              = GetDXBlend(shaderDesc.blendAttachment.srcColorBlendFactor);

@@ -122,15 +122,20 @@ namespace LinaGX::Examples
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
+            ShaderColorAttachment colorAttachment = ShaderColorAttachment {
+                .format = Format::B8G8R8A8_UNORM,
+                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
+                .colorWriteMask = ColorWriteMask::All,
+            };
+            
             ShaderDesc shaderDesc = {
                 .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
+                .colorAttachments       = {colorAttachment},
                 .layout                = outLayout,
                 .polygonMode           = PolygonMode::Fill,
                 .cullMode              = CullMode::None,
                 .frontFace             = FrontFace::CCW,
                 .topology              = Topology::TriangleList,
-                .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
             _shaderProgram = _lgx->CreateShader(shaderDesc);
 
@@ -221,11 +226,15 @@ namespace LinaGX::Examples
 
         // Load image.
         TextureLoadData loadedTextureData = {};
+        TextureLoadData loadedTextureData2 = {};
         LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
+        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX2.png", loadedTextureData2, ImageChannelMask::Rgba);
 
         // Generate mipmaps
         std::vector<MipData> outMipmaps;
+        std::vector<MipData> outMipmaps2;
         LinaGX::GenerateMipmaps(loadedTextureData, outMipmaps, MipmapFilter::Default, ImageChannelMask::Rgba, false);
+        LinaGX::GenerateMipmaps(loadedTextureData2, outMipmaps2, MipmapFilter::Default, ImageChannelMask::Rgba, false);
 
         // Need big enough staging resource, calculate size.
         uint32 totalStagingResourceSize = loadedTextureData.width * loadedTextureData.height * 4;
@@ -240,6 +249,7 @@ namespace LinaGX::Examples
                 .width     = loadedTextureData.width,
                 .height    = loadedTextureData.height,
                 .mipLevels = loadedTextureData.totalMipLevels,
+                .arrayLength = 2,
                 .format    = Format::R8G8B8A8_UNORM,
                 .debugName = "Lina Logo",
             };
@@ -264,10 +274,19 @@ namespace LinaGX::Examples
                 .height        = loadedTextureData.height,
                 .bytesPerPixel = 4,
             };
+            
+            TextureBuffer txtBuffer2 = {
+                .pixels        = loadedTextureData2.pixels,
+                .width         = loadedTextureData2.width,
+                .height        = loadedTextureData2.height,
+                .bytesPerPixel = 4,
+            };
 
             // Put the base texture data + all mip data together.
             std::vector<TextureBuffer> textureDataWithMips;
+            std::vector<TextureBuffer> textureDataWithMips2;
             textureDataWithMips.push_back(txtBuffer);
+            textureDataWithMips2.push_back(txtBuffer2);
 
             for (const auto& md : outMipmaps)
             {
@@ -277,16 +296,35 @@ namespace LinaGX::Examples
                     .height        = md.height,
                     .bytesPerPixel = 4,
                 };
-
+               
                 textureDataWithMips.push_back(mip);
             }
 
+            for (const auto& md : outMipmaps2)
+            {
+                TextureBuffer mip = {
+                    .pixels        = md.pixels,
+                    .width         = md.width,
+                    .height        = md.height,
+                    .bytesPerPixel = 4,
+                };
+               
+                textureDataWithMips2.push_back(mip);
+            }
+            
             // Copy texture
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _textureGPU;
             copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
             copyTxt->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips.data(), sizeof(TextureBuffer) * textureDataWithMips.size());
-
+            copyTxt->destinationSlice = 0;
+            
+            CMDCopyBufferToTexture2D* copyTxt2 = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
+            copyTxt2->destTexture              = _textureGPU;
+            copyTxt2->mipLevels                = loadedTextureData2.totalMipLevels;
+            copyTxt2->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips2.data(), sizeof(TextureBuffer) * textureDataWithMips2.size());
+            copyTxt2->destinationSlice = 1;
+            
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
             copyVtxBuf->source          = _vertexBufferStaging;
@@ -385,12 +423,14 @@ namespace LinaGX::Examples
             Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
             CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
-            beginRenderPass->isSwapchain        = true;
-            beginRenderPass->swapchain          = _swapchain;
-            beginRenderPass->clearColor[0]      = 0.79f;
-            beginRenderPass->clearColor[1]      = 0.4f;
-            beginRenderPass->clearColor[2]      = 1.0f;
-            beginRenderPass->clearColor[3]      = 1.0f;
+            RenderPassColorAttachment colorAttachment;
+            colorAttachment.clearColor = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain = true;
+            colorAttachment.loadOp = LoadOp::Clear;
+            colorAttachment.storeOp = StoreOp::Store;
+            beginRenderPass->colorAttachmentCount = 1;
+            beginRenderPass->colorAttachments = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
             beginRenderPass->viewport           = viewport;
             beginRenderPass->scissors           = sc;
         }
@@ -437,8 +477,6 @@ namespace LinaGX::Examples
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
-            end->isSwapchain      = true;
-            end->swapchain        = _swapchain;
         }
 
         // This does the actual *recording* of every single command stream alive.

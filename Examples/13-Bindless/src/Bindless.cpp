@@ -125,6 +125,7 @@ namespace LinaGX::Examples
 
     // Resources
     uint32             _sampler = 0;
+    uint32 _depthTexture = 0;
     LINAGX_VEC<uint16> _allMaterialDescriptors;
     uint16             _descriptorSetMaterial;
     GPUMaterialData1   _material1;
@@ -209,6 +210,7 @@ namespace LinaGX::Examples
             _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Sponza", 0, 0, 800, 800, WindowStyle::WindowedApplication);
             _window->SetCallbackClose([this]() { Quit(); });
         }
+       
 
         //******************* DEFAULT SHADER CREATION
         {
@@ -234,19 +236,29 @@ namespace LinaGX::Examples
                 .componentFlags      = ColorComponentFlags::RGBA,
             };
 
+            ShaderColorAttachment att = ShaderColorAttachment{
+                .format = Format::B8G8R8A8_UNORM,
+                .blendAttachment = blend,
+                .colorWriteMask = ColorWriteMask::All,
+            };
+            
+            ShaderDepthStencilDesc depthStencilDesc = {
+                .depthStencilAttachmentFormat = Format::D32_SFLOAT,
+                .depthWrite = true,
+                .depthTest = true,
+                .depthCompare = CompareOp::Less,
+                .stencilEnabled = false,
+            };
+            
             ShaderDesc shaderDesc = {
                 .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
-                .depthAttachmentFormat = Format::D32_SFLOAT,
+                .colorAttachments = {att},
+                .depthStencilDesc = depthStencilDesc,
                 .layout                = outLayout,
                 .polygonMode           = PolygonMode::Fill,
                 .cullMode              = CullMode::Back,
                 .frontFace             = FrontFace::CCW,
-                .depthTest             = true,
-                .depthWrite            = true,
-                .depthCompare          = CompareOp::Less,
                 .topology              = Topology::TriangleList,
-                .blendAttachment       = blend,
             };
 
             _shaderProgram1 = _lgx->CreateShader(shaderDesc);
@@ -280,19 +292,29 @@ namespace LinaGX::Examples
                 .componentFlags      = ColorComponentFlags::RGBA,
             };
 
+            ShaderColorAttachment att = ShaderColorAttachment{
+                .format = Format::B8G8R8A8_UNORM,
+                .blendAttachment = blend,
+                .colorWriteMask = ColorWriteMask::All,
+            };
+            
+            ShaderDepthStencilDesc depthStencilDesc = {
+                .depthStencilAttachmentFormat = Format::D32_SFLOAT,
+                .depthWrite = true,
+                .depthTest = true,
+                .depthCompare = CompareOp::Less,
+                .stencilEnabled = false,
+            };
+            
             ShaderDesc shaderDesc = {
                 .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
-                .depthAttachmentFormat = Format::D32_SFLOAT,
+                .colorAttachments = {att},
+                .depthStencilDesc = depthStencilDesc,
                 .layout                = outLayout,
                 .polygonMode           = PolygonMode::Fill,
                 .cullMode              = CullMode::Back,
                 .frontFace             = FrontFace::CCW,
-                .depthTest             = true,
-                .depthWrite            = true,
-                .depthCompare          = CompareOp::Less,
                 .topology              = Topology::TriangleList,
-                .blendAttachment       = blend,
             };
 
             _shaderProgram2 = _lgx->CreateShader(shaderDesc);
@@ -317,6 +339,19 @@ namespace LinaGX::Examples
                 .isFullscreen = false,
                 .vsyncMode    = VsyncMode::None,
             });
+            
+            
+            LinaGX::Texture2DDesc depthDesc = {
+                .usage = Texture2DUsage::DepthStencilTexture,
+                .depthStencilAspect = DepthStencilAspect::DepthStencil,
+                .width = _window->GetSize().x,
+                .height = _window->GetSize().y,
+                .mipLevels = 1,
+                .format = Format::D32_SFLOAT,
+                .arrayLength = 1,
+            };
+            _depthTexture = _lgx->CreateTexture2D(depthDesc);
+
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
             _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
@@ -494,6 +529,7 @@ namespace LinaGX::Examples
                     copyTxt->destTexture              = obj.texturesGPU[i];
                     copyTxt->mipLevels                = 1;
                     copyTxt->buffers                  = _pfd[0].copyStream->EmplaceAuxMemory<TextureBuffer>(txtBuffer);
+                    copyTxt->destinationSlice = 0;
                 }
             }
 
@@ -586,18 +622,14 @@ namespace LinaGX::Examples
 
         //*******************  DESCRIPTOR SET
         {
-            DescriptorBinding set0Bindings[1];
-
-            set0Bindings[0] = {
-                .binding         = 0,
+            DescriptorBinding set0Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::UBO,
-                .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set0Desc = {
-                .bindings      = set0Bindings,
-                .bindingsCount = 1,
+                .bindings      = {set0Binding},
+                .stages          = {ShaderStage::Vertex},
             };
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -607,26 +639,20 @@ namespace LinaGX::Examples
                 DescriptorUpdateBufferDesc uboUpdate = {
                     .setHandle       = _pfd[i].descriptorSetSceneData0,
                     .binding         = 0,
-                    .descriptorCount = 1,
-                    .resources       = &_pfd[i].ubo0,
-                    .descriptorType  = DescriptorType::UBO,
+                    .buffers      = {_pfd[i].ubo0},
                 };
 
                 _lgx->DescriptorUpdateBuffer(uboUpdate);
             }
 
-            DescriptorBinding set1Bindings[1];
-
-            set1Bindings[0] = {
-                .binding         = 0,
+            DescriptorBinding set1Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
-                .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set1Desc = {
-                .bindings      = set1Bindings,
-                .bindingsCount = 1,
+                .bindings      = {set1Binding},
+                .stages          = {ShaderStage::Vertex},
             };
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -636,34 +662,27 @@ namespace LinaGX::Examples
                 DescriptorUpdateBufferDesc bufferDesc = {
                     .setHandle       = _pfd[i].ssboSet,
                     .binding         = 0,
-                    .descriptorCount = 1,
-                    .resources       = &_pfd[i].ssboGPU,
-                    .descriptorType  = DescriptorType::SSBO,
+                    .buffers      = {_pfd[i].ssboGPU},
                 };
 
                 _lgx->DescriptorUpdateBuffer(bufferDesc);
             }
 
-            DescriptorBinding set2Bindings[2];
-            set2Bindings[0] = {
-                .binding         = 0,
+            DescriptorBinding set2Binding0 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
-                .stages          = {ShaderStage::Fragment},
             };
 
             // 10 as max number
-            set2Bindings[1] = {
-                .binding         = 1,
+            DescriptorBinding set2Binding1 = {
                 .descriptorCount = 10,
                 .type            = DescriptorType::CombinedImageSampler,
-                .stages          = {ShaderStage::Fragment},
-                .bindless        = true,
+                .unbounded        = true,
             };
 
             DescriptorSetDesc set2Desc = {
-                .bindings      = set2Bindings,
-                .bindingsCount = 2,
+                .bindings      = {set2Binding0, set2Binding1},
+                .stages          = {ShaderStage::Fragment},
             };
 
             LINAGX_VEC<uint32> textures;
@@ -687,9 +706,7 @@ namespace LinaGX::Examples
                 DescriptorUpdateBufferDesc bufferDesc = {
                     .setHandle       = _pfd[i].ssboMaterialsSet,
                     .binding         = 0,
-                    .descriptorCount = 1,
-                    .resources       = &_pfd[i].ssboMaterialsGPU,
-                    .descriptorType  = DescriptorType::SSBO,
+                    .buffers      = {_pfd[i].ssboMaterialsGPU},
                 };
 
                 _lgx->DescriptorUpdateBuffer(bufferDesc);
@@ -697,10 +714,8 @@ namespace LinaGX::Examples
                 DescriptorUpdateImageDesc imgUpdate = {
                     .setHandle       = _pfd[i].ssboMaterialsSet,
                     .binding         = 1,
-                    .descriptorCount = static_cast<uint32>(textures.size()),
-                    .textures        = textures.data(),
-                    .samplers        = samplers.data(),
-                    .descriptorType  = DescriptorType::CombinedImageSampler,
+                    .textures        = textures,
+                    .samplers        = samplers,
                 };
 
                 _lgx->DescriptorUpdateImage(imgUpdate);
@@ -884,12 +899,24 @@ namespace LinaGX::Examples
         // Render pass 1.
         {
             CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
-            beginRenderPass->isSwapchain        = true;
-            beginRenderPass->swapchain          = _swapchain;
-            beginRenderPass->clearColor[0]      = 0.2f;
-            beginRenderPass->clearColor[1]      = 0.7f;
-            beginRenderPass->clearColor[2]      = 1.0f;
-            beginRenderPass->clearColor[3]      = 1.0f;
+            RenderPassColorAttachment colorAttachment;
+            colorAttachment.clearColor = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain = true;
+            colorAttachment.loadOp = LoadOp::Clear;
+            colorAttachment.storeOp = StoreOp::Store;
+            beginRenderPass->colorAttachments = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            beginRenderPass->colorAttachmentCount = 1;
+            beginRenderPass->extension = nullptr;
+            
+            beginRenderPass->depthStencilAttachment.depthWrite = true;
+            beginRenderPass->depthStencilAttachment.depthLoadOp = LoadOp::Clear;
+            beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
+            beginRenderPass->depthStencilAttachment.clearDepth = 1.0f;
+            beginRenderPass->depthStencilAttachment.depthTexture = _depthTexture;
+            
+            beginRenderPass->depthStencilAttachment.useStencil = false;
+            
             beginRenderPass->viewport           = viewport;
             beginRenderPass->scissors           = sc;
         }
@@ -919,8 +946,6 @@ namespace LinaGX::Examples
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
-            end->isSwapchain      = true;
-            end->swapchain        = _swapchain;
         }
 
         // This does the actual *recording* of every single command stream alive.

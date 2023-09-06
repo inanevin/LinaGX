@@ -540,7 +540,8 @@ namespace LinaGX
             auto it = std::find_if(vec.begin(), vec.end(), [stage](ShaderStage vstg){ return vstg == stage;});
             if(it == vec.end())
                 vec.push_back(stage);
-                    };
+         };
+        
         // Stage Inputs
         {
             if (stg == ShaderStage::Vertex)
@@ -610,13 +611,15 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 ubo.size                          = compiler.get_declared_struct_size(type);
                 ubo.name                          = compiler.get_name(resource.id);
-                auto& psData = outLayout.perSetData[ubo.set].bindings[ubo.binding];
-                psData.name = ubo.name;
-                psData.type = DescriptorType::UBO;
                 
                 if (type.array.size() > 0)
                     ubo.elementSize = type.array[0];
 
+                auto& psData = outLayout.perSetData[ubo.set].bindings[ubo.binding];
+                psData.name = ubo.name;
+                psData.type = DescriptorType::UBO;
+                psData.elementSize = ubo.elementSize;
+                
                 FillStructMembers(compiler, type, ubo.members);
                 outLayout.ubos.push_back(ubo);
                 outLayout.totalDescriptors += ubo.elementSize;
@@ -667,9 +670,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
-                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
-                psData.name = txt.name;
-                psData.type = DescriptorType::CombinedImageSampler;
+               
                 
                 if (type.array_size_literal[0])
                 {
@@ -680,7 +681,18 @@ namespace LinaGX
                 }
                 else if (type.array.size() > 0)
                     txt.elementSize = type.array[0];
-
+                else
+                {
+                    // sampler2DArray
+                    txt.elementSize = 1;
+                    txt.isArrayTexture = true;
+                }
+                
+                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
+                psData.name = txt.name;
+                psData.type = DescriptorType::CombinedImageSampler;
+                psData.elementSize = txt.elementSize;
+                
                 outLayout.combinedImageSamplers.push_back(txt);
                 outLayout.totalDescriptors += txt.elementSize == 0 ? 2 : txt.elementSize * 2;
             }
@@ -707,9 +719,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
-                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
-                psData.name = txt.name;
-                psData.type = DescriptorType::SeparateImage;
+                
                 
                 if (type.array_size_literal[0])
                 {
@@ -720,7 +730,18 @@ namespace LinaGX
                 }
                 else if (type.array.size() > 0)
                     txt.elementSize = type.array[0];
-
+                else
+                {
+                    // sampler2DArray
+                    txt.elementSize = 1;
+                    txt.isArrayTexture = true;
+                }
+                
+                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
+                psData.name = txt.name;
+                psData.type = DescriptorType::SeparateImage;
+                psData.elementSize = txt.elementSize;
+                
                 outLayout.separateImages.push_back(txt);
                 outLayout.totalDescriptors += txt.elementSize == 0 ? 1 : txt.elementSize;
             }
@@ -747,9 +768,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 sampler.name                      = compiler.get_name(resource.id);
-                auto& psData = outLayout.perSetData[sampler.set].bindings[sampler.binding];
-                psData.name = sampler.name;
-                psData.type = DescriptorType::SeparateSampler;
+                
                 
                 if (type.array_size_literal[0])
                 {
@@ -761,6 +780,11 @@ namespace LinaGX
                 else if (type.array.size() > 0)
                     sampler.elementSize = type.array[0];
 
+                auto& psData = outLayout.perSetData[sampler.set].bindings[sampler.binding];
+                psData.name = sampler.name;
+                psData.type = DescriptorType::SeparateSampler;
+                psData.elementSize = sampler.elementSize;
+                
                 outLayout.samplers.push_back(sampler);
                 outLayout.totalDescriptors += sampler.elementSize == 0 ? 1 : sampler.elementSize;
             }
@@ -790,6 +814,7 @@ namespace LinaGX
                 auto& psData =  outLayout.perSetData[ssbo.set].bindings[ssbo.binding];
                 psData.name = ssbo.name;
                 psData.type = DescriptorType::SSBO;
+                psData.elementSize = 1;
                 
                 spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
                 ssbo.isReadOnly                  = buffer_flags.get(spv::DecorationNonWritable);
@@ -883,8 +908,6 @@ namespace LinaGX
             options.set_msl_version(3);
             options.argument_buffers_tier = spirv_cross::CompilerMSL::Options::ArgumentBuffersTier::Tier2;
             // options.force_active_argument_buffer_resources = true;
-            // options.argument_buffers = true;
-            //options.enable_decoration_binding = true;
             // options.runtime_array_rich_descriptor = true;
             // compiler.set_argument_buffer_device_address_space(0, true);
             // options.pad_argument_buffer_resources = true;
@@ -903,15 +926,114 @@ namespace LinaGX
             uint32 bufferID = 0, textureID = 0, samplerID = 0;
             uint32 drawIDInputBufferID = 0;
             
-            if(stg == ShaderStage::Vertex && !layoutReflection.vertexInputs.empty() && bufferID == 0)
+            if(stg == ShaderStage::Vertex)
                 bufferID++;
             
-            if(layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
+            LINAGX_VEC<uint32> setsSorted;
+            for(const auto& [setHandle, data] : layoutReflection.perSetData)
+                setsSorted.push_back(setHandle);
+            
+            std::sort(setsSorted.begin(), setsSorted.end());
+            
+            for(auto setIndex : setsSorted)
             {
-                drawIDInputBufferID = bufferID;
-                bufferID++;
+                const auto& setData = layoutReflection.perSetData[setIndex];
+                if(!find(setData.stages))
+                    continue;
+                
+                LINAGX_VEC<uint32> bindingsSorted;
+                for(const auto& [bindingIndex, bindingData] : setData.bindings)
+                    bindingsSorted.push_back(bindingIndex);
+                std::sort(bindingsSorted.begin(), bindingsSorted.end());
+                
+                for(auto bindingIndex : bindingsSorted)
+                {
+                    const auto& bindingData = setData.bindings.at(bindingIndex);
+                    
+                    spirv_cross::MSLResourceBinding mslb;
+                    mslb.stage = exec;
+                    mslb.desc_set = setIndex;
+                    mslb.binding = bindingIndex;
+                    
+                    if(bindingData.type == DescriptorType::UBO)
+                    {
+                        mslb.basetype = spirv_cross::SPIRType::BaseType::Struct;
+                        mslb.count =  bindingData.elementSize == 0 ? 1 : bindingData.elementSize;
+                        mslb.msl_buffer = bufferID;
+                        bufferID += mslb.count;
+                        compiler.add_msl_resource_binding(mslb);
+                    }
+                    else if(bindingData.type == DescriptorType::SSBO)
+                    {
+                        mslb.count = 1;
+                        mslb.msl_buffer = bufferID;
+                        bufferID += mslb.count;
+                        compiler.add_msl_resource_binding(mslb);
+                    }
+                    else if(bindingData.type == DescriptorType::SeparateImage)
+                    {
+                        if(bindingData.elementSize == 0)
+                        {
+                            mslb.count = 0;
+                            mslb.msl_texture = bufferID;
+                            bufferID++;
+                        }
+                        else
+                        {
+                            mslb.count = bindingData.elementSize;
+                            mslb.msl_texture = textureID;
+                            textureID += mslb.count;
+                        }
+                        
+                        compiler.add_msl_resource_binding(mslb);
+                    }
+                    else if(bindingData.type == DescriptorType::SeparateImage)
+                    {
+                        if(bindingData.elementSize == 0)
+                        {
+                            mslb.count = 0;
+                            mslb.msl_texture = bufferID;
+                            bufferID++;
+                        }
+                        else
+                        {
+                            mslb.count = bindingData.elementSize;
+                            mslb.msl_sampler = samplerID;
+                            samplerID += mslb.count;
+                        }
+                        
+                        compiler.add_msl_resource_binding(mslb);
+                    }
+                    else if(bindingData.type == DescriptorType::CombinedImageSampler)
+                    {
+                        if(bindingData.elementSize == 0)
+                        {
+                            mslb.count = 0;
+                            mslb.msl_texture = bufferID;
+                            bufferID++;
+                            compiler.add_msl_resource_binding(mslb);
+
+                            mslb.msl_sampler = bufferID;
+                            bufferID++;
+                            compiler.add_msl_resource_binding(mslb);
+                        }
+                        else
+                        {
+                            mslb.count = bindingData.elementSize;
+                            mslb.msl_texture = textureID;
+                            textureID += mslb.count;
+                            compiler.add_msl_resource_binding(mslb);
+                            
+                            mslb.msl_sampler = samplerID;
+                            samplerID += mslb.count;
+                            compiler.add_msl_resource_binding(mslb);
+                        }
+                    }
+                    
+                }
             }
             
+            // Pcb
             for(auto pcstg : layoutReflection.constantBlock.stages)
             {
                 if(pcstg == stg)
@@ -929,142 +1051,13 @@ namespace LinaGX
                 }
             }
             
-            
-            for(const auto& ubo : layoutReflection.ubos)
+            // DrawID last.
+            if(layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
             {
-                if(!find(layoutReflection.perSetData[ubo.set].stages))
-                    continue;
-                
-                spirv_cross::MSLResourceBinding mslb;
-                mslb.stage = exec;
-                mslb.count = ubo.elementSize == 0 ? 1 : ubo.elementSize;
-                mslb.desc_set = ubo.set;
-                mslb.binding = ubo.binding;
-                mslb.msl_buffer = bufferID;
-                mslb.basetype = spirv_cross::SPIRType::BaseType::Struct;
-                compiler.add_msl_resource_binding(mslb);
-                
-                auto key = ShaderLayoutMSLKey(ubo.set, ubo.binding, stg);
-                layoutReflection.mslLayout[key].bufferID = bufferID;
-                bufferID += ubo.elementSize == 0 ? 1 : ubo.elementSize;
-
-            }
-            
-            for(const auto& ssbo : layoutReflection.ssbos)
-            {
-                if(!find(layoutReflection.perSetData[ssbo.set].stages))
-                    continue;
-                
-                spirv_cross::MSLResourceBinding mslb;
-                mslb.count = 1;
-                mslb.stage = exec;
-                mslb.desc_set = ssbo.set;
-                mslb.binding = ssbo.binding;
-                mslb.msl_buffer = bufferID;
-                compiler.add_msl_resource_binding(mslb);
-                
-                auto key = ShaderLayoutMSLKey(ssbo.set, ssbo.binding, stg);
-                layoutReflection.mslLayout[key].bufferID = bufferID;
+                drawIDInputBufferID = bufferID;
                 bufferID++;
             }
-            
-            for(const auto& txt : layoutReflection.separateImages)
-            {
-                if(!find(layoutReflection.perSetData[txt.set].stages))
-                    continue;
-                
-                spirv_cross::MSLResourceBinding mslb;
-                mslb.stage = exec;
-                mslb.desc_set = txt.set;
-                mslb.binding = txt.binding;
-                auto key = ShaderLayoutMSLKey(txt.set, txt.binding, stg);
-
-                if(txt.elementSize == 0)
-                {
-                    mslb.count = 0;
-                    mslb.msl_texture = bufferID;
-                    layoutReflection.mslLayout[key].bufferID = bufferID;
-                    bufferID++;
-                }
-                else
-                {
-                    mslb.count = txt.elementSize;
-                    mslb.msl_texture = textureID;
-                    layoutReflection.mslLayout[key].bufferID = textureID;
-                    textureID += txt.elementSize;
-                }
-               
-                compiler.add_msl_resource_binding(mslb);
-            }
-            
-            for(const auto& smp : layoutReflection.samplers)
-            {
-                if(!find(layoutReflection.perSetData[smp.set].stages))
-                    continue;
-                
-                spirv_cross::MSLResourceBinding mslb;
-                mslb.stage = exec;
-                mslb.desc_set = smp.set;
-                mslb.binding = smp.binding;
-                auto key = ShaderLayoutMSLKey(smp.set, smp.binding, stg);
-
-                if(smp .elementSize == 0)
-                {
-                    mslb.count = 0;
-                    mslb.msl_sampler = bufferID;
-                    layoutReflection.mslLayout[key].bufferID = bufferID;
-                    bufferID++;
-                }
-                else
-                {
-                    mslb.count = smp.elementSize;
-                    mslb.msl_sampler = samplerID;
-                    layoutReflection.mslLayout[key].bufferID = samplerID;
-                    samplerID += smp.elementSize;
-                }
-                
-                compiler.add_msl_resource_binding(mslb);
-            }
-            
-            for(const auto& txt : layoutReflection.combinedImageSamplers)
-            {
-                if(!find(layoutReflection.perSetData[txt.set].stages))
-                    continue;
-                
-                spirv_cross::MSLResourceBinding mslb;
-                mslb.stage = exec;
-                mslb.desc_set = txt.set;
-                mslb.binding = txt.binding;
-                auto key = ShaderLayoutMSLKey(txt.set, txt.binding, stg);
-
-                if(txt.elementSize == 0)
-                {
-                    mslb.count = 0;
-                    mslb.msl_texture= bufferID;
-                    layoutReflection.mslLayout[key].bufferID = bufferID;
-                    bufferID++;
-                    compiler.add_msl_resource_binding(mslb);
-                    
-                    mslb.msl_sampler= bufferID;
-                    layoutReflection.mslLayout[key].bufferIDSecondary = bufferID;
-                    bufferID++;
-                    compiler.add_msl_resource_binding(mslb);
-                }
-                else
-                {
-                    mslb.count = txt.elementSize;
-                    
-                    mslb.msl_texture = textureID;
-                    layoutReflection.mslLayout[key].bufferID = textureID;
-                    textureID  += txt.elementSize;
-                    compiler.add_msl_resource_binding(mslb);
-
-                    mslb.msl_sampler =   samplerID;
-                    layoutReflection.mslLayout[key].bufferIDSecondary = samplerID;
-                    samplerID  += txt.elementSize;
-                    compiler.add_msl_resource_binding(mslb);
-                }
-            }
+             
             
             layoutReflection.mslMaxBufferIDs[stg] = bufferID;
             
