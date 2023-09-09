@@ -35,7 +35,6 @@ SOFTWARE.
 #include "Math.hpp"
 #include <assert.h>
 
-
 namespace LinaGX
 {
     enum class BackendAPI
@@ -181,19 +180,7 @@ namespace LinaGX
         R,
         G,
         B,
-        A,
-        RG,
-        RGB,
-        RGBA
-    };
-
-    enum class ColorWriteMask
-    {
-        Red,
-        Green,
-        Blue,
-        Alpha,
-        All
+        A
     };
 
     enum class ShaderMemberType
@@ -369,11 +356,11 @@ namespace LinaGX
 
     struct IndirectCommand
     {
-        uint32 LGX_DrawID = 0;
-        uint32 vertexCount = 0;
+        uint32 LGX_DrawID    = 0;
+        uint32 vertexCount   = 0;
         uint32 instanceCount = 0;
-        uint32 vertexStart = 0;
-        uint32 baseInstance = 0;
+        uint32 vertexStart   = 0;
+        uint32 baseInstance  = 0;
     };
 
     struct DataBlob
@@ -408,16 +395,14 @@ namespace LinaGX
 
     struct ColorBlendAttachment
     {
-        bool                blendEnabled = false;
-        bool                blendLogicOpEnabled   = false;
-        LogicOp             blendLogicOp          = LogicOp::Copy;
-        BlendFactor         srcColorBlendFactor;
-        BlendFactor         dstColorBlendFactor;
-        BlendOp             colorBlendOp;
-        BlendFactor         srcAlphaBlendFactor;
-        BlendFactor         dstAlphaBlendFactor;
-        BlendOp             alphaBlendOp;
-        ColorComponentFlags componentFlags;
+        bool                            blendEnabled = false;
+        BlendFactor                     srcColorBlendFactor;
+        BlendFactor                     dstColorBlendFactor;
+        BlendOp                         colorBlendOp;
+        BlendFactor                     srcAlphaBlendFactor;
+        BlendFactor                     dstAlphaBlendFactor;
+        BlendOp                         alphaBlendOp;
+        LINAGX_VEC<ColorComponentFlags> componentFlags = {ColorComponentFlags::R, ColorComponentFlags::G, ColorComponentFlags::B, ColorComponentFlags::A};
     };
 
     struct ShaderStageInput
@@ -444,18 +429,18 @@ namespace LinaGX
 
     struct ShaderConstantBlock
     {
-        size_t                      size    = 0;
-        uint32                      set     = 0;
-        uint32                      binding = 0;
+        size_t                          size    = 0;
+        uint32                          set     = 0;
+        uint32                          binding = 0;
         LINAGX_MAP<ShaderStage, uint32> mslBuffers;
-        LINAGX_VEC<ShaderUBOMember> members;
-        LINAGX_VEC<ShaderStage>     stages;
-        LINAGX_STRING               name = "";
+        LINAGX_VEC<ShaderUBOMember>     members;
+        LINAGX_VEC<ShaderStage>         stages;
+        LINAGX_STRING                   name = "";
     };
 
     struct ShaderUBO
     {
-        uint32 spvID = 0;
+        uint32                      spvID   = 0;
         uint32                      set     = 0;
         uint32                      binding = 0;
         size_t                      size    = 0;
@@ -467,7 +452,7 @@ namespace LinaGX
 
     struct ShaderSSBO
     {
-        uint32 spvID = 0;
+        uint32                  spvID   = 0;
         uint32                  set     = 0;
         uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
@@ -477,18 +462,18 @@ namespace LinaGX
 
     struct ShaderSRVTexture2D
     {
-        uint32 spvID = 0;
+        uint32                  spvID   = 0;
         uint32                  set     = 0;
         uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name        = "";
-        uint32                  elementSize = 1;
+        LINAGX_STRING           name           = "";
+        uint32                  elementSize    = 1;
         bool                    isArrayTexture = false;
     };
 
     struct ShaderSampler
     {
-        uint32 spvID = 0;
+        uint32                  spvID   = 0;
         uint32                  set     = 0;
         uint32                  binding = 0;
         LINAGX_VEC<ShaderStage> stages;
@@ -498,38 +483,38 @@ namespace LinaGX
 
     struct ShaderLayoutBindingData
     {
-        LINAGX_STRING name = "";
-        DescriptorType type = DescriptorType::UBO;
-        uint32 elementSize = 0;
+        LINAGX_STRING  name        = "";
+        DescriptorType type        = DescriptorType::UBO;
+        uint32         elementSize = 0;
     };
 
     struct ShaderLayoutPerSetData
     {
-        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_VEC<ShaderStage>                     stages;
         LINAGX_MAP<uint32, ShaderLayoutBindingData> bindings;
     };
 
     struct ShaderLayoutMSLBinding
     {
-        uint32 bufferID = 0;
+        uint32 bufferID          = 0;
         uint32 bufferIDSecondary = 0;
     };
 
     struct ShaderLayout
     {
-        LINAGX_VEC<ShaderStageInput>                vertexInputs;
-        LINAGX_VEC<ShaderUBO>                       ubos;
-        LINAGX_VEC<ShaderSSBO>                      ssbos;
-        LINAGX_VEC<ShaderSRVTexture2D>              combinedImageSamplers;
-        LINAGX_VEC<ShaderSRVTexture2D>              separateImages;
-        LINAGX_VEC<ShaderSampler>                   samplers;
-        LINAGX_MAP<uint32, ShaderLayoutPerSetData>  perSetData;
-        ShaderConstantBlock                         constantBlock;
-        uint32                                      totalDescriptors = 0;
-        bool                                        hasGLDrawID      = false;
-        uint32                                      drawIDBinding    = 0;
-        LINAGX_MAP<ShaderStage, LINAGX_STRING>      entryPoints;
-        LINAGX_MAP<ShaderStage, uint32> mslMaxBufferIDs;
+        LINAGX_VEC<ShaderStageInput>               vertexInputs;
+        LINAGX_VEC<ShaderUBO>                      ubos;
+        LINAGX_VEC<ShaderSSBO>                     ssbos;
+        LINAGX_VEC<ShaderSRVTexture2D>             combinedImageSamplers;
+        LINAGX_VEC<ShaderSRVTexture2D>             separateImages;
+        LINAGX_VEC<ShaderSampler>                  samplers;
+        LINAGX_MAP<uint32, ShaderLayoutPerSetData> perSetData;
+        ShaderConstantBlock                        constantBlock;
+        uint32                                     totalDescriptors = 0;
+        bool                                       hasGLDrawID      = false;
+        uint32                                     drawIDBinding    = 0;
+        LINAGX_MAP<ShaderStage, LINAGX_STRING>     entryPoints;
+        LINAGX_MAP<ShaderStage, uint32>            mslMaxBufferIDs;
     };
 
     struct ShaderCompileData
@@ -540,45 +525,45 @@ namespace LinaGX
 
     struct ShaderColorAttachment
     {
-        Format format = Format::B8G8R8A8_UNORM;
+        Format               format          = Format::B8G8R8A8_UNORM;
         ColorBlendAttachment blendAttachment = {};
-        ColorWriteMask       colorWriteMask        = ColorWriteMask::All;
     };
 
     struct StencilState
     {
-        StencilOp                         failOp = StencilOp::Keep;
-        StencilOp                         passOp  = StencilOp::Keep;
-        StencilOp                         depthFailOp = StencilOp::Keep;
-        CompareOp                         compareOp = CompareOp::Always;
-
+        StencilOp failOp      = StencilOp::Keep;
+        StencilOp passOp      = StencilOp::Keep;
+        StencilOp depthFailOp = StencilOp::Keep;
+        CompareOp compareOp   = CompareOp::Always;
     };
 
     struct ShaderDepthStencilDesc
     {
-        Format                            depthStencilAttachmentFormat = Format::D32_SFLOAT;
-        bool                              depthWrite            = false;
-        bool                              depthTest             = false;
-        CompareOp                         depthCompare          = CompareOp::LEqual;
-        bool                              stencilEnabled        = false;
-        StencilState                      backStencilState = {};
-        StencilState                      frontStencilState = {};
-        uint32                            stencilCompareMask = 0xFF;
-        uint32                            stencilWriteMask = 0xFF;
+        Format       depthStencilAttachmentFormat = Format::D32_SFLOAT;
+        bool         depthWrite                   = false;
+        bool         depthTest                    = false;
+        CompareOp    depthCompare                 = CompareOp::LEqual;
+        bool         stencilEnabled               = false;
+        StencilState backStencilState             = {};
+        StencilState frontStencilState            = {};
+        uint32       stencilCompareMask           = 0xFF;
+        uint32       stencilWriteMask             = 0xFF;
     };
 
     struct ShaderDesc
     {
-        LINAGX_MAP<ShaderStage, DataBlob> stages = {};
+        LINAGX_MAP<ShaderStage, DataBlob> stages           = {};
         LINAGX_VEC<ShaderColorAttachment> colorAttachments = {};
         ShaderDepthStencilDesc            depthStencilDesc;
-        ShaderLayout                      layout                = {};
-        PolygonMode                       polygonMode           = PolygonMode::Fill;
-        CullMode                          cullMode              = CullMode::None;
-        FrontFace                         frontFace             = FrontFace::CW;
-        Topology                          topology              = Topology::TriangleList;
-        bool                              alphaToCoverage       = false;
-        const char*                       debugName             = "LinaGXShader";
+        ShaderLayout                      layout              = {};
+        PolygonMode                       polygonMode         = PolygonMode::Fill;
+        CullMode                          cullMode            = CullMode::None;
+        FrontFace                         frontFace           = FrontFace::CW;
+        Topology                          topology            = Topology::TriangleList;
+        bool                              blendLogicOpEnabled = false;
+        LogicOp                           blendLogicOp        = LogicOp::Copy;
+        bool                              alphaToCoverage     = false;
+        const char*                       debugName           = "LinaGXShader";
     };
 
     struct Viewport
@@ -615,7 +600,7 @@ namespace LinaGX
         uint32             height             = 0;
         uint32             mipLevels          = 0;
         Format             format             = Format::R8G8B8A8_SRGB;
-        uint32             arrayLength = 1;
+        uint32             arrayLength        = 1;
         const char*        debugName          = "LinaGXTexture";
     };
 
@@ -635,32 +620,32 @@ namespace LinaGX
 
     struct DescriptorBinding
     {
-        uint32                  descriptorCount = 1;
-        DescriptorType          type            = DescriptorType::UBO;
-        bool                    unbounded = false;
-        bool useDynamicOffset = false;
+        uint32         descriptorCount  = 1;
+        DescriptorType type             = DescriptorType::UBO;
+        bool           unbounded        = false;
+        bool           useDynamicOffset = false;
     };
 
     struct DescriptorSetDesc
     {
         LINAGX_VEC<DescriptorBinding> bindings;
-        LINAGX_VEC<ShaderStage> stages;
+        LINAGX_VEC<ShaderStage>       stages;
     };
 
     struct DescriptorUpdateImageDesc
     {
-        uint16         setHandle = 0;
-        uint32         binding = 0;
-        LINAGX_VEC<uint32> textures = {};
-        LINAGX_VEC<uint32> samplers = {};
+        uint16             setHandle = 0;
+        uint32             binding   = 0;
+        LINAGX_VEC<uint32> textures  = {};
+        LINAGX_VEC<uint32> samplers  = {};
     };
 
     struct DescriptorUpdateBufferDesc
     {
-        uint16         setHandle       = 0;
-        uint32         binding         = 0;
-        LINAGX_VEC<uint32> buffers = {};
-        bool           isWriteAccess   = false;
+        uint16             setHandle     = 0;
+        uint32             binding       = 0;
+        LINAGX_VEC<uint32> buffers       = {};
+        bool               isWriteAccess = false;
     };
 
     struct ResourceDesc
@@ -680,7 +665,7 @@ namespace LinaGX
 
     struct QueueDesc
     {
-        CommandType   type      = CommandType::Graphics;
+        CommandType type      = CommandType::Graphics;
         const char* debugName = "LinaGXQueue";
     };
 
@@ -791,12 +776,10 @@ namespace LinaGX
     if (Config.infoCallback && Config.logLevel == LogLevel::Verbose) \
         Config.infoCallback(__VA_ARGS__);
 
-
 #define LOGA(condition, ...)                  \
     if (!(condition) && Config.errorCallback) \
         Config.errorCallback(__VA_ARGS__);    \
     assert(condition);
-
 
     class Window;
 

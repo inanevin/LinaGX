@@ -1016,7 +1016,6 @@ void MTLBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc &desc) 
     auto& bindingData = item.bindings[desc.binding];
     const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
     LOGA(descriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
-
     LOGA(bindingData.lgxBinding.type == DescriptorType::UBO || bindingData.lgxBinding.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
     
     bindingData.resources.clear();

@@ -234,6 +234,56 @@ namespace LinaGX
         }
     }
 
+    VkStencilOp GetVKStencilOp(StencilOp op)
+    {
+        switch (op)
+        {
+        case StencilOp::Keep:
+            return VkStencilOp::VK_STENCIL_OP_KEEP;
+        case StencilOp::Zero:
+            return VkStencilOp::VK_STENCIL_OP_ZERO;
+        case StencilOp::Replace:
+            return VkStencilOp::VK_STENCIL_OP_REPLACE;
+        case StencilOp::IncrementClamp:
+            return VkStencilOp::VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+        case StencilOp::DecrementClamp:
+            return VkStencilOp::VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+        case StencilOp::Invert:
+            return VkStencilOp::VK_STENCIL_OP_INVERT;
+        case StencilOp::IncrementWrap:
+            return VkStencilOp::VK_STENCIL_OP_INCREMENT_AND_WRAP;
+        case StencilOp::DecrementWrap:
+            return VkStencilOp::VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        }
+    }
+
+    VkAttachmentLoadOp GetVKLoadOp(LoadOp op)
+    {
+        switch (op)
+        {
+        case LoadOp::Load:
+            return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case LoadOp::Clear:
+            return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case LoadOp::DontCare:
+        case LoadOp::None:
+            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        }
+    }
+
+    VkAttachmentStoreOp GetVKStoreOp(StoreOp op)
+    {
+        switch (op)
+        {
+        case StoreOp::Store:
+            return VK_ATTACHMENT_STORE_OP_STORE;
+        case StoreOp::DontCare:
+            return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        case StoreOp::None:
+            return VK_ATTACHMENT_STORE_OP_NONE;
+        }
+    }
+
     VkPrimitiveTopology GetVKTopology(Topology t)
     {
         switch (t)
@@ -349,14 +399,6 @@ namespace LinaGX
             return VK_COLOR_COMPONENT_B_BIT;
         case ColorComponentFlags::A:
             return VK_COLOR_COMPONENT_A_BIT;
-        case ColorComponentFlags::RG:
-            return VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT;
-        case ColorComponentFlags::RGB:
-            return VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
-        case ColorComponentFlags::RGBA:
-            return VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        default:
-            return VK_COLOR_COMPONENT_R_BIT;
         }
     }
 
@@ -727,12 +769,12 @@ namespace LinaGX
             return;
 
         Join();
-        
+
         auto& swp       = m_swapchains.GetItemR(desc.swapchain);
         swp.width       = desc.width;
         swp.height      = desc.height;
         swp.presentMode = GetVKPresentMode(desc.vsyncMode);
-        
+
         if (!swp.isValid)
         {
             LOGE("Backend -> Swapchain to be re-created is not valid!");
@@ -1027,66 +1069,94 @@ namespace LinaGX
         }
 
         // Misc state
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly     = VkPipelineInputAssemblyStateCreateInfo{};
-        inputAssembly.sType                                      = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.pNext                                      = nullptr;
-        inputAssembly.topology                                   = GetVKTopology(shaderDesc.topology);
-        inputAssembly.primitiveRestartEnable                     = VK_FALSE;
-        VkPipelineViewportStateCreateInfo viewportState          = VkPipelineViewportStateCreateInfo{};
-        viewportState.sType                                      = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewportState.pNext                                      = nullptr;
-        viewportState.viewportCount                              = 1;
-        viewportState.pViewports                                 = nullptr;
-        viewportState.scissorCount                               = 1;
-        viewportState.pScissors                                  = nullptr;
-        VkPipelineRasterizationStateCreateInfo raster            = VkPipelineRasterizationStateCreateInfo{};
-        raster.sType                                             = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        raster.pNext                                             = nullptr;
-        raster.depthClampEnable                                  = VK_FALSE;
-        raster.rasterizerDiscardEnable                           = VK_FALSE;
-        raster.polygonMode                                       = GetVKPolygonMode(shaderDesc.polygonMode);
-        raster.cullMode                                          = GetVKCullMode(shaderDesc.cullMode);
-        raster.frontFace                                         = GetVKFrontFace(shaderDesc.frontFace);
-        raster.depthBiasEnable                                   = VK_FALSE;
-        raster.depthBiasConstantFactor                           = 0.0f;
-        raster.depthBiasClamp                                    = 0.0f;
-        raster.depthBiasSlopeFactor                              = 0.0f;
-        raster.lineWidth                                         = 1.0f;
-        VkPipelineMultisampleStateCreateInfo msaa                = VkPipelineMultisampleStateCreateInfo{};
-        msaa.sType                                               = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        msaa.pNext                                               = nullptr;
-        msaa.rasterizationSamples                                = VK_SAMPLE_COUNT_1_BIT;
-        msaa.sampleShadingEnable                                 = VK_FALSE;
-        msaa.minSampleShading                                    = 1.0f;
-        msaa.pSampleMask                                         = nullptr;
-        msaa.alphaToCoverageEnable                               = VK_FALSE;
-        msaa.alphaToOneEnable                                    = VK_FALSE;
-        VkPipelineDepthStencilStateCreateInfo depthStencil       = VkPipelineDepthStencilStateCreateInfo{};
-        depthStencil.sType                                       = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.pNext                                       = nullptr;
-        depthStencil.depthTestEnable                             = shaderDesc.depthTest ? VK_TRUE : VK_FALSE;
-        depthStencil.depthWriteEnable                            = shaderDesc.depthWrite ? VK_TRUE : VK_FALSE;
-        depthStencil.depthCompareOp                              = GetVKCompareOp(shaderDesc.depthCompare);
-        depthStencil.depthBoundsTestEnable                       = VK_FALSE;
-        depthStencil.stencilTestEnable                           = VK_FALSE;
-        depthStencil.minDepthBounds                              = 0.0f;
-        depthStencil.maxDepthBounds                              = 1.0f;
-        VkPipelineColorBlendAttachmentState colorBlendAttachment = VkPipelineColorBlendAttachmentState{};
-        colorBlendAttachment.blendEnable                         = shaderDesc.blendAttachment.blendEnabled ? VK_TRUE : VK_FALSE;
-        colorBlendAttachment.srcColorBlendFactor                 = GetVKBlendFactor(shaderDesc.blendAttachment.srcColorBlendFactor);
-        colorBlendAttachment.dstColorBlendFactor                 = GetVKBlendFactor(shaderDesc.blendAttachment.dstColorBlendFactor);
-        colorBlendAttachment.colorBlendOp                        = GetVKBlendOp(shaderDesc.blendAttachment.colorBlendOp);
-        colorBlendAttachment.srcAlphaBlendFactor                 = GetVKBlendFactor(shaderDesc.blendAttachment.srcAlphaBlendFactor);
-        colorBlendAttachment.dstAlphaBlendFactor                 = GetVKBlendFactor(shaderDesc.blendAttachment.dstAlphaBlendFactor);
-        colorBlendAttachment.alphaBlendOp                        = GetVKBlendOp(shaderDesc.blendAttachment.alphaBlendOp);
-        colorBlendAttachment.colorWriteMask                      = GetVKColorComponentFlags(shaderDesc.blendAttachment.componentFlags);
-        VkPipelineColorBlendStateCreateInfo colorBlending        = VkPipelineColorBlendStateCreateInfo{};
-        colorBlending.sType                                      = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.pNext                                      = nullptr;
-        colorBlending.logicOpEnable                              = shaderDesc.blendLogicOpEnabled ? VK_TRUE : VK_FALSE;
-        colorBlending.logicOp                                    = GetVKLogicOp(shaderDesc.blendLogicOp);
-        colorBlending.attachmentCount                            = 1;
-        colorBlending.pAttachments                               = &colorBlendAttachment;
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly = VkPipelineInputAssemblyStateCreateInfo{};
+        inputAssembly.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly.pNext                                  = nullptr;
+        inputAssembly.topology                               = GetVKTopology(shaderDesc.topology);
+        inputAssembly.primitiveRestartEnable                 = VK_FALSE;
+        VkPipelineViewportStateCreateInfo viewportState      = VkPipelineViewportStateCreateInfo{};
+        viewportState.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.pNext                                  = nullptr;
+        viewportState.viewportCount                          = 1;
+        viewportState.pViewports                             = nullptr;
+        viewportState.scissorCount                           = 1;
+        viewportState.pScissors                              = nullptr;
+        VkPipelineRasterizationStateCreateInfo raster        = VkPipelineRasterizationStateCreateInfo{};
+        raster.sType                                         = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        raster.pNext                                         = nullptr;
+        raster.depthClampEnable                              = VK_FALSE;
+        raster.rasterizerDiscardEnable                       = VK_FALSE;
+        raster.polygonMode                                   = GetVKPolygonMode(shaderDesc.polygonMode);
+        raster.cullMode                                      = GetVKCullMode(shaderDesc.cullMode);
+        raster.frontFace                                     = GetVKFrontFace(shaderDesc.frontFace);
+        raster.depthBiasEnable                               = VK_FALSE;
+        raster.depthBiasConstantFactor                       = 0.0f;
+        raster.depthBiasClamp                                = 0.0f;
+        raster.depthBiasSlopeFactor                          = 0.0f;
+        raster.lineWidth                                     = 1.0f;
+        VkPipelineMultisampleStateCreateInfo msaa            = VkPipelineMultisampleStateCreateInfo{};
+        msaa.sType                                           = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        msaa.pNext                                           = nullptr;
+        msaa.rasterizationSamples                            = VK_SAMPLE_COUNT_1_BIT;
+        msaa.sampleShadingEnable                             = VK_FALSE;
+        msaa.minSampleShading                                = 1.0f;
+        msaa.pSampleMask                                     = nullptr;
+        msaa.alphaToCoverageEnable                           = VK_FALSE;
+        msaa.alphaToOneEnable                                = VK_FALSE;
+        VkPipelineDepthStencilStateCreateInfo depthStencil   = VkPipelineDepthStencilStateCreateInfo{};
+        depthStencil.sType                                   = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.pNext                                   = nullptr;
+        depthStencil.depthTestEnable                         = shaderDesc.depthStencilDesc.depthTest ? VK_TRUE : VK_FALSE;
+        depthStencil.depthWriteEnable                        = shaderDesc.depthStencilDesc.depthWrite ? VK_TRUE : VK_FALSE;
+        depthStencil.depthCompareOp                          = GetVKCompareOp(shaderDesc.depthStencilDesc.depthCompare);
+        depthStencil.depthBoundsTestEnable                   = VK_FALSE;
+        depthStencil.minDepthBounds                          = 0.0f;
+        depthStencil.maxDepthBounds                          = 1.0f;
+        depthStencil.stencilTestEnable                       = shaderDesc.depthStencilDesc.stencilEnabled ? VK_TRUE : VK_FALSE;
+        depthStencil.back.compareMask                        = shaderDesc.depthStencilDesc.stencilCompareMask;
+        depthStencil.back.writeMask                          = shaderDesc.depthStencilDesc.stencilWriteMask;
+        depthStencil.back.compareOp                          = GetVKCompareOp(shaderDesc.depthStencilDesc.backStencilState.compareOp);
+        depthStencil.back.depthFailOp                        = GetVKStencilOp(shaderDesc.depthStencilDesc.backStencilState.depthFailOp);
+        depthStencil.back.failOp                             = GetVKStencilOp(shaderDesc.depthStencilDesc.backStencilState.failOp);
+        depthStencil.back.passOp                             = GetVKStencilOp(shaderDesc.depthStencilDesc.backStencilState.passOp);
+        depthStencil.front.compareMask                       = shaderDesc.depthStencilDesc.stencilCompareMask;
+        depthStencil.front.writeMask                         = shaderDesc.depthStencilDesc.stencilWriteMask;
+        depthStencil.front.compareOp                         = GetVKCompareOp(shaderDesc.depthStencilDesc.frontStencilState.compareOp);
+        depthStencil.front.depthFailOp                       = GetVKStencilOp(shaderDesc.depthStencilDesc.frontStencilState.depthFailOp);
+        depthStencil.front.failOp                            = GetVKStencilOp(shaderDesc.depthStencilDesc.frontStencilState.failOp);
+        depthStencil.front.passOp                            = GetVKStencilOp(shaderDesc.depthStencilDesc.frontStencilState.passOp);
+
+        LINAGX_VEC<VkFormat>                            colorAttachmentFormats;
+        LINAGX_VEC<VkPipelineColorBlendAttachmentState> blendAttachments;
+        colorAttachmentFormats.reserve(shaderDesc.colorAttachments.size());
+        blendAttachments.reserve(shaderDesc.colorAttachments.size());
+
+        for (const auto& attachment : shaderDesc.colorAttachments)
+        {
+            VkPipelineColorBlendAttachmentState colorBlendAttachment = VkPipelineColorBlendAttachmentState{};
+            colorBlendAttachment.blendEnable                         = attachment.blendAttachment.blendEnabled ? VK_TRUE : VK_FALSE;
+            colorBlendAttachment.srcColorBlendFactor                 = GetVKBlendFactor(attachment.blendAttachment.srcColorBlendFactor);
+            colorBlendAttachment.dstColorBlendFactor                 = GetVKBlendFactor(attachment.blendAttachment.dstColorBlendFactor);
+            colorBlendAttachment.colorBlendOp                        = GetVKBlendOp(attachment.blendAttachment.colorBlendOp);
+            colorBlendAttachment.srcAlphaBlendFactor                 = GetVKBlendFactor(attachment.blendAttachment.srcAlphaBlendFactor);
+            colorBlendAttachment.dstAlphaBlendFactor                 = GetVKBlendFactor(attachment.blendAttachment.dstAlphaBlendFactor);
+            colorBlendAttachment.alphaBlendOp                        = GetVKBlendOp(attachment.blendAttachment.alphaBlendOp);
+            colorBlendAttachment.colorWriteMask = 0;
+
+            for (auto flag : attachment.blendAttachment.componentFlags)
+                colorBlendAttachment.colorWriteMask |= GetVKColorComponentFlags(flag);
+
+            colorAttachmentFormats.push_back(GetVKFormat(attachment.format));
+            blendAttachments.push_back(colorBlendAttachment);
+        }
+
+        VkPipelineColorBlendStateCreateInfo colorBlending = VkPipelineColorBlendStateCreateInfo{};
+        colorBlending.sType                               = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlending.pNext                               = nullptr;
+        colorBlending.logicOpEnable                       = shaderDesc.blendLogicOpEnabled ? VK_TRUE : VK_FALSE;
+        colorBlending.logicOp                             = GetVKLogicOp(shaderDesc.blendLogicOp);
+        colorBlending.attachmentCount                     = static_cast<uint32>(blendAttachments.size());
+        colorBlending.pAttachments                        = blendAttachments.data();
 
         // Dynamic state
         LINAGX_VEC<VkDynamicState> dynamicStates;
@@ -1112,12 +1182,11 @@ namespace LinaGX
         VkResult res                                  = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, m_allocator, &shader.ptrLayout);
         VK_CHECK_RESULT(res, "Failed creating pipeline layout!");
 
-        VkFormat                         attFormat                   = GetVKFormat(shaderDesc.colorAttachmentFormat);
         VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {};
         pipelineRenderingCreateInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-        pipelineRenderingCreateInfo.colorAttachmentCount             = 1;
-        pipelineRenderingCreateInfo.pColorAttachmentFormats          = &attFormat;
-        pipelineRenderingCreateInfo.depthAttachmentFormat            = GetVKFormat(shaderDesc.depthAttachmentFormat);
+        pipelineRenderingCreateInfo.colorAttachmentCount             = static_cast<uint32>(colorAttachmentFormats.size());
+        pipelineRenderingCreateInfo.pColorAttachmentFormats          = colorAttachmentFormats.data();
+        pipelineRenderingCreateInfo.depthAttachmentFormat            = GetVKFormat(shaderDesc.depthStencilDesc.depthStencilAttachmentFormat);
 
         // Compute only pipeline.
         if (shaderDesc.stages.size() == 1 && shaderDesc.stages.begin()->first == ShaderStage::Compute)
@@ -1393,16 +1462,19 @@ namespace LinaGX
     {
         VKBDescriptorSet item = {};
         item.isValid          = true;
+        item.bindings         = desc.bindings;
 
         LINAGX_VEC<VkDescriptorSetLayoutBinding> bindings;
         bool                                     containsBindlessTextures = false;
         LINAGX_VEC<VkDescriptorBindingFlags>     bindlessFlags;
 
-        for (uint32 i = 0; i < desc.bindingsCount; i++)
+        const uint32 bindingsCount = static_cast<uint32>(desc.bindings.size());
+
+        for (uint32 i = 0; i < bindingsCount; i++)
         {
-            DescriptorBinding&           binding   = desc.bindings[i];
+            const DescriptorBinding&     binding   = desc.bindings[i];
             VkDescriptorSetLayoutBinding vkBinding = {};
-            vkBinding.binding                      = binding.binding;
+            vkBinding.binding                      = i;
             vkBinding.descriptorType               = GetVKDescriptorType(binding.type);
             vkBinding.descriptorCount              = binding.descriptorCount;
 
@@ -1427,7 +1499,7 @@ namespace LinaGX
             else
                 bindlessFlags.push_back(0);
 
-            for (auto stg : binding.stages)
+            for (auto stg : desc.stages)
                 vkBinding.stageFlags |= GetVKShaderStage(stg);
 
             bindings.push_back(vkBinding);
@@ -1483,14 +1555,18 @@ namespace LinaGX
 
     void VKBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
-        const bool typeOK = desc.descriptorType == DescriptorType::SSBO || desc.descriptorType == DescriptorType::UBO;
-        LOGA(typeOK, "Invalid descriptor type for buffer update!");
+        auto& item = m_descriptorSets.GetItemR(desc.setHandle);
+        LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
+        auto&        bindingData     = item.bindings[desc.binding];
+        const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
+        LOGA(descriptorCount <= bindingData.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.type == DescriptorType::UBO || bindingData.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
 
         LINAGX_VEC<VkDescriptorBufferInfo> bufferInfos;
 
-        for (uint32 i = 0; i < desc.descriptorCount; i++)
+        for (uint32 i = 0; i < descriptorCount; i++)
         {
-            const auto&            res   = m_resources.GetItemR(desc.resources[i]);
+            const auto&            res   = m_resources.GetItemR(desc.buffers[i]);
             VkDescriptorBufferInfo binfo = {};
             binfo.buffer                 = res.buffer;
             binfo.offset                 = 0;
@@ -1503,22 +1579,33 @@ namespace LinaGX
         write.pNext                = nullptr;
         write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
         write.dstBinding           = desc.binding;
-        write.descriptorCount      = desc.descriptorCount;
-        write.descriptorType       = GetVKDescriptorType(desc.descriptorType);
+        write.descriptorCount      = descriptorCount;
+        write.descriptorType       = GetVKDescriptorType(bindingData.type);
         write.pBufferInfo          = bufferInfos.data();
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
     void VKBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
-        const bool typeOK = (desc.descriptorType == DescriptorType::CombinedImageSampler) || (desc.descriptorType == DescriptorType::SeparateImage) || (desc.descriptorType == DescriptorType::SeparateSampler);
-        LOGA(typeOK, "Invalid descriptor type for image update!");
+        auto& item = m_descriptorSets.GetItemR(desc.setHandle);
+        LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
+        auto&        bindingData        = item.bindings[desc.binding];
+        const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
+        const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
+        LOGA(txtDescriptorCount <= bindingData.descriptorCount && smpDescriptorCount <= bindingData.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateSampler || bindingData.type == DescriptorType::SeparateImage, "Backend -> You can only use DescriptorUpdateImage with descriptors of type combined image sampler, separate image or separate sampler! Use DescriptorUpdateBuffer()");
 
         LINAGX_VEC<VkDescriptorImageInfo> imgInfos;
 
-        VkDescriptorType descriptorType = GetVKDescriptorType(desc.descriptorType);
+        VkDescriptorType descriptorType = GetVKDescriptorType(bindingData.type);
 
-        for (uint32 i = 0; i < desc.descriptorCount; i++)
+        uint32 usedCount = 0;
+        if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateImage)
+            usedCount = txtDescriptorCount;
+        else
+            usedCount = smpDescriptorCount;
+
+        for (uint32 i = 0; i < usedCount; i++)
         {
             VkDescriptorImageInfo imgInfo = VkDescriptorImageInfo{};
 
@@ -1539,13 +1626,13 @@ namespace LinaGX
         write.pNext                = nullptr;
         write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
         write.dstBinding           = desc.binding;
-        write.descriptorCount      = desc.descriptorCount;
+        write.descriptorCount      = usedCount;
         write.descriptorType       = descriptorType;
         write.pImageInfo           = imgInfos.data();
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
-    uint32 VKBackend::CreateCommandStream(QueueType cmdType)
+    uint32 VKBackend::CreateCommandStream(CommandType cmdType)
     {
         VKBCommandStream item = {};
         item.isValid          = true;
@@ -1626,13 +1713,6 @@ namespace LinaGX
                 const size_t increment = sizeof(LINAGX_TYPEID);
                 uint8*       cmd       = data + increment;
                 (this->*m_cmdFunctions[tid])(cmd, sr);
-
-                if (tid == LGX_GetTypeID<CMDBeginRenderPass>())
-                {
-                    CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(cmd);
-                    if (begin->isSwapchain)
-                        sr.swapchainWrites.push_back(begin->swapchain);
-                }
             }
 
             res = vkEndCommandBuffer(buffer);
@@ -1864,7 +1944,7 @@ namespace LinaGX
         m_queues.RemoveItem(queue);
     }
 
-    uint8 VKBackend::GetPrimaryQueue(QueueType type)
+    uint8 VKBackend::GetPrimaryQueue(CommandType type)
     {
         LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
         return m_primaryQueues[type];
@@ -2254,12 +2334,12 @@ namespace LinaGX
         {
 
             QueueDesc descGfx, descTransfer, descCompute;
-            descGfx.type                         = CommandType::Graphics;
-            descTransfer.type                    = CommandType::Transfer;
-            descCompute.type                     = CommandType::Compute;
-            descGfx.debugName                    = "Primary Graphics Queue";
-            descTransfer.debugName               = "Primary Transfer Queue";
-            descCompute.debugName                = "Primary Compute Queue";
+            descGfx.type                           = CommandType::Graphics;
+            descTransfer.type                      = CommandType::Transfer;
+            descCompute.type                       = CommandType::Compute;
+            descGfx.debugName                      = "Primary Graphics Queue";
+            descTransfer.debugName                 = "Primary Transfer Queue";
+            descCompute.debugName                  = "Primary Compute Queue";
             m_primaryQueues[CommandType::Graphics] = CreateQueue(descGfx);
             m_primaryQueues[CommandType::Transfer] = CreateQueue(descTransfer);
             m_primaryQueues[CommandType::Compute]  = CreateQueue(descCompute);
@@ -2631,56 +2711,89 @@ namespace LinaGX
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
 
-        VkImageView colorImageView, depthImageView = nullptr;
-        VkImage     colorImage, depthImage         = nullptr;
+        VkImageView depthView = nullptr, stencilView = nullptr;
 
-        if (begin->isSwapchain)
+        if (begin->depthStencilAttachment.depthWrite)
         {
-            const auto& swp = m_swapchains.GetItemR(begin->swapchain);
-            colorImageView  = swp.views[swp._imageIndex];
-            colorImage      = swp.imgs[swp._imageIndex];
-
-            const auto& depthTxt = m_texture2Ds.GetItemR(swp.depthTextures[swp._imageIndex]);
-            depthImageView       = depthTxt.imgView;
-            depthImage           = depthTxt.img;
-        }
-        else
-        {
-            const auto& txt      = m_texture2Ds.GetItemR(begin->colorTexture);
-            const auto& depthTxt = m_texture2Ds.GetItemR(begin->depthTexture);
-            colorImageView       = txt.imgView;
-            colorImage           = txt.img;
-            depthImageView       = depthTxt.imgView;
-            depthImage           = depthTxt.img;
+            const auto& depthTxt = m_texture2Ds.GetItemR(begin->depthStencilAttachment.depthTexture);
+            depthView            = depthTxt.imgView;
         }
 
-        VkClearValue clearValues[2];
-        clearValues[0].color        = {begin->clearColor[0], begin->clearColor[1], begin->clearColor[2], begin->clearColor[3]};
-        clearValues[1].depthStencil = {1.0f, 0};
+        if (begin->depthStencilAttachment.useStencil)
+        {
+            const auto& stencilTxt = m_texture2Ds.GetItemR(begin->depthStencilAttachment.stencilTexture);
+            stencilView            = stencilTxt.imgView;
+        }
 
-        VkRenderingAttachmentInfo colorAttachment = VkRenderingAttachmentInfo{};
-        colorAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        colorAttachment.pNext                     = nullptr;
-        colorAttachment.imageView                 = colorImageView;
-        colorAttachment.imageLayout               = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
-        colorAttachment.resolveImageView          = nullptr;
-        colorAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.loadOp                    = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.clearValue                = clearValues[0];
+        LINAGX_VEC<VkRenderingAttachmentInfo> colorAttachments;
+        colorAttachments.resize(begin->colorAttachmentCount);
+
+        LINAGX_VEC<VkImageView> imageViews;
+        LINAGX_VEC<VkImage>     images;
+        imageViews.resize(begin->colorAttachmentCount);
+        images.resize(begin->colorAttachmentCount);
+
+        stream.lastRPImages.clear();
+        stream.lastRPImages.resize(begin->colorAttachmentCount);
+
+        for (uint32 i = 0; i < begin->colorAttachmentCount; i++)
+        {
+            const auto&               att = begin->colorAttachments[i];
+            VkRenderingAttachmentInfo info;
+
+            if (att.isSwapchain)
+            {
+                const auto& swp        = m_swapchains.GetItemR(static_cast<uint8>(att.texture));
+                imageViews[i]          = swp.views[swp._imageIndex];
+                images[i]              = swp.imgs[swp._imageIndex];
+                stream.lastRPImages[i] = {images[i], true};
+                stream.swapchainWrites.push_back(static_cast<uint8>(att.texture));
+            }
+            else
+            {
+                const auto& txt        = m_texture2Ds.GetItemR(att.texture);
+                imageViews[i]          = txt.imgView;
+                images[i]              = txt.img;
+                stream.lastRPImages[i] = {images[i], false};
+            }
+
+            info.sType              = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+            info.pNext              = nullptr;
+            info.imageView          = imageViews[i];
+            info.imageLayout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            info.resolveMode        = VK_RESOLVE_MODE_NONE;
+            info.resolveImageView   = nullptr;
+            info.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            info.loadOp             = GetVKLoadOp(att.loadOp);
+            info.storeOp            = GetVKStoreOp(att.storeOp);
+            info.clearValue.color   = {att.clearColor.x, att.clearColor.y, att.clearColor.z, att.clearColor.w};
+
+            colorAttachments[i] = info;
+        }
 
         VkRenderingAttachmentInfo depthAttachment = VkRenderingAttachmentInfo{};
         depthAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
         depthAttachment.pNext                     = nullptr;
-        depthAttachment.imageView                 = depthImageView;
+        depthAttachment.imageView                 = depthView;
         depthAttachment.imageLayout               = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
         depthAttachment.resolveImageView          = nullptr;
         depthAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.loadOp                    = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp                   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.clearValue                = clearValues[1];
+        depthAttachment.loadOp                    = GetVKLoadOp(begin->depthStencilAttachment.depthLoadOp);
+        depthAttachment.storeOp                   = GetVKStoreOp(begin->depthStencilAttachment.depthStoreOp);
+        depthAttachment.clearValue.depthStencil   = {begin->depthStencilAttachment.clearDepth, 0};
+
+        VkRenderingAttachmentInfo stencilAttachment = VkRenderingAttachmentInfo{};
+        stencilAttachment.sType                     = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        stencilAttachment.pNext                     = nullptr;
+        stencilAttachment.imageView                 = stencilView;
+        stencilAttachment.imageLayout               = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        stencilAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
+        stencilAttachment.resolveImageView          = nullptr;
+        stencilAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
+        stencilAttachment.loadOp                    = GetVKLoadOp(begin->depthStencilAttachment.stencilLoadOp);
+        stencilAttachment.storeOp                   = GetVKStoreOp(begin->depthStencilAttachment.stencilStoreOp);
+        stencilAttachment.clearValue.depthStencil   = {0.0f, begin->depthStencilAttachment.clearStencil};
 
         CMDSetViewport interVP = {};
         CMDSetScissors interSC = {};
@@ -2708,13 +2821,16 @@ namespace LinaGX
         renderingInfo.renderArea           = area;
         renderingInfo.layerCount           = 1;
         renderingInfo.viewMask             = 0;
-        renderingInfo.pDepthAttachment     = &depthAttachment;
-        renderingInfo.pStencilAttachment   = nullptr;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments    = &colorAttachment;
+        renderingInfo.pDepthAttachment     = begin->depthStencilAttachment.depthWrite ? &depthAttachment : VK_NULL_HANDLE;
+        renderingInfo.pStencilAttachment   = begin->depthStencilAttachment.useStencil ? &stencilAttachment : VK_NULL_HANDLE;
+        renderingInfo.colorAttachmentCount = begin->colorAttachmentCount;
+        renderingInfo.pColorAttachments    = colorAttachments.data();
 
         auto buffer = stream.buffer;
-        TransitionImageLayout(buffer, colorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+
+        for (auto img : images)
+            TransitionImageLayout(buffer, img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+
         vkCmdBeginRendering(buffer, &renderingInfo);
         CMD_SetViewport((uint8*)&interVP, stream);
         CMD_SetScissors((uint8*)&interSC, stream);
@@ -2726,15 +2842,12 @@ namespace LinaGX
         auto              buffer = stream.buffer;
         vkCmdEndRendering(buffer);
 
-        if (end->isSwapchain)
+        for (const auto& imgData : stream.lastRPImages)
         {
-            const auto& swp = m_swapchains.GetItemR(end->swapchain);
-            TransitionImageLayout(buffer, swp.imgs[swp._imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
-        }
-        else
-        {
-            const auto& txt = m_texture2Ds.GetItemR(end->texture);
-            TransitionImageLayout(buffer, txt.img, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+            if (imgData.isSwapchain)
+                TransitionImageLayout(buffer, imgData.ptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
+            else
+                TransitionImageLayout(buffer, imgData.ptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
         }
     }
 
@@ -2799,6 +2912,21 @@ namespace LinaGX
         CMDDrawIndexedIndirect* cmd       = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
         auto                    buffer    = stream.buffer;
         auto&                   indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
+
+        if (m_supportsMultiDrawIndirect)
+            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->stride);
+        else
+        {
+            for (uint32 i = 0; i < cmd->count; i++)
+                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
+        }
+    }
+
+    void VKBackend::CMD_DrawIndirect(uint8* data, VKBCommandStream& stream)
+    {
+        CMDDrawIndirect* cmd       = reinterpret_cast<CMDDrawIndirect*>(data);
+        auto             buffer    = stream.buffer;
+        auto&            indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
 
         if (m_supportsMultiDrawIndirect)
             vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->stride);
@@ -2964,6 +3092,10 @@ namespace LinaGX
                              0, nullptr);                          // imageMemoryBarrierCount, pImageMemoryBarriers
     }
 
+    void VKBackend::CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream)
+    {
+    }
+
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels)
     {
         VkImageMemoryBarrier barrier{};
@@ -3040,9 +3172,9 @@ namespace LinaGX
             1, &barrier);
     }
 
-    void VKackend::CMD_ExecuteSecondaryStream(uint8 *data, VKBCommandStream &stream) {
-        CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
-        
+    void VKBackend::CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream)
+    {
+        CMDExecuteSecondaryStream* cmd = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
     }
 
 } // namespace LinaGX

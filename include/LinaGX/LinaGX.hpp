@@ -32,6 +32,7 @@ THINGS TO ADD ALL BACKENDS/FIX:
  - Proper feature support. Find all features we are using, categorize them, make sure users are able to know if particular thing is supported or not.
  - Fero model won't load.
  - Fero'da format/hdr problemi.
+ - Document & format all.
  
 THINGS TO RESEARCH:
  

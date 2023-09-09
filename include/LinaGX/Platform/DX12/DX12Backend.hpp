@@ -119,7 +119,7 @@ namespace LinaGX
     {
         bool                                               isValid     = false;
         uint32                                             boundShader = 0;
-        QueueType                                          type        = QueueType::Graphics;
+        CommandType                                        type        = CommandType::Graphics;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
         LINAGX_MAP<uint32, uint64>                         intermediateResources;
@@ -168,7 +168,7 @@ namespace LinaGX
     struct DX12Queue
     {
         bool                                            isValid = false;
-        QueueType                                       type    = QueueType::Graphics;
+        CommandType                                     type    = CommandType::Graphics;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue>      queue;
         uint64                                          frameFenceValue = 0;
         LINAGX_VEC<uint64>                              storedFenceValues;
@@ -208,13 +208,13 @@ namespace LinaGX
         virtual void   DestroyDescriptorSet(uint16 handle) override;
         virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
-        virtual uint32 CreateCommandStream(QueueType cmdType) override;
+        virtual uint32 CreateCommandStream(CommandType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
         virtual uint8  CreateQueue(const QueueDesc& desc) override;
         virtual void   DestroyQueue(uint8 queue) override;
-        virtual uint8  GetPrimaryQueue(QueueType type) override;
+        virtual uint8  GetPrimaryQueue(CommandType type) override;
 
         void            DX12Exception(HrException e);
         ID3D12Resource* GetGPUResource(const DX12Resource& res);
@@ -246,6 +246,7 @@ namespace LinaGX
         void CMD_DrawInstanced(uint8* data, DX12CommandStream& stream);
         void CMD_DrawIndexedInstanced(uint8* data, DX12CommandStream& stream);
         void CMD_DrawIndexedIndirect(uint8* data, DX12CommandStream& stream);
+        void CMD_DrawIndirect(uint8* data, DX12CommandStream& stream);
         void CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream);
         void CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream);
         void CMD_CopyResource(uint8* data, DX12CommandStream& stream);
@@ -289,8 +290,8 @@ namespace LinaGX
         uint32                                     m_previousPresentCount = 0;
         uint32                                     m_glitchCount          = 0;
 
-        LINAGX_VEC<DX12PerFrameData> m_perFrameData;
-        LINAGX_MAP<QueueType, uint8> m_primaryQueues;
+        LINAGX_VEC<DX12PerFrameData>   m_perFrameData;
+        LINAGX_MAP<CommandType, uint8> m_primaryQueues;
 
         InitInfo            m_initInfo           = {};
         std::atomic<uint32> m_submissionPerFrame = 0;

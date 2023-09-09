@@ -248,6 +248,57 @@ namespace LinaGX
         }
     }
 
+    D3D12_STENCIL_OP GetDXStencilOp(StencilOp op)
+    {
+        switch (op)
+        {
+        case StencilOp::Keep:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_KEEP;
+        case StencilOp::Zero:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_ZERO;
+        case StencilOp::Replace:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_REPLACE;
+        case StencilOp::IncrementClamp:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_INCR_SAT;
+        case StencilOp::DecrementClamp:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_DECR_SAT;
+        case StencilOp::Invert:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_INVERT;
+        case StencilOp::IncrementWrap:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_INCR;
+        case StencilOp::DecrementWrap:
+            return D3D12_STENCIL_OP::D3D12_STENCIL_OP_DECR;
+        }
+    }
+
+    D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE GetVKLoadOp(LoadOp op)
+    {
+        switch (op)
+        {
+        case LoadOp::Load:
+            return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+        case LoadOp::Clear:
+            return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+        case LoadOp::DontCare:
+            return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
+        case LoadOp::None:
+            return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
+        }
+    }
+
+    D3D12_RENDER_PASS_ENDING_ACCESS_TYPE GetVKStoreOp(StoreOp op)
+    {
+        switch (op)
+        {
+        case StoreOp::Store:
+            return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+        case StoreOp::DontCare:
+            return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+        case StoreOp::None:
+            return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
+        }
+    }
+
     D3D12_PRIMITIVE_TOPOLOGY_TYPE GetDXTopologyType(Topology tp)
     {
         switch (tp)
@@ -315,7 +366,7 @@ namespace LinaGX
         }
     }
 
-    D3D12_COMMAND_LIST_TYPE GetDXCommandType(QueueType type)
+    D3D12_COMMAND_LIST_TYPE GetDXCommandType(CommandType type)
     {
         switch (type)
         {
@@ -629,7 +680,7 @@ namespace LinaGX
             return;
 
         Join();
-        
+
         auto&                swp     = m_swapchains.GetItemR(desc.swapchain);
         DXGI_SWAP_CHAIN_DESC swpDesc = {};
         swp.ptr->GetDesc(&swpDesc);
@@ -1094,8 +1145,8 @@ namespace LinaGX
         psoDesc.pRootSignature                            = shader.rootSig.Get();
         psoDesc.RasterizerState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState                                = blendDesc;
-        psoDesc.DepthStencilState.DepthEnable             = shaderDesc.depthTest;
-        psoDesc.DepthStencilState.DepthWriteMask          = shaderDesc.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+        psoDesc.DepthStencilState.DepthEnable             = shaderDesc.depthStencilDesc.depthTest;
+        psoDesc.DepthStencilState.DepthWriteMask          = shaderDesc.depthStencilDesc.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
         psoDesc.DepthStencilState.DepthFunc               = GetDXCompareOp(shaderDesc.depthCompare);
         psoDesc.DepthStencilState.StencilEnable           = FALSE;
         psoDesc.DepthStencilState.StencilReadMask         = D3D12_DEFAULT_STENCIL_READ_MASK;
@@ -1551,13 +1602,15 @@ namespace LinaGX
         DX12DescriptorSet item = {};
         item.isValid           = true;
 
-        for (uint32 i = 0; i < desc.bindingsCount; i++)
+        const uint32 bindingCount = static_cast<uint32>(desc.bindings.size());
+
+        for (uint32 i = 0; i < bindingCount; i++)
         {
-            DescriptorBinding& binding = desc.bindings[i];
+            const DescriptorBinding& binding = desc.bindings[i];
 
             DX12DescriptorBinding dx12Binding = {};
             dx12Binding.descriptorCount       = binding.descriptorCount;
-            dx12Binding.binding               = binding.binding;
+            dx12Binding.binding               = i;
             dx12Binding.type                  = binding.type;
 
             if (binding.type == DescriptorType::CombinedImageSampler)
@@ -1594,8 +1647,12 @@ namespace LinaGX
 
     void DX12Backend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
-        const bool typeOK = desc.descriptorType == DescriptorType::SSBO || desc.descriptorType == DescriptorType::UBO;
-        LOGA(typeOK, "Invalid descriptor type for buffer update!");
+        auto& item = m_descriptorSets.GetItemR(desc.setHandle);
+        LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
+        auto&        bindingData     = item.bindings[desc.binding];
+        const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
+        LOGA(descriptorCount <= bindingData.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.type == DescriptorType::UBO || bindingData.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
 
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptors;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors;
@@ -1605,11 +1662,11 @@ namespace LinaGX
         {
             if (binding.binding == desc.binding)
             {
-                for (uint32 i = 0; i < desc.descriptorCount; i++)
+                for (uint32 i = 0; i < descriptorCount; i++)
                 {
-                    const auto& res = m_resources.GetItemR(desc.resources[i]);
+                    const auto& res = m_resources.GetItemR(desc.buffers[i]);
 
-                    if (desc.descriptorType == DescriptorType::UBO && desc.descriptorCount == 1)
+                    if (bindingData.type == DescriptorType::UBO && descriptorCount == 1)
                     {
                         DescriptorHandle handle = {};
                         handle.SetGPUHandle(res.allocation->GetResource()->GetGPUVirtualAddress());
@@ -1629,22 +1686,33 @@ namespace LinaGX
             }
         }
 
-        m_device->CopyDescriptors(desc.descriptorCount, destDescriptors.data(), NULL, desc.descriptorCount, srcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        m_device->CopyDescriptors(descriptorCount, destDescriptors.data(), NULL, descriptorCount, srcDescriptors.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     void DX12Backend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
-        const bool typeOK = (desc.descriptorType == DescriptorType::CombinedImageSampler) || (desc.descriptorType == DescriptorType::SeparateImage) || (desc.descriptorType == DescriptorType::SeparateSampler);
-        LOGA(typeOK, "Invalid descriptor type for image update!");
+        auto& item = m_descriptorSets.GetItemR(desc.setHandle);
+        LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
+        auto&        bindingData        = item.bindings[desc.binding];
+        const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
+        const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
+        LOGA(txtDescriptorCount <= bindingData.descriptorCount && smpDescriptorCount <= bindingData.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateSampler || bindingData.type == DescriptorType::SeparateImage, "Backend -> You can only use DescriptorUpdateImage with descriptors of type combined image sampler, separate image or separate sampler! Use DescriptorUpdateBuffer()");
 
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsTxt;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsSampler;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptorsTxt;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptorsSampler;
-        destDescriptorsTxt.resize(desc.descriptorCount);
-        destDescriptorsSampler.resize(desc.descriptorCount);
-        srcDescriptorsTxt.resize(desc.descriptorCount);
-        srcDescriptorsSampler.resize(desc.descriptorCount);
+        destDescriptorsTxt.resize(txtDescriptorCount);
+        destDescriptorsSampler.resize(smpDescriptorCount);
+        srcDescriptorsTxt.resize(txtDescriptorCount);
+        srcDescriptorsSampler.resize(smpDescriptorCount);
+
+        uint32 usedCount = 0;
+        if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateImage)
+            usedCount = txtDescriptorCount;
+        else
+            usedCount = smpDescriptorCount;
 
         auto& descriptorSet = m_descriptorSets.GetItemR(desc.setHandle);
 
@@ -1652,9 +1720,9 @@ namespace LinaGX
         {
             if (binding.binding == desc.binding)
             {
-                for (uint32 i = 0; i < desc.descriptorCount; i++)
+                for (uint32 i = 0; i < usedCount; i++)
                 {
-                    if (desc.descriptorType == DescriptorType::CombinedImageSampler || desc.descriptorType == DescriptorType::SeparateImage)
+                    if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateImage)
                     {
                         const auto& res                    = m_texture2Ds.GetItemR(desc.textures[i]);
                         const auto& srcResDescriptorHandle = res.desc.usage == Texture2DUsage::ColorTextureRenderTarget ? res.descriptor2 : res.descriptor;
@@ -1668,7 +1736,7 @@ namespace LinaGX
                         destDescriptorsTxt[i] = txtHandle;
                     }
 
-                    if (desc.descriptorType == DescriptorType::CombinedImageSampler || desc.descriptorType == DescriptorType::SeparateSampler)
+                    if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateSampler)
                     {
                         const auto& sampler                    = m_samplers.GetItemR(desc.samplers[i]);
                         const auto& srcSamplerDescriptorHandle = sampler.descriptor;
@@ -1679,7 +1747,7 @@ namespace LinaGX
 
                         D3D12_CPU_DESCRIPTOR_HANDLE samplerHandle;
 
-                        if (desc.descriptorType == DescriptorType::CombinedImageSampler)
+                        if (bindingData.type == DescriptorType::CombinedImageSampler)
                             samplerHandle.ptr = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
                         else
                             samplerHandle.ptr = binding.gpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
@@ -1691,18 +1759,18 @@ namespace LinaGX
             }
         }
 
-        if (desc.descriptorType == DescriptorType::CombinedImageSampler)
+        if (bindingData.type == DescriptorType::CombinedImageSampler)
         {
-            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsTxt.data(), NULL, desc.descriptorCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsSampler.data(), NULL, desc.descriptorCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+            m_device->CopyDescriptors(usedCount, destDescriptorsTxt.data(), NULL, usedCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            m_device->CopyDescriptors(usedCount, destDescriptorsSampler.data(), NULL, usedCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
         }
-        else if (desc.descriptorType == DescriptorType::SeparateImage)
+        else if (bindingData.type == DescriptorType::SeparateImage)
         {
-            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsTxt.data(), NULL, desc.descriptorCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            m_device->CopyDescriptors(usedCount, destDescriptorsTxt.data(), NULL, usedCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         }
-        else if (desc.descriptorType == DescriptorType::SeparateSampler)
+        else if (bindingData.type == DescriptorType::SeparateSampler)
         {
-            m_device->CopyDescriptors(desc.descriptorCount, destDescriptorsSampler.data(), NULL, desc.descriptorCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+            m_device->CopyDescriptors(usedCount, destDescriptorsSampler.data(), NULL, usedCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
         }
     }
 
@@ -1861,12 +1929,12 @@ namespace LinaGX
             // Queue
             {
                 QueueDesc descGfx, descTransfer, descCompute;
-                descGfx.type                         = CommandType::Graphics;
-                descTransfer.type                    = CommandType::Transfer;
-                descCompute.type                     = CommandType::Compute;
-                descGfx.debugName                    = "Primary Graphics Queue";
-                descTransfer.debugName               = "Primary Transfer Queue";
-                descCompute.debugName                = "Primary Compute Queue";
+                descGfx.type                           = CommandType::Graphics;
+                descTransfer.type                      = CommandType::Transfer;
+                descCompute.type                       = CommandType::Compute;
+                descGfx.debugName                      = "Primary Graphics Queue";
+                descTransfer.debugName                 = "Primary Transfer Queue";
+                descCompute.debugName                  = "Primary Compute Queue";
                 m_primaryQueues[CommandType::Graphics] = CreateQueue(descGfx);
                 m_primaryQueues[CommandType::Transfer] = CreateQueue(descTransfer);
                 m_primaryQueues[CommandType::Compute]  = CreateQueue(descCompute);
@@ -2027,7 +2095,7 @@ namespace LinaGX
         }
     }
 
-    uint32 DX12Backend::CreateCommandStream(QueueType cmdType)
+    uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
     {
         DX12CommandStream item = {};
         item.isValid           = true;
@@ -2256,7 +2324,7 @@ namespace LinaGX
         m_queues.RemoveItem(queue);
     }
 
-    uint8 DX12Backend::GetPrimaryQueue(QueueType type)
+    uint8 DX12Backend::GetPrimaryQueue(CommandType type)
     {
         LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
         return m_primaryQueues[type];
@@ -2483,6 +2551,15 @@ namespace LinaGX
         list->ExecuteIndirect(shader.indirectSig.Get(), cmd->count, buffer, 0, NULL, 0);
     }
 
+    void DX12Backend::CMD_DrawIndirect(uint8* data, DX12CommandStream& stream)
+    {
+        CMDDrawIndirect* cmd    = reinterpret_cast<CMDDrawIndirect*>(data);
+        auto             list   = stream.list;
+        auto&            shader = m_shaders.GetItemR(stream.boundShader);
+        auto             buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
+        list->ExecuteIndirect(shader.indirectSig.Get(), cmd->count, buffer, 0, NULL, 0);
+    }
+
     void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)
     {
         CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
@@ -2646,9 +2723,9 @@ namespace LinaGX
         auto               list = stream.list;
     }
 
-    void DX12Backend::CMD_ExecuteSecondaryStream(uint8 *data, DX12CommandStream &stream) {
-        CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
-        
+    void DX12Backend::CMD_ExecuteSecondaryStream(uint8* data, DX12CommandStream& stream)
+    {
+        CMDExecuteSecondaryStream* cmd = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
     }
 
 } // namespace LinaGX
