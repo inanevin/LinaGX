@@ -1689,17 +1689,17 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
     id<MTLCommandBuffer> buffer = AS_MTL(stream.currentBuffer, id<MTLCommandBuffer>);
     
-    stream.currentRenderPassUseDepth = begin->depthStencilAttachment.depthWrite;
+    stream.currentRenderPassUseDepth = begin->depthStencilAttachment.useDepth;
     
     MTLRenderPassDescriptor* passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     
-    if(begin->depthStencilAttachment.depthWrite)
+    if(begin->depthStencilAttachment.useDepth)
     {
         passDescriptor.depthAttachment.loadAction = GetMTLLoadOp(begin->depthStencilAttachment.depthLoadOp);
         passDescriptor.depthAttachment.storeAction = GetMTLStoreOp(begin->depthStencilAttachment.depthStoreOp);
         passDescriptor.depthAttachment.clearDepth = begin->depthStencilAttachment.clearDepth;
         
-        id<MTLTexture> depth = AS_MTL(m_texture2Ds.GetItemR(begin->depthStencilAttachment.depthTexture).ptr, id<MTLTexture>);
+        id<MTLTexture> depth = AS_MTL(m_texture2Ds.GetItemR(begin->depthStencilAttachment.texture).ptr, id<MTLTexture>);
         passDescriptor.depthAttachment.texture = depth;
     }
 
@@ -1709,7 +1709,7 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.stencilAttachment.loadAction = GetMTLLoadOp(begin->depthStencilAttachment.stencilLoadOp);
         passDescriptor.stencilAttachment.storeAction = GetMTLStoreOp(begin->depthStencilAttachment.stencilStoreOp);
         
-        id<MTLTexture> stencil = AS_MTL(m_texture2Ds.GetItemR(begin->depthStencilAttachment.stencilTexture).ptr, id<MTLTexture>);
+        id<MTLTexture> stencil = AS_MTL(m_texture2Ds.GetItemR(begin->depthStencilAttachment.texture).ptr, id<MTLTexture>);
         passDescriptor.stencilAttachment.texture = stencil;
     }
     

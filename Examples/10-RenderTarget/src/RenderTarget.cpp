@@ -562,6 +562,7 @@ namespace LinaGX::Examples
 
             _lgx->DescriptorUpdateBuffer(uboUpdate);
         }
+        
 
     } // namespace LinaGX::Examples
 

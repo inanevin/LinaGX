@@ -1000,11 +1000,11 @@ uint32 _depthTexture = 0;
             beginRenderPass->colorAttachmentCount = 1;
             beginRenderPass->extension = nullptr;
             
-            beginRenderPass->depthStencilAttachment.depthWrite = true;
+            beginRenderPass->depthStencilAttachment.useDepth = true;
             beginRenderPass->depthStencilAttachment.depthLoadOp = LoadOp::Clear;
             beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
             beginRenderPass->depthStencilAttachment.clearDepth = 1.0f;
-            beginRenderPass->depthStencilAttachment.depthTexture = _depthTexture;
+            beginRenderPass->depthStencilAttachment.texture = _depthTexture;
             
             beginRenderPass->depthStencilAttachment.useStencil = false;
             
