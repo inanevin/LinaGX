@@ -244,13 +244,11 @@ uint32 _depthTexture = 0;
                 .srcAlphaBlendFactor = BlendFactor::One,
                 .dstAlphaBlendFactor = BlendFactor::Zero,
                 .alphaBlendOp        = BlendOp::Add,
-                .componentFlags      = ColorComponentFlags::RGBA,
             };
 
             ShaderColorAttachment att = ShaderColorAttachment{
                 .format = Format::B8G8R8A8_UNORM,
                 .blendAttachment = blend,
-                .colorWriteMask = ColorWriteMask::All,
             };
             
             ShaderDepthStencilDesc depthStencilDesc = {
@@ -298,7 +296,6 @@ uint32 _depthTexture = 0;
             ShaderColorAttachment att = ShaderColorAttachment{
                 .format = Format::B8G8R8A8_UNORM,
                 .blendAttachment = blend,
-                .colorWriteMask = ColorWriteMask::All,
             };
             
             ShaderDepthStencilDesc depthStencilDesc = {

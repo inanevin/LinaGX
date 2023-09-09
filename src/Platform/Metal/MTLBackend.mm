@@ -318,20 +318,18 @@ MTLRenderStages GetMTLRenderStage(ShaderStage stage)
     }
 }
 
-MTLColorWriteMask GetMTLColorWriteMask(ColorWriteMask mask)
+MTLColorWriteMask GetMTLColorWriteMask(ColorComponentFlags flag)
 {
-        switch(mask)
+        switch(flag)
         {
-            case ColorWriteMask::Red:
+            case ColorComponentFlags::R:
                 return MTLColorWriteMaskRed;
-            case ColorWriteMask::Green:
+            case ColorComponentFlags::G:
                 return MTLColorWriteMaskGreen;
-            case ColorWriteMask::Blue:
+            case ColorComponentFlags::B:
                 return MTLColorWriteMaskBlue;
-            case ColorWriteMask::Alpha:
+            case ColorComponentFlags::A:
                 return MTLColorWriteMaskAlpha;
-            case ColorWriteMask::All:
-                return MTLColorWriteMaskAll;
         }
 }
 
@@ -604,7 +602,9 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     {
         const auto& att = shaderDesc.colorAttachments[i];
         const auto& blend = att.blendAttachment;
-        pipelineDescriptor.colorAttachments[i].writeMask = GetMTLColorWriteMask(att.colorWriteMask);
+        pipelineDescriptor.colorAttachments[i].writeMask = 0;
+        for(auto flag : blend.componentFlags)
+        pipelineDescriptor.colorAttachments[i].writeMask |= GetMTLColorWriteMask(flag);
         pipelineDescriptor.colorAttachments[i].pixelFormat = GetMTLFormat(att.format);
         pipelineDescriptor.colorAttachments[i].blendingEnabled = blend.blendEnabled;
         pipelineDescriptor.colorAttachments[i].rgbBlendOperation = GetMTLBlendOp(blend.colorBlendOp);
