@@ -49,8 +49,6 @@ PUBLIC "-framework AppKit"
 PUBLIC "-framework Foundation"
 PUBLIC "-framework QuartzCore"
 )
-
-message("LinaGX -> metal-cpp has been linked.")
 endif()
 
 add_subdirectory(Dependencies/glslang-12.2.0)
