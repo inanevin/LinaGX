@@ -86,10 +86,10 @@ namespace LinaGX
         LINAGX_VEC<VkImage>     imgs;
         LINAGX_VEC<VkImageView> views;
         LINAGX_VEC<uint32>      depthTextures;
-        uint32                  _imageIndex                  = 0;
-        bool                    gotImage                     = false;
-        uint8                   _submittedQueue              = 0;
-        uint32                  _submittedSemaphoreIndex     = 0;
+        uint32                  _imageIndex              = 0;
+        bool                    gotImage                 = false;
+        uint8                   _submittedQueue          = 0;
+        uint32                  _submittedSemaphoreIndex = 0;
         LINAGX_VEC<VkSemaphore> imageAcquiredSemaphores;
     };
 
@@ -98,15 +98,22 @@ namespace LinaGX
         uint32 submissionCount = 0;
     };
 
+    struct VKBRenderPassImage
+    {
+        VkImage ptr         = nullptr;
+        bool    isSwapchain = false;
+    };
+
     struct VKBCommandStream
     {
-        bool                       isValid     = false;
-        QueueType                  type        = QueueType::Graphics;
-        uint32                     boundShader = 0;
-        VkCommandBuffer            buffer      = nullptr;
-        VkCommandPool              pool        = nullptr;
-        LINAGX_MAP<uint32, uint64> intermediateResources;
-        LINAGX_VEC<uint8>          swapchainWrites;
+        bool                           isValid     = false;
+        CommandType                    type        = CommandType::Graphics;
+        uint32                         boundShader = 0;
+        VkCommandBuffer                buffer      = nullptr;
+        VkCommandPool                  pool        = nullptr;
+        LINAGX_MAP<uint32, uint64>     intermediateResources;
+        LINAGX_VEC<uint8>              swapchainWrites;
+        LINAGX_VEC<VKBRenderPassImage> lastRPImages;
     };
 
     struct VKBResource
@@ -127,9 +134,10 @@ namespace LinaGX
 
     struct VKBDescriptorSet
     {
-        bool                  isValid = false;
-        VkDescriptorSet       ptr     = nullptr;
-        VkDescriptorSetLayout layout  = nullptr;
+        bool                          isValid = false;
+        VkDescriptorSet               ptr     = nullptr;
+        VkDescriptorSetLayout         layout  = nullptr;
+        LINAGX_VEC<DescriptorBinding> bindings;
     };
 
     struct VKBQueuePerFrameData
@@ -144,7 +152,7 @@ namespace LinaGX
     {
         bool                             isValid             = false;
         VkQueue                          queue               = nullptr;
-        QueueType                        type                = QueueType::Graphics;
+        CommandType                      type                = CommandType::Graphics;
         uint64                           frameSemaphoreValue = 0;
         LINAGX_VEC<VKBQueuePerFrameData> pfd;
         LINAGX_VEC<bool>                 wasSubmitted = {false};
@@ -190,13 +198,13 @@ namespace LinaGX
         virtual void   DestroyDescriptorSet(uint16 handle) override;
         virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
-        virtual uint32 CreateCommandStream(QueueType cmdType) override;
+        virtual uint32 CreateCommandStream(CommandType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
         virtual uint8  CreateQueue(const QueueDesc& desc) override;
         virtual void   DestroyQueue(uint8 queue) override;
-        virtual uint8  GetPrimaryQueue(QueueType type) override;
+        virtual uint8  GetPrimaryQueue(CommandType type) override;
 
     private:
         uint16 CreateFence();
@@ -219,6 +227,7 @@ namespace LinaGX
         void CMD_DrawInstanced(uint8* data, VKBCommandStream& stream);
         void CMD_DrawIndexedInstanced(uint8* data, VKBCommandStream& stream);
         void CMD_DrawIndexedIndirect(uint8* data, VKBCommandStream& stream);
+        void CMD_DrawIndirect(uint8* data, VKBCommandStream& stream);
         void CMD_BindVertexBuffers(uint8* data, VKBCommandStream& stream);
         void CMD_BindIndexBuffers(uint8* data, VKBCommandStream& stream);
         void CMD_CopyResource(uint8* data, VKBCommandStream& stream);
@@ -265,13 +274,13 @@ namespace LinaGX
         InitInfo                                   m_initInfo     = {};
         LINAGX_VEC<VKBPerFrameData>                m_perFrameData = {};
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions = {};
-        LINAGX_MAP<QueueType, uint8>               m_primaryQueues;
+        LINAGX_MAP<CommandType, uint8>             m_primaryQueues;
         LINAGX_MAP<VkQueue, std::atomic_flag*>     m_flagsPerQueue;
 
         VkDescriptorPool           m_descriptorPool = nullptr;
         VkPhysicalDeviceProperties m_gpuProperties;
 
-        LINAGX_MAP<QueueType, VKBQueueData> m_queueData;
+        LINAGX_MAP<CommandType, VKBQueueData> m_queueData;
     };
 } // namespace LinaGX
 
