@@ -34,6 +34,7 @@ THINGS TO ADD ALL BACKENDS/FIX:
  - Fero'da format/hdr problemi.
  - Document & format all.
  - Group all barrier calls.
+ - Metal obj release problem.
 
 THINGS TO RESEARCH:
 
@@ -44,10 +45,15 @@ THINGS TO RESEARCH:
 
 FEATURES TO IMPLEMENT
 
-- Array textures and sampler2Darray and alike (+Metal). (Used MipMaps example)
+- PSO write mask. (+++)
+- Shader multiple attachments. (+++)
+- Render pass multiple attachments, load/store actions per attachment. (+++)
+- Stencil buffer. (+++)
+- Finalize/test depth stuff. (+++)
+- Array textures and sampler2Darray and alike. (+++)
+- DrawIndirect (without indexed) (+++)
+- Allow for binding without shader. (+++)
 - Dynamic descriptor set UBO and SSBO bindings. (+Metal)
-- Allow for binding without shader. (+Metal)
-- DrawIndirect (without indexed) (+Metal)
 - Secondary command buffers (+Metal).
 - Mouse confinement and restriction (+Metal).
 - Support for different vertex buffer slots.

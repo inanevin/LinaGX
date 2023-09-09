@@ -1091,7 +1091,21 @@ namespace LinaGX
                     commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
                     commandSignatureDesc.ByteStride                   = sizeof(IndexedIndirectCommand);
 
-                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.rootSig.Get(), IID_PPV_ARGS(&shader.indirectSig)));
+                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.rootSig.Get(), IID_PPV_ARGS(&shader.indirectIndexedSig)));
+
+                    D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]    = {};
+                    argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                    argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                    argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
+                    argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
+                    argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+                    D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
+                    commandSignatureDesc.pArgumentDescs                = argumentDescs2;
+                    commandSignatureDesc.NumArgumentDescs              = _countof(argumentDescs2);
+                    commandSignatureDesc.ByteStride                    = sizeof(IndirectCommand);
+
+                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc2, shader.rootSig.Get(), IID_PPV_ARGS(&shader.indirectDrawSig)));
                 }
                 catch (HrException e)
                 {
@@ -2598,7 +2612,7 @@ namespace LinaGX
         auto                    list   = stream.list;
         auto&                   shader = m_shaders.GetItemR(stream.boundShader);
         auto                    buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
-        list->ExecuteIndirect(shader.indirectSig.Get(), cmd->count, buffer, 0, NULL, 0);
+        list->ExecuteIndirect(shader.indirectIndexedSig.Get(), cmd->count, buffer, 0, NULL, 0);
     }
 
     void DX12Backend::CMD_DrawIndirect(uint8* data, DX12CommandStream& stream)
@@ -2607,7 +2621,7 @@ namespace LinaGX
         auto             list   = stream.list;
         auto&            shader = m_shaders.GetItemR(stream.boundShader);
         auto             buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
-        list->ExecuteIndirect(shader.indirectSig.Get(), cmd->count, buffer, 0, NULL, 0);
+        list->ExecuteIndirect(shader.indirectDrawSig.Get(), cmd->count, buffer, 0, NULL, 0);
     }
 
     void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)
@@ -2708,7 +2722,7 @@ namespace LinaGX
     {
         CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
         auto                   list   = stream.list;
-        auto&                  shader = m_shaders.GetItemR(stream.boundShader);
+        auto&                  shader = m_shaders.GetItemR(cmd->explicitShaderLayout ? cmd->layoutShader : stream.boundShader);
 
         for (uint32 i = 0; i < cmd->setCount; i++)
         {

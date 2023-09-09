@@ -43,6 +43,16 @@ namespace LinaGX
 {
     class Win32Window : public Window
     {
+
+    private:
+        enum class ConfineStyle
+        {
+            None,
+            Window,
+            Region,
+            Center,
+        };
+
     public:
         static __int64 __stdcall WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam);
         static LINAGX_MAP<HWND__*, Win32Window*> s_win32Windows;
@@ -107,6 +117,8 @@ namespace LinaGX
         Win32Window* m_parent               = nullptr;
         bool         m_setToFullscreen      = false;
         bool         m_mouseMoved           = false;
+        ConfineStyle m_confineStyle         = ConfineStyle::None;
+        LGXRectui    m_confineRect          = {};
     };
 } // namespace LinaGX
 

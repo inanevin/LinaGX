@@ -175,6 +175,8 @@ namespace LinaGX
         bool    isCompute;
         uint32  dynamicOffsetCount;
         uint32* dynamicOffsets;
+        bool    explicitShaderLayout;
+        uint32  layoutShader;
     };
 
     struct CMDBindConstants

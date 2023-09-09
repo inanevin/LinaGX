@@ -525,6 +525,19 @@ namespace LinaGX
             if (m_cbHoverEnd)
                 m_cbHoverEnd();
         }
+
+        if (m_hasFocus && m_confineStyle != ConfineStyle::None)
+        {
+
+            if (m_confineStyle == ConfineStyle::Window)
+                m_confineRect = {{0, 0}, {m_size.x, m_size.y}};
+            else if (m_confineStyle == ConfineStyle::Center)
+                m_confineRect = {{m_size.x / 2 - 5, m_size.y / 2 - 5}, {10, 10}};
+
+            const RECT rect = {static_cast<LONG>(m_confineRect.pos.x), static_cast<LONG>(m_confineRect.pos.y), static_cast<LONG>(m_confineRect.pos.x + m_confineRect.size.x), static_cast<LONG>(m_confineRect.pos.y + m_confineRect.size.y)};
+
+            ClipCursor(&rect);
+        }
     }
 
     uint32 Win32Window::GetStyle(WindowStyle s)
@@ -825,18 +838,23 @@ namespace LinaGX
 
     void Win32Window::ConfineMouse()
     {
+        m_confineStyle = ConfineStyle::Window;
     }
 
     void Win32Window::ConfineMouseToRegion(const LGXRectui& region)
     {
+        m_confineStyle = ConfineStyle::Region;
+        m_confineRect  = region;
     }
 
     void Win32Window::ConfineMouseToCenter()
     {
+        m_confineStyle = ConfineStyle::Center;
     }
 
     void Win32Window::FreeMouse()
     {
+        m_confineStyle = ConfineStyle::None;
     }
 
     void Win32Window::SetMouseVisible(bool visible)

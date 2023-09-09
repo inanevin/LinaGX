@@ -1234,7 +1234,7 @@ namespace LinaGX
         item.usage              = txtDesc.usage;
         item.isValid            = true;
         item.depthStencilAspect = txtDesc.depthStencilAspect;
-        item.arrayLength         = txtDesc.arrayLength;
+        item.arrayLength        = txtDesc.arrayLength;
 
         VkImageCreateInfo imgCreateInfo = VkImageCreateInfo{};
         imgCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -3016,7 +3016,7 @@ namespace LinaGX
     {
         CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
         auto                   buffer = stream.buffer;
-        const auto&            shader = m_shaders.GetItemR(stream.boundShader);
+        const auto&            shader = m_shaders.GetItemR(cmd->explicitShaderLayout ? cmd->layoutShader : stream.boundShader);
 
         LINAGX_VEC<VkDescriptorSet> sets;
         sets.resize(cmd->setCount);

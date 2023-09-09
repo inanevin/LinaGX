@@ -366,13 +366,15 @@ namespace LinaGX::Examples
             _descriptorSet0 = _lgx->CreateDescriptorSet(desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
-                .binding         = 0,
-                .textures        = {_textureGPU},
-                .samplers        = {_sampler},
+                .binding  = 0,
+                .textures = {_textureGPU},
+                .samplers = {_sampler},
             };
 
             _lgx->DescriptorUpdateImage(imgUpdate);
         }
+
+        _window->ConfineMouse();
     }
 
     void Example::Shutdown()
@@ -419,15 +421,15 @@ namespace LinaGX::Examples
             ScissorsRect              sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
             CMDBeginRenderPass*       beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor            = {0.8f, 0.8f, 0.8f, 1.0f};
-            colorAttachment.texture               = static_cast<uint32>(_swapchain);
-            colorAttachment.isSwapchain           = true;
-            colorAttachment.loadOp                = LoadOp::Clear;
-            colorAttachment.storeOp               = StoreOp::Store;
-            beginRenderPass->colorAttachmentCount = 1;
-            beginRenderPass->colorAttachments     = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-            beginRenderPass->viewport             = viewport;
-            beginRenderPass->scissors             = sc;
+            colorAttachment.clearColor                       = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture                          = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain                      = true;
+            colorAttachment.loadOp                           = LoadOp::Clear;
+            colorAttachment.storeOp                          = StoreOp::Store;
+            beginRenderPass->colorAttachmentCount            = 1;
+            beginRenderPass->colorAttachments                = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            beginRenderPass->viewport                        = viewport;
+            beginRenderPass->scissors                        = sc;
             beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
         }
 
@@ -458,6 +460,7 @@ namespace LinaGX::Examples
             bindTxt->setCount              = 1;
             bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0);
             bindTxt->isCompute             = false;
+            bindTxt->explicitShaderLayout  = false;
         }
 
         // Draw the triangle
