@@ -65,6 +65,11 @@ namespace LinaGX
         virtual LGXVector2ui GetMonitorSize() override;
         virtual bool         GetIsMaximized() override;
         virtual bool         GetIsMinimized() override;
+        virtual void         ConfineMouse() override;
+        virtual void         ConfineMouseToRegion(const LGXRectui& region) override;
+        virtual void         ConfineMouseToCenter() override;
+        virtual void         FreeMouse() override;
+        virtual void         SetMouseVisible(bool visible) override;
 
         virtual void* GetWindowHandle() override
         {
@@ -101,7 +106,7 @@ namespace LinaGX
         bool         m_isMaximizeFullscreen = false;
         Win32Window* m_parent               = nullptr;
         bool         m_setToFullscreen      = false;
-        bool         m_mouseMoved = false;
+        bool         m_mouseMoved           = false;
     };
 } // namespace LinaGX
 

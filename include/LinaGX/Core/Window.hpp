@@ -91,7 +91,6 @@ namespace LinaGX
         /// <param name="str"></param>
         virtual void SetTitle(const LINAGX_STRING& str) = 0;
 
-
         /// <summary>
         ///
         /// </summary>
@@ -160,31 +159,31 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         virtual bool GetIsMinimized() = 0;
-        
+
         /// <summary>
         ///
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouse() = 0;
-        
+
         /// <summary>
         ///
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouseToRegion(const LGXRectui& region) = 0;
-        
+
         /// <summary>
         ///
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouseToCenter() = 0;
-        
+
         /// <summary>
         ///
         /// </summary>
         /// <returns></returns>
         virtual void FreeMouse() = 0;
-        
+
         /// <summary>
         ///
         /// </summary>
@@ -324,7 +323,6 @@ namespace LinaGX
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) = 0;
         virtual void Destroy()                                                                                                                        = 0;
-        virtual void PreTick()                                                                                                                        = 0;
         virtual void Tick()                                                                                                                           = 0;
 
     protected:
@@ -348,14 +346,14 @@ namespace LinaGX
         LGXVector2ui             m_trueSize;
         LGXVector2ui             m_mousePosition = {};
         LGXRectui                m_dragRect;
-        uint32                   m_dpi                = 0;
-        float                    m_dpiScale           = 0.0f;
-        bool                     m_isVisible          = true;
-        bool                     m_isTransparent      = false;
-        float                    m_alpha              = 0.0f;
-        bool                     m_hasFocus           = true;
-        bool                     m_isHovered          = false;
-        CursorType               m_cursorType         = CursorType::Default;
+        uint32                   m_dpi           = 0;
+        float                    m_dpiScale      = 0.0f;
+        bool                     m_isVisible     = true;
+        bool                     m_isTransparent = false;
+        float                    m_alpha         = 0.0f;
+        bool                     m_hasFocus      = true;
+        bool                     m_isHovered     = false;
+        CursorType               m_cursorType    = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
         WindowStyle              m_style = WindowStyle::WindowedApplication;
     };

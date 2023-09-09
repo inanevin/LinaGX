@@ -215,10 +215,6 @@ void OSXWindow::Destroy() {
     m_nsWindow = nil;
 }
 
-void OSXWindow::PreTick() { 
-        
-}
-
 void OSXWindow::Tick() {
 
     if(!m_sizeRequests.empty())

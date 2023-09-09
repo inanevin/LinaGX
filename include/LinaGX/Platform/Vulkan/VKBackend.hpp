@@ -64,6 +64,7 @@ namespace LinaGX
         VkImageView        imgView            = nullptr;
         VmaAllocation_T*   allocation         = nullptr;
         bool               isValid            = false;
+        uint32             arrayLength        = 0;
     };
 
     struct VKBSampler
@@ -85,7 +86,6 @@ namespace LinaGX
         VkPresentModeKHR        presentMode = VK_PRESENT_MODE_FIFO_KHR;
         LINAGX_VEC<VkImage>     imgs;
         LINAGX_VEC<VkImageView> views;
-        LINAGX_VEC<uint32>      depthTextures;
         uint32                  _imageIndex              = 0;
         bool                    gotImage                 = false;
         uint8                   _submittedQueue          = 0;
@@ -239,7 +239,7 @@ namespace LinaGX
         void CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream);
 
     private:
-        void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels);
+        void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize);
 
     private:
         VkInstance               m_vkInstance     = nullptr;

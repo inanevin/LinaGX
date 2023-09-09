@@ -596,9 +596,11 @@ namespace LinaGX
     {
         Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
         DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
+        float              depthClear         = 1.0f;
+        uint32             stencilClear       = 0;
         uint32             width              = 0;
         uint32             height             = 0;
-        uint32             mipLevels          = 0;
+        uint32             mipLevels          = 1;
         Format             format             = Format::R8G8B8A8_SRGB;
         uint32             arrayLength        = 1;
         const char*        debugName          = "LinaGXTexture";

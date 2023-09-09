@@ -268,10 +268,12 @@ namespace LinaGX
             return D3D12_STENCIL_OP::D3D12_STENCIL_OP_INCR;
         case StencilOp::DecrementWrap:
             return D3D12_STENCIL_OP::D3D12_STENCIL_OP_DECR;
+        default:
+            return D3D12_STENCIL_OP_KEEP;
         }
     }
 
-    D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE GetVKLoadOp(LoadOp op)
+    D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE GetDXLoadOp(LoadOp op)
     {
         switch (op)
         {
@@ -282,11 +284,12 @@ namespace LinaGX
         case LoadOp::DontCare:
             return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
         case LoadOp::None:
+        default:
             return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
         }
     }
 
-    D3D12_RENDER_PASS_ENDING_ACCESS_TYPE GetVKStoreOp(StoreOp op)
+    D3D12_RENDER_PASS_ENDING_ACCESS_TYPE GetDXStoreOp(StoreOp op)
     {
         switch (op)
         {
@@ -295,6 +298,7 @@ namespace LinaGX
         case StoreOp::DontCare:
             return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
         case StoreOp::None:
+        default:
             return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
         }
     }
@@ -417,6 +421,22 @@ namespace LinaGX
         return D3D12_FILTER_ANISOTROPIC;
     }
 
+    D3D12_COLOR_WRITE_ENABLE GetDXColorWriteMask(ColorComponentFlags flag)
+    {
+        switch (flag)
+        {
+        case ColorComponentFlags::R:
+            return D3D12_COLOR_WRITE_ENABLE_RED;
+        case ColorComponentFlags::G:
+            return D3D12_COLOR_WRITE_ENABLE_GREEN;
+        case ColorComponentFlags::B:
+            return D3D12_COLOR_WRITE_ENABLE_BLUE;
+        case ColorComponentFlags::A:
+            return D3D12_COLOR_WRITE_ENABLE_ALPHA;
+        default:
+            return D3D12_COLOR_WRITE_ENABLE_ALL;
+        }
+    }
     void FillBorderColor(BorderColor bc, float* color)
     {
         switch (bc)
@@ -623,15 +643,6 @@ namespace LinaGX
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                     m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
                     swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
-
-                    Texture2DDesc depthDesc      = {};
-                    depthDesc.format             = desc.depthFormat;
-                    depthDesc.width              = desc.width;
-                    depthDesc.height             = desc.height;
-                    depthDesc.mipLevels          = 1;
-                    depthDesc.usage              = Texture2DUsage::DepthStencilTexture;
-                    depthDesc.depthStencilAspect = DepthStencilAspect::DepthOnly;
-                    swp.depthTextures.push_back(CreateTexture2D(depthDesc));
                 }
             }
 
@@ -666,9 +677,6 @@ namespace LinaGX
         for (auto t : swp.colorTextures)
             DestroyTexture2D(t);
 
-        for (auto t : swp.depthTextures)
-            DestroyTexture2D(t);
-
         swp.isValid = false;
         swp.ptr.Reset();
         m_swapchains.RemoveItem(handle);
@@ -691,10 +699,7 @@ namespace LinaGX
             //     ThrowIfFailed(swp.ptr->SetFullscreenState(desc.isFullscreen, nullptr));
 
             for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
-            {
                 DestroyTexture2D(swp.colorTextures[i]);
-                DestroyTexture2D(swp.depthTextures[i]);
-            }
 
             ThrowIfFailed(swp.ptr->ResizeBuffers(m_initInfo.backbufferCount, desc.width, desc.height, swpDesc.BufferDesc.Format, swpDesc.Flags));
 
@@ -723,15 +728,6 @@ namespace LinaGX
                 rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                 m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
                 swp.colorTextures[i] = m_texture2Ds.AddItem(color);
-
-                Texture2DDesc depthDesc      = {};
-                depthDesc.format             = swp.depthFormat;
-                depthDesc.width              = desc.width;
-                depthDesc.height             = desc.height;
-                depthDesc.mipLevels          = 1;
-                depthDesc.usage              = Texture2DUsage::DepthStencilTexture;
-                depthDesc.depthStencilAspect = DepthStencilAspect::DepthOnly;
-                swp.depthTextures[i]         = CreateTexture2D(depthDesc);
             }
         }
         catch (HrException e)
@@ -1127,41 +1123,54 @@ namespace LinaGX
         if (!inputLayout.empty())
             psoDesc.InputLayout = {&inputLayout[0], static_cast<UINT>(inputLayout.size())};
 
-        D3D12_BLEND_DESC blendDesc                      = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        blendDesc.AlphaToCoverageEnable                 = shaderDesc.alphaToCoverage;
-        blendDesc.IndependentBlendEnable                = false;
-        blendDesc.RenderTarget[0].BlendEnable           = shaderDesc.blendAttachment.blendEnabled;
-        blendDesc.RenderTarget[0].SrcBlend              = GetDXBlend(shaderDesc.blendAttachment.srcColorBlendFactor);
-        blendDesc.RenderTarget[0].DestBlend             = GetDXBlend(shaderDesc.blendAttachment.dstColorBlendFactor);
-        blendDesc.RenderTarget[0].SrcBlendAlpha         = GetDXBlend(shaderDesc.blendAttachment.srcAlphaBlendFactor);
-        blendDesc.RenderTarget[0].DestBlendAlpha        = GetDXBlend(shaderDesc.blendAttachment.dstAlphaBlendFactor);
-        blendDesc.RenderTarget[0].BlendOp               = GetDXBlendOp(shaderDesc.blendAttachment.colorBlendOp);
-        blendDesc.RenderTarget[0].BlendOpAlpha          = GetDXBlendOp(shaderDesc.blendAttachment.alphaBlendOp);
-        blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-        blendDesc.RenderTarget[0].LogicOpEnable         = shaderDesc.blendLogicOpEnabled;
-        blendDesc.RenderTarget[0].LogicOp               = GetDXLogicOp(shaderDesc.blendLogicOp);
+        D3D12_BLEND_DESC blendDesc       = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        blendDesc.AlphaToCoverageEnable  = shaderDesc.alphaToCoverage;
+        blendDesc.IndependentBlendEnable = false;
 
-        const D3D12_DEPTH_STENCILOP_DESC defaultStencilOp = {D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS};
-        psoDesc.pRootSignature                            = shader.rootSig.Get();
-        psoDesc.RasterizerState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.BlendState                                = blendDesc;
-        psoDesc.DepthStencilState.DepthEnable             = shaderDesc.depthStencilDesc.depthTest;
-        psoDesc.DepthStencilState.DepthWriteMask          = shaderDesc.depthStencilDesc.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
-        psoDesc.DepthStencilState.DepthFunc               = GetDXCompareOp(shaderDesc.depthCompare);
-        psoDesc.DepthStencilState.StencilEnable           = FALSE;
-        psoDesc.DepthStencilState.StencilReadMask         = D3D12_DEFAULT_STENCIL_READ_MASK;
-        psoDesc.DepthStencilState.StencilWriteMask        = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-        psoDesc.DepthStencilState.FrontFace               = defaultStencilOp;
-        psoDesc.DepthStencilState.BackFace                = defaultStencilOp;
-        psoDesc.SampleMask                                = UINT_MAX;
-        psoDesc.PrimitiveTopologyType                     = GetDXTopologyType(shaderDesc.topology);
-        psoDesc.NumRenderTargets                          = 1;
-        psoDesc.SampleDesc.Count                          = 1;
-        psoDesc.RasterizerState.FillMode                  = D3D12_FILL_MODE_SOLID;
-        psoDesc.RasterizerState.CullMode                  = GetDXCullMode(shaderDesc.cullMode);
-        psoDesc.RasterizerState.FrontCounterClockwise     = shaderDesc.frontFace == FrontFace::CCW;
-        psoDesc.RTVFormats[0]                             = GetDXFormat(shaderDesc.colorAttachmentFormat);
-        psoDesc.DSVFormat                                 = GetDXFormat(shaderDesc.depthAttachmentFormat);
+        const uint32 attachmentCount = static_cast<uint32>(shaderDesc.colorAttachments.size());
+
+        for (uint32 i = 0; i < attachmentCount; i++)
+        {
+            const auto& att                          = shaderDesc.colorAttachments[i];
+            blendDesc.RenderTarget[i].BlendEnable    = att.blendAttachment.blendEnabled;
+            blendDesc.RenderTarget[i].SrcBlend       = GetDXBlend(att.blendAttachment.srcColorBlendFactor);
+            blendDesc.RenderTarget[i].DestBlend      = GetDXBlend(att.blendAttachment.dstColorBlendFactor);
+            blendDesc.RenderTarget[i].SrcBlendAlpha  = GetDXBlend(att.blendAttachment.srcAlphaBlendFactor);
+            blendDesc.RenderTarget[i].DestBlendAlpha = GetDXBlend(att.blendAttachment.dstAlphaBlendFactor);
+            blendDesc.RenderTarget[i].BlendOp        = GetDXBlendOp(att.blendAttachment.colorBlendOp);
+            blendDesc.RenderTarget[i].BlendOpAlpha   = GetDXBlendOp(att.blendAttachment.alphaBlendOp);
+            blendDesc.RenderTarget[i].LogicOpEnable  = shaderDesc.blendLogicOpEnabled;
+            blendDesc.RenderTarget[i].LogicOp        = GetDXLogicOp(shaderDesc.blendLogicOp);
+
+            blendDesc.RenderTarget[i].RenderTargetWriteMask = 0;
+            for (auto mask : att.blendAttachment.componentFlags)
+                blendDesc.RenderTarget[i].RenderTargetWriteMask |= GetDXColorWriteMask(mask);
+
+            psoDesc.RTVFormats[i] = GetDXFormat(att.format);
+        }
+
+        const D3D12_DEPTH_STENCILOP_DESC backStencil  = {GetDXStencilOp(shaderDesc.depthStencilDesc.backStencilState.failOp), GetDXStencilOp(shaderDesc.depthStencilDesc.backStencilState.depthFailOp), GetDXStencilOp(shaderDesc.depthStencilDesc.backStencilState.passOp), GetDXCompareOp(shaderDesc.depthStencilDesc.backStencilState.compareOp)};
+        const D3D12_DEPTH_STENCILOP_DESC frontStencil = {GetDXStencilOp(shaderDesc.depthStencilDesc.frontStencilState.failOp), GetDXStencilOp(shaderDesc.depthStencilDesc.frontStencilState.depthFailOp), GetDXStencilOp(shaderDesc.depthStencilDesc.frontStencilState.passOp), GetDXCompareOp(shaderDesc.depthStencilDesc.frontStencilState.compareOp)};
+
+        psoDesc.pRootSignature                        = shader.rootSig.Get();
+        psoDesc.RasterizerState                       = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        psoDesc.BlendState                            = blendDesc;
+        psoDesc.DepthStencilState.DepthEnable         = shaderDesc.depthStencilDesc.depthTest;
+        psoDesc.DepthStencilState.DepthWriteMask      = shaderDesc.depthStencilDesc.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+        psoDesc.DepthStencilState.DepthFunc           = GetDXCompareOp(shaderDesc.depthStencilDesc.depthCompare);
+        psoDesc.DepthStencilState.StencilEnable       = shaderDesc.depthStencilDesc.stencilEnabled;
+        psoDesc.DepthStencilState.StencilReadMask     = shaderDesc.depthStencilDesc.stencilCompareMask;
+        psoDesc.DepthStencilState.StencilWriteMask    = shaderDesc.depthStencilDesc.stencilWriteMask;
+        psoDesc.DepthStencilState.FrontFace           = backStencil;
+        psoDesc.DepthStencilState.BackFace            = frontStencil;
+        psoDesc.SampleMask                            = UINT_MAX;
+        psoDesc.PrimitiveTopologyType                 = GetDXTopologyType(shaderDesc.topology);
+        psoDesc.NumRenderTargets                      = attachmentCount;
+        psoDesc.SampleDesc.Count                      = 1;
+        psoDesc.RasterizerState.FillMode              = D3D12_FILL_MODE_SOLID;
+        psoDesc.RasterizerState.CullMode              = GetDXCullMode(shaderDesc.cullMode);
+        psoDesc.RasterizerState.FrontCounterClockwise = shaderDesc.frontFace == FrontFace::CCW;
+        psoDesc.DSVFormat                             = (shaderDesc.depthStencilDesc.depthWrite || shaderDesc.depthStencilDesc.stencilEnabled) ? GetDXFormat(shaderDesc.depthStencilDesc.depthStencilAttachmentFormat) : DXGI_FORMAT_UNKNOWN;
 
         for (const auto& [stg, blob] : shaderDesc.stages)
         {
@@ -1233,7 +1242,7 @@ namespace LinaGX
         resourceDesc.Alignment           = 0;
         resourceDesc.Width               = txtDesc.width;
         resourceDesc.Height              = txtDesc.height;
-        resourceDesc.DepthOrArraySize    = 1;
+        resourceDesc.DepthOrArraySize    = txtDesc.arrayLength;
         resourceDesc.MipLevels           = txtDesc.mipLevels;
         resourceDesc.SampleDesc.Count    = 1;
         resourceDesc.SampleDesc.Quality  = 0;
@@ -1250,7 +1259,7 @@ namespace LinaGX
         D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
         D3D12_CLEAR_VALUE*    clear = NULL;
         const float           cc[]{0, 0, 0, 1};
-        auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), 1.0f, 0);
+        auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), txtDesc.depthClear, txtDesc.stencilClear);
         auto                  colorClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), cc);
 
         if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
@@ -1287,8 +1296,19 @@ namespace LinaGX
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
             srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Format                          = GetDXFormat(txtDesc.format);
-            srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
-            srvDesc.Texture2D.MipLevels             = txtDesc.mipLevels;
+            if (txtDesc.arrayLength > 1)
+            {
+                srvDesc.Texture2DArray.ArraySize       = txtDesc.arrayLength;
+                srvDesc.Texture2DArray.MipLevels       = txtDesc.mipLevels;
+                srvDesc.Texture2DArray.FirstArraySlice = 0;
+                srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            }
+            else
+            {
+                srvDesc.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
+                srvDesc.Texture2D.MipLevels = txtDesc.mipLevels;
+            }
+
             m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor.GetCPUHandle()});
         }
         else if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
@@ -2407,42 +2427,69 @@ namespace LinaGX
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
         auto                list  = stream.list;
 
-        uint32 txtIndex   = begin->colorTexture;
-        uint32 depthIndex = begin->depthTexture;
+        LINAGX_VEC<CD3DX12_RESOURCE_BARRIER>             barriers;
+        LINAGX_VEC<D3D12_RENDER_PASS_RENDER_TARGET_DESC> colorAttDescs;
+        barriers.resize(begin->colorAttachmentCount);
+        colorAttDescs.resize(begin->colorAttachmentCount);
+        stream.lastRPImages.clear();
+        stream.lastRPImages.resize(begin->colorAttachmentCount);
 
-        if (begin->isSwapchain)
+        for (uint32 i = 0; i < begin->colorAttachmentCount; i++)
         {
-            const auto& swp = m_swapchains.GetItemR(begin->swapchain);
-            txtIndex        = swp.colorTextures[swp._imageIndex];
-            depthIndex      = swp.depthTextures[swp._imageIndex];
+            const auto& att = begin->colorAttachments[i];
+
+            if (att.isSwapchain)
+            {
+                const auto&  swp    = m_swapchains.GetItemR(static_cast<uint8>(att.texture));
+                const uint32 handle = swp.colorTextures[swp._imageIndex];
+                const auto&  txt    = m_texture2Ds.GetItemR(handle);
+                barriers[i]         = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+                CD3DX12_CLEAR_VALUE cv;
+                cv.Format   = GetDXFormat(txt.desc.format);
+                cv.Color[0] = att.clearColor.x;
+                cv.Color[1] = att.clearColor.y;
+                cv.Color[2] = att.clearColor.z;
+                cv.Color[3] = att.clearColor.w;
+                D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
+                D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
+
+                colorAttDescs[i]       = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
+                stream.lastRPImages[i] = {handle, true};
+            }
+            else
+            {
+                const auto& txt = m_texture2Ds.GetItemR(att.texture);
+                barriers[i]     = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+                CD3DX12_CLEAR_VALUE cv;
+                cv.Format   = GetDXFormat(txt.desc.format);
+                cv.Color[0] = att.clearColor.x;
+                cv.Color[1] = att.clearColor.y;
+                cv.Color[2] = att.clearColor.z;
+                cv.Color[3] = att.clearColor.w;
+                D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
+                D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
+                colorAttDescs[i]       = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
+                stream.lastRPImages[i] = {att.texture, false};
+            }
         }
 
-        const auto& colorTxt = m_texture2Ds.GetItemR(txtIndex);
-        const auto& depthTxt = m_texture2Ds.GetItemR(depthIndex);
+        list->ResourceBarrier(begin->colorAttachmentCount, barriers.data());
 
-        if (begin->isSwapchain)
+        if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
-            auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? colorTxt.rawRes.Get() : colorTxt.allocation->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-            list->ResourceBarrier(1, &transition);
+            const auto&                          depthTxt = m_texture2Ds.GetItemR(begin->depthStencilAttachment.texture);
+            CD3DX12_CLEAR_VALUE                  clearDepthStencil{GetDXFormat(depthTxt.desc.format), begin->depthStencilAttachment.useDepth ? begin->depthStencilAttachment.clearDepth : 0.0f, begin->depthStencilAttachment.useStencil ? static_cast<UINT8>(begin->depthStencilAttachment.clearStencil) : (uint8)0};
+            D3D12_RENDER_PASS_BEGINNING_ACCESS   depthBegin{GetDXLoadOp(begin->depthStencilAttachment.depthLoadOp), {clearDepthStencil}};
+            D3D12_RENDER_PASS_BEGINNING_ACCESS   stencilBegin{GetDXLoadOp(begin->depthStencilAttachment.stencilLoadOp), {clearDepthStencil}};
+            D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{GetDXStoreOp(begin->depthStencilAttachment.depthStoreOp), {}};
+            D3D12_RENDER_PASS_ENDING_ACCESS      stencilEnd{GetDXStoreOp(begin->depthStencilAttachment.stencilStoreOp), {}};
+            D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.descriptor.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
+            list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
         }
         else
-        {
-            auto transition = CD3DX12_RESOURCE_BARRIER::Transition(begin->isSwapchain ? colorTxt.rawRes.Get() : colorTxt.allocation->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-            list->ResourceBarrier(1, &transition);
-        }
-
-        CD3DX12_CLEAR_VALUE clearValue{GetDXFormat(colorTxt.desc.format), begin->clearColor};
-        CD3DX12_CLEAR_VALUE clearDepth{GetDXFormat(depthTxt.desc.format), 1.0f, 0};
-
-        D3D12_RENDER_PASS_BEGINNING_ACCESS   colorBegin{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearValue}};
-        D3D12_RENDER_PASS_ENDING_ACCESS      colorEnd{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
-        D3D12_RENDER_PASS_RENDER_TARGET_DESC colorDesc{colorTxt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
-
-        D3D12_RENDER_PASS_BEGINNING_ACCESS   depthBegin{D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, {clearDepth}};
-        D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {}};
-        D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthDesc{depthTxt.descriptor.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
-
-        list->BeginRenderPass(1, &colorDesc, &depthDesc, D3D12_RENDER_PASS_FLAG_NONE);
+            list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), NULL, D3D12_RENDER_PASS_FLAG_NONE);
 
         CMDSetViewport interVP = {};
         CMDSetScissors interSC = {};
@@ -2466,19 +2513,22 @@ namespace LinaGX
         auto              list = stream.list;
         list->EndRenderPass();
 
-        if (end->isSwapchain)
+        const uint32                         sz = static_cast<uint32>(stream.lastRPImages.size());
+        LINAGX_VEC<CD3DX12_RESOURCE_BARRIER> barriers;
+        barriers.resize(stream.lastRPImages.size());
+
+        for (uint32 i = 0; i < sz; i++)
         {
-            const auto& swp        = m_swapchains.GetItemR(end->swapchain);
-            const auto& txt        = m_texture2Ds.GetItemR(swp.colorTextures[swp._imageIndex]);
-            auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-            list->ResourceBarrier(1, &transition);
+            const auto& data = stream.lastRPImages[i];
+            const auto& txt  = m_texture2Ds.GetItemR(data.txt);
+
+            if (data.isSwapchain)
+                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+            else
+                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         }
-        else
-        {
-            const auto& txt        = m_texture2Ds.GetItemR(end->texture);
-            auto        transition = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-            list->ResourceBarrier(1, &transition);
-        }
+
+        list->ResourceBarrier(static_cast<uint32>(barriers.size()), barriers.data());
     }
 
     void DX12Backend::CMD_SetViewport(uint8* data, DX12CommandStream& stream)
@@ -2651,7 +2701,7 @@ namespace LinaGX
         }
 
         const auto& srcRes = m_resources.GetItemR(stagingHandle);
-        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, 0, static_cast<uint32>(allData.size()), allData.data());
+        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, allData.size() * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
     }
 
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)

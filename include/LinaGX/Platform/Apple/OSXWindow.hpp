@@ -95,7 +95,6 @@ namespace LinaGX
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) override;
         virtual void Destroy() override;
-        virtual void PreTick() override;
         virtual void Tick() override;
         
     private:

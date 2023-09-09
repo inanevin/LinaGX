@@ -33,21 +33,17 @@ THINGS TO ADD ALL BACKENDS/FIX:
  - Fero model won't load.
  - Fero'da format/hdr problemi.
  - Document & format all.
- 
+ - Group all barrier calls.
+
 THINGS TO RESEARCH:
- 
+
 - Proper alignment. Alignment between struct elements in SSBO and UBO in different platforms. Also alignment between lets say array ubos. Or alignment between different bindings. UBO alignment 256 for example?
 - gl_InstanceIndex and alike and their support.
 - Minimium #version we require?
 - Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
- 
+
 FEATURES TO IMPLEMENT
- 
-- PSO write mask. (+Metal)
-- Shader multiple attachments. (+Metal)
-- Render pass multiple attachments, load/store actions per attachment. (+Metal)
-- Stencil buffer. (+Metal)
-- Finalize/test depth stuff. (+Metal)
+
 - Array textures and sampler2Darray and alike (+Metal). (Used MipMaps example)
 - Dynamic descriptor set UBO and SSBO bindings. (+Metal)
 - Allow for binding without shader. (+Metal)
@@ -59,7 +55,7 @@ FEATURES TO IMPLEMENT
 - Subpasses maybe.
 - Indirect rendering count buffer.
 - Pipeline caching.
- 
+
 INDIRECT NOTES:
 
 - Indirect: You need to always use IndexedIndirectCommand or IndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can use to index into another buffer for per-draw-call parameters.
@@ -70,9 +66,9 @@ INDIRECT NOTES:
  - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
  - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
  - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
- 
+
 POSSIBLE EPIC DEMO:
- 
+
 - Some sort of alley, semi outdoors.
 - PBR shaders.
 - Proper IBL.
@@ -87,13 +83,13 @@ POSSIBLE EPIC DEMO:
 - SSBO.
 - Fast + performant, bindless.
 - Resolution selection.
- 
+
 OR INSTEAD OF AN EPIC DEMO, maybe make a smaller one :).
- 
+
 - Fox GLTF using PBR, light and a shadow map, a mirror on the side.
- 
+
 NOTES TO DOCUMENT:
- 
+
  - All entry points to your shaders must be named main.
  - Only single push_constants can be used.
  - Don't do bindless SSBO its pointless. You can do binless texture2D, sampler, sampler2D and UBO.
@@ -108,13 +104,13 @@ NOTES TO DOCUMENT:
  - Geometry shaders are not supported on Metal.
  - In Metal, you need to check Format support from Metal docs, along with CPU visible GPU memory considerations. (its gonna be 1 if device has unified memory, thats it).
  - Bindings need to be in order while creating descriptor sets.
- 
+
 UNSUPPORTED ON FIRST RELEASE:
- 
+
  - Custom barriers.
  - Subpasses.
  - Multiple vertex buffer slot bindings.
- 
+
 */
 
 #pragma once

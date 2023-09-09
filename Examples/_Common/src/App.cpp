@@ -29,18 +29,18 @@ SOFTWARE.
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
 #include <chrono>
+#include <Windows.h>
 
 namespace LinaGX::Examples
 {
     void App::Initialize()
     {
-
     }
 
     void App::Run()
     {
         m_isRunning = true;
-        m_prevTime       = std::chrono::high_resolution_clock::now();
+        m_prevTime  = std::chrono::high_resolution_clock::now();
 
         while (m_isRunning)
         {
@@ -54,7 +54,7 @@ namespace LinaGX::Examples
     {
         auto now            = std::chrono::high_resolution_clock::now();
         auto duration       = std::chrono::duration_cast<std::chrono::microseconds>(now - m_prevTime);
-        m_prevTime                = now;
+        m_prevTime          = now;
         m_deltaMicroseconds = duration.count();
         m_deltaSeconds      = static_cast<float>(m_deltaMicroseconds) / 1000000.0f;
         m_elapsedSeconds += m_deltaSeconds;
@@ -66,7 +66,7 @@ namespace LinaGX::Examples
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        
+
         OnTick();
 
         static uint64 fpsCounter = 0;
@@ -76,7 +76,7 @@ namespace LinaGX::Examples
         {
             fpsCounter        = 0;
             m_framesPerSecond = (PerformanceStats.totalFrames - m_lastFrames) / 2;
-            m_lastFrames        = PerformanceStats.totalFrames;
+            m_lastFrames      = PerformanceStats.totalFrames;
             std::cout << "FPS: " << m_framesPerSecond << std::endl;
         }
     }

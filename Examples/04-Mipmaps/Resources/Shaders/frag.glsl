@@ -6,6 +6,5 @@ layout (set = 0, binding = 0) uniform sampler2DArray texSampler;
 
 void main()
 {
-    FragColor = texture(texSampler, vec3(uv, 2));
-    // FragColor = vec4(uv.x, uv.y,1,1);
+    FragColor = texture(texSampler, vec3(uv, 1));
 }

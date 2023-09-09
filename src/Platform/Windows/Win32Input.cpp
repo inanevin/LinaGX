@@ -172,29 +172,6 @@ namespace LinaGX
         return keyState == 0 && m_previousStates[button] == 1;
     }
 
-    void Input::SetCursorMode(CursorMode mode)
-    {
-        if (mode == m_cursorMode)
-            return;
-
-        m_cursorMode = mode;
-
-        switch (mode)
-        {
-        case CursorMode::Visible:
-            ShowCursor(true);
-            break;
-
-        case CursorMode::Hidden:
-            ShowCursor(false);
-            break;
-
-        case CursorMode::Disabled:
-            ShowCursor(false);
-            break;
-        }
-    }
-
     void Input::Tick()
     {
         POINT point;

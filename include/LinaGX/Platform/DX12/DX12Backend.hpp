@@ -55,7 +55,6 @@ namespace LinaGX
         Format                                  format       = Format::B8G8R8A8_UNORM;
         Format                                  depthFormat  = Format::D32_SFLOAT;
         LINAGX_VEC<uint32>                      colorTextures;
-        LINAGX_VEC<uint32>                      depthTextures;
         uint32                                  width       = 0;
         uint32                                  height      = 0;
         uint32                                  _imageIndex = 0;
@@ -115,6 +114,12 @@ namespace LinaGX
         DescriptorHandle descriptor = {};
     };
 
+    struct DX12RenderPassImage
+    {
+        uint32 txt         = 0;
+        bool   isSwapchain = false;
+    };
+
     struct DX12CommandStream
     {
         bool                                               isValid     = false;
@@ -124,6 +129,7 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
         LINAGX_MAP<uint32, uint64>                         intermediateResources;
         LINAGX_MAP<void*, uint64>                          adjustedBuffers;
+        LINAGX_VEC<DX12RenderPassImage>                    lastRPImages;
     };
 
     struct DX12PerFrameData

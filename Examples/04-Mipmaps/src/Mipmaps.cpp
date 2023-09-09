@@ -38,7 +38,7 @@ namespace LinaGX::Examples
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
 
-    LinaGX::Instance* _lgx  = nullptr;
+    LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
 
@@ -84,7 +84,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -111,31 +111,30 @@ namespace LinaGX::Examples
         //******************* SHADER CREATION
         {
             // Compile shaders.
-            const std::string                 vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string                 fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout                      outLayout  = {};
-            ShaderCompileData                 dataVertex = {vtxShader, "Resources/Shaders/Include"};
-            ShaderCompileData                 dataFrag   = {fragShader, "Resources/Shaders/Include"};
+            const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                              outLayout  = {};
+            ShaderCompileData                         dataVertex = {vtxShader, "Resources/Shaders/Include"};
+            ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
-            ShaderColorAttachment colorAttachment = ShaderColorAttachment {
-                .format = Format::B8G8R8A8_UNORM,
-                .blendAttachment = {.componentFlags = ColorComponentFlags::RGBA},
-                .colorWriteMask = ColorWriteMask::All,
+            ShaderColorAttachment colorAttachment = ShaderColorAttachment{
+                .format          = Format::B8G8R8A8_UNORM,
+                .blendAttachment = {},
             };
-            
+
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachments       = {colorAttachment},
-                .layout                = outLayout,
-                .polygonMode           = PolygonMode::Fill,
-                .cullMode              = CullMode::None,
-                .frontFace             = FrontFace::CCW,
-                .topology              = Topology::TriangleList,
+                .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
+                .colorAttachments = {colorAttachment},
+                .layout           = outLayout,
+                .polygonMode      = PolygonMode::Fill,
+                .cullMode         = CullMode::None,
+                .frontFace        = FrontFace::CCW,
+                .topology         = Topology::TriangleList,
             };
             _shaderProgram = _lgx->CreateShader(shaderDesc);
 
@@ -225,7 +224,7 @@ namespace LinaGX::Examples
         }
 
         // Load image.
-        TextureLoadData loadedTextureData = {};
+        TextureLoadData loadedTextureData  = {};
         TextureLoadData loadedTextureData2 = {};
         LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
         LinaGX::LoadImageFromFile("Resources/Textures/LinaGX2.png", loadedTextureData2, ImageChannelMask::Rgba);
@@ -245,13 +244,13 @@ namespace LinaGX::Examples
         {
             // Create gpu resource
             Texture2DDesc desc = {
-                .usage     = Texture2DUsage::ColorTexture,
-                .width     = loadedTextureData.width,
-                .height    = loadedTextureData.height,
-                .mipLevels = loadedTextureData.totalMipLevels,
+                .usage       = Texture2DUsage::ColorTexture,
+                .width       = loadedTextureData.width,
+                .height      = loadedTextureData.height,
+                .mipLevels   = loadedTextureData.totalMipLevels,
+                .format      = Format::R8G8B8A8_UNORM,
                 .arrayLength = 2,
-                .format    = Format::R8G8B8A8_UNORM,
-                .debugName = "Lina Logo",
+                .debugName   = "Lina Logo",
             };
             _textureGPU = _lgx->CreateTexture2D(desc);
 
@@ -274,7 +273,7 @@ namespace LinaGX::Examples
                 .height        = loadedTextureData.height,
                 .bytesPerPixel = 4,
             };
-            
+
             TextureBuffer txtBuffer2 = {
                 .pixels        = loadedTextureData2.pixels,
                 .width         = loadedTextureData2.width,
@@ -296,7 +295,7 @@ namespace LinaGX::Examples
                     .height        = md.height,
                     .bytesPerPixel = 4,
                 };
-               
+
                 textureDataWithMips.push_back(mip);
             }
 
@@ -308,23 +307,23 @@ namespace LinaGX::Examples
                     .height        = md.height,
                     .bytesPerPixel = 4,
                 };
-               
+
                 textureDataWithMips2.push_back(mip);
             }
-            
+
             // Copy texture
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _textureGPU;
             copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
             copyTxt->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips.data(), sizeof(TextureBuffer) * textureDataWithMips.size());
-            copyTxt->destinationSlice = 0;
-            
+            copyTxt->destinationSlice         = 0;
+
             CMDCopyBufferToTexture2D* copyTxt2 = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt2->destTexture              = _textureGPU;
             copyTxt2->mipLevels                = loadedTextureData2.totalMipLevels;
             copyTxt2->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips2.data(), sizeof(TextureBuffer) * textureDataWithMips2.size());
-            copyTxt2->destinationSlice = 1;
-            
+            copyTxt2->destinationSlice         = 1;
+
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
             copyVtxBuf->source          = _vertexBufferStaging;
@@ -355,25 +354,21 @@ namespace LinaGX::Examples
         //******************* DESCRIPTOR SET
         {
             DescriptorBinding binding = {
-                .binding         = 0,
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
-                .stages          = {ShaderStage::Fragment},
             };
 
             DescriptorSetDesc desc = {
-                .bindings      = &binding,
-                .bindingsCount = 1,
+                .bindings = {binding},
+                .stages   = {ShaderStage::Fragment},
             };
 
             _descriptorSet0 = _lgx->CreateDescriptorSet(desc);
 
             DescriptorUpdateImageDesc imgUpdate = {
                 .binding         = 0,
-                .descriptorCount = 1,
-                .textures        = &_textureGPU,
-                .samplers        = &_sampler,
-                .descriptorType  = DescriptorType::CombinedImageSampler,
+                .textures        = {_textureGPU},
+                .samplers        = {_sampler},
             };
 
             _lgx->DescriptorUpdateImage(imgUpdate);
@@ -420,19 +415,20 @@ namespace LinaGX::Examples
 
         // Render pass begin
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
-            CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
+            Viewport                  viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect              sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
+            CMDBeginRenderPass*       beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor = {0.8f, 0.8f, 0.8f, 1.0f};
-            colorAttachment.texture = static_cast<uint32>(_swapchain);
-            colorAttachment.isSwapchain = true;
-            colorAttachment.loadOp = LoadOp::Clear;
-            colorAttachment.storeOp = StoreOp::Store;
+            colorAttachment.clearColor            = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture               = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain           = true;
+            colorAttachment.loadOp                = LoadOp::Clear;
+            colorAttachment.storeOp               = StoreOp::Store;
             beginRenderPass->colorAttachmentCount = 1;
-            beginRenderPass->colorAttachments = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-            beginRenderPass->viewport           = viewport;
-            beginRenderPass->scissors           = sc;
+            beginRenderPass->colorAttachments     = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            beginRenderPass->viewport             = viewport;
+            beginRenderPass->scissors             = sc;
+            beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
         }
 
         // Bind buffers

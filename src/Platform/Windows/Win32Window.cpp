@@ -811,14 +811,36 @@ namespace LinaGX
 
     bool Win32Window::GetIsMaximized()
     {
-        WINDOWPLACEMENT placement;
+        WINDOWPLACEMENT placement = {};
         if (!::GetWindowPlacement(m_hwnd, &placement))
             return false;
 
         return placement.showCmd == SW_MAXIMIZE;
     }
+
     bool Win32Window::GetIsMinimized()
     {
         return IsIconic(m_hwnd);
+    }
+
+    void Win32Window::ConfineMouse()
+    {
+    }
+
+    void Win32Window::ConfineMouseToRegion(const LGXRectui& region)
+    {
+    }
+
+    void Win32Window::ConfineMouseToCenter()
+    {
+    }
+
+    void Win32Window::FreeMouse()
+    {
+    }
+
+    void Win32Window::SetMouseVisible(bool visible)
+    {
+        ShowCursor(visible);
     }
 } // namespace LinaGX

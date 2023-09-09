@@ -840,9 +840,10 @@ namespace LinaGX
             spirv_cross::HLSLVertexAttributeRemap attribs;
 
             options.shader_model = 60; // SM6_0
+            
             compiler.set_hlsl_options(options);
             compiler.add_vertex_attribute_remap(attribs);
-
+        
             if (layoutReflection.constantBlock.size != 0)
             {
                 std::vector<spirv_cross::RootConstants> constants;
@@ -864,6 +865,7 @@ namespace LinaGX
             size_t pos = out.find(searchString);
             if (pos != std::string::npos)
                 out.replace(pos, searchString.length(), replaceString);
+
         }
         catch (spirv_cross::CompilerError& e)
         {
