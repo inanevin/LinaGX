@@ -118,7 +118,7 @@ namespace LinaGX
         /// <param name="button"></param>
         /// <returns></returns>
         bool GetMouseButtonUp(int button);
-        
+
         /// <summary>
         ///
         /// </summary>
@@ -211,6 +211,7 @@ namespace LinaGX
         void WindowFeedMousePosition(const LGXVector2ui& pos);
         void WindowFeedActivateApp(bool activate);
         void WindowFeedMouseWheel(int32 delta);
+        void WindowFeedDelta(int32 deltaX, int32 deltaY);
 
     private:
         int         m_keyStatesDown[NUM_KEY_STATES]     = {0};
@@ -227,11 +228,12 @@ namespace LinaGX
         bool        m_previousStates[256]               = {0};
         LGXVector2i m_mousePosTrackingClick             = {};
 
-        CallbackKey        m_cbKey        = nullptr;
-        CallbackMouse      m_cbMouse      = nullptr;
-        CallbackMouseWheel m_cbMouseWheel = nullptr;
-        CallbackMouseMove  m_cbMouseMove  = nullptr;
+        CallbackKey              m_cbKey        = nullptr;
+        CallbackMouse            m_cbMouse      = nullptr;
+        CallbackMouseWheel       m_cbMouseWheel = nullptr;
+        CallbackMouseMove        m_cbMouseMove  = nullptr;
         LINAGX_MAP<uint32, bool> m_globalMouseStates;
+        bool                     m_receivedDelta = false;
     };
 } // namespace LinaGX
 

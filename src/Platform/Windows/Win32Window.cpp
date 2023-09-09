@@ -36,6 +36,12 @@ SOFTWARE.
 #include <chrono>
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
+#ifndef HID_USAGE_PAGE_GENERIC
+#define HID_USAGE_PAGE_GENERIC ((USHORT)0x01)
+#endif
+#ifndef HID_USAGE_GENERIC_MOUSE
+#define HID_USAGE_GENERIC_MOUSE ((USHORT)0x02)
+#endif
 
 namespace LinaGX
 {
@@ -219,6 +225,23 @@ namespace LinaGX
                 win32Window->m_cbFocus(true);
 
             win32Window->m_hasFocus = true;
+
+            break;
+        }
+        case WM_INPUT: {
+            UINT        dwSize = sizeof(RAWINPUT);
+            static BYTE lpb[sizeof(RAWINPUT)];
+
+            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+
+            RAWINPUT* raw = (RAWINPUT*)lpb;
+
+            if (raw->header.dwType == RIM_TYPEMOUSE)
+            {
+                int xPosRelative = raw->data.mouse.lLastX;
+                int yPosRelative = raw->data.mouse.lLastY;
+                win32Window->m_input->WindowFeedDelta(xPosRelative, yPosRelative);
+            }
 
             break;
         }
@@ -485,6 +508,13 @@ namespace LinaGX
         SetStyle(style);
         SetVisible(true);
 
+        RAWINPUTDEVICE Rid[1];
+        Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+        Rid[0].usUsage     = HID_USAGE_GENERIC_MOUSE;
+        Rid[0].dwFlags     = RIDEV_INPUTSINK;
+        Rid[0].hwndTarget  = m_hwnd;
+        RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
+
         return true;
     }
 
@@ -528,13 +558,13 @@ namespace LinaGX
 
         if (m_hasFocus && m_confineStyle != ConfineStyle::None)
         {
-
+            RECT rect = {};
+            if (m_confineStyle == ConfineStyle::Region)
+                rect = {m_position.x + static_cast<LONG>(m_confineRect.pos.x), m_position.y + static_cast<LONG>(m_confineRect.pos.y), m_position.x + static_cast<LONG>(m_confineRect.pos.x + m_confineRect.size.x), m_position.y + static_cast<LONG>(m_confineRect.pos.y + m_confineRect.size.y)};
             if (m_confineStyle == ConfineStyle::Window)
-                m_confineRect = {{0, 0}, {m_size.x, m_size.y}};
+                rect = {m_position.x, m_position.y, m_position.x + static_cast<LONG>(m_size.x), m_position.y + static_cast<LONG>(m_size.y)};
             else if (m_confineStyle == ConfineStyle::Center)
-                m_confineRect = {{m_size.x / 2 - 5, m_size.y / 2 - 5}, {10, 10}};
-
-            const RECT rect = {static_cast<LONG>(m_confineRect.pos.x), static_cast<LONG>(m_confineRect.pos.y), static_cast<LONG>(m_confineRect.pos.x + m_confineRect.size.x), static_cast<LONG>(m_confineRect.pos.y + m_confineRect.size.y)};
+                rect = {m_position.x + static_cast<LONG>(m_size.x) / 2 - 5, m_position.y + static_cast<LONG>(m_size.y) / 2 - 5, m_position.x + static_cast<LONG>(m_size.x) / 2 + 5, m_position.y + static_cast<LONG>(m_size.y) / 2 + 5};
 
             ClipCursor(&rect);
         }

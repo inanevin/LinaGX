@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Core/Input.hpp"
 #include "LinaGX/Core/InputMappings.hpp"
 #include <Windows.h>
@@ -37,7 +36,6 @@ namespace LinaGX
     {
         uint16       mask    = 0;
         const uint32 keycode = GetKeycode(ch);
-
 
         if (ch == L' ')
             mask |= Whitespace;
@@ -81,7 +79,7 @@ namespace LinaGX
     wchar_t Input::GetCharacterFromKey(uint32 key)
     {
         wchar_t ch = 0;
-        BYTE keyboardState[256];
+        BYTE    keyboardState[256];
 
         // Get the current keyboard state
         if (!GetKeyboardState(keyboardState))
@@ -118,7 +116,7 @@ namespace LinaGX
         if (!m_appActive)
             return false;
 
-        int keyState = GetKeyState(keycode) & 0x8000 ? 1 : 0;
+        int keyState             = GetKeyState(keycode) & 0x8000 ? 1 : 0;
         m_currentStates[keycode] = keyState;
         return keyState == 1;
     }
@@ -148,7 +146,7 @@ namespace LinaGX
         if (!m_appActive)
             return false;
 
-        int keyState = GetKeyState(button) & 0x8000 ? 1 : 0;
+        int keyState            = GetKeyState(button) & 0x8000 ? 1 : 0;
         m_currentStates[button] = keyState;
         return keyState == 1;
     }
@@ -179,8 +177,11 @@ namespace LinaGX
         m_previousMousePosition     = m_currentMousePositionAbs;
         m_currentMousePositionAbs.x = point.x;
         m_currentMousePositionAbs.y = point.y;
-        m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
-        m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
+        if (!m_receivedDelta)
+            m_mouseDelta = {};
+        m_receivedDelta = false;
+        // m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
+        // m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
     }
 
     void Input::EndFrame()
@@ -212,6 +213,13 @@ namespace LinaGX
 
         if (m_cbMouseWheel)
             m_cbMouseWheel(delta);
+    }
+
+    void Input::WindowFeedDelta(int32 deltaX, int32 deltaY)
+    {
+        m_mouseDelta.x  = deltaX;
+        m_mouseDelta.y  = deltaY;
+        m_receivedDelta = true;
     }
 
     void Input::WindowFeedMousePosition(const LGXVector2ui& pos)
