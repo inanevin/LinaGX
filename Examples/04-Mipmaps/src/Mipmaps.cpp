@@ -354,8 +354,9 @@ namespace LinaGX::Examples
         //******************* DESCRIPTOR SET
         {
             DescriptorBinding binding = {
-                .descriptorCount = 1,
-                .type            = DescriptorType::CombinedImageSampler,
+                .descriptorCount  = 1,
+                .type             = DescriptorType::CombinedImageSampler,
+                .useDynamicOffset = false,
             };
 
             DescriptorSetDesc desc = {
@@ -373,8 +374,6 @@ namespace LinaGX::Examples
 
             _lgx->DescriptorUpdateImage(imgUpdate);
         }
-
-        _window->ConfineMouse();
     }
 
     void Example::Shutdown()
@@ -461,6 +460,8 @@ namespace LinaGX::Examples
             bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0);
             bindTxt->isCompute             = false;
             bindTxt->explicitShaderLayout  = false;
+            bindTxt->dynamicOffsetCount    = 0;
+            bindTxt->dynamicOffsets        = nullptr;
         }
 
         // Draw the triangle

@@ -380,6 +380,8 @@ namespace LinaGX
             return D3D12_COMMAND_LIST_TYPE_COPY;
         case CommandType::Compute:
             return D3D12_COMMAND_LIST_TYPE_COMPUTE;
+        case CommandType::Secondary:
+            return D3D12_COMMAND_LIST_TYPE_BUNDLE;
         default:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
         }
@@ -1646,6 +1648,7 @@ namespace LinaGX
             dx12Binding.descriptorCount       = binding.descriptorCount;
             dx12Binding.binding               = i;
             dx12Binding.type                  = binding.type;
+            dx12Binding.useDynamicOffset      = binding.useDynamicOffset;
 
             if (binding.type == DescriptorType::CombinedImageSampler)
             {
@@ -2221,7 +2224,6 @@ namespace LinaGX
             auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             auto  list      = sr.list;
             auto  allocator = sr.allocator;
-            LOGA(sr.type != CommandType::Secondary, "Backend -> Can not call CloseCommandStreams() on secondary command streams!");
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -2715,7 +2717,7 @@ namespace LinaGX
         }
 
         const auto& srcRes = m_resources.GetItemR(stagingHandle);
-        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, allData.size() * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
+        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, static_cast<uint32>(allData.size()) * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
     }
 
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
@@ -2724,6 +2726,8 @@ namespace LinaGX
         auto                   list   = stream.list;
         auto&                  shader = m_shaders.GetItemR(cmd->explicitShaderLayout ? cmd->layoutShader : stream.boundShader);
 
+        uint32 dynamicOffsetIndexCounter = 0;
+
         for (uint32 i = 0; i < cmd->setCount; i++)
         {
             const uint32             targetSetIndex = i + cmd->firstSet;
@@ -2731,34 +2735,45 @@ namespace LinaGX
 
             for (const auto& binding : set.bindings)
             {
-                DX12RootParamInfo* param = shader.FindRootParam(binding.type, binding.binding, targetSetIndex);
+                DX12RootParamInfo* param   = shader.FindRootParam(binding.type, binding.binding, targetSetIndex);
+                uint64             handle  = binding.gpuPointer.GetGPUHandle();
+                uint64             handle2 = binding.additionalGpuPointer.GetGPUHandle();
+
+                if (binding.useDynamicOffset && (binding.type == DescriptorType::UBO || binding.type == DescriptorType::SSBO))
+                {
+
+                    const uint64 offset = static_cast<uint64>(cmd->dynamicOffsets[dynamicOffsetIndexCounter]);
+                    dynamicOffsetIndexCounter++;
+                    handle += offset;
+                }
 
                 if (binding.type == DescriptorType::UBO && binding.descriptorCount == 1)
                 {
+
                     if (cmd->isCompute)
-                        list->SetComputeRootConstantBufferView(param->rootParameter, binding.gpuPointer.GetGPUHandle());
+                        list->SetComputeRootConstantBufferView(param->rootParameter, handle);
                     else
-                        list->SetGraphicsRootConstantBufferView(param->rootParameter, binding.gpuPointer.GetGPUHandle());
+                        list->SetGraphicsRootConstantBufferView(param->rootParameter, handle);
                 }
                 else if (binding.type == DescriptorType::CombinedImageSampler)
                 {
                     if (cmd->isCompute)
                     {
-                        list->SetComputeRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
-                        list->SetComputeRootDescriptorTable(param->rootParameter + 1, {binding.additionalGpuPointer.GetGPUHandle()});
+                        list->SetComputeRootDescriptorTable(param->rootParameter, {handle});
+                        list->SetComputeRootDescriptorTable(param->rootParameter + 1, {handle2});
                     }
                     else
                     {
-                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
-                        list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {binding.additionalGpuPointer.GetGPUHandle()});
+                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {handle});
+                        list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {handle2});
                     }
                 }
                 else
                 {
                     if (cmd->isCompute)
-                        list->SetComputeRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                        list->SetComputeRootDescriptorTable(param->rootParameter, {handle});
                     else
-                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {binding.gpuPointer.GetGPUHandle()});
+                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {handle});
                 }
             }
         }
@@ -2789,7 +2804,10 @@ namespace LinaGX
 
     void DX12Backend::CMD_ExecuteSecondaryStream(uint8* data, DX12CommandStream& stream)
     {
-        CMDExecuteSecondaryStream* cmd = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+        CMDExecuteSecondaryStream* cmd    = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+        auto                       list   = stream.list;
+        auto                       bundle = m_cmdStreams.GetItemR(cmd->secondaryStream->m_gpuHandle).list.Get();
+        list->ExecuteBundle(bundle);
     }
 
 } // namespace LinaGX

@@ -33,7 +33,6 @@ THINGS TO ADD ALL BACKENDS/FIX:
  - Fero model won't load.
  - Fero'da format/hdr problemi.
  - Document & format all.
- - Group all barrier calls.
  - Metal obj release problem.
 
 THINGS TO RESEARCH:
@@ -53,9 +52,11 @@ FEATURES TO IMPLEMENT
 - Array textures and sampler2Darray and alike. (+++)
 - DrawIndirect (without indexed) (+++)
 - Allow for binding without shader. (+++)
-- Dynamic descriptor set UBO and SSBO bindings. (+Metal)
-- Secondary command buffers (+Metal).
-- Mouse confinement and restriction (+Metal).
+- Mouse confinement and restriction (+++).
+- Dynamic descriptor set UBO and SSBO bindings. (+++)
+- Secondary command buffers (+++).
+- Group all barrier calls.
+
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.
 - Subpasses maybe.
@@ -110,6 +111,7 @@ NOTES TO DOCUMENT:
  - Geometry shaders are not supported on Metal.
  - In Metal, you need to check Format support from Metal docs, along with CPU visible GPU memory considerations. (its gonna be 1 if device has unified memory, thats it).
  - Bindings need to be in order while creating descriptor sets.
+ - Dynamic offsets need to adhere to buffer alignment requirements especially on DX12.
 
 UNSUPPORTED ON FIRST RELEASE:
 

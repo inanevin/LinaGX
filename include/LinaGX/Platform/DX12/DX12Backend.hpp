@@ -164,6 +164,7 @@ namespace LinaGX
         DescriptorType   type                 = DescriptorType::UBO;
         DescriptorHandle gpuPointer           = {};
         DescriptorHandle additionalGpuPointer = {};
+        bool             useDynamicOffset     = 0;
     };
 
     struct DX12DescriptorSet

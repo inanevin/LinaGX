@@ -566,7 +566,7 @@ namespace LinaGX
         }
     }
 
-    VkDescriptorType GetVKDescriptorType(DescriptorType type)
+    VkDescriptorType GetVKDescriptorType(DescriptorType type, bool dynamic)
     {
         switch (type)
         {
@@ -576,14 +576,22 @@ namespace LinaGX
             return VK_DESCRIPTOR_TYPE_SAMPLER;
         case LinaGX::DescriptorType::SeparateImage:
             return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        case LinaGX::DescriptorType::SSBO:
-            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        case LinaGX::DescriptorType::UBO:
-            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        case LinaGX::DescriptorType::ConstantBlock:
+        case LinaGX::DescriptorType::SSBO: {
+            if (dynamic)
+                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+            else
+                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        }
+        case LinaGX::DescriptorType::UBO: {
+            if (dynamic)
+                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+            else
+                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }
+        default: {
             LOGA(false, "Can not use!");
-        default:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }
         }
     }
 
@@ -1454,7 +1462,7 @@ namespace LinaGX
             const DescriptorBinding&     binding   = desc.bindings[i];
             VkDescriptorSetLayoutBinding vkBinding = {};
             vkBinding.binding                      = i;
-            vkBinding.descriptorType               = GetVKDescriptorType(binding.type);
+            vkBinding.descriptorType               = GetVKDescriptorType(binding.type, binding.useDynamicOffset);
             vkBinding.descriptorCount              = binding.descriptorCount;
 
             if (binding.type == DescriptorType::SeparateImage && binding.unbounded)
@@ -1559,7 +1567,7 @@ namespace LinaGX
         write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
         write.dstBinding           = desc.binding;
         write.descriptorCount      = descriptorCount;
-        write.descriptorType       = GetVKDescriptorType(bindingData.type);
+        write.descriptorType       = GetVKDescriptorType(bindingData.type, bindingData.useDynamicOffset);
         write.pBufferInfo          = bufferInfos.data();
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
@@ -1576,7 +1584,7 @@ namespace LinaGX
 
         LINAGX_VEC<VkDescriptorImageInfo> imgInfos;
 
-        VkDescriptorType descriptorType = GetVKDescriptorType(bindingData.type);
+        VkDescriptorType descriptorType = GetVKDescriptorType(bindingData.type, bindingData.useDynamicOffset);
 
         uint32 usedCount = 0;
         if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateImage)
@@ -1616,7 +1624,7 @@ namespace LinaGX
         VKBCommandStream item = {};
         item.isValid          = true;
 
-        const uint32 familyIndex = m_queueData[cmdType].familyIndex;
+        const uint32 familyIndex = m_queueData[cmdType == CommandType::Secondary ? CommandType::Graphics : cmdType].familyIndex;
 
         VkCommandPoolCreateInfo commandPoolInfo = VkCommandPoolCreateInfo{};
         commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1631,7 +1639,7 @@ namespace LinaGX
         cmdAllocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cmdAllocInfo.pNext                       = nullptr;
         cmdAllocInfo.commandPool                 = item.pool;
-        cmdAllocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdAllocInfo.level                       = cmdType == CommandType::Secondary ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         cmdAllocInfo.commandBufferCount          = 1;
 
         VkCommandBuffer b = nullptr;
@@ -1667,7 +1675,6 @@ namespace LinaGX
             auto& sr     = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             auto  buffer = sr.buffer;
             auto  pool   = sr.pool;
-            LOGA(sr.type != CommandType::Secondary, "Backend -> Can not call CloseCommandStreams() on secondary command streams!");
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -2409,16 +2416,26 @@ namespace LinaGX
             for (const auto& [dt, limit] : limits)
             {
                 VkDescriptorPoolSize sizeInfo = VkDescriptorPoolSize{};
-                sizeInfo.type                 = GetVKDescriptorType(dt);
+                sizeInfo.type                 = GetVKDescriptorType(dt, false);
                 sizeInfo.descriptorCount      = limit;
                 sizeInfos.push_back(sizeInfo);
                 totalSets += limit;
             }
 
+            VkDescriptorPoolSize sizeInfoUboDynamic = VkDescriptorPoolSize{};
+            sizeInfoUboDynamic.type                 = GetVKDescriptorType(DescriptorType::UBO, true);
+            sizeInfoUboDynamic.descriptorCount      = limits[DescriptorType::UBO] / 2;
+            sizeInfos.push_back(sizeInfoUboDynamic);
+
+            VkDescriptorPoolSize sizeInfoSSBODynamic = VkDescriptorPoolSize{};
+            sizeInfoSSBODynamic.type                 = GetVKDescriptorType(DescriptorType::UBO, true);
+            sizeInfoSSBODynamic.descriptorCount      = limits[DescriptorType::SSBO] / 2;
+            sizeInfos.push_back(sizeInfoSSBODynamic);
+
             VkDescriptorPoolCreateInfo info = VkDescriptorPoolCreateInfo{};
             info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             info.flags                      = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-            info.maxSets                    = totalSets;
+            info.maxSets                    = m_initInfo.gpuLimits.maxDescriptorSets;
             info.poolSizeCount              = static_cast<uint32>(sizeInfos.size());
             info.pPoolSizes                 = sizeInfos.data();
 
@@ -3024,7 +3041,7 @@ namespace LinaGX
         for (uint32 i = 0; i < cmd->setCount; i++)
             sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).ptr;
 
-        vkCmdBindDescriptorSets(buffer, cmd->isCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), 0, nullptr);
+        vkCmdBindDescriptorSets(buffer, cmd->isCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), cmd->dynamicOffsetCount, cmd->dynamicOffsets);
     }
 
     void VKBackend::CMD_BindConstants(uint8* data, VKBCommandStream& stream)
@@ -3069,6 +3086,10 @@ namespace LinaGX
 
     void VKBackend::CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream)
     {
+        CMDExecuteSecondaryStream* cmd       = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+        auto                       buffer    = stream.buffer;
+        auto                       bufferSec = m_cmdStreams.GetItemR(cmd->secondaryStream->m_gpuHandle).buffer;
+        vkCmdExecuteCommands(stream.buffer, 1, &bufferSec);
     }
 
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize)

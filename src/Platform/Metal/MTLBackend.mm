@@ -1191,7 +1191,9 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
     {
         auto  stream    = streams[i];
         auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-        LOGA(sr.type != CommandType::Secondary, "Backend -> Can not call CloseCommandStreams() on secondary command streams!");
+
+        if(sr.type == CommandType::Secondary)
+            return;
 
         if (stream->m_commandCount == 0)
             continue;
@@ -2290,7 +2292,6 @@ void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {
 
 void MTLBackend::CMD_ExecuteSecondaryStream(uint8 *data, MTLCommandStream &stream) {
     CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
-   
 }
 
 } // namespace LinaVG

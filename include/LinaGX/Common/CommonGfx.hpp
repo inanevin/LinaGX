@@ -695,6 +695,7 @@ namespace LinaGX
         uint32 samplerLimit       = 512;
         uint32 bufferLimit        = 512;
         uint32 maxSubmitsPerFrame = 30;
+        uint32 maxDescriptorSets  = 512;
     };
 
     struct GPUInformation
