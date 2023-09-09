@@ -798,6 +798,11 @@ namespace LinaGX
         return false;
     }
 
+    bool CompareBindings(const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b)
+    {
+        return a.binding < b.binding;
+    }
+
     uint16 VKBackend::CreateShader(const ShaderDesc& shaderDesc)
     {
         VKBShader shader = {};
@@ -942,6 +947,12 @@ namespace LinaGX
         }
 
         shader.layouts.resize(bindingMap.size());
+
+        for (auto& pair : bindingMap)
+        {
+            LINAGX_VEC<VkDescriptorSetLayoutBinding>& bindings = pair.second;
+            sort(bindings.begin(), bindings.end(), CompareBindings);
+        }
 
         // TODO: descriptor set flag reflection?
         for (const auto& [set, bindings] : bindingMap)
