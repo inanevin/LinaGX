@@ -44,7 +44,7 @@ namespace LinaGX
     class CommandStream
     {
     public:
-        CommandStream(Backend* backend, QueueType type, uint32 commandCount, uint32 gpuHandle);
+        CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle);
 
         template <typename T>
         T* AddCommand()
@@ -118,7 +118,7 @@ namespace LinaGX
         uint32    m_commandCount = 0;
         uint32    m_gpuHandle    = 0;
         Backend*  m_backend      = nullptr;
-        QueueType m_type         = QueueType::Graphics;
+        CommandType m_type         = CommandType::Graphics;
 
         uint8* m_commandBuffer     = nullptr;
         size_t m_commandIndex      = 0;

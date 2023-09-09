@@ -158,8 +158,8 @@ namespace LinaGX
         /// </summary>
         /// <param name="commandCount"></param>
         /// <returns></returns>
-        CommandStream* CreateCommandStream(uint32 commandCount, QueueType type);
-
+        CommandStream* CreateCommandStream(uint32 commandCount, CommandType type);
+ 
         /// <summary>
         ///
         /// </summary>
@@ -260,12 +260,12 @@ namespace LinaGX
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        uint8 GetPrimaryQueue(QueueType type);
+        uint8 GetPrimaryQueue(CommandType type);
 
         /// <summary>
         ///
         /// </summary>
-        void PollWindow()
+        void PollWindowsAndInput()
         {
             m_windowManager.PollWindowsAndInput();
         }

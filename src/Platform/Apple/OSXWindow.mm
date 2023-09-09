@@ -94,7 +94,6 @@ bool OSXWindow::Create(uint32_t sid, const char *title, LinaGX::int32 x, LinaGX:
     
     std::function<void(unsigned int, unsigned int)> mouseMovedCallback = [this](unsigned int x, unsigned int y) {
         m_mousePosition = {x, m_size.y - y};
-        m_mouseMoved = true;
         m_input->WindowFeedMousePosition(m_mousePosition);
         if(m_cbMouseMove)
             m_cbMouseMove(m_mousePosition);
@@ -221,24 +220,50 @@ void OSXWindow::PreTick() {
 }
 
 void OSXWindow::Tick() {
-    
-    if(!m_mouseMoved)
-        m_mouseDelta = {0,0};
-    
-    m_mouseMoved = false;
-    
-        if(!m_sizeRequests.empty())
-        {
-            auto size = m_sizeRequests[m_sizeRequests.size() - 1];
-            SetSize(size);
-            m_sizeRequests.clear();
-        }
 
-        if(m_titleChangeRequested)
-        {
-            SetTitle(m_title.c_str());
-            m_titleChangeRequested = false;
-        }
+    if(!m_sizeRequests.empty())
+    {
+        auto size = m_sizeRequests[m_sizeRequests.size() - 1];
+        SetSize(size);
+        m_sizeRequests.clear();
+    }
+
+    if(m_titleChangeRequested)
+    {
+        SetTitle(m_title.c_str());
+        m_titleChangeRequested = false;
+    }
+    
+    // Confine mouse.
+     if(m_hasFocus)
+     {
+         if(m_confineStyle == MouseConfineStyle::Window || m_confineStyle == MouseConfineStyle::Region)
+         {
+             const LGXRectui fullRect = {{0, 0}, m_size};
+             const LGXRectui region = m_confineStyle == MouseConfineStyle::Window ? fullRect : m_confineRegion;
+    
+             const auto& abs = m_input->GetMousePositionAbs();
+             const LGXVector2i regionStartAbs = {static_cast<int32>(region.pos.x) + m_position.x, static_cast<int32>(region.pos.y) + m_position.y};
+             const LGXVector2i regionEndAbs = {regionStartAbs.x + static_cast<int32>(region.size.x), regionStartAbs.y + static_cast<int32>(region.size.y)};
+    
+             if(abs.x > regionEndAbs.x || abs.x < regionStartAbs.x || abs.y > regionEndAbs.y || abs.y < regionStartAbs.y)
+             {
+                 LGXVector2i closestBorderPoint = {std::clamp(abs.x, regionStartAbs.x, regionEndAbs.x), std::clamp(abs.y, regionStartAbs.y, regionEndAbs.y)};
+                 CGPoint point;
+                 point.x = closestBorderPoint.x;
+                 point.y = closestBorderPoint.y;
+                 CGWarpMouseCursorPosition(point);
+             }
+         }
+         else if(m_confineStyle == MouseConfineStyle::Center)
+         {
+             CGPoint point;
+             point.x = m_position.x + m_size.x / 2;
+             point.y = m_position.y + m_size.y / 2;
+             CGWarpMouseCursorPosition(point);
+         }
+    
+     }
 }
 
 void OSXWindow::SetStyle(LinaGX::WindowStyle style) { 
@@ -493,5 +518,32 @@ uint32 OSXWindow::GetStyle(WindowStyle style)
     
     return static_cast<uint32>(nsStyle);
 }
+
+void OSXWindow::ConfineMouse() {
+    m_confineStyle = MouseConfineStyle::Window;
+};
+
+void OSXWindow::ConfineMouseToRegion(const LGXRectui& region) {
+    m_confineStyle = MouseConfineStyle::Region;
+    m_confineRegion = region;
+};
+
+void OSXWindow::ConfineMouseToCenter()
+{
+    m_confineStyle = MouseConfineStyle::Center;
+}
+
+void OSXWindow::FreeMouse()
+{
+    m_confineStyle = MouseConfineStyle::None;
+}
+
+void OSXWindow::SetMouseVisible(bool visible)
+{
+    if(visible)
+        [NSCursor unhide];
+    else
+        [NSCursor hide];
+};
 
 } // namespace LinaGX

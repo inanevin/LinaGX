@@ -319,11 +319,11 @@ namespace LinaGX
     {
         switch (type)
         {
-        case QueueType::Graphics:
+        case CommandType::Graphics:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
-        case QueueType::Transfer:
+        case CommandType::Transfer:
             return D3D12_COMMAND_LIST_TYPE_COPY;
-        case QueueType::Compute:
+        case CommandType::Compute:
             return D3D12_COMMAND_LIST_TYPE_COMPUTE;
         default:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -1861,15 +1861,15 @@ namespace LinaGX
             // Queue
             {
                 QueueDesc descGfx, descTransfer, descCompute;
-                descGfx.type                         = QueueType::Graphics;
-                descTransfer.type                    = QueueType::Transfer;
-                descCompute.type                     = QueueType::Compute;
+                descGfx.type                         = CommandType::Graphics;
+                descTransfer.type                    = CommandType::Transfer;
+                descCompute.type                     = CommandType::Compute;
                 descGfx.debugName                    = "Primary Graphics Queue";
                 descTransfer.debugName               = "Primary Transfer Queue";
                 descCompute.debugName                = "Primary Compute Queue";
-                m_primaryQueues[QueueType::Graphics] = CreateQueue(descGfx);
-                m_primaryQueues[QueueType::Transfer] = CreateQueue(descTransfer);
-                m_primaryQueues[QueueType::Compute]  = CreateQueue(descCompute);
+                m_primaryQueues[CommandType::Graphics] = CreateQueue(descGfx);
+                m_primaryQueues[CommandType::Transfer] = CreateQueue(descTransfer);
+                m_primaryQueues[CommandType::Compute]  = CreateQueue(descCompute);
             }
 
             // Heaps
@@ -1938,9 +1938,9 @@ namespace LinaGX
 
     void DX12Backend::Shutdown()
     {
-        DestroyQueue(GetPrimaryQueue(QueueType::Graphics));
-        DestroyQueue(GetPrimaryQueue(QueueType::Transfer));
-        DestroyQueue(GetPrimaryQueue(QueueType::Compute));
+        DestroyQueue(GetPrimaryQueue(CommandType::Graphics));
+        DestroyQueue(GetPrimaryQueue(CommandType::Transfer));
+        DestroyQueue(GetPrimaryQueue(CommandType::Compute));
 
         for (auto& swp : m_swapchains)
         {
@@ -2019,7 +2019,7 @@ namespace LinaGX
             const auto& frame = m_perFrameData[i];
             for (auto& q : m_queues)
             {
-                if (!q.isValid || q.type != QueueType::Graphics)
+                if (!q.isValid || q.type != CommandType::Graphics)
                     continue;
 
                 WaitForFences(q.frameFences[i].Get(), q.storedFenceValues[i]);
@@ -2054,7 +2054,7 @@ namespace LinaGX
 
         for (auto& q : m_queues)
         {
-            if (!q.isValid || q.type != QueueType::Graphics)
+            if (!q.isValid || q.type != CommandType::Graphics)
                 continue;
 
             WaitForFences(q.frameFences[m_currentFrameIndex].Get(), q.storedFenceValues[m_currentFrameIndex]);
@@ -2119,6 +2119,7 @@ namespace LinaGX
             auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             auto  list      = sr.list;
             auto  allocator = sr.allocator;
+            LOGA(sr.type != CommandType::Secondary, "Backend -> Can not call CloseCommandStreams() on secondary command streams!");
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -2129,7 +2130,7 @@ namespace LinaGX
                 ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
                 sr.boundShader = 0;
 
-                if (sr.type == QueueType::Graphics || sr.type == QueueType::Compute)
+                if (sr.type == CommandType::Graphics || sr.type == CommandType::Compute)
                 {
                     ID3D12DescriptorHeap* heaps[] = {m_gpuHeapBuffer->GetHeap(), m_gpuHeapSampler->GetHeap()};
                     list->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -2180,6 +2181,7 @@ namespace LinaGX
                 }
 
                 auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+                LOGA(str.type != CommandType::Secondary, "Backend -> Can not submit command streams of type Secondary directly to the queues! Use CMDExecuteSecondary instead!");
                 _lists.push_back(str.list.Get());
             }
 
@@ -2256,6 +2258,7 @@ namespace LinaGX
 
     uint8 DX12Backend::GetPrimaryQueue(QueueType type)
     {
+        LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
         return m_primaryQueues[type];
     }
 
@@ -2322,7 +2325,7 @@ namespace LinaGX
         // Increase & signal, we'll wait for this value next time we are starting this frame index.
         for (auto& q : m_queues)
         {
-            if (!q.isValid || q.type != QueueType::Graphics)
+            if (!q.isValid || q.type != CommandType::Graphics)
                 continue;
 
             q.frameFenceValue++;
@@ -2641,6 +2644,11 @@ namespace LinaGX
     {
         CMDComputeBarrier* cmd  = reinterpret_cast<CMDComputeBarrier*>(data);
         auto               list = stream.list;
+    }
+
+    void DX12Backend::CMD_ExecuteSecondaryStream(uint8 *data, DX12CommandStream &stream) {
+        CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+        
     }
 
 } // namespace LinaGX

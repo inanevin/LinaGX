@@ -254,6 +254,7 @@ namespace LinaGX
         void CMD_BindConstants(uint8* data, DX12CommandStream& stream);
         void CMD_Dispatch(uint8* data, DX12CommandStream& stream);
         void CMD_ComputeBarrier(uint8* data, DX12CommandStream& stream);
+        void CMD_ExecuteSecondaryStream(uint8* data, DX12CommandStream& stream);
 
     private:
         D3D12MA::Allocator*                   m_dx12Allocator = nullptr;

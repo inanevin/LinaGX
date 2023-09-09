@@ -88,7 +88,7 @@ namespace LinaGX::Examples
     void Example::OnTick()
     {
         // Check for window inputs.
-        _lgx->PollWindow();
+        _lgx->PollWindowsAndInput();
     }
 
 } // namespace LinaGX::Examples

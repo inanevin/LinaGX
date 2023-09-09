@@ -152,42 +152,21 @@ namespace LinaGX
         return keyState == 0 && m_previousStates[button] == 1;
     }
 
-    void Input::SetCursorMode(CursorMode mode)
+    void Input::Tick()
     {
-        if (mode == m_cursorMode)
-            return;
-
-        m_cursorMode = mode;
-
-        switch (mode)
-        {
-        case CursorMode::Visible:
-            [NSCursor unhide];
-            break;
-        case CursorMode::Hidden:
-            [NSCursor hide];
-            break;
-        case CursorMode::Disabled:
-            [NSCursor hide];
-            break;
-        }
+        CGGetLastMouseDelta(&m_mouseDelta.x, &m_mouseDelta.y);
+        NSPoint point = [NSEvent mouseLocation]; 
+        m_previousMousePosition     = m_currentMousePositionAbs;
+        m_currentMousePositionAbs.x = point.x;
+        m_currentMousePositionAbs.y = [[NSScreen mainScreen] frame].size.height - point.y;
     }
 
-    void Input::PreTick()
+    void Input::EndFrame()
     {
         for (int i = 0; i < 256; i++)
             m_previousStates[i] = m_currentStates[i];
     }
 
-    void Input::Tick()
-    {
-        NSPoint point = [NSEvent mouseLocation]; // get current mouse position
-        m_previousMousePosition     = m_currentMousePositionAbs;
-        m_currentMousePositionAbs.x = point.x;
-        m_currentMousePositionAbs.y = [[NSScreen mainScreen] frame].size.height - point.y;
-        m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
-        m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
-    }
 
     void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window)
     {

@@ -154,7 +154,6 @@ namespace LinaGX
 
         auto handleMouseMove = [](Win32Window* win32Window, uint32 xPos, uint32 yPos) {
             const LGXVector2ui mp        = {xPos, yPos};
-            win32Window->m_mouseDelta    = {static_cast<int32>(mp.x - win32Window->m_mousePosition.x), static_cast<int32>(mp.y - win32Window->m_mousePosition.y)};
             win32Window->m_mousePosition = mp;
             win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
 
@@ -331,7 +330,6 @@ namespace LinaGX
             uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
             uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
             handleMouseMove(win32Window, xPos, yPos);
-            win32Window->m_mouseMoved = true;
             return 0;
         }
         case WM_NCMOUSEMOVE: {
@@ -498,11 +496,6 @@ namespace LinaGX
 
     void Win32Window::Tick()
     {
-        if(!m_mouseMoved)
-            m_mouseDelta = {0,0};
-        
-        m_mouseMoved = false;
-        
         if (!m_sizeRequests.empty())
         {
             SetSize(m_sizeRequests[m_sizeRequests.size() - 1]);

@@ -40,6 +40,17 @@ namespace LinaGX
 {
     class OSXWindow : public Window
     {
+        
+    private:
+        
+        enum class MouseConfineStyle
+        {
+            None,
+            Center,
+            Window,
+            Region
+        };
+        
     public:
 
         virtual void         Close() override;
@@ -60,7 +71,12 @@ namespace LinaGX
         virtual LGXVector2ui GetMonitorSize() override;
         virtual bool         GetIsMaximized() override;
         virtual bool         GetIsMinimized() override;
-
+        virtual void         ConfineMouse() override;
+        virtual void         ConfineMouseToRegion(const LGXRectui& region) override;
+        virtual void         ConfineMouseToCenter() override;
+        virtual void         FreeMouse() override;
+        virtual void         SetMouseVisible(bool visible) override;
+        
         virtual void* GetWindowHandle() override
         {
             return m_nsWindow;
@@ -96,7 +112,8 @@ namespace LinaGX
         void* m_nsView = nullptr;
         bool m_lmDownForDrag = false;
         LGXVector2ui m_lmDragDelta = {};
-        bool m_mouseMoved = false;
+        LGXRectui m_confineRegion = {};
+        MouseConfineStyle m_confineStyle = MouseConfineStyle::None;
     };
 } // namespace LinaGX
 

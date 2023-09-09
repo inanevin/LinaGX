@@ -111,6 +111,7 @@ namespace LinaGX
         m_backend->EndFrame();
         m_currentFrameIndex = (m_currentFrameIndex + 1) % m_initInfo.framesInFlight;
         PerformanceStats.totalFrames++;
+        m_windowManager.EndFrame();
     }
 
     void Instance::Present(const PresentDesc& present)
@@ -266,7 +267,7 @@ namespace LinaGX
         m_backend->DestroyShader(handle);
     }
 
-    CommandStream* Instance::CreateCommandStream(uint32 commandCount, QueueType type)
+    CommandStream* Instance::CreateCommandStream(uint32 commandCount, CommandType type)
     {
         CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type));
         m_commandStreams.push_back(stream);
@@ -348,7 +349,7 @@ namespace LinaGX
         m_backend->DestroyQueue(queue);
     }
 
-    uint8 Instance::GetPrimaryQueue(QueueType type)
+    uint8 Instance::GetPrimaryQueue(CommandType type)
     {
         return m_backend->GetPrimaryQueue(type);
     }

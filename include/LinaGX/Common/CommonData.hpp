@@ -161,13 +161,6 @@ namespace LinaGX
         Repeated
     };
 
-    enum class CursorMode
-    {
-        Visible  = 1 << 0,
-        Hidden   = 1 << 1,
-        Disabled = 1 << 2
-    };
-
     enum class CursorType
     {
         None,

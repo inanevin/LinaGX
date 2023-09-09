@@ -547,7 +547,13 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         id<MTLFunction> computeFunc = [lib newFunctionWithName:entryPoint];
         [computeFunc retain];
 
-        id<MTLComputePipelineState> cso = [device newComputePipelineStateWithFunction:computeFunc error:&err];
+        MTLComputePipelineDescriptor *computeDesc = [[MTLComputePipelineDescriptor alloc] init];
+        NAME_OBJ_CSTR(computeDesc, shaderDesc.debugName);
+        computeDesc.computeFunction = computeFunc;
+        
+        MTLAutoreleasedComputePipelineReflection ref;
+        id<MTLComputePipelineState> cso = [device newComputePipelineStateWithDescriptor:computeDesc options:0 reflection:&ref error:&err];
+        //id<MTLComputePipelineState> cso = [device newComputePipelineStateWithFunction:computeFunc error:&err];
         [cso retain];
         item.cso = AS_VOID(cso);
         
@@ -743,10 +749,12 @@ uint32 MTLBackend::CreateTexture2D(const Texture2DDesc &desc) {
     else if(desc.usage == Texture2DUsage::DepthStencilTexture)
         textureDescriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
     
+    
         
     id<MTLTexture> texture = [device newTextureWithDescriptor:textureDescriptor];
     [texture retain];
     item.ptr = AS_VOID(texture);
+    NAME_OBJ_CSTR(texture, desc.debugName);
     
     return m_texture2Ds.AddItem(item);
 }
@@ -779,11 +787,13 @@ uint32 MTLBackend::CreateSampler(const SamplerDesc &desc) {
     samplerDesc.maxAnisotropy = desc.anisotropy;
     samplerDesc.lodMaxClamp = desc.maxLod;
     samplerDesc.supportArgumentBuffers = true;
-    
+    NAME_OBJ_CSTR(samplerDesc, desc.debugName);
+
     id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
     [sampler retain];
     item.ptr = AS_VOID(sampler);
-    
+
+
     return m_samplers.AddItem(item);
 }
 
@@ -821,7 +831,8 @@ uint32 MTLBackend::CreateResource(const ResourceDesc &desc) {
     id<MTLBuffer> buffer = [device newBufferWithLength:desc.size options:options];
     [buffer retain];
     item.ptr = AS_VOID(buffer);
-    
+    NAME_OBJ_CSTR(buffer, desc.debugName);
+
     return m_resources.AddItem(item);
 }
 
@@ -1141,7 +1152,7 @@ void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
     
 }
 
-uint32 MTLBackend::CreateCommandStream(QueueType cmdType) {
+uint32 MTLBackend::CreateCommandStream(CommandType cmdType) {
     MTLCommandStream item = {};
     item.isValid = true;
     item.type = cmdType;
@@ -1174,15 +1185,15 @@ void MTLBackend::DestroyCommandStream(uint32 handle) {
 
 void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount) {
     
-    const auto& q = m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics));
+    const auto& q = m_queues.GetItemR(GetPrimaryQueue(CommandType::Graphics));
     id<MTLCommandQueue> queue = AS_MTL(q.queue, id<MTLCommandQueue>);
     
     for (uint32 i = 0; i < streamCount; i++)
     {
         auto  stream    = streams[i];
         auto& sr        = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-    
-        
+        LOGA(sr.type != CommandType::Secondary, "Backend -> Can not call CloseCommandStreams() on secondary command streams!");
+
         if (stream->m_commandCount == 0)
             continue;
 
@@ -1275,6 +1286,23 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
                      endCurrentComputeEncoder();
              }
              
+             // Include as a part of this one.
+             if(tid == LGX_GetTypeID<CMDExecuteSecondaryStream>())
+             {
+                 CMDExecuteSecondaryStream* exec = reinterpret_cast<CMDExecuteSecondaryStream*>(cmd);
+                 auto* secondaryStream = exec->secondaryStream;
+                 
+                 for(uint32 j = 0; j < secondaryStream->m_commandCount; j++)
+                 {
+                     uint8*        dataSecondary = secondaryStream->m_commands[i];
+                     LINAGX_TYPEID secondaryTid  = 0;
+                     LINAGX_MEMCPY(&secondaryTid, dataSecondary, sizeof(LINAGX_TYPEID));
+                     const size_t incrementSecondary = sizeof(LINAGX_TYPEID);
+                     uint8*       cmdSecondary       = dataSecondary + incrementSecondary;
+                     (this->*m_cmdFunctions[tid])(cmdSecondary, sr);
+                 }
+             }
+             
              (this->*m_cmdFunctions[tid])(cmd, sr);
          }
         
@@ -1303,7 +1331,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
     
     const auto& queue = m_queues.GetItemR(desc.targetQueue);
     
-    if(queue.type == QueueType::Graphics)
+    if(queue.type == CommandType::Graphics)
         pfd.submits++;
     
     if(desc.isMultithreaded)
@@ -1319,7 +1347,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         }
 
         auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-        
+        LOGA(str.type != CommandType::Secondary, "Backend -> Can not submit command streams of type Secondary directly to the queues! Use CMDExecuteSecondary instead!");
         id<MTLCommandBuffer> buffer = AS_MTL(str.currentBuffer, id<MTLCommandBuffer>);
         
         if(desc.useWait)
@@ -1332,15 +1360,9 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
             }
         }
         
-        if(queue.type == QueueType::Graphics)
+        if(queue.type == CommandType::Graphics)
         {
             [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
-                
-                CFTimeInterval start = buffer.GPUStartTime;
-                  CFTimeInterval end = buffer.GPUEndTime;
-
-
-                  CFTimeInterval gpuRuntimeDuration = end - start;
               
                 while (m_submissionFlag.test_and_set(std::memory_order_acquire))
                 {
@@ -1440,7 +1462,8 @@ void MTLBackend::DestroyQueue(uint8 queue) {
     m_queues.RemoveItem(queue);
 }
 
-uint8 MTLBackend::GetPrimaryQueue(QueueType type) {
+uint8 MTLBackend::GetPrimaryQueue(CommandType type) {
+    LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
     return m_primaryQueues[static_cast<uint32>(type)];
 }
 
@@ -1482,12 +1505,12 @@ bool MTLBackend::Initialize(const InitInfo &initInfo) {
     // Primary queues.
     {
         QueueDesc desc;
-        desc.type                         = QueueType::Graphics;
+        desc.type                         = CommandType::Graphics;
         desc.debugName                    = "Primary Queue";
         m_primaryQueues[0] = CreateQueue(desc);
-        desc.type = QueueType::Transfer;
+        desc.type = CommandType::Transfer;
         m_primaryQueues[1] = CreateQueue(desc);
-        desc.type = QueueType::Compute;
+        desc.type = CommandType::Compute;
         m_primaryQueues[2] = CreateQueue(desc);
     }
     
@@ -1849,19 +1872,70 @@ void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) 
     const auto& indexRes = m_resources.GetItemR(stream.currentIndexBuffer);
     id<MTLBuffer> indexBuf = AS_MTL(indexRes.ptr, id<MTLBuffer>);
     
-    // LGXDrawID is fed into the first element so offset by it.
+    // LGXDrawID is fed into the Nth element so offset by it.
     for(int32 i = 0; i < cmd->count; i++)
     {
         if(shader.layout.hasGLDrawID)
         {
             const int32 drawId = i;
-            [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:1];
+            [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:shader.layout.drawIDBinding];
         }
         
         auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
         [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:sizeof(IndexedIndirectCommand) * i + sizeof(uint32)];
     }
 }
+
+void MTLBackend::CMD_DrawIndirect(uint8 *data, MTLCommandStream &stream) {
+    CMDDrawIndirect* cmd    = reinterpret_cast<CMDDrawIndirect*>(data);
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    const auto& shader = m_shaders.GetItemR(stream.currentShader);
+    const auto& resource = m_resources.GetItemR(cmd->indirectBuffer);
+    id<MTLBuffer> indirectBuffer= AS_MTL(resource.ptr, id<MTLBuffer>);
+    
+    if(stream.indirectCommandBuffer != nullptr)
+    {
+        if(stream.indirectCommandBufferMaxCommands < cmd->count * 2)
+        {
+            id<MTLIndirectCommandBuffer> buf = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+            [buf release];
+            stream.indirectCommandBuffer = nullptr;
+        }
+    }
+   
+    if(stream.indirectCommandBuffer == nullptr)
+    {
+        auto device = AS_MTL(m_device, id<MTLDevice>);
+        MTLIndirectCommandBufferDescriptor * descriptor = [[MTLIndirectCommandBufferDescriptor alloc] init];
+        descriptor.commandTypes = MTLIndirectCommandTypeDrawIndexed;
+        descriptor.inheritBuffers = YES;
+        descriptor.inheritPipelineState = YES;
+        
+        id<MTLIndirectCommandBuffer> buf = [device newIndirectCommandBufferWithDescriptor:descriptor maxCommandCount:cmd->count * 2 options:0];
+        [buf retain];
+        stream.indirectCommandBuffer = AS_VOID(buf);
+        stream.indirectCommandBufferMaxCommands = cmd->count*2;
+    }
+   
+    id<MTLIndirectCommandBuffer> indCmd = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
+    
+    const auto& indexRes = m_resources.GetItemR(stream.currentIndexBuffer);
+    id<MTLBuffer> indexBuf = AS_MTL(indexRes.ptr, id<MTLBuffer>);
+    
+    // LGXDrawID is fed into the Nth element so offset by it.
+    for(int32 i = 0; i < cmd->count; i++)
+    {
+        if(shader.layout.hasGLDrawID)
+        {
+            const int32 drawId = i;
+            [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:shader.layout.drawIDBinding];
+        }
+        
+        auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
+        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:sizeof(IndexedIndirectCommand) * i + sizeof(uint32)];
+    }
+}
+
 
 void MTLBackend::CMD_BindVertexBuffers(uint8 *data, MTLCommandStream &stream) {
     CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
@@ -1949,7 +2023,7 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnonnull"
 
-    auto setBuffer = [&](id<MTLBuffer> const* _Nonnull ptr, uint32 bufferIndex, uint32 count, ShaderStage stage){
+    auto setBuffer = [&](id<MTLBuffer> const* _Nonnull ptr, uint32 bufferIndex, uint32 count, ShaderStage stage, uint32 offset = 0){
        
         if(stage == ShaderStage::Vertex)
             bufferIndex = bufferIndex + 1;
@@ -1958,6 +2032,9 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
 
        LINAGX_VEC<NSUInteger> offsets;
        offsets.resize(count);
+        
+       for(uint32 i = 0 ; i < count; i++)
+            offsets[i] = offset;
        
         if(stage == ShaderStage::Fragment)
             [encoder setFragmentBuffers:ptr offsets:&offsets[0] withRange:rng];
@@ -1990,6 +2067,8 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
     };
     
 #pragma clang diagnostic pop
+    
+    uint32 dynamicOffsetIndexCounter = 0;
     
     for(uint32 i = 0; i < cmd->setCount; i++)
     {
@@ -2116,12 +2195,20 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                         ubos[k] = mtlBuffer;
                     }
                     
+                    uint32 offset = 0;
+                    
+                    if(mtlBinding.lgxBinding.useDynamicOffset)
+                    {
+                        offset = cmd->dynamicOffsets[dynamicOffsetIndexCounter];
+                        dynamicOffsetIndexCounter++;
+                    }
+                    
                     if(!mtlBinding.lgxBinding.unbounded)
-                        setBuffer(&ubos[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                        setBuffer(&ubos[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
                     else
                     {
                         id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
+                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg, offset);
                         [encoder useResources:&ubos[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
                     }
                 }
@@ -2138,8 +2225,16 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                         ssbo[k] = mtlBuffer;
                     }
                     
+                    uint32 offset = 0;
+                    
+                    if(mtlBinding.lgxBinding.useDynamicOffset)
+                    {
+                        offset = cmd->dynamicOffsets[dynamicOffsetIndexCounter];
+                        dynamicOffsetIndexCounter++;
+                    }
+                    
                     if(!mtlBinding.lgxBinding.unbounded)
-                        setBuffer(&ssbo[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                        setBuffer(&ssbo[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
                     else
                     {
                         LOGA(false, "Backend -> Can't use SSBOs as unbounded!");
@@ -2192,6 +2287,11 @@ void MTLBackend::CMD_Dispatch(uint8 *data, MTLCommandStream &stream) {
 
 void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {
     CMDComputeBarrier* cmd  = reinterpret_cast<CMDComputeBarrier*>(data);
+}
+
+void MTLBackend::CMD_ExecuteSecondaryStream(uint8 *data, MTLCommandStream &stream) {
+    CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+   
 }
 
 } // namespace LinaVG

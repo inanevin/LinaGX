@@ -195,12 +195,6 @@ namespace LinaGX
         }
     }
 
-    void Input::PreTick()
-    {
-        for (int i = 0; i < 256; i++)
-            m_previousStates[i] = m_currentStates[i];
-    }
-
     void Input::Tick()
     {
         POINT point;
@@ -210,6 +204,12 @@ namespace LinaGX
         m_currentMousePositionAbs.y = point.y;
         m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
         m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
+    }
+
+    void Input::EndFrame()
+    {
+        for (int i = 0; i < 256; i++)
+            m_previousStates[i] = m_currentStates[i];
     }
 
     void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window)

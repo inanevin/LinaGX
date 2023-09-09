@@ -33,7 +33,7 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    CommandStream::CommandStream(Backend* backend, QueueType type, uint32 commandCount, uint32 gpuHandle)
+    CommandStream::CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle)
     {
         m_backend           = backend;
         m_commandBufferSize = commandCount * 40;

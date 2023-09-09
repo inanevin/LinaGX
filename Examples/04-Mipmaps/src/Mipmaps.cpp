@@ -173,9 +173,9 @@ namespace LinaGX::Examples
 
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                _pfd[i].stream = _lgx->CreateCommandStream(10, QueueType::Graphics);
+                _pfd[i].stream = _lgx->CreateCommandStream(10, CommandType::Graphics);
 
-            _copyStream    = _lgx->CreateCommandStream(10, QueueType::Transfer);
+            _copyStream    = _lgx->CreateCommandStream(10, CommandType::Transfer);
             _copySemaphore = _lgx->CreateUserSemaphore();
         }
 
@@ -338,7 +338,7 @@ namespace LinaGX::Examples
 
             // Execute copy command on the transfer queue, signal a semaphore when it's done and wait for it on the CPU side.
             _copySemaphoreValue++;
-            _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(QueueType::Transfer), .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_copySemaphore, .signalValues = &_copySemaphoreValue});
+            _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(CommandType::Transfer), .streams = &_copyStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &_copySemaphore, .signalValues = &_copySemaphoreValue});
             _lgx->WaitForUserSemaphore(_copySemaphore, _copySemaphoreValue);
 
             // Not needed anymore.
@@ -411,7 +411,7 @@ namespace LinaGX::Examples
     void Example::OnTick()
     {
         // Check for window inputs.
-        _lgx->PollWindow();
+        _lgx->PollWindowsAndInput();
 
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
@@ -483,7 +483,7 @@ namespace LinaGX::Examples
         _lgx->CloseCommandStreams(&currentFrame.stream, 1);
 
         // Submit work on gpu.
-        _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(QueueType::Graphics), .streams = &currentFrame.stream, .streamCount = 1});
+        _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(CommandType::Graphics), .streams = &currentFrame.stream, .streamCount = 1});
 
         // Present main swapchain.
         _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});

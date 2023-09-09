@@ -47,7 +47,7 @@ struct MTLCommandStream
 {
     bool isValid = false;
     bool currentRenderPassUseDepth = false;
-    QueueType type = QueueType::Graphics;
+    CommandType type = CommandType::Graphics;
     void* currentBuffer = nullptr;
     void* currentEncoder = nullptr;
     void* currentBlitEncoder = nullptr;
@@ -161,7 +161,7 @@ struct MTLQueue
 {
     bool isValid = false;
     void* queue = nullptr;
-    QueueType type = QueueType::Graphics;
+    CommandType type = CommandType::Graphics;
 };
 
 struct MTLPerFrameData
@@ -203,13 +203,13 @@ public:
     virtual void   DestroyDescriptorSet(uint16 handle) override;
     virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
     virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
-    virtual uint32 CreateCommandStream(QueueType cmdType) override;
+    virtual uint32 CreateCommandStream(CommandType cmdType) override;
     virtual void   DestroyCommandStream(uint32 handle) override;
     virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
     virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
     virtual uint8  CreateQueue(const QueueDesc& desc) override;
     virtual void   DestroyQueue(uint8 queue) override;
-    virtual uint8  GetPrimaryQueue(QueueType type) override;
+    virtual uint8  GetPrimaryQueue(CommandType type) override;
     
     
 public:
@@ -229,6 +229,7 @@ private:
     void CMD_DrawInstanced(uint8* data, MTLCommandStream& stream);
     void CMD_DrawIndexedInstanced(uint8* data, MTLCommandStream& stream);
     void CMD_DrawIndexedIndirect(uint8* data, MTLCommandStream& stream);
+    void CMD_DrawIndirect(uint8* data, MTLCommandStream& stream);
     void CMD_BindVertexBuffers(uint8* data, MTLCommandStream& stream);
     void CMD_BindIndexBuffers(uint8* data, MTLCommandStream& stream);
     void CMD_CopyResource(uint8* data, MTLCommandStream& stream);
@@ -237,9 +238,9 @@ private:
     void CMD_BindConstants(uint8* data, MTLCommandStream& stream);
     void CMD_Dispatch(uint8* data, MTLCommandStream& stream);
     void CMD_ComputeBarrier(uint8* data, MTLCommandStream& stream);
+    void CMD_ExecuteSecondaryStream(uint8* data, MTLCommandStream& stream);
     
 private:
-    
     
     
     IDList<uint8,  MTLSwapchain>                        m_swapchains     = {10};

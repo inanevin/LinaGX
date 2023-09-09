@@ -160,6 +160,36 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         virtual bool GetIsMinimized() = 0;
+        
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual void ConfineMouse() = 0;
+        
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual void ConfineMouseToRegion(const LGXRectui& region) = 0;
+        
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual void ConfineMouseToCenter() = 0;
+        
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual void FreeMouse() = 0;
+        
+        /// <summary>
+        ///
+        /// </summary>
+        /// <returns></returns>
+        virtual void SetMouseVisible(bool visible) = 0;
 
         inline void SetCallbackClose(CallbackNoArg&& cb)
         {
@@ -276,11 +306,6 @@ namespace LinaGX
             m_sizeRequests.push_back(req);
         }
 
-        inline const LGXVector2i& GetMouseDelta() const
-        {
-            return m_mouseDelta;
-        }
-
         inline const LGXRectui& GetDragRect() const
         {
             return m_dragRect;
@@ -322,7 +347,6 @@ namespace LinaGX
         LGXVector2ui             m_size;
         LGXVector2ui             m_trueSize;
         LGXVector2ui             m_mousePosition = {};
-        LGXVector2i              m_mouseDelta    = {};
         LGXRectui                m_dragRect;
         uint32                   m_dpi                = 0;
         float                    m_dpiScale           = 0.0f;

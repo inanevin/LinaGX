@@ -118,13 +118,7 @@ namespace LinaGX
         /// <param name="button"></param>
         /// <returns></returns>
         bool GetMouseButtonUp(int button);
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="mode"></param>
-        void SetCursorMode(CursorMode mode);
-
+        
         /// <summary>
         ///
         /// </summary>
@@ -159,15 +153,6 @@ namespace LinaGX
         inline int32 GetMouseScroll()
         {
             return m_mouseScroll;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
-        inline CursorMode GetCursorMode()
-        {
-            return m_cursorMode;
         }
 
         /// <summary>
@@ -219,8 +204,8 @@ namespace LinaGX
         friend class OSXWindow;
 #endif
 
-        void PreTick();
         void Tick();
+        void EndFrame();
         void WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window);
         void WindowFeedMouseButton(uint32 button, InputAction action);
         void WindowFeedMousePosition(const LGXVector2ui& pos);
@@ -233,7 +218,6 @@ namespace LinaGX
         int         m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
         int         m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
         bool        m_appActive                         = true;
-        CursorMode  m_cursorMode                        = CursorMode::Visible;
         LGXVector2i m_currentMousePositionAbs           = {0, 0};
         LGXVector2i m_previousMousePosition             = {0, 0};
         LGXVector2i m_mouseDelta                        = {0, 0};

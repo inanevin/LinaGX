@@ -1395,19 +1395,19 @@ namespace LinaGX
             vkBinding.descriptorType               = GetVKDescriptorType(binding.type);
             vkBinding.descriptorCount              = binding.descriptorCount;
 
-            if (binding.type == DescriptorType::SeparateImage && binding.bindless)
+            if (binding.type == DescriptorType::SeparateImage && binding.unbounded)
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
                 vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
             }
-            else if (binding.type == DescriptorType::SeparateSampler && binding.bindless)
+            else if (binding.type == DescriptorType::SeparateSampler && binding.unbounded)
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
                 vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
-            else if (binding.type == DescriptorType::CombinedImageSampler && binding.bindless)
+            else if (binding.type == DescriptorType::CombinedImageSampler && binding.unbounded)
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
@@ -1590,6 +1590,7 @@ namespace LinaGX
             auto& sr     = m_cmdStreams.GetItemR(stream->m_gpuHandle);
             auto  buffer = sr.buffer;
             auto  pool   = sr.pool;
+            LOGA(sr.type != CommandType::Secondary, "Backend -> Can not call CloseCommandStreams() on secondary command streams!");
 
             if (stream->m_commandCount == 0)
                 continue;
@@ -1662,6 +1663,8 @@ namespace LinaGX
             }
 
             auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            LOGA(str.type != CommandType::Secondary, "Backend -> Can not submit command streams of type Secondary directly to the queues! Use CMDExecuteSecondary instead!");
+
             _buffers.push_back(str.buffer);
 
             if (!str.swapchainWrites.empty())
@@ -1677,14 +1680,14 @@ namespace LinaGX
         LINAGX_VEC<uint64>               waitSemaphoreValues;
         LINAGX_VEC<uint64>               signalSemaphoreValues;
 
-        if (queue.type == QueueType::Compute && (m_supportsDedicatedComputeQueue || m_supportsSeparateComputeQueue))
+        if (queue.type == CommandType::Compute && (m_supportsDedicatedComputeQueue || m_supportsSeparateComputeQueue))
             waitStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        else if (queue.type == QueueType::Transfer && (m_supportsDedicatedTransferQueue || m_supportsSeparateTransferQueue))
+        else if (queue.type == CommandType::Transfer && (m_supportsDedicatedTransferQueue || m_supportsSeparateTransferQueue))
             waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         // If its a graphics queue, we will have to wait on it during StartFrame() for the next frame-in-flight availability.
         // Thus, we need to signal its stored semaphore value.
-        if (queue.type == QueueType::Graphics)
+        if (queue.type == CommandType::Graphics)
         {
             queue.frameSemaphoreValue++;
             queuePfd.storedStartFrameSemaphoreValue = queue.frameSemaphoreValue;
@@ -1694,7 +1697,7 @@ namespace LinaGX
 
         // If graphics queue, we need to signal a binary semaphore, so that we can wait on it during presentation.
         // Also need to wait for all images to be acquired.
-        if (queue.type == QueueType::Graphics && !writesToSwapchains.empty())
+        if (queue.type == CommandType::Graphics && !writesToSwapchains.empty())
         {
             for (auto swp : writesToSwapchains)
             {
@@ -1767,13 +1770,13 @@ namespace LinaGX
     {
         VkQueue targetQueue = nullptr;
 
-        if (desc.type == QueueType::Transfer)
-            targetQueue = m_queueData[QueueType::Transfer].queues[0];
-        else if (desc.type == QueueType::Compute)
-            targetQueue = m_queueData[QueueType::Compute].queues[0];
+        if (desc.type == CommandType::Transfer)
+            targetQueue = m_queueData[CommandType::Transfer].queues[0];
+        else if (desc.type == CommandType::Compute)
+            targetQueue = m_queueData[CommandType::Compute].queues[0];
         else
         {
-            auto& gfx = m_queueData[QueueType::Graphics];
+            auto& gfx = m_queueData[CommandType::Graphics];
 
             if (gfx.createRequestCount < static_cast<uint32>(gfx.queues.size()))
             {
@@ -1852,6 +1855,7 @@ namespace LinaGX
 
     uint8 VKBackend::GetPrimaryQueue(QueueType type)
     {
+        LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
         return m_primaryQueues[type];
     }
 
@@ -2145,9 +2149,9 @@ namespace LinaGX
         m_device              = vkbDevice.device;
         m_gpu                 = physicalDevice.physical_device;
 
-        auto& gfx      = m_queueData[QueueType::Graphics];
-        auto& transfer = m_queueData[QueueType::Transfer];
-        auto& compute  = m_queueData[QueueType::Compute];
+        auto& gfx      = m_queueData[CommandType::Graphics];
+        auto& transfer = m_queueData[CommandType::Transfer];
+        auto& compute  = m_queueData[CommandType::Compute];
 
         transfer.queues.resize(1);
         compute.queues.resize(1);
@@ -2239,15 +2243,15 @@ namespace LinaGX
         {
 
             QueueDesc descGfx, descTransfer, descCompute;
-            descGfx.type                         = QueueType::Graphics;
-            descTransfer.type                    = QueueType::Transfer;
-            descCompute.type                     = QueueType::Compute;
+            descGfx.type                         = CommandType::Graphics;
+            descTransfer.type                    = CommandType::Transfer;
+            descCompute.type                     = CommandType::Compute;
             descGfx.debugName                    = "Primary Graphics Queue";
             descTransfer.debugName               = "Primary Transfer Queue";
             descCompute.debugName                = "Primary Compute Queue";
-            m_primaryQueues[QueueType::Graphics] = CreateQueue(descGfx);
-            m_primaryQueues[QueueType::Transfer] = CreateQueue(descTransfer);
-            m_primaryQueues[QueueType::Compute]  = CreateQueue(descCompute);
+            m_primaryQueues[CommandType::Graphics] = CreateQueue(descGfx);
+            m_primaryQueues[CommandType::Transfer] = CreateQueue(descTransfer);
+            m_primaryQueues[CommandType::Compute]  = CreateQueue(descCompute);
         }
 
         // Check format support
@@ -2364,9 +2368,9 @@ namespace LinaGX
         for (const auto& [q, flag] : m_flagsPerQueue)
             delete flag;
 
-        DestroyQueue(GetPrimaryQueue(QueueType::Graphics));
-        DestroyQueue(GetPrimaryQueue(QueueType::Transfer));
-        DestroyQueue(GetPrimaryQueue(QueueType::Compute));
+        DestroyQueue(GetPrimaryQueue(CommandType::Graphics));
+        DestroyQueue(GetPrimaryQueue(CommandType::Transfer));
+        DestroyQueue(GetPrimaryQueue(CommandType::Compute));
 
         vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
 
@@ -2437,7 +2441,7 @@ namespace LinaGX
         {
             for (auto& q : m_queues)
             {
-                if (!q.isValid || q.type != QueueType::Graphics || q.wasSubmitted[i])
+                if (!q.isValid || q.type != CommandType::Graphics || q.wasSubmitted[i])
                     continue;
 
                 q.wasSubmitted[i] = false;
@@ -2478,7 +2482,7 @@ namespace LinaGX
 
         for (auto& q : m_queues)
         {
-            if (!q.isValid || q.type != QueueType::Graphics || !q.wasSubmitted[m_currentFrameIndex])
+            if (!q.isValid || q.type != CommandType::Graphics || !q.wasSubmitted[m_currentFrameIndex])
                 continue;
 
             q.wasSubmitted[m_currentFrameIndex]             = false;
@@ -2599,7 +2603,7 @@ namespace LinaGX
         info.pSwapchains        = swaps.data();
         info.pImageIndices      = imageIndices.data();
 
-        VkResult result = vkQueuePresentKHR(m_queues.GetItemR(GetPrimaryQueue(QueueType::Graphics)).queue, &info);
+        VkResult result = vkQueuePresentKHR(m_queues.GetItemR(GetPrimaryQueue(CommandType::Graphics)).queue, &info);
 
         // Check for swapchain recreation.
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
@@ -3023,6 +3027,11 @@ namespace LinaGX
             0, nullptr,
             0, nullptr,
             1, &barrier);
+    }
+
+    void VKackend::CMD_ExecuteSecondaryStream(uint8 *data, VKBCommandStream &stream) {
+        CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+        
     }
 
 } // namespace LinaGX

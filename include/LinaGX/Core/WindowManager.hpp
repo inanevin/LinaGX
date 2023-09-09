@@ -76,7 +76,8 @@ namespace LinaGX
         void Initialize();
         void Shutdown();
         void PollWindowsAndInput();
-
+        void EndFrame();
+        
     private:
         LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows = {};
         LINAGX_VEC<MonitorInfo>              m_monitors;

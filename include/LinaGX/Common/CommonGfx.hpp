@@ -227,11 +227,12 @@ namespace LinaGX
         DepthStencil
     };
 
-    enum class QueueType
+    enum class CommandType
     {
         Graphics = 0,
         Transfer,
-        Compute
+        Compute,
+        Secondary,
     };
 
     enum class VsyncMode
@@ -364,6 +365,15 @@ namespace LinaGX
         uint32 startIndexLocation    = 0;
         uint32 baseVertexLocation    = 0;
         uint32 startInstanceLocation = 0;
+    };
+
+    struct IndirectCommand
+    {
+        uint32 LGX_DrawID = 0;
+        uint32 vertexCount = 0;
+        uint32 instanceCount = 0;
+        uint32 vertexStart = 0;
+        uint32 baseInstance = 0;
     };
 
     struct DataBlob
@@ -620,7 +630,7 @@ namespace LinaGX
         float              maxLod     = 1.0f;
         float              mipLodBias = 0.0f;
         BorderColor        borderColor;
-        const char*        debugName = "";
+        const char*        debugName = "LinaGXSampler";
     };
 
     struct DescriptorBinding
@@ -628,6 +638,7 @@ namespace LinaGX
         uint32                  descriptorCount = 1;
         DescriptorType          type            = DescriptorType::UBO;
         bool                    unbounded = false;
+        bool useDynamicOffset = false;
     };
 
     struct DescriptorSetDesc
@@ -669,7 +680,7 @@ namespace LinaGX
 
     struct QueueDesc
     {
-        QueueType   type      = QueueType::Graphics;
+        CommandType   type      = CommandType::Graphics;
         const char* debugName = "LinaGXQueue";
     };
 

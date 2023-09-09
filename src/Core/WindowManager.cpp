@@ -78,6 +78,11 @@ namespace LinaGX
             w->Tick();
     }
 
+    void WindowManager::EndFrame()
+    {
+        m_input->EndFrame();
+    }
+
     MonitorInfo WindowManager::GetPrimaryMonitorInfo()
     {
         for (const auto& m : m_monitors)

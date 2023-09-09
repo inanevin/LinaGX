@@ -127,6 +127,14 @@ namespace LinaGX
         uint32 stride;
     };
 
+    struct CMDDrawIndirect
+    {
+        void*  extension;
+        uint32 indirectBuffer;
+        uint32 count;
+        uint32 stride;
+    };
+
     struct CMDCopyResource
     {
         void*  extension;
@@ -167,6 +175,8 @@ namespace LinaGX
         uint32  setCount;
         uint16* descriptorSetHandles;
         bool    isCompute;
+        uint32 dynamicOffsetCount;
+        uint32* dynamicOffsets;
     };
 
     struct CMDBindConstants
@@ -192,23 +202,32 @@ namespace LinaGX
         void*   extension;
     };
 
+    struct CMDExecuteSecondaryStream
+    {
+        void* extension;
+        CommandStream* secondaryStream;
+        bool recordInThreads;
+    };
+
 #define BACKEND_BIND_COMMANDS(BACKEND)                                                           \
-    m_cmdFunctions[LGX_GetTypeID<CMDBeginRenderPass>()]       = &BACKEND::CMD_BeginRenderPass;       \
-    m_cmdFunctions[LGX_GetTypeID<CMDEndRenderPass>()]         = &BACKEND::CMD_EndRenderPass;         \
-    m_cmdFunctions[LGX_GetTypeID<CMDSetViewport>()]           = &BACKEND::CMD_SetViewport;           \
-    m_cmdFunctions[LGX_GetTypeID<CMDSetScissors>()]           = &BACKEND::CMD_SetScissors;           \
-    m_cmdFunctions[LGX_GetTypeID<CMDBindPipeline>()]          = &BACKEND::CMD_BindPipeline;          \
-    m_cmdFunctions[LGX_GetTypeID<CMDDrawInstanced>()]         = &BACKEND::CMD_DrawInstanced;         \
-    m_cmdFunctions[LGX_GetTypeID<CMDDrawIndexedInstanced>()]  = &BACKEND::CMD_DrawIndexedInstanced;  \
-    m_cmdFunctions[LGX_GetTypeID<CMDDrawIndexedIndirect>()]   = &BACKEND::CMD_DrawIndexedIndirect;   \
-    m_cmdFunctions[LGX_GetTypeID<CMDBindVertexBuffers>()]     = &BACKEND::CMD_BindVertexBuffers;     \
-    m_cmdFunctions[LGX_GetTypeID<CMDBindIndexBuffers>()]      = &BACKEND::CMD_BindIndexBuffers;      \
-    m_cmdFunctions[LGX_GetTypeID<CMDCopyResource>()]          = &BACKEND::CMD_CopyResource;          \
-    m_cmdFunctions[LGX_GetTypeID<CMDCopyBufferToTexture2D>()] = &BACKEND::CMD_CopyBufferToTexture2D; \
-    m_cmdFunctions[LGX_GetTypeID<CMDBindDescriptorSets>()]    = &BACKEND::CMD_BindDescriptorSets;    \
-    m_cmdFunctions[LGX_GetTypeID<CMDDispatch>()]              = &BACKEND::CMD_Dispatch;              \
-    m_cmdFunctions[LGX_GetTypeID<CMDComputeBarrier>()]        = &BACKEND::CMD_ComputeBarrier;        \
-    m_cmdFunctions[LGX_GetTypeID<CMDBindConstants>()]         = &BACKEND::CMD_BindConstants;
+    m_cmdFunctions[LGX_GetTypeID<CMDBeginRenderPass>()]         = &BACKEND::CMD_BeginRenderPass;       \
+    m_cmdFunctions[LGX_GetTypeID<CMDEndRenderPass>()]           = &BACKEND::CMD_EndRenderPass;         \
+    m_cmdFunctions[LGX_GetTypeID<CMDSetViewport>()]             = &BACKEND::CMD_SetViewport;           \
+    m_cmdFunctions[LGX_GetTypeID<CMDSetScissors>()]             = &BACKEND::CMD_SetScissors;           \
+    m_cmdFunctions[LGX_GetTypeID<CMDBindPipeline>()]            = &BACKEND::CMD_BindPipeline;          \
+    m_cmdFunctions[LGX_GetTypeID<CMDDrawInstanced>()]           = &BACKEND::CMD_DrawInstanced;         \
+    m_cmdFunctions[LGX_GetTypeID<CMDDrawIndexedInstanced>()]    = &BACKEND::CMD_DrawIndexedInstanced;  \
+    m_cmdFunctions[LGX_GetTypeID<CMDDrawIndexedIndirect>()]     = &BACKEND::CMD_DrawIndexedIndirect;   \
+    m_cmdFunctions[LGX_GetTypeID<CMDDrawIndirect>()]            = &BACKEND::CMD_DrawIndirect;   \
+    m_cmdFunctions[LGX_GetTypeID<CMDBindVertexBuffers>()]       = &BACKEND::CMD_BindVertexBuffers;     \
+    m_cmdFunctions[LGX_GetTypeID<CMDBindIndexBuffers>()]        = &BACKEND::CMD_BindIndexBuffers;      \
+    m_cmdFunctions[LGX_GetTypeID<CMDCopyResource>()]            = &BACKEND::CMD_CopyResource;          \
+    m_cmdFunctions[LGX_GetTypeID<CMDCopyBufferToTexture2D>()]   = &BACKEND::CMD_CopyBufferToTexture2D; \
+    m_cmdFunctions[LGX_GetTypeID<CMDBindDescriptorSets>()]      = &BACKEND::CMD_BindDescriptorSets;    \
+    m_cmdFunctions[LGX_GetTypeID<CMDDispatch>()]                = &BACKEND::CMD_Dispatch;              \
+    m_cmdFunctions[LGX_GetTypeID<CMDComputeBarrier>()]          = &BACKEND::CMD_ComputeBarrier;        \
+    m_cmdFunctions[LGX_GetTypeID<CMDBindConstants>()]           = &BACKEND::CMD_BindConstants;        \
+    m_cmdFunctions[LGX_GetTypeID<CMDExecuteSecondaryStream>()]  = &BACKEND::CMD_ExecuteSecondaryStream;
 } // namespace LinaGX
 
 #endif
