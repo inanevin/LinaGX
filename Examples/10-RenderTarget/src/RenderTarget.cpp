@@ -330,9 +330,9 @@ namespace LinaGX::Examples
         {
             LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", _modelData);
 
-            for (uint32 i = 0; i < _modelData.allNodesCount; i++)
+            for (uint32 i = 0; i < _modelData.allNodes.size(); i++)
             {
-                ModelNode* node = _modelData.allNodes + i;
+                ModelNode* node = _modelData.allNodes[i];
 
                 if (node->mesh != nullptr)
                 {
@@ -350,10 +350,10 @@ namespace LinaGX::Examples
                             vtx.position        = prim->positions[k];
                             vtx.uv              = prim->texCoords[k];
                             vtx.inBoneWeights   = prim->weights[k];
-                            vtx.inBoneIndices.x = static_cast<float>(prim->joints[k].x);
-                            vtx.inBoneIndices.y = static_cast<float>(prim->joints[k].y);
-                            vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
-                            vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
+                            vtx.inBoneIndices.x = static_cast<float>(prim->jointsui16[k].x);
+                            vtx.inBoneIndices.y = static_cast<float>(prim->jointsui16[k].y);
+                            vtx.inBoneIndices.z = static_cast<float>(prim->jointsui16[k].z);
+                            vtx.inBoneIndices.w = static_cast<float>(prim->jointsui16[k].w);
                             obj.vertices.push_back(vtx);
                         }
                     }
@@ -396,7 +396,7 @@ namespace LinaGX::Examples
             _sampler = _lgx->CreateSampler(samplerDesc);
 
             // Will be base color, skipping the whole material shenanigans from gltf for now.
-            _baseTexture = _modelData.allTextures;
+            _baseTexture = _modelData.allTextures[0];
 
             // Create gpu resource
             Texture2DDesc desc = {
@@ -562,7 +562,6 @@ namespace LinaGX::Examples
 
             _lgx->DescriptorUpdateBuffer(uboUpdate);
         }
-        
 
     } // namespace LinaGX::Examples
 
@@ -746,12 +745,12 @@ namespace LinaGX::Examples
 
         // Sample animation
         {
-            auto         targetAnimation = _modelData.allAnimations + 0;
+            auto         targetAnimation = _modelData.allAnims[0];
             static float time            = 0.0f;
             time += m_deltaSeconds;
             if (time > targetAnimation->duration)
                 time = 0.0f;
-            SampleAnimation(_modelData.allSkins, targetAnimation, time);
+            SampleAnimation(_modelData.allSkins[0], targetAnimation, time);
         }
 
         // Copy SSBO data on copy queue
@@ -760,7 +759,7 @@ namespace LinaGX::Examples
             objectData.resize(_objects.size());
 
             // Inverse root-global matrix.
-            auto            root       = _modelData.allSkins->rootJoint;
+            auto            root       = _modelData.allSkins[0]->rootJoint;
             const glm::mat4 rootGlobal = CalculateGlobalMatrix(root);
             const glm::mat4 inv        = glm::inverse(rootGlobal);
 
@@ -775,7 +774,7 @@ namespace LinaGX::Examples
                 // Assign all skinning matrices.
                 // This is a very basic implementation of skinned animations
                 uint32 k = 0;
-                for (auto joint : _modelData.allSkins->joints)
+                for (auto joint : _modelData.allSkins[0]->joints)
                 {
                     const glm::mat4 jointGlobal = CalculateGlobalMatrix(joint);
                     const glm::mat4 inverseBind = glm::make_mat4(joint->inverseBindMatrix.data());
@@ -859,6 +858,8 @@ namespace LinaGX::Examples
             bindSets->setCount              = 3;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0);
             bindSets->isCompute             = false;
+            bindSets->dynamicOffsetCount    = 0;
+            bindSets->explicitShaderLayout  = false;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -931,6 +932,8 @@ namespace LinaGX::Examples
             bindSets->setCount              = 3;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
             bindSets->isCompute             = false;
+            bindSets->dynamicOffsetCount    = 0;
+            bindSets->explicitShaderLayout  = false;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -971,6 +974,8 @@ namespace LinaGX::Examples
             bindSets->setCount              = 1;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
             bindSets->isCompute             = false;
+            bindSets->dynamicOffsetCount    = 0;
+            bindSets->explicitShaderLayout  = false;
         }
 
         // Draw quad

@@ -64,6 +64,11 @@ namespace LinaGX
         unsigned short x = 0, y = 0, z = 0, w = 0;
     };
 
+    struct LGXVector4ui8
+    {
+        uint8 x = 0, y = 0, z = 0, w = 0;
+    };
+
     struct LGXRectui
     {
         LGXVector2ui pos;

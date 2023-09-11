@@ -74,7 +74,8 @@ namespace LinaGX
         LINAGX_VEC<LGXVector4>     tangents;
         LINAGX_VEC<LGXVector4>     colors;
         LINAGX_VEC<unsigned char>  indices;
-        LINAGX_VEC<LGXVector4ui16> joints;
+        LINAGX_VEC<LGXVector4ui16> jointsui16;
+        LINAGX_VEC<LGXVector4ui8>  jointsui8;
         LINAGX_VEC<LGXVector4>     weights;
         uint32                     vertexCount = 0;
         IndexType                  indexType   = IndexType::Uint16;
@@ -87,7 +88,8 @@ namespace LinaGX
             tangents.clear();
             colors.clear();
             indices.clear();
-            joints.clear();
+            jointsui16.clear();
+            jointsui8.clear();
             weights.clear();
         }
     };
@@ -193,74 +195,67 @@ namespace LinaGX
 
     struct ModelData
     {
-        LINAGX_VEC<ModelNode*> rootNodes;
-
-        ModelNode*      allNodes           = nullptr;
-        uint32          allNodesCount      = 0;
-        ModelMaterial*  allMaterials       = nullptr;
-        uint32          allMaterialsCount  = 0;
-        ModelTexture*   allTextures        = nullptr;
-        uint32          allTexturesCount   = 0;
-        ModelMesh*      allMeshes          = nullptr;
-        uint32          allMeshesCount     = 0;
-        ModelSkin*      allSkins           = nullptr;
-        uint32          allSkinsCount      = 0;
-        ModelAnimation* allAnimations      = nullptr;
-        uint32          allAnimationsCount = 0;
+        LINAGX_VEC<ModelNode*>      rootNodes;
+        LINAGX_VEC<ModelNode*>      allNodes;
+        LINAGX_VEC<ModelMaterial*>  allMaterials;
+        LINAGX_VEC<ModelTexture*>   allTextures;
+        LINAGX_VEC<ModelMesh*>      allMeshes;
+        LINAGX_VEC<ModelSkin*>      allSkins;
+        LINAGX_VEC<ModelAnimation*> allAnims;
 
         ~ModelData()
         {
-            if (allNodes != nullptr)
-                delete[] allNodes;
+            if (!allNodes.empty())
+                delete[] allNodes[0];
 
-            if (allMaterials != nullptr)
-                delete[] allMaterials;
+            if (!allMaterials.empty())
+                delete[] allMaterials[0];
 
-            if (allMeshes != nullptr)
-                delete[] allMeshes;
+            if (!allMeshes.empty())
+                delete[] allMeshes[0];
 
-            if (allSkins != nullptr)
-                delete[] allSkins;
+            if (!allSkins.empty())
+                delete[] allSkins[0];
 
-            if (allAnimations != nullptr)
-                delete[] allAnimations;
+            if (!allAnims.empty())
+                delete[] allAnims[0];
 
-            if (allTextures != nullptr)
+            if (allTextures.empty())
             {
-                for (uint32 i = 0; i < allTexturesCount; i++)
+                for (auto& b : allTextures)
                 {
-                    delete[] allTextures[i].buffer.pixels;
+                    delete[] b->buffer.pixels;
                 }
 
-                delete[] allTextures;
+                delete[] allTextures[0];
             }
 
-            allNodes      = nullptr;
-            allMaterials  = nullptr;
-            allMeshes     = nullptr;
-            allTextures   = nullptr;
-            allSkins      = nullptr;
-            allAnimations = nullptr;
+            allNodes.clear();
+            allMaterials.clear();
+            allMeshes.clear();
+            allTextures.clear();
+            allSkins.clear();
+            allAnims.clear();
             rootNodes.clear();
         }
     };
 
     /// <summary>
-    ///
+    /// Preserve!
     /// </summary>
     /// <param name="path"></param>
     /// <param name="outData"></param>
     /// <param name="channelMask"></param>
     /// <returns></returns>
-    LINAGX_API bool LoadGLTFBinary(const char* path, ModelData& outData, bool loadTexturesIfPresent = true);
+    LINAGX_API bool LoadGLTFBinary(const char* path, ModelData& outData);
 
     /// <summary>
-    ///
+    /// Preserve!
     /// </summary>
     /// <param name="path"></param>
     /// <param name="outData"></param>
     /// <returns></returns>
-    LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData, bool loadTexturesIfPresent = true);
+    LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData);
 
 } // namespace LinaGX
 

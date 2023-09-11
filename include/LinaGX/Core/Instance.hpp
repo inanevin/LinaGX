@@ -158,8 +158,8 @@ namespace LinaGX
         /// </summary>
         /// <param name="commandCount"></param>
         /// <returns></returns>
-        CommandStream* CreateCommandStream(uint32 commandCount, CommandType type);
- 
+        CommandStream* CreateCommandStream(uint32 commandCount, CommandType type, uint32 auxMemorySize = 4095);
+
         /// <summary>
         ///
         /// </summary>

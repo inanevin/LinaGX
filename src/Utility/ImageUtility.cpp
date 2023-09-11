@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Utility/ImageUtility.hpp"
 #include "LinaGX/Common/Math.hpp"
 
@@ -56,13 +55,32 @@ namespace LinaGX
         }
     }
 
-    void LoadImageFromFile(const char* path, TextureLoadData& outData, ImageChannelMask channelMask)
+    LINAGX_API uint32 CalculateMipLevels(uint32 width, uint32 height)
     {
-        int w = 0, h = 0, ch = 0;
-        outData.pixels         = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
-        outData.width          = w;
-        outData.height         = h;
-        outData.totalMipLevels = FloorLog2(Max(outData.width, outData.height)) + 1;
+        return FloorLog2(Max(width, height)) + 1;
+    }
+
+    void LoadImageFromFile(const char* path, TextureBuffer& outData, ImageChannelMask channelMask)
+    {
+        int        w = 0, h = 0, ch = 0;
+        const bool is16 = stbi_is_16_bit(path);
+
+        outData.bytesPerPixel = (static_cast<uint32>(channelMask) + 1) * (is16 ? 2 : 1);
+
+        if (is16)
+        {
+            auto pixels    = stbi_load_16(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
+            outData.pixels = new uint8[w * h * outData.bytesPerPixel];
+            LINAGX_MEMCPY(outData.pixels, pixels, w * h * outData.bytesPerPixel);
+            stbi_image_free(pixels);
+        }
+        else
+        {
+            outData.pixels = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
+        }
+
+        outData.width  = w;
+        outData.height = h;
 
         if (outData.pixels)
         {
@@ -79,15 +97,14 @@ namespace LinaGX
         stbi_image_free(pixels);
     }
 
-    LINAGX_API void GenerateMipmaps(const TextureLoadData& sourceData, LINAGX_VEC<MipData>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace)
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace)
     {
-        outMipData.clear();
+        uint8*       lastPixels = sourceData.pixels;
+        uint32       lastWidth  = sourceData.width;
+        uint32       lastHeight = sourceData.height;
+        const uint32 levels     = CalculateMipLevels(sourceData.width, sourceData.height);
 
-        uint8* lastPixels = sourceData.pixels;
-        uint32 lastWidth  = sourceData.width;
-        uint32 lastHeight = sourceData.height;
-
-        for (uint32 i = 0; i < sourceData.totalMipLevels - 1; i++)
+        for (uint32 i = 0; i < levels - 1; i++)
         {
             uint32 width  = lastWidth / 2;
             uint32 height = lastHeight / 2;
@@ -98,11 +115,12 @@ namespace LinaGX
             if (height < 1)
                 height = 1;
 
-            const uint32 channels         = static_cast<int>(channelMask) + 1;
-            MipData      mipData          = {};
+            const uint32  channels        = static_cast<int>(channelMask) + 1;
+            TextureBuffer mipData         = {};
             mipData.width                 = width;
             mipData.height                = height;
             mipData.pixels                = (uint8*)std::malloc(width * height * channels);
+            mipData.bytesPerPixel         = sourceData.bytesPerPixel;
             const stbir_colorspace cs     = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
             int                    retval = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
 

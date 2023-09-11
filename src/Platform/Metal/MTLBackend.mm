@@ -74,6 +74,8 @@ MTLPixelFormat GetMTLFormat(Format format)
         return MTLPixelFormatRGBA32Sint;
     case Format::R16G16B16A16_SFLOAT:
         return MTLPixelFormatRGBA16Float;
+    case Format::R16G16B16A16_UNORM:
+        LOGA(false, "");
     case Format::R32G32_SFLOAT:
         return MTLPixelFormatRG32Float;
     case Format::R32G32_SINT:

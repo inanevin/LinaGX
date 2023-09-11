@@ -43,20 +43,13 @@ namespace LinaGX
         Rgba
     };
 
-    struct MipData
-    {
-        uint8* pixels = nullptr;
-        uint32 width  = 0;
-        uint32 height = 0;
-    };
-
-    struct TextureLoadData
-    {
-        uint8* pixels         = nullptr;
-        uint32 width          = 0;
-        uint32 height         = 0;
-        uint32 totalMipLevels = 0;
-    };
+    /// <summary>
+    ///
+    /// </summary>
+    /// <param name="width"></param>
+    /// <param name="height"></param>
+    /// <returns></returns>
+    LINAGX_API uint32 CalculateMipLevels(uint32 width, uint32 height);
 
     /// <summary>
     ///
@@ -65,7 +58,7 @@ namespace LinaGX
     /// <param name="outData"></param>
     /// <param name="channelMask"></param>
     /// <returns></returns>
-    LINAGX_API void LoadImageFromFile(const char* path, TextureLoadData& outData, ImageChannelMask channelMask = ImageChannelMask::Rgba);
+    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, ImageChannelMask channelMask = ImageChannelMask::Rgba);
 
     /// <summary>
     ///
@@ -82,7 +75,7 @@ namespace LinaGX
     /// <param name="filter"></param>
     /// <param name="mipLevels">Total number of mips to generate (excluding the base texture).</param>
     /// <returns></returns>
-    LINAGX_API void GenerateMipmaps(const TextureLoadData& sourceData, LINAGX_VEC<MipData>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace);
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace);
 
 } // namespace LinaGX
 

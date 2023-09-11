@@ -78,6 +78,7 @@ namespace LinaGX
         R32G32B32A32_SFLOAT,
         R32G32B32A32_SINT,
         R16G16B16A16_SFLOAT,
+        R16G16B16A16_UNORM,
         R32G32_SFLOAT,
         R32G32_SINT,
         D32_SFLOAT,

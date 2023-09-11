@@ -26,14 +26,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Core/CommandStream.hpp"
 #include "LinaGX/Core/Commands.hpp"
 #include "LinaGX/Core/Backend.hpp"
 
 namespace LinaGX
 {
-    CommandStream::CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle)
+    CommandStream::CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle, uint32 auxMemorySize)
     {
         m_backend           = backend;
         m_commandBufferSize = commandCount * 40;
@@ -43,7 +42,7 @@ namespace LinaGX
         m_maxCommands       = commandCount;
         m_gpuHandle         = gpuHandle;
         m_auxMemoryIndex    = 0;
-        m_auxMemorySize     = 4096;
+        m_auxMemorySize     = auxMemorySize;
         m_auxMemory         = (uint8*)LINAGX_MALLOC(m_auxMemorySize);
     }
 

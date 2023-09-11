@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Utility/ModelUtility.hpp"
 #include "LinaGX/Utility/ImageUtility.hpp"
 
@@ -45,20 +44,28 @@ LINAGX_RESTORE_VC_WARNING()
 
 namespace LinaGX
 {
-    void ProcessGLTF(const char* basePath, tinygltf::Model& model, ModelData& outData, bool loadTextures)
+    void ProcessGLTF(const char* basePath, tinygltf::Model& model, ModelData& outData)
     {
-        outData.allNodes      = new ModelNode[model.nodes.size()];
-        outData.allNodesCount = static_cast<uint32>(model.nodes.size());
+        if (!model.nodes.empty())
+        {
+            outData.allNodes.resize(model.nodes.size());
+            outData.allNodes[0] = new ModelNode[model.nodes.size()];
+
+            for (size_t i = 0; i < model.nodes.size(); i++)
+                outData.allNodes[i] = outData.allNodes[0] + i;
+        }
 
         if (!model.materials.empty())
         {
-            outData.allMaterials      = new ModelMaterial[model.materials.size()];
-            outData.allMaterialsCount = static_cast<uint32>(model.materials.size());
+            outData.allMaterials.resize(model.materials.size());
+            outData.allMaterials[0] = new ModelMaterial[model.materials.size()];
 
             for (size_t i = 0; i < model.materials.size(); i++)
             {
+                outData.allMaterials[i] = outData.allMaterials[0] + i;
+
                 const auto&    gltfMat  = model.materials[i];
-                ModelMaterial* mat      = outData.allMaterials + i;
+                ModelMaterial* mat      = outData.allMaterials[i];
                 mat->index              = static_cast<uint32>(i);
                 mat->name               = gltfMat.name;
                 mat->metallicFactor     = static_cast<float>(gltfMat.pbrMetallicRoughness.metallicFactor);
@@ -90,16 +97,16 @@ namespace LinaGX
             }
         }
 
-        if (!model.textures.empty() && loadTextures)
+        if (!model.textures.empty())
         {
-            outData.allTextures      = new ModelTexture[model.textures.size()];
-            outData.allTexturesCount = static_cast<uint32>(model.textures.size());
+            outData.allTextures.resize(model.textures.size());
+            outData.allTextures[0] = new ModelTexture[model.textures.size()];
 
-            for (uint32 i = 0; i < outData.allTexturesCount; i++)
+            for (size_t i = 0; i < model.textures.size(); i++)
             {
+                outData.allTextures[i]    = outData.allTextures[0] + i;
                 const auto&   gltfTexture = model.textures[i];
-                ModelTexture* texture     = outData.allTextures + i;
-                texture->name             = gltfTexture.name;
+                ModelTexture* texture     = outData.allTextures[i];
 
                 if (gltfTexture.source != -1)
                 {
@@ -107,12 +114,13 @@ namespace LinaGX
 
                     if (!image.image.empty())
                     {
-                        LOGA((image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE), "Unsupported pixel type!");
+                        LOGA((image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE || image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT), "Unsupported pixel type!");
 
                         texture->buffer.pixels        = new unsigned char[image.image.size()];
                         texture->buffer.width         = image.width;
                         texture->buffer.height        = image.height;
                         texture->buffer.bytesPerPixel = image.bits / 8 * image.component;
+                        texture->name                 = image.name;
 
                         std::memcpy(texture->buffer.pixels, image.image.data(), image.image.size());
                     }
@@ -120,13 +128,16 @@ namespace LinaGX
             }
         }
 
-        outData.allMeshes      = new ModelMesh[model.meshes.size()];
-        outData.allMeshesCount = static_cast<uint32>(model.meshes.size());
+        if (!model.meshes.empty())
+        {
+            outData.allMeshes.resize(model.meshes.size());
+            outData.allMeshes[0] = new ModelMesh[model.meshes.size()];
+        }
 
         for (size_t i = 0; i < model.nodes.size(); i++)
         {
             const auto& gltfNode = model.nodes[i];
-            ModelNode*  node     = outData.allNodes + i;
+            ModelNode*  node     = outData.allNodes[i];
             node->name           = gltfNode.name.c_str();
 
             if (!gltfNode.matrix.empty())
@@ -169,7 +180,7 @@ namespace LinaGX
 
                 for (size_t j = 0; j < gltfNode.children.size(); j++)
                 {
-                    node->children[j]         = outData.allNodes + gltfNode.children[j];
+                    node->children[j]         = outData.allNodes[gltfNode.children[j]];
                     node->children[j]->parent = node;
                 }
             }
@@ -178,7 +189,7 @@ namespace LinaGX
             if (gltfNode.mesh != -1)
             {
                 const auto& tgMesh         = model.meshes[gltfNode.mesh];
-                node->mesh                 = outData.allMeshes + gltfNode.mesh;
+                node->mesh                 = outData.allMeshes[gltfNode.mesh];
                 node->mesh->node           = node;
                 node->mesh->name           = tgMesh.name;
                 node->mesh->primitiveCount = static_cast<uint32>(tgMesh.primitives.size());
@@ -188,7 +199,7 @@ namespace LinaGX
                 for (const auto& tgPrimitive : tgMesh.primitives)
                 {
                     ModelMeshPrimitive* primitive = node->mesh->primitives + primitiveIndex;
-                    primitive->material           = outData.allMaterials + tgPrimitive.material;
+                    primitive->material           = outData.allMaterials[tgPrimitive.material];
 
                     const tinygltf::Accessor&   vertexAccessor   = model.accessors[tgPrimitive.attributes.find("POSITION")->second];
                     const tinygltf::BufferView& vertexBufferView = model.bufferViews[vertexAccessor.bufferView];
@@ -322,16 +333,28 @@ namespace LinaGX
                         const tinygltf::Accessor&   jointsAccessor   = model.accessors[joints0->second];
                         const tinygltf::BufferView& jointsBufferView = model.bufferViews[jointsAccessor.bufferView];
                         const tinygltf::Buffer&     jointsBuffer     = model.buffers[jointsBufferView.buffer];
-                        LOGA((jointsAccessor.type == TINYGLTF_TYPE_VEC4 && jointsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT), "Unsupported component type!");
+                        LOGA((jointsAccessor.type == TINYGLTF_TYPE_VEC4 && (jointsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT || jointsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)), "Unsupported component type!");
 
                         const size_t numJoints = jointsAccessor.count;
-                        primitive->joints.resize(numJoints);
+                        if (jointsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                            primitive->jointsui16.resize(numJoints);
+                        else
+                            primitive->jointsui8.resize(numJoints);
 
                         for (size_t j = 0; j < numJoints; j++)
                         {
-                            const size_t  stride  = jointsBufferView.byteStride == 0 ? sizeof(uint16) * 4 : jointsBufferView.byteStride;
-                            const uint16* rawData = reinterpret_cast<const uint16*>(jointsBuffer.data.data() + jointsAccessor.byteOffset + jointsBufferView.byteOffset + j * stride);
-                            primitive->joints[j]  = {rawData[0], rawData[1], rawData[2], rawData[3]};
+                            if (jointsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                            {
+                                const size_t  stride     = jointsBufferView.byteStride == 0 ? sizeof(uint16) * 4 : jointsBufferView.byteStride;
+                                const uint16* rawData    = reinterpret_cast<const uint16*>(jointsBuffer.data.data() + jointsAccessor.byteOffset + jointsBufferView.byteOffset + j * stride);
+                                primitive->jointsui16[j] = {rawData[0], rawData[1], rawData[2], rawData[3]};
+                            }
+                            else
+                            {
+                                const size_t stride     = jointsBufferView.byteStride == 0 ? sizeof(uint8) * 4 : jointsBufferView.byteStride;
+                                const uint8* rawData    = reinterpret_cast<const uint8*>(jointsBuffer.data.data() + jointsAccessor.byteOffset + jointsBufferView.byteOffset + j * stride);
+                                primitive->jointsui8[j] = {rawData[0], rawData[1], rawData[2], rawData[3]};
+                            }
                         }
                     }
 
@@ -359,146 +382,154 @@ namespace LinaGX
             }
         }
 
-        outData.allSkins      = new ModelSkin[model.skins.size()];
-        outData.allSkinsCount = static_cast<uint32>(model.skins.size());
-
-        for (size_t i = 0; i < model.skins.size(); i++)
+        if (!model.skins.empty())
         {
-            const auto& gltfSkin = model.skins[i];
-            ModelSkin*  skin     = outData.allSkins + i;
+            outData.allSkins.resize(model.skins.size());
+            outData.allSkins[0] = new ModelSkin[model.skins.size()];
 
-            skin->joints.resize(gltfSkin.joints.size());
-
-            for (size_t j = 0; j < gltfSkin.joints.size(); j++)
-                skin->joints[j] = outData.allNodes + gltfSkin.joints[j];
-
-            skin->rootJoint = outData.allNodes + gltfSkin.skeleton;
-
-            const tinygltf::Accessor&   inverseBindMatricesAccessor = model.accessors[gltfSkin.inverseBindMatrices];
-            const tinygltf::BufferView& inverseBindMatricesView     = model.bufferViews[inverseBindMatricesAccessor.bufferView];
-            const tinygltf::Buffer&     inverseBindMatricesBuffer   = model.buffers[inverseBindMatricesView.buffer];
-            const size_t                count                       = inverseBindMatricesAccessor.count;
-            LOGA((inverseBindMatricesAccessor.type == TINYGLTF_TYPE_MAT4 && inverseBindMatricesAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
-
-            for (size_t j = 0; j < count; j++)
+            for (size_t i = 0; i < model.skins.size(); i++)
             {
-                const size_t stride       = inverseBindMatricesView.byteStride == 0 ? sizeof(float) * 16 : inverseBindMatricesView.byteStride;
-                const float* rawFloatData = reinterpret_cast<const float*>(inverseBindMatricesBuffer.data.data() + inverseBindMatricesAccessor.byteOffset + inverseBindMatricesView.byteOffset + j * stride);
+                outData.allSkins[i]  = outData.allSkins[0] + i;
+                const auto& gltfSkin = model.skins[i];
+                ModelSkin*  skin     = outData.allSkins[i];
 
-                skin->joints[j]->inverseBindMatrix.resize(16);
+                skin->joints.resize(gltfSkin.joints.size());
 
-                for (size_t k = 0; k < 16; k++)
-                    skin->joints[j]->inverseBindMatrix[k] = rawFloatData[k];
+                for (size_t j = 0; j < gltfSkin.joints.size(); j++)
+                    skin->joints[j] = outData.allNodes[gltfSkin.joints[j]];
+
+                skin->rootJoint = outData.allNodes[gltfSkin.skeleton];
+
+                const tinygltf::Accessor&   inverseBindMatricesAccessor = model.accessors[gltfSkin.inverseBindMatrices];
+                const tinygltf::BufferView& inverseBindMatricesView     = model.bufferViews[inverseBindMatricesAccessor.bufferView];
+                const tinygltf::Buffer&     inverseBindMatricesBuffer   = model.buffers[inverseBindMatricesView.buffer];
+                const size_t                count                       = inverseBindMatricesAccessor.count;
+                LOGA((inverseBindMatricesAccessor.type == TINYGLTF_TYPE_MAT4 && inverseBindMatricesAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
+
+                for (size_t j = 0; j < count; j++)
+                {
+                    const size_t stride       = inverseBindMatricesView.byteStride == 0 ? sizeof(float) * 16 : inverseBindMatricesView.byteStride;
+                    const float* rawFloatData = reinterpret_cast<const float*>(inverseBindMatricesBuffer.data.data() + inverseBindMatricesAccessor.byteOffset + inverseBindMatricesView.byteOffset + j * stride);
+
+                    skin->joints[j]->inverseBindMatrix.resize(16);
+
+                    for (size_t k = 0; k < 16; k++)
+                        skin->joints[j]->inverseBindMatrix[k] = rawFloatData[k];
+                }
             }
         }
 
         for (size_t i = 0; i < model.nodes.size(); i++)
         {
-            ModelNode* node = outData.allNodes + i;
+            ModelNode* node = outData.allNodes[i];
             node->index     = static_cast<uint32>(i);
 
             // Assign skin.
             if (model.nodes[i].skin != -1)
-                node->skin = outData.allSkins + model.nodes[i].skin;
+                node->skin = outData.allSkins[model.nodes[i].skin];
 
             // Assign roots.
             if (node->parent == nullptr)
                 outData.rootNodes.push_back(node);
         }
 
-        outData.allAnimations      = new ModelAnimation[model.animations.size()];
-        outData.allAnimationsCount = static_cast<uint32>(model.animations.size());
-
-        for (size_t i = 0; i < model.animations.size(); i++)
+        if (!model.animations.empty())
         {
-            ModelAnimation*            anim          = outData.allAnimations + i;
-            const tinygltf::Animation& gltfAnimation = model.animations[i];
-            anim->name                               = gltfAnimation.name;
+            outData.allAnims.resize(model.animations.size());
+            outData.allAnims[0] = new ModelAnimation[model.animations.size()];
 
-            for (const auto& ch : gltfAnimation.channels)
+            for (size_t i = 0; i < model.animations.size(); i++)
             {
-                anim->channels.push_back({});
-                ModelAnimationChannel& channel = anim->channels[anim->channels.size() - 1];
-                channel.targetNode             = outData.allNodes + ch.target_node;
+                outData.allAnims[i]                      = outData.allAnims[0] + i;
+                ModelAnimation*            anim          = outData.allAnims[i];
+                const tinygltf::Animation& gltfAnimation = model.animations[i];
+                anim->name                               = gltfAnimation.name;
 
-                if (ch.target_path.compare("translation") == 0)
-                    channel.targetProperty = GLTFAnimationProperty::Position;
-                else if (ch.target_path.compare("rotation") == 0)
-                    channel.targetProperty = GLTFAnimationProperty::Rotation;
-                else if (ch.target_path.compare("scale") == 0)
-                    channel.targetProperty = GLTFAnimationProperty::Scale;
-                else if (ch.target_path.compare("weights") == 0)
-                    channel.targetProperty = GLTFAnimationProperty::Weights;
-
-                const tinygltf::AnimationSampler sampler = gltfAnimation.samplers[ch.sampler];
-
-                if (sampler.interpolation.compare("LINEAR") == 0)
-                    channel.interpolation = GLTFInterpolation::Linear;
-                else if (sampler.interpolation.compare("STEP") == 0)
-                    channel.interpolation = GLTFInterpolation::Step;
-                else if (sampler.interpolation.compare("CUBICSPLINE") == 0)
-                    channel.interpolation = GLTFInterpolation::CubicSpline;
-
-                const tinygltf::Accessor&   inputAccessor  = model.accessors[sampler.input];
-                const tinygltf::BufferView& inputView      = model.bufferViews[inputAccessor.bufferView];
-                const tinygltf::Buffer&     inputBuffer    = model.buffers[inputView.buffer];
-                const tinygltf::Accessor&   outputAccessor = model.accessors[sampler.output];
-                const tinygltf::BufferView& outputView     = model.bufferViews[outputAccessor.bufferView];
-                const tinygltf::Buffer&     outputBuffer   = model.buffers[outputView.buffer];
-
-                LOGA((inputAccessor.type == TINYGLTF_TYPE_SCALAR && inputAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
-                LOGA(outputAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT, "Unsupported component type!");
-
-                const size_t inputCount  = inputAccessor.count;
-                const size_t outputCount = outputAccessor.count;
-                LOGA(inputCount == outputCount, "Input & output counts do not match!");
-
-                channel.keyframeTimes.resize(inputCount);
-
-                for (size_t j = 0; j < inputCount; j++)
+                for (const auto& ch : gltfAnimation.channels)
                 {
-                    const size_t stride       = inputView.byteStride == 0 ? sizeof(float) : inputView.byteStride;
-                    const float* rawFloatData = reinterpret_cast<const float*>(inputBuffer.data.data() + inputAccessor.byteOffset + inputView.byteOffset + j * stride);
-                    channel.keyframeTimes[j]  = rawFloatData[0];
-                }
+                    anim->channels.push_back({});
+                    ModelAnimationChannel& channel = anim->channels[anim->channels.size() - 1];
+                    channel.targetNode             = outData.allNodes[ch.target_node];
 
-                anim->duration = Max(anim->duration, channel.keyframeTimes[channel.keyframeTimes.size() - 1]);
+                    if (ch.target_path.compare("translation") == 0)
+                        channel.targetProperty = GLTFAnimationProperty::Position;
+                    else if (ch.target_path.compare("rotation") == 0)
+                        channel.targetProperty = GLTFAnimationProperty::Rotation;
+                    else if (ch.target_path.compare("scale") == 0)
+                        channel.targetProperty = GLTFAnimationProperty::Scale;
+                    else if (ch.target_path.compare("weights") == 0)
+                        channel.targetProperty = GLTFAnimationProperty::Weights;
 
-                const float* rawFloatData = reinterpret_cast<const float*>(outputBuffer.data.data() + outputAccessor.byteOffset + outputView.byteOffset);
+                    const tinygltf::AnimationSampler sampler = gltfAnimation.samplers[ch.sampler];
 
-                // TODO
-                const uint32 numMorphTargets = 1;
+                    if (sampler.interpolation.compare("LINEAR") == 0)
+                        channel.interpolation = GLTFInterpolation::Linear;
+                    else if (sampler.interpolation.compare("STEP") == 0)
+                        channel.interpolation = GLTFInterpolation::Step;
+                    else if (sampler.interpolation.compare("CUBICSPLINE") == 0)
+                        channel.interpolation = GLTFInterpolation::CubicSpline;
 
-                switch (channel.targetProperty)
-                {
-                case GLTFAnimationProperty::Position:
-                case GLTFAnimationProperty::Scale:
-                    channel.values.assign(rawFloatData, rawFloatData + outputCount * 3);
-                    break;
-                case GLTFAnimationProperty::Rotation:
-                    channel.values.assign(rawFloatData, rawFloatData + outputCount * 4);
-                    break;
-                case GLTFAnimationProperty::Weights:
-                    channel.values.assign(rawFloatData, rawFloatData + outputCount * numMorphTargets);
-                    break;
-                default:
-                    // Handle error
-                    break;
+                    const tinygltf::Accessor&   inputAccessor  = model.accessors[sampler.input];
+                    const tinygltf::BufferView& inputView      = model.bufferViews[inputAccessor.bufferView];
+                    const tinygltf::Buffer&     inputBuffer    = model.buffers[inputView.buffer];
+                    const tinygltf::Accessor&   outputAccessor = model.accessors[sampler.output];
+                    const tinygltf::BufferView& outputView     = model.bufferViews[outputAccessor.bufferView];
+                    const tinygltf::Buffer&     outputBuffer   = model.buffers[outputView.buffer];
+
+                    LOGA((inputAccessor.type == TINYGLTF_TYPE_SCALAR && inputAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
+                    LOGA(outputAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT, "Unsupported component type!");
+
+                    const size_t inputCount  = inputAccessor.count;
+                    const size_t outputCount = outputAccessor.count;
+                    LOGA(inputCount == outputCount, "Input & output counts do not match!");
+
+                    channel.keyframeTimes.resize(inputCount);
+
+                    for (size_t j = 0; j < inputCount; j++)
+                    {
+                        const size_t stride       = inputView.byteStride == 0 ? sizeof(float) : inputView.byteStride;
+                        const float* rawFloatData = reinterpret_cast<const float*>(inputBuffer.data.data() + inputAccessor.byteOffset + inputView.byteOffset + j * stride);
+                        channel.keyframeTimes[j]  = rawFloatData[0];
+                    }
+
+                    anim->duration = Max(anim->duration, channel.keyframeTimes[channel.keyframeTimes.size() - 1]);
+
+                    const float* rawFloatData = reinterpret_cast<const float*>(outputBuffer.data.data() + outputAccessor.byteOffset + outputView.byteOffset);
+
+                    // TODO
+                    const uint32 numMorphTargets = 1;
+
+                    switch (channel.targetProperty)
+                    {
+                    case GLTFAnimationProperty::Position:
+                    case GLTFAnimationProperty::Scale:
+                        channel.values.assign(rawFloatData, rawFloatData + outputCount * 3);
+                        break;
+                    case GLTFAnimationProperty::Rotation:
+                        channel.values.assign(rawFloatData, rawFloatData + outputCount * 4);
+                        break;
+                    case GLTFAnimationProperty::Weights:
+                        channel.values.assign(rawFloatData, rawFloatData + outputCount * numMorphTargets);
+                        break;
+                    default:
+                        // Handle error
+                        break;
+                    }
                 }
             }
         }
     }
 
-    LINAGX_API bool LoadGLTFBinary(const char* path, ModelData& outData, bool loadTexturesIfPresent)
+    bool LoadGLTFBinary(const char* path, ModelData& outData)
     {
         tinygltf::Model    model;
         tinygltf::TinyGLTF loader;
+        loader.SetPreserveImageChannels(false);
 
         LINAGX_STRING err  = "";
         LINAGX_STRING warn = "";
 
         bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, path);
-
         if (!warn.empty())
         {
             LOGE("Warning -> %s", warn.c_str());
@@ -515,16 +546,17 @@ namespace LinaGX
             return false;
         }
 
-        ProcessGLTF(path, model, outData, loadTexturesIfPresent);
+        ProcessGLTF(path, model, outData);
 
         LOGV("Loaded GLTF binary: %s", path);
         return true;
     }
 
-    LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData, bool loadTexturesIfPresent)
+    bool LoadGLTFASCII(const char* path, ModelData& outData)
     {
         tinygltf::Model    model;
         tinygltf::TinyGLTF loader;
+        loader.SetPreserveImageChannels(false);
 
         LINAGX_STRING err  = "";
         LINAGX_STRING warn = "";
@@ -547,7 +579,7 @@ namespace LinaGX
             return false;
         }
 
-        ProcessGLTF(path, model, outData, loadTexturesIfPresent);
+        ProcessGLTF(path, model, outData);
 
         LOGV("Loaded GLTF binary: %s", path);
         return true;

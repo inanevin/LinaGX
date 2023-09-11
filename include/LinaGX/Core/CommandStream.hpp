@@ -44,7 +44,7 @@ namespace LinaGX
     class CommandStream
     {
     public:
-        CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle);
+        CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle, uint32 auxMemorySize);
 
         template <typename T>
         T* AddCommand()

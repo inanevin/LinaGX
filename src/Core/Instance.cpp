@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Utility/SPIRVUtility.hpp"
@@ -177,9 +176,9 @@ namespace LinaGX
             }
 
             uint32 maxBinding = 0;
-            
+
             const auto& bindingsPerSet = outLayout.perSetData.at(maxSet).bindings;
-            
+
             for (const auto& [binding, data] : bindingsPerSet)
             {
                 if (binding > maxBinding)
@@ -267,9 +266,9 @@ namespace LinaGX
         m_backend->DestroyShader(handle);
     }
 
-    CommandStream* Instance::CreateCommandStream(uint32 commandCount, CommandType type)
+    CommandStream* Instance::CreateCommandStream(uint32 commandCount, CommandType type, uint32 auxMemorySize)
     {
-        CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type));
+        CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type), auxMemorySize);
         m_commandStreams.push_back(stream);
         return stream;
     }

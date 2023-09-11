@@ -202,6 +202,7 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/15-IndirectRenderingCompute)
 	add_subdirectory(Examples/16-IndirectRenderingComputeQueue)
 	add_subdirectory(Examples/17-CPUVisibleGPUMemory)
+	add_subdirectory(Examples/FoxLounge)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()
 
