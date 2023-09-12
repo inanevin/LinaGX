@@ -27,9 +27,13 @@ SOFTWARE.
 */
 
 #include "App.hpp"
+#include "FoxLounge.hpp"
+#include "ThreadPool.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "FoxLounge.hpp"
+#include <string>
+#include <vector>
+#include <filesystem>
 
 namespace LinaGX::Examples
 {
@@ -40,7 +44,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -88,74 +92,120 @@ namespace LinaGX::Examples
         }
     }
 
-    void Example::LoadModel(const char* path, LinaGX::ModelData& outModelData, LINAGX_VEC<LinaGX::ModelTexture>& outTextures)
+    void Example::LoadModel(const char* path, LinaGX::ModelData& outModelData)
     {
         LOGT("Loading model...");
         LinaGX::LoadGLTFBinary(path, outModelData);
+    }
 
-        outTextures.reserve(outTextures.size() + static_cast<size_t>(outModelData.allTexturesCount));
+    void Example::LoadTexture(const char* path, uint32 id)
+    {
+        LinaGX::TextureBuffer outData;
+        LinaGX::LoadImageFromFile(path, outData, ImageChannelMask::RGBA);
+        auto& txt = m_textures.at(id);
+        txt.allLevels.push_back(outData);
+        txt.path            = path;
+        const uint32 levels = LinaGX::CalculateMipLevels(outData.width, outData.height);
+        LinaGX::GenerateMipmaps(outData, txt.allLevels, MipmapFilter::Default, ImageChannelMask::RGBA, false);
+    }
 
-        for (uint32 i = 0; i < outModelData.allTexturesCount; i++)
+    void Example::StartTextureLoading()
+    {
+        std::vector<std::string> texturePaths;
+
+        // Fetch all texture paths from io.
         {
-            const auto& texture = outModelData.allTextures[i];
-            outTextures.push_back(texture);
+            const std::string basePathLounge = "Resources/Textures/FoxLounge/";
+            const std::string basePathFox    = "Resources/Textures/Fox/";
+            try
+            {
+                for (const auto& entry : std::filesystem::directory_iterator(basePathLounge))
+                {
+                    if (entry.is_regular_file())
+                        texturePaths.push_back(entry.path().string());
+                }
+
+                for (const auto& entry : std::filesystem::directory_iterator(basePathFox))
+                {
+                    if (entry.is_regular_file())
+                        texturePaths.push_back(entry.path().string());
+                }
+            }
+            catch (std::filesystem::filesystem_error& e)
+            {
+                std::cerr << e.what() << '\n';
+            }
+        }
+
+        texturePaths.push_back("Resources/Textures/FoxLounge/concrete_cat_statue_nor_gl.png");
+
+        // Load textures in parallel.
+        {
+            m_textures.resize(texturePaths.size());
+            ThreadPool pool;
+            uint32     id = 0;
+            for (const auto& path : texturePaths)
+            {
+                pool.AddTask([path, this, id]() { LoadTexture(path.c_str(), id); });
+                id++;
+            }
+            pool.Run();
+            pool.Join();
+        }
+
+        // Create gpu handles & record transfer commands.
+        {
+            auto& pfd = m_pfd[0];
+            for (auto& txt : m_textures)
+            {
+                Texture2DDesc desc = {
+                    .usage     = Texture2DUsage::ColorTexture,
+                    .width     = txt.allLevels[0].width,
+                    .height    = txt.allLevels[0].height,
+                    .mipLevels = static_cast<uint32>(txt.allLevels.size()),
+                    .format    = txt.allLevels[0].bytesPerPixel == 8 ? LinaGX::Format::R16G16B16A16_UNORM : LinaGX::Format::R8G8B8A8_UNORM,
+                    .debugName = txt.path.c_str(),
+                };
+
+                txt.gpuHandle = m_lgx->CreateTexture2D(desc);
+
+                CMDCopyBufferToTexture2D* copyTxt = pfd.transferStream->AddCommand<CMDCopyBufferToTexture2D>();
+                copyTxt->destTexture              = txt.gpuHandle;
+                copyTxt->mipLevels                = static_cast<uint32>(txt.allLevels.size()),
+                copyTxt->buffers                  = pfd.transferStream->EmplaceAuxMemory<TextureBuffer>(txt.allLevels.data(), sizeof(TextureBuffer) * txt.allLevels.size());
+                copyTxt->destinationSlice         = 0;
+            }
+
+            // Send the transfers & wait on the cpu for upload.
+            m_lgx->CloseCommandStreams(&pfd.transferStream, 1);
+            pfd.transferSemaphoreValue++;
+            m_lgx->SubmitCommandStreams({.targetQueue = m_lgx->GetPrimaryQueue(CommandType::Transfer), .streams = &pfd.transferStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &pfd.transferSemaphore, .signalValues = &pfd.transferSemaphoreValue});
+            m_lgx->WaitForUserSemaphore(pfd.transferSemaphore, pfd.transferSemaphoreValue);
+        }
+
+        // Dont need them buffers but leave allLevels vector as is as we might need some info later.
+        {
+            for (auto& txt : m_textures)
+            {
+                for (auto& level : txt.allLevels)
+                    LinaGX::FreeImage(level.pixels);
+            }
         }
     }
 
     void Example::Initialize()
     {
         App::Initialize();
-
         ConfigureInitializeLinaGX();
         CreateMainWindow();
         CreatePerFrameResources();
-
-        // Load environment.
-        LINAGX_VEC<LinaGX::ModelTexture> textures;
-        LinaGX::ModelData                environmentModelData = {};
-        LoadModel("Resources/Models/FoxLounge/FoxLounge.glb", environmentModelData, textures);
-
-        // Load fox as well.
-        LinaGX::ModelData foxData = {};
-        LoadModel("Resources/Models/Fox/Fox.glb", foxData, textures);
-
-        auto& pfd = m_pfd[0];
-
-        for (const auto& tb : textures)
-        {
-            m_textures.push_back({});
-            auto& t2d = m_textures[m_textures.size() - 1];
-
-            t2d.name = tb.name;
-            t2d.allLevels.push_back(tb.buffer);
-            // LinaGX::GenerateMipmaps(tb.buffer, t2d.allLevels, MipmapFilter::Default, static_cast<ImageChannelMask>(tb.buffer.bytesPerPixel - 1), false);
-
-            Texture2DDesc desc = {
-                .usage     = Texture2DUsage::ColorTexture,
-                .width     = tb.buffer.width,
-                .height    = tb.buffer.height,
-                .mipLevels = static_cast<uint32>(t2d.allLevels.size()),
-                .format    = tb.buffer.bytesPerPixel == 8 ? LinaGX::Format::R16G16B16A16_UNORM : LinaGX::Format::R8G8B8A8_UNORM,
-                .debugName = t2d.name.empty() ? "LinaGX Texture" : t2d.name.c_str(),
-            };
-
-            t2d.gpuHandle = m_lgx->CreateTexture2D(desc);
-
-            CMDCopyBufferToTexture2D* copyTxt = pfd.transferStream->AddCommand<CMDCopyBufferToTexture2D>();
-            copyTxt->destTexture              = t2d.gpuHandle;
-            copyTxt->mipLevels                = static_cast<uint32>(t2d.allLevels.size()),
-            copyTxt->buffers                  = pfd.transferStream->EmplaceAuxMemory<TextureBuffer>(t2d.allLevels.data(), sizeof(TextureBuffer) * t2d.allLevels.size());
-            copyTxt->destinationSlice         = 0;
-        }
-
-        m_lgx->CloseCommandStreams(&pfd.transferStream, 1);
-        pfd.transferSemaphoreValue++;
-        m_lgx->SubmitCommandStreams({.targetQueue = m_lgx->GetPrimaryQueue(CommandType::Transfer), .streams = &pfd.transferStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &pfd.transferSemaphore, .signalValues = &pfd.transferSemaphoreValue});
-        m_lgx->WaitForUserSemaphore(pfd.transferSemaphore, pfd.transferSemaphoreValue);
+        StartTextureLoading();
     }
 
     void Example::Shutdown()
     {
+        m_lgx->Join();
+
         // First get rid of the window.
         m_lgx->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
 

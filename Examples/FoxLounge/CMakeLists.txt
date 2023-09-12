@@ -23,6 +23,7 @@ if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/FoxLounge.cpp
+src/ThreadPool.cpp
 )
 endif()
 
@@ -30,12 +31,14 @@ if(APPLE)
 set(SOURCES 
 src/Main.mm
 src/FoxLounge.cpp
+src/ThreadPool.cpp
 )
 endif()
 
 set(HEADERS
 include/Main.hpp
 include/FoxLounge.hpp
+include/ThreadPool.hpp
 Resources/Shaders/frag.glsl
 Resources/Shaders/vert.glsl
 )

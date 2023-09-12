@@ -98,25 +98,23 @@ namespace LinaGX
 
     struct ModelMesh
     {
-        ModelMeshPrimitive* primitives     = nullptr;
-        uint32              primitiveCount = 0;
-        ModelNode*          node           = nullptr;
-        LINAGX_STRING       name           = "";
+        LINAGX_VEC<ModelMeshPrimitive*> primitives;
+        ModelNode*                      node = nullptr;
+        LINAGX_STRING                   name = "";
 
         ~ModelMesh()
         {
-            if (primitives != nullptr)
+            if (!primitives.empty())
             {
-                for (uint32 i = 0; i < primitiveCount; i++)
+                for (auto prim : primitives)
                 {
-                    ModelMeshPrimitive* prim = primitives + i;
                     prim->Clear();
                 }
 
-                delete[] primitives;
+                delete[] primitives[0];
             }
 
-            primitives = nullptr;
+            primitives.clear();
         }
     };
 

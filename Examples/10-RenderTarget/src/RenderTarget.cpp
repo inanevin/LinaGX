@@ -340,9 +340,9 @@ namespace LinaGX::Examples
                     Object& obj = _objects[_objects.size() - 1];
                     obj.index   = static_cast<uint32>(_objects.size() - 1);
 
-                    for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
+                    for (uint32 j = 0; j < node->mesh->primitives.size(); j++)
                     {
-                        ModelMeshPrimitive* prim = node->mesh->primitives + j;
+                        ModelMeshPrimitive* prim = node->mesh->primitives[j];
 
                         for (uint32 k = 0; k < prim->vertexCount; k++)
                         {

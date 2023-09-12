@@ -33,6 +33,8 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
+    std::mutex g_logMtx;
+
     void App::Initialize()
     {
     }

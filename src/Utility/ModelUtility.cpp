@@ -132,6 +132,9 @@ namespace LinaGX
         {
             outData.allMeshes.resize(model.meshes.size());
             outData.allMeshes[0] = new ModelMesh[model.meshes.size()];
+
+            for (size_t i = 0; i < model.meshes.size(); i++)
+                outData.allMeshes[i] = outData.allMeshes[0] + i;
         }
 
         for (size_t i = 0; i < model.nodes.size(); i++)
@@ -188,18 +191,24 @@ namespace LinaGX
             // Process the rest of the node.
             if (gltfNode.mesh != -1)
             {
-                const auto& tgMesh         = model.meshes[gltfNode.mesh];
-                node->mesh                 = outData.allMeshes[gltfNode.mesh];
-                node->mesh->node           = node;
-                node->mesh->name           = tgMesh.name;
-                node->mesh->primitiveCount = static_cast<uint32>(tgMesh.primitives.size());
-                node->mesh->primitives     = new ModelMeshPrimitive[tgMesh.primitives.size()];
+                const auto& tgMesh = model.meshes[gltfNode.mesh];
+                node->mesh         = outData.allMeshes[gltfNode.mesh];
+                node->mesh->node   = node;
+                node->mesh->name   = tgMesh.name;
+
+                if (!tgMesh.primitives.empty())
+                {
+                    node->mesh->primitives.resize(tgMesh.primitives.size());
+                    node->mesh->primitives[0] = new ModelMeshPrimitive[tgMesh.primitives.size()];
+                }
 
                 uint32 primitiveIndex = 0;
                 for (const auto& tgPrimitive : tgMesh.primitives)
                 {
-                    ModelMeshPrimitive* primitive = node->mesh->primitives + primitiveIndex;
-                    primitive->material           = outData.allMaterials[tgPrimitive.material];
+                    node->mesh->primitives[primitiveIndex] = node->mesh->primitives[0] + primitiveIndex;
+                    ModelMeshPrimitive* primitive          = node->mesh->primitives[primitiveIndex];
+
+                    primitive->material = tgPrimitive.material > -1 ? outData.allMaterials[tgPrimitive.material] : nullptr;
 
                     const tinygltf::Accessor&   vertexAccessor   = model.accessors[tgPrimitive.attributes.find("POSITION")->second];
                     const tinygltf::BufferView& vertexBufferView = model.bufferViews[vertexAccessor.bufferView];

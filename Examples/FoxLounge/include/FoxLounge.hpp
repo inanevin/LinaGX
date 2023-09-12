@@ -51,9 +51,9 @@ namespace LinaGX
 
         struct Texture2D
         {
+            LINAGX_STRING                     path      = "";
             uint32                            gpuHandle = 0;
             LINAGX_VEC<LinaGX::TextureBuffer> allLevels;
-            LINAGX_STRING                     name = "";
         };
 
         class Example : public App
@@ -67,7 +67,9 @@ namespace LinaGX
             void ConfigureInitializeLinaGX();
             void CreateMainWindow();
             void CreatePerFrameResources();
-            void LoadModel(const char* path, LinaGX::ModelData& outModelData, LINAGX_VEC<LinaGX::ModelTexture>& outTextures);
+            void LoadModel(const char* path, LinaGX::ModelData& outModelData);
+            void LoadTexture(const char* path, uint32 id);
+            void StartTextureLoading();
 
         private:
             LinaGX::Instance*     m_lgx       = nullptr;

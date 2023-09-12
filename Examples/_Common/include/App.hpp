@@ -33,7 +33,7 @@ SOFTWARE.
 #include <iostream>
 #include <cstdarg>
 #include <chrono>
-
+#include <mutex>
 
 namespace LinaGX
 {
@@ -41,8 +41,11 @@ namespace LinaGX
 
     namespace Examples
     {
+        extern std::mutex g_logMtx;
+
         inline void LogError(const char* err, ...)
         {
+            std::lock_guard lg(g_logMtx);
             va_list args;
             va_start(args, err);
 
@@ -55,6 +58,7 @@ namespace LinaGX
 
         inline void LogInfo(const char* info, ...)
         {
+            std::lock_guard lg(g_logMtx);
             va_list args;
             va_start(args, info);
             std::cout << "LinaGX: ";
@@ -72,16 +76,15 @@ namespace LinaGX
             virtual void OnTick(){};
             virtual void Tick();
             virtual void Quit();
-            
+
         protected:
-            bool   m_isRunning         = false;
-            uint64 m_deltaMicroseconds = 0;
-            uint64 m_framesPerSecond   = 0;
-            float  m_deltaSeconds      = 0.0f;
-            float  m_elapsedSeconds    = 0.0f;
+            bool                                  m_isRunning         = false;
+            uint64                                m_deltaMicroseconds = 0;
+            uint64                                m_framesPerSecond   = 0;
+            float                                 m_deltaSeconds      = 0.0f;
+            float                                 m_elapsedSeconds    = 0.0f;
             std::chrono::steady_clock::time_point m_prevTime;
-            uint64 m_lastFrames = 0;
-            
+            uint64                                m_lastFrames = 0;
         };
 
     } // namespace Examples

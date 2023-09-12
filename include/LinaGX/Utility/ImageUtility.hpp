@@ -37,10 +37,10 @@ namespace LinaGX
 {
     enum class ImageChannelMask
     {
-        Grey = 0,
-        GreyAlpha,
-        Rgb,
-        Rgba
+        G = 0,
+        GA,
+        RGB,
+        RGBA,
     };
 
     /// <summary>
@@ -58,7 +58,7 @@ namespace LinaGX
     /// <param name="outData"></param>
     /// <param name="channelMask"></param>
     /// <returns></returns>
-    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, ImageChannelMask channelMask = ImageChannelMask::Rgba);
+    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, ImageChannelMask channelMask = ImageChannelMask::RGBA);
 
     /// <summary>
     ///
@@ -68,14 +68,14 @@ namespace LinaGX
     LINAGX_API void FreeImage(uint8* pixels);
 
     /// <summary>
-    ///
+    /// LEVELS == 1 does not generate any mipmaps.
     /// </summary>
     /// <param name="sourceData"></param>
     /// <param name="outMipData"></param>
     /// <param name="filter"></param>
     /// <param name="mipLevels">Total number of mips to generate (excluding the base texture).</param>
     /// <returns></returns>
-    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace);
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace, uint32 requestLevels = 0);
 
 } // namespace LinaGX
 

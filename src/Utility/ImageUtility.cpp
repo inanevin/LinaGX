@@ -42,13 +42,13 @@ namespace LinaGX
     {
         switch (mask)
         {
-        case LinaGX::ImageChannelMask::Grey:
+        case LinaGX::ImageChannelMask::G:
             return STBI_grey;
-        case LinaGX::ImageChannelMask::GreyAlpha:
+        case LinaGX::ImageChannelMask::GA:
             return STBI_grey_alpha;
-        case LinaGX::ImageChannelMask::Rgb:
+        case LinaGX::ImageChannelMask::RGB:
             return STBI_rgb;
-        case LinaGX::ImageChannelMask::Rgba:
+        case LinaGX::ImageChannelMask::RGBA:
             return STBI_rgb_alpha;
         default:
             return STBI_rgb_alpha;
@@ -97,12 +97,12 @@ namespace LinaGX
         stbi_image_free(pixels);
     }
 
-    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace)
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace, uint32 requestLevels)
     {
         uint8*       lastPixels = sourceData.pixels;
         uint32       lastWidth  = sourceData.width;
         uint32       lastHeight = sourceData.height;
-        const uint32 levels     = CalculateMipLevels(sourceData.width, sourceData.height);
+        const uint32 levels     = requestLevels == 0 ? CalculateMipLevels(sourceData.width, sourceData.height) : requestLevels;
 
         for (uint32 i = 0; i < levels - 1; i++)
         {
@@ -115,14 +115,20 @@ namespace LinaGX
             if (height < 1)
                 height = 1;
 
-            const uint32  channels        = static_cast<int>(channelMask) + 1;
-            TextureBuffer mipData         = {};
-            mipData.width                 = width;
-            mipData.height                = height;
-            mipData.pixels                = (uint8*)std::malloc(width * height * channels);
-            mipData.bytesPerPixel         = sourceData.bytesPerPixel;
-            const stbir_colorspace cs     = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
-            int                    retval = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+            const uint32  channels    = static_cast<int>(channelMask) + 1;
+            TextureBuffer mipData     = {};
+            mipData.width             = width;
+            mipData.height            = height;
+            mipData.pixels            = (uint8*)std::malloc(width * height * sourceData.bytesPerPixel);
+            mipData.bytesPerPixel     = sourceData.bytesPerPixel;
+            const stbir_colorspace cs = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
+
+            int retVal = 0;
+
+            if (mipData.bytesPerPixel == 4)
+                retVal = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+            else
+                stbir_resize_uint16_generic((uint16*)lastPixels, lastWidth, lastHeight, 0, (uint16*)mipData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
 
             lastWidth  = width;
             lastHeight = height;
