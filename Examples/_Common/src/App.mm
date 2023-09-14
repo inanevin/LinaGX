@@ -33,6 +33,8 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
+    std::mutex g_logMtx;
+
     void App::Initialize()
     {
         
@@ -74,7 +76,7 @@ namespace LinaGX::Examples
     {
         m_isRunning = false;
         [NSApp stop:nil];
-        [NSApp terminate:nil];
+        //[NSApp terminate:nil];
     }
 
     void App::Shutdown()

@@ -170,6 +170,11 @@ struct MTLPerFrameData
     uint64 reachedSubmits = 0;
 };
 
+struct MTLPipelineLayout
+{
+    bool isValid = false;
+};
+
 
 class MTLBackend : public Backend
 {
@@ -203,6 +208,8 @@ public:
     virtual void   DestroyDescriptorSet(uint16 handle) override;
     virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
     virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
+    virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
+    virtual void   DestroyPipelineLayout(uint16 handle) override;
     virtual uint32 CreateCommandStream(CommandType cmdType) override;
     virtual void   DestroyCommandStream(uint32 handle) override;
     virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
@@ -243,16 +250,17 @@ private:
 private:
     
     
-    IDList<uint8,  MTLSwapchain>                        m_swapchains     = {10};
+    IDList<uint8,  MTLSwapchain>                       m_swapchains     = {10};
     IDList<uint16, MTLShader>                          m_shaders        = {20};
     IDList<uint32, MTLTexture2D>                       m_texture2Ds     = {50};
     IDList<uint32, MTLCommandStream>                   m_cmdStreams     = {50};
-    IDList<uint16, MTLFence> m_fences         = {20};
+    IDList<uint16, MTLFence> m_fences                                   = {20};
     IDList<uint32, MTLResource>                        m_resources      = {100};
     IDList<uint16, MTLUserSemaphore>                   m_userSemaphores = {20};
     IDList<uint32, MTLSampler>                         m_samplers       = {100};
     IDList<uint16, MTLDescriptorSet>                   m_descriptorSets = {20};
-    IDList<uint8,  MTLQueue>                            m_queues         = {5};
+    IDList<uint8,  MTLQueue>                           m_queues         = {5};
+    IDList<uint16,  MTLPipelineLayout>                 m_pipelineLayouts        = {10};
     
     uint32                                     m_currentFrameIndex    = 0;
     uint32                                     m_currentImageIndex    = 0;
