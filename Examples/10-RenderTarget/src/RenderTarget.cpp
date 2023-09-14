@@ -487,11 +487,11 @@ namespace LinaGX::Examples
             DescriptorBinding set0Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
+                .stages          = {ShaderStage::Fragment},
             };
 
             DescriptorSetDesc set0Desc = {
                 .bindings = {set0Binding},
-                .stages   = {ShaderStage::Fragment},
             };
 
             _descriptorSetTexture = _lgx->CreateDescriptorSet(set0Desc);
@@ -516,11 +516,11 @@ namespace LinaGX::Examples
             DescriptorBinding set1Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
+                .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set1Desc = {
                 .bindings = {set1Binding},
-                .stages   = {ShaderStage::Vertex},
             };
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -539,11 +539,11 @@ namespace LinaGX::Examples
             DescriptorBinding set2Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::UBO,
+                .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set2Desc = {
                 .bindings = {set2Binding},
-                .stages   = {ShaderStage::Vertex},
             };
 
             _descriptorSetSceneData0 = _lgx->CreateDescriptorSet(set2Desc);
@@ -853,13 +853,13 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindSets   = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
-            bindSets->firstSet                = 0;
-            bindSets->setCount                = 3;
-            bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0);
-            bindSets->isCompute               = false;
-            bindSets->dynamicOffsetCount      = 0;
-            bindSets->useBoundShaderForLayout = true;
+            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet              = 0;
+            bindSets->setCount              = 3;
+            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0);
+            bindSets->isCompute             = false;
+            bindSets->dynamicOffsetCount    = 0;
+            bindSets->layoutSource          = DescriptorSetsLayoutSource::LastBoundShader;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -940,7 +940,7 @@ namespace LinaGX::Examples
             bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
             bindSets->isCompute               = false;
             bindSets->dynamicOffsetCount      = 0;
-            bindSets->useBoundShaderForLayout = true;
+            bindSets->layoutSource          = DescriptorSetsLayoutSource::LastBoundShader;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -988,7 +988,7 @@ namespace LinaGX::Examples
             bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
             bindSets->isCompute               = false;
             bindSets->dynamicOffsetCount      = 0;
-            bindSets->useBoundShaderForLayout = true;
+            bindSets->layoutSource          = DescriptorSetsLayoutSource::LastBoundShader;
         }
 
         // Draw quad

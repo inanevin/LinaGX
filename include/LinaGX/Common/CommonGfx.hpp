@@ -416,7 +416,7 @@ namespace LinaGX
         size_t        offset   = 0;
     };
 
-    struct ShaderUBOMember
+    struct ShaderStructMember
     {
         ShaderMemberType type;
         size_t           size         = 0;
@@ -434,65 +434,9 @@ namespace LinaGX
         uint32                          set     = 0;
         uint32                          binding = 0;
         LINAGX_MAP<ShaderStage, uint32> mslBuffers;
-        LINAGX_VEC<ShaderUBOMember>     members;
+        LINAGX_VEC<ShaderStructMember>  members;
         LINAGX_VEC<ShaderStage>         stages;
         LINAGX_STRING                   name = "";
-    };
-
-    struct ShaderUBO
-    {
-        uint32                      spvID   = 0;
-        uint32                      set     = 0;
-        uint32                      binding = 0;
-        size_t                      size    = 0;
-        LINAGX_VEC<ShaderUBOMember> members;
-        LINAGX_VEC<ShaderStage>     stages;
-        LINAGX_STRING               name        = "";
-        uint32                      elementSize = 1;
-    };
-
-    struct ShaderSSBO
-    {
-        uint32                  spvID   = 0;
-        uint32                  set     = 0;
-        uint32                  binding = 0;
-        LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name       = "";
-        bool                    isReadOnly = true;
-    };
-
-    struct ShaderSRVTexture2D
-    {
-        uint32                  spvID   = 0;
-        uint32                  set     = 0;
-        uint32                  binding = 0;
-        LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name           = "";
-        uint32                  elementSize    = 1;
-        bool                    isArrayTexture = false;
-    };
-
-    struct ShaderSampler
-    {
-        uint32                  spvID   = 0;
-        uint32                  set     = 0;
-        uint32                  binding = 0;
-        LINAGX_VEC<ShaderStage> stages;
-        LINAGX_STRING           name        = "";
-        uint32                  elementSize = 1;
-    };
-
-    struct ShaderLayoutBindingData
-    {
-        LINAGX_STRING  name        = "";
-        DescriptorType type        = DescriptorType::UBO;
-        uint32         elementSize = 0;
-    };
-
-    struct ShaderLayoutPerSetData
-    {
-        LINAGX_VEC<ShaderStage>                     stages;
-        LINAGX_MAP<uint32, ShaderLayoutBindingData> bindings;
     };
 
     struct ShaderLayoutMSLBinding
@@ -503,15 +447,16 @@ namespace LinaGX
 
     struct ShaderDescriptorSetBinding
     {
-        DescriptorType              type            = DescriptorType::UBO;
-        LINAGX_STRING               name            = "";
-        uint32                      spvID           = 0;
-        uint32                      binding         = 0;
-        uint32                      descriptorCount = 1;
-        LINAGX_VEC<ShaderStage>     stages;
-        bool                        isWritable  = false;
-        bool                        isArrayType = false;
-        LINAGX_VEC<ShaderUBOMember> members;
+        DescriptorType                 type            = DescriptorType::UBO;
+        LINAGX_STRING                  name            = "";
+        uint32                         spvID           = 0;
+        uint32                         binding         = 0;
+        uint32                         descriptorCount = 1;
+        size_t                         size            = 0;
+        LINAGX_VEC<ShaderStage>        stages;
+        bool                           isWritable  = false;
+        bool                           isArrayType = false;
+        LINAGX_VEC<ShaderStructMember> structMembers;
     };
 
     struct ShaderDescriptorSetLayout
@@ -521,21 +466,16 @@ namespace LinaGX
 
     struct ShaderLayout
     {
-        LINAGX_VEC<ShaderStageInput>               vertexInputs;
-        LINAGX_VEC<ShaderUBO>                      ubos;
-        LINAGX_VEC<ShaderSSBO>                     ssbos;
-        LINAGX_VEC<ShaderSRVTexture2D>             combinedImageSamplers;
-        LINAGX_VEC<ShaderSRVTexture2D>             separateImages;
-        LINAGX_VEC<ShaderSampler>                  samplers;
-        LINAGX_MAP<uint32, ShaderLayoutPerSetData> perSetData;
-        LINAGX_VEC<ShaderConstantBlock>            constants;
-        uint32                                     constantsSet     = 0;
-        uint32                                     constantsBinding = 0;
-        uint32                                     totalDescriptors = 0;
-        bool                                       hasGLDrawID      = false;
-        uint32                                     drawIDBinding    = 0;
-        LINAGX_MAP<ShaderStage, LINAGX_STRING>     entryPoints;
-        LINAGX_MAP<ShaderStage, uint32>            mslMaxBufferIDs;
+        LINAGX_VEC<ShaderStageInput>           vertexInputs;
+        LINAGX_VEC<ShaderDescriptorSetLayout>  descriptorSetLayouts;
+        LINAGX_VEC<ShaderConstantBlock>        constants;
+        uint32                                 constantsSet     = 0;
+        uint32                                 constantsBinding = 0;
+        uint32                                 totalDescriptors = 0;
+        bool                                   hasGLDrawID      = false;
+        uint32                                 drawIDBinding    = 0;
+        LINAGX_MAP<ShaderStage, LINAGX_STRING> entryPoints;
+        LINAGX_MAP<ShaderStage, uint32>        mslMaxBufferIDs;
     };
 
     struct ShaderCompileData
@@ -683,6 +623,7 @@ namespace LinaGX
     {
         LINAGX_VEC<uint16>                          descriptorSets;
         LINAGX_VEC<PipelineLayoutPushConstantRange> constantRanges;
+        bool                                        indirectDrawEnabled = false;
     };
 
     struct ResourceDesc

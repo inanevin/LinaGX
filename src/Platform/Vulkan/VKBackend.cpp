@@ -909,115 +909,69 @@ namespace LinaGX
             shaderStages.push_back(info);
         }
 
-        // Descriptor sets & layouts
-        LINAGX_MAP<uint32, LINAGX_VEC<VkDescriptorSetLayoutBinding>> bindingMap;
-        for (const auto& ubo : shaderDesc.layout.ubos)
+        auto getPerStageMaxDescriptors = [this](DescriptorType type) {
+            switch (type)
+            {
+            case DescriptorType::UBO:
+                return m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+            case DescriptorType::SSBO:
+                return m_gpuProperties.limits.maxPerStageDescriptorStorageBuffers;
+            case DescriptorType::CombinedImageSampler:
+                return m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+            case DescriptorType::SeparateSampler:
+                return m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+            case DescriptorType::SeparateImage:
+                return m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
+            }
+        };
+
+        shader.layouts.resize(shaderDesc.layout.descriptorSetLayouts.size());
+
+        uint32 set = 0;
+        for (const auto& descriptorSet : shaderDesc.layout.descriptorSetLayouts)
         {
-            VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
-            binding.binding                      = ubo.binding;
-            binding.descriptorType               = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            binding.descriptorCount              = ubo.elementSize;
+            LINAGX_VEC<VkDescriptorSetLayoutBinding> vkBindings;
+            vkBindings.reserve(descriptorSet.bindings.size());
 
-            for (ShaderStage stg : ubo.stages)
-                binding.stageFlags |= GetVKShaderStage(stg);
-
-            bindingMap[ubo.set].push_back(binding);
-        }
-
-        for (const auto& ssbo : shaderDesc.layout.ssbos)
-        {
-            VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
-            binding.binding                      = ssbo.binding;
-            binding.descriptorType               = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            binding.descriptorCount              = 1;
-
-            for (ShaderStage stg : ssbo.stages)
-                binding.stageFlags |= GetVKShaderStage(stg);
-
-            bindingMap[ssbo.set].push_back(binding);
-        }
-
-        for (const auto& t2d : shaderDesc.layout.combinedImageSamplers)
-        {
-            VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
-            binding.binding                      = t2d.binding;
-            binding.descriptorType               = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.descriptorCount              = t2d.elementSize == 0 ? m_gpuProperties.limits.maxPerStageDescriptorSamplers : t2d.elementSize;
-
-            for (ShaderStage stg : t2d.stages)
-                binding.stageFlags |= GetVKShaderStage(stg);
-
-            bindingMap[t2d.set].push_back(binding);
-        }
-
-        for (const auto& t2d : shaderDesc.layout.separateImages)
-        {
-            VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
-            binding.binding                      = t2d.binding;
-            binding.descriptorType               = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            binding.descriptorCount              = t2d.elementSize == 0 ? m_gpuProperties.limits.maxPerStageDescriptorSampledImages : t2d.elementSize;
-
-            for (ShaderStage stg : t2d.stages)
-                binding.stageFlags |= GetVKShaderStage(stg);
-
-            bindingMap[t2d.set].push_back(binding);
-        }
-
-        for (const auto& sampler : shaderDesc.layout.samplers)
-        {
-            VkDescriptorSetLayoutBinding binding = VkDescriptorSetLayoutBinding{};
-            binding.binding                      = sampler.binding;
-            binding.descriptorType               = VK_DESCRIPTOR_TYPE_SAMPLER;
-            binding.descriptorCount              = sampler.elementSize == 0 ? m_gpuProperties.limits.maxPerStageDescriptorSamplers : sampler.elementSize;
-
-            for (ShaderStage stg : sampler.stages)
-                binding.stageFlags |= GetVKShaderStage(stg);
-
-            bindingMap[sampler.set].push_back(binding);
-        }
-
-        shader.layouts.resize(bindingMap.size());
-
-        for (auto& pair : bindingMap)
-        {
-            LINAGX_VEC<VkDescriptorSetLayoutBinding>& bindings = pair.second;
-            sort(bindings.begin(), bindings.end(), CompareBindings);
-        }
-
-        // TODO: descriptor set flag reflection?
-        for (const auto& [set, bindings] : bindingMap)
-        {
-            VkDescriptorSetLayoutCreateInfo setInfo = VkDescriptorSetLayoutCreateInfo{};
-            setInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            setInfo.flags                           = 0;
-            setInfo.bindingCount                    = static_cast<uint32>(bindings.size());
-            setInfo.pBindings                       = bindings.data();
-
+            bool                                 containsBindless = false;
             LINAGX_VEC<VkDescriptorBindingFlags> bindlessFlags;
 
-            bool containsBindless = false;
-            for (const auto& b : bindings)
+            for (const auto& binding : descriptorSet.bindings)
             {
-                if (b.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE && b.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSampledImages)
+                VkDescriptorSetLayoutBinding vkBinding = VkDescriptorSetLayoutBinding{};
+                vkBinding.binding                      = binding.binding;
+                vkBinding.descriptorType               = GetVKDescriptorType(binding.type, false);
+                vkBinding.descriptorCount              = binding.descriptorCount == 0 ? getPerStageMaxDescriptors(binding.type) : binding.descriptorCount;
+
+                for (ShaderStage stg : binding.stages)
+                    vkBinding.stageFlags |= GetVKShaderStage(stg);
+
+                vkBindings.push_back(vkBinding);
+
+                if (vkBinding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE && vkBinding.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSampledImages)
                 {
                     containsBindless = true;
                     bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
                 }
-                else if (b.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER && b.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
+                else if (vkBinding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER && vkBinding.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
                 {
                     containsBindless = true;
                     bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
                 }
-                else if (b.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && b.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
+                else if (vkBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && vkBinding.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
                 {
                     containsBindless = true;
                     bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
                 }
                 else
-                {
                     bindlessFlags.push_back(0);
-                }
             }
+
+            VkDescriptorSetLayoutCreateInfo setInfo = VkDescriptorSetLayoutCreateInfo{};
+            setInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            setInfo.flags                           = 0;
+            setInfo.bindingCount                    = static_cast<uint32>(vkBindings.size());
+            setInfo.pBindings                       = vkBindings.data();
 
             VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extInfo;
             extInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
@@ -1038,6 +992,7 @@ namespace LinaGX
 
             LOGA(set < static_cast<uint32>(shader.layouts.size()), "Set index is bigger than or equal to shader layouts size, are you sure you setup your sets correctly?");
             shader.layouts[set] = layout;
+            set++;
         }
 
         // Push constants
@@ -3098,10 +3053,12 @@ namespace LinaGX
 
         VkPipelineLayout layout = nullptr;
 
-        if (cmd->useBoundShaderForLayout)
+        if (cmd->layoutSource == DescriptorSetsLayoutSource::LastBoundShader)
             layout = m_shaders.GetItemR(stream.boundShader).ptrLayout;
+        else if (cmd->layoutSource == DescriptorSetsLayoutSource::CustomShader)
+            layout = m_shaders.GetItemR(cmd->customLayoutShader).ptrLayout;
         else
-            layout = m_pipelineLayouts.GetItemR(cmd->pipelineLayout).ptr;
+            layout = m_pipelineLayouts.GetItemR(cmd->customLayout).ptr;
 
         LINAGX_VEC<VkDescriptorSet> sets;
         sets.resize(cmd->setCount);

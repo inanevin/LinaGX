@@ -871,8 +871,6 @@ namespace LinaGX
             }
         }
 
-        uint32 drawIDRootParamIndex = 0;
-
         // Root signature.
         {
             CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
@@ -884,136 +882,88 @@ namespace LinaGX
             ranges.resize(shaderDesc.layout.totalDescriptors);
             uint32 rangeCounter = 0;
 
-            for (const auto& ubo : shaderDesc.layout.ubos)
+            uint32 setIndex = 0;
+            for (const auto& descriptorSetLayout : shaderDesc.layout.descriptorSetLayouts)
             {
-                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (ubo.stages.size() == 1)
-                    visibility = GetDXVisibility(ubo.stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(shader.rootParams.size());
-                paramInfo.binding           = ubo.binding;
-                paramInfo.set               = ubo.set;
-                paramInfo.elementSize       = ubo.elementSize;
-                paramInfo.reflectionType    = DescriptorType::UBO;
-                shader.rootParams.push_back(paramInfo);
-
-                if (ubo.elementSize > 1)
+                for (const auto& binding : descriptorSetLayout.bindings)
                 {
-                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, ubo.elementSize, ubo.binding, ubo.set, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                    rangeCounter++;
-                }
-                else
-                    param.InitAsConstantBufferView(ubo.binding, ubo.set, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+                    CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                    CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
+                    D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                    if (binding.stages.size() == 1)
+                        visibility = GetDXVisibility(binding.stages[0]);
 
-                rootParameters.push_back(param);
+                    DX12RootParamInfo paramInfo = {};
+                    paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
+                    paramInfo.binding           = binding.binding;
+                    paramInfo.set               = setIndex;
+                    paramInfo.elementSize       = binding.descriptorCount;
+                    paramInfo.reflectionType    = binding.type;
+                    paramInfo.isWritable        = binding.isWritable;
+                    shader.rootParams.push_back(paramInfo);
+
+                    if (binding.type == DescriptorType::UBO)
+                    {
+                        if (binding.descriptorCount > 1)
+                        {
+                            ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, binding.descriptorCount, binding.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                            param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                            rangeCounter++;
+                        }
+                        else
+                            param.InitAsConstantBufferView(binding.binding, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+
+                        rootParameters.push_back(param);
+                    }
+                    else if (binding.type == DescriptorType::CombinedImageSampler)
+                    {
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        rootParameters.push_back(param);
+                        rootParameters.push_back(param2);
+                    }
+                    else if (binding.type == DescriptorType::SeparateImage)
+                    {
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        rootParameters.push_back(param);
+                    }
+                    else if (binding.type == DescriptorType::SeparateSampler)
+                    {
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        rootParameters.push_back(param);
+                    }
+                    else
+                    {
+                        ranges[rangeCounter].Init(!binding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, binding.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        rootParameters.push_back(param);
+                    }
+                }
+
+                setIndex++;
             }
 
+            uint32 drawIDRootParamIndex = 0;
             if (shaderDesc.layout.hasGLDrawID)
             {
                 CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
                 param.InitAsConstants(1, shaderDesc.layout.drawIDBinding, 0, D3D12_SHADER_VISIBILITY_VERTEX);
                 drawIDRootParamIndex = static_cast<uint32>(rootParameters.size());
-                rootParameters.push_back(param);
-            }
-
-            for (const auto& t2d : shaderDesc.layout.combinedImageSamplers)
-            {
-                CD3DX12_ROOT_PARAMETER1 paramSRV     = CD3DX12_ROOT_PARAMETER1{};
-                CD3DX12_ROOT_PARAMETER1 paramSampler = CD3DX12_ROOT_PARAMETER1{};
-
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (t2d.stages.size() == 1)
-                    visibility = GetDXVisibility(t2d.stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                paramInfo.binding           = t2d.binding;
-                paramInfo.set               = t2d.set;
-                paramInfo.elementSize       = t2d.elementSize;
-                paramInfo.reflectionType    = DescriptorType::CombinedImageSampler;
-                shader.rootParams.push_back(paramInfo);
-
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, t2d.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                rangeCounter++;
-
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, t2d.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                paramSampler.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                rangeCounter++;
-
-                rootParameters.push_back(paramSRV);
-                rootParameters.push_back(paramSampler);
-            }
-
-            for (const auto& t2d : shaderDesc.layout.separateImages)
-            {
-                CD3DX12_ROOT_PARAMETER1 paramSRV = CD3DX12_ROOT_PARAMETER1{};
-
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (t2d.stages.size() == 1)
-                    visibility = GetDXVisibility(t2d.stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                paramInfo.binding           = t2d.binding;
-                paramInfo.set               = t2d.set;
-                paramInfo.elementSize       = t2d.elementSize;
-                paramInfo.reflectionType    = DescriptorType::SeparateImage;
-                shader.rootParams.push_back(paramInfo);
-
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, t2d.elementSize == 0 ? UINT_MAX : t2d.elementSize, t2d.binding, t2d.set, t2d.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                paramSRV.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                rangeCounter++;
-
-                rootParameters.push_back(paramSRV);
-            }
-
-            for (const auto& sampler : shaderDesc.layout.samplers)
-            {
-                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
-
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (sampler.stages.size() == 1)
-                    visibility = GetDXVisibility(sampler.stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                paramInfo.binding           = sampler.binding;
-                paramInfo.set               = sampler.set;
-                paramInfo.elementSize       = sampler.elementSize;
-                paramInfo.reflectionType    = DescriptorType::SeparateSampler;
-                shader.rootParams.push_back(paramInfo);
-
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, sampler.elementSize == 0 ? UINT_MAX : sampler.elementSize, sampler.binding, sampler.set, sampler.elementSize == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                rangeCounter++;
-
-                rootParameters.push_back(param);
-            }
-
-            for (const auto& ssbo : shaderDesc.layout.ssbos)
-            {
-                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (ssbo.stages.size() == 1)
-                    visibility = GetDXVisibility(ssbo.stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                paramInfo.binding           = ssbo.binding;
-                paramInfo.set               = ssbo.set;
-                paramInfo.reflectionType    = DescriptorType::SSBO;
-                paramInfo.isReadOnly        = ssbo.isReadOnly;
-                shader.rootParams.push_back(paramInfo);
-
-                ranges[rangeCounter].Init(ssbo.isReadOnly ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, ssbo.binding, ssbo.set, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                rangeCounter++;
-
                 rootParameters.push_back(param);
             }
 
@@ -1029,7 +979,7 @@ namespace LinaGX
 
             if (!shaderDesc.layout.constants.empty())
             {
-                shader.constantsSpace   = shaderDesc.layout.constantsSet,
+                shader.constantsSpace   = shaderDesc.layout.constantsSet;
                 shader.constantsBinding = shaderDesc.layout.constantsBinding;
 
                 CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
@@ -1101,7 +1051,7 @@ namespace LinaGX
             }
 
             // Indirect signature.
-            if (shaderDesc.layout.drawIDBinding)
+            if (shaderDesc.layout.hasGLDrawID)
             {
                 try
                 {
@@ -1834,163 +1784,220 @@ namespace LinaGX
         DX12PipelineLayout item = {};
         item.isValid            = true;
 
-        // Root signature.
+        LINAGX_VEC<CD3DX12_ROOT_PARAMETER1>   rootParameters;
+        LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1> ranges;
+
+        uint32 totalDescriptors = 0;
+        for (auto set : desc.descriptorSets)
         {
-            CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
+            const auto& dscSet = m_descriptorSets.GetItemR(set);
 
-            // Textures & Samplers & Materials
+            for (auto b : dscSet.bindings)
+                totalDescriptors += b.lgxBinding.unbounded ? 1 : b.lgxBinding.descriptorCount;
+        }
 
-            LINAGX_VEC<CD3DX12_ROOT_PARAMETER1>   rootParameters;
-            LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1> ranges;
-            ranges.resize(shaderDesc.layout.totalDescriptors);
-            uint32 rangeCounter = 0;
-            uint32 setIndex     = 0;
+        ranges.resize(totalDescriptors);
+        uint32 rangeCounter = 0;
+        uint32 setIndex     = 0;
 
-            for (auto set : desc.descriptorSets)
+        for (auto set : desc.descriptorSets)
+        {
+            const auto& dscSet = m_descriptorSets.GetItemR(set);
+
+            for (auto b : dscSet.bindings)
             {
-                const auto& dscSet = m_descriptorSets.GetItemR(set);
+                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
 
-                for (auto b : dscSet.bindings)
+                if (b.stages.size() == 1)
+                    visibility = GetDXVisibility(b.stages[0]);
+
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
+                paramInfo.binding           = b.binding;
+                paramInfo.set               = setIndex;
+                paramInfo.elementSize       = b.lgxBinding.descriptorCount;
+                paramInfo.reflectionType    = b.lgxBinding.type;
+
+                if (b.lgxBinding.type == DescriptorType::UBO)
                 {
-                    CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
-                    CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
-                    D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                    if (b.stages.size() == 1)
-                        visibility = GetDXVisibility(b.stages[0]);
-
-                    DX12RootParamInfo paramInfo = {};
-                    paramInfo.rootParameter     = static_cast<uint32>(item.rootParams.size());
-                    paramInfo.binding           = b.binding;
-                    paramInfo.set               = setIndex;
-                    paramInfo.elementSize       = b.lgxBinding.descriptorCount;
-                    paramInfo.reflectionType    = b.lgxBinding.type;
-
-                    if (b.lgxBinding.type == DescriptorType::UBO)
+                    if (b.lgxBinding.descriptorCount > 1)
                     {
-                        if (b.lgxBinding.descriptorCount > 1)
-                        {
-                            ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, b.lgxBinding.descriptorCount, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                            param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                            rangeCounter++;
-                        }
-                        else
-                            param.InitAsConstantBufferView(b.lgxBinding.descriptorCount, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
-                    }
-                    else if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
-                    {
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        rootParameters.push_back(param);
-                        rootParameters.push_back(param2);
-                    }
-                    else if (b.lgxBinding.type == DescriptorType::SeparateImage)
-                    {
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-                    }
-                    else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
-                    {
-
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, b.lgxBinding.descriptorCount, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                         param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                         rangeCounter++;
                     }
                     else
-                    {
-                        ranges[rangeCounter].Init(!b.lgxBinding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-                    }
+                        param.InitAsConstantBufferView(b.lgxBinding.descriptorCount, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+                }
+                else if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
+                {
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
 
-                    item.rootParams.push_back(paramInfo);
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
 
                     rootParameters.push_back(param);
+                    rootParameters.push_back(param2);
                 }
-            }
+                else if (b.lgxBinding.type == DescriptorType::SeparateImage)
+                {
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
+                }
+                else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
+                {
 
-            if (shaderDesc.layout.hasGLDrawID)
-            {
-                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
-                param.InitAsConstants(1, shaderDesc.layout.drawIDBinding, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-                drawIDRootParamIndex = static_cast<uint32>(rootParameters.size());
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
+                }
+                else
+                {
+                    ranges[rangeCounter].Init(!b.lgxBinding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
+                }
+
+                item.rootParams.push_back(paramInfo);
+
                 rootParameters.push_back(param);
             }
 
-            auto containsStage = [](LINAGX_VEC<ShaderStage>& vec, ShaderStage target) {
-                for (auto stg : vec)
-                {
-                    if (stg == target)
-                        return true;
-                }
+            setIndex++;
+        }
 
-                return false;
-            };
+        uint32 drawIDRootParamIndex = 0;
+        if (desc.indirectDrawEnabled)
+        {
+            uint32 maxBinding = 0;
 
-            if (!desc.constantRanges.empty())
+            for (const auto& set : desc.descriptorSets)
             {
-                shader.constantsSpace   = shaderDesc.layout.constantsSet,
-                shader.constantsBinding = shaderDesc.layout.constantsBinding;
-
-                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
-
-                LINAGX_VEC<ShaderStage> stages;
-
-                for (const auto& ct : shaderDesc.layout.constants)
+                const auto& dcSet = m_descriptorSets.GetItemR(set);
+                for (const auto& binding : dcSet.bindings)
                 {
-                    for (auto stg : ct.stages)
-                    {
-                        if (!containsStage)
-                            stages.push_back(stg);
-                    }
+                    if (binding.lgxBinding.type == DescriptorType::UBO)
+                        maxBinding++;
                 }
 
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (stages.size() == 1)
-                    visibility = GetDXVisibility(stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                paramInfo.reflectionType    = DescriptorType::ConstantBlock;
-                paramInfo.set               = shader.constantsSpace;
-                paramInfo.binding           = shader.constantsBinding;
-                shader.rootParams.push_back(paramInfo);
-
-                uint32 totalConstants = 0;
-                for (const auto& ct : shaderDesc.layout.constants)
-                {
-                    for (const auto& mem : ct.members)
-                        totalConstants += static_cast<uint32>(mem.size) / sizeof(uint32);
-                }
-
-                param.InitAsConstants(totalConstants, shader.constantsBinding, shader.constantsSpace, visibility);
-                rootParameters.push_back(param);
+                break;
             }
 
-            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-            ComPtr<ID3DBlob>                      signatureBlob = nullptr;
-            ComPtr<ID3DBlob>                      errorBlob     = nullptr;
+            CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+            D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
+            param.InitAsConstants(1, maxBinding, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+            drawIDRootParamIndex = static_cast<uint32>(rootParameters.size());
+            rootParameters.push_back(param);
+        }
 
-            HRESULT hr = D3D12SerializeVersionedRootSignature(&rootSig, &signatureBlob, &errorBlob);
-
-            if (FAILED(hr))
+        auto containsStage = [](LINAGX_VEC<ShaderStage>& vec, ShaderStage target) {
+            for (auto stg : vec)
             {
-                LOGA(false, "Backend -> Failed serializing root signature! %s", (char*)errorBlob->GetBufferPointer());
-                return 0;
+                if (stg == target)
+                    return true;
             }
 
-            hr = m_device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&item.rootSig));
+            return false;
+        };
 
-            if (FAILED(hr))
+        if (!desc.constantRanges.empty())
+        {
+            auto constantsSpace   = static_cast<uint32>(desc.descriptorSets.size());
+            auto constantsBinding = desc.descriptorSets.empty() ? 0 : static_cast<uint32>(m_descriptorSets.GetItemR(desc.descriptorSets.at(0)).bindings.size());
+
+            CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+
+            LINAGX_VEC<ShaderStage> stages;
+
+            for (const auto& ct : desc.constantRanges)
             {
-                LOGA(false, "Backend -> Failed creating root signature!");
+                for (auto stg : ct.stages)
+                {
+                    if (!containsStage)
+                        stages.push_back(stg);
+                }
+            }
+
+            D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+            if (stages.size() == 1)
+                visibility = GetDXVisibility(stages[0]);
+
+            DX12RootParamInfo paramInfo = {};
+            paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
+            paramInfo.reflectionType    = DescriptorType::ConstantBlock;
+            paramInfo.set               = constantsSpace;
+            paramInfo.binding           = constantsBinding;
+            item.rootParams.push_back(paramInfo);
+
+            uint32 totalConstants = 0;
+            for (const auto& ct : desc.constantRanges)
+                totalConstants += ct.size / sizeof(uint32);
+
+            param.InitAsConstants(totalConstants, constantsBinding, constantsSpace, visibility);
+            rootParameters.push_back(param);
+        }
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        ComPtr<ID3DBlob>                      signatureBlob = nullptr;
+        ComPtr<ID3DBlob>                      errorBlob     = nullptr;
+
+        HRESULT hr = D3D12SerializeVersionedRootSignature(&rootSig, &signatureBlob, &errorBlob);
+
+        if (FAILED(hr))
+        {
+            LOGA(false, "Backend -> Failed serializing root signature! %s", (char*)errorBlob->GetBufferPointer());
+            return 0;
+        }
+
+        hr = m_device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&item.rootSig));
+
+        if (FAILED(hr))
+        {
+            LOGA(false, "Backend -> Failed creating root signature!");
+            return 0;
+        }
+
+        if (desc.indirectDrawEnabled)
+        {
+            try
+            {
+                D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[2]     = {};
+                argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
+                argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
+                argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+                D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+                commandSignatureDesc.pArgumentDescs               = argumentDescs;
+                commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
+                commandSignatureDesc.ByteStride                   = sizeof(IndexedIndirectCommand);
+
+                ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, item.rootSig.Get(), IID_PPV_ARGS(&item.indirectIndexedSig)));
+
+                D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]    = {};
+                argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
+                argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
+                argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+                D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
+                commandSignatureDesc.pArgumentDescs                = argumentDescs2;
+                commandSignatureDesc.NumArgumentDescs              = _countof(argumentDescs2);
+                commandSignatureDesc.ByteStride                    = sizeof(IndirectCommand);
+
+                ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc2, item.rootSig.Get(), IID_PPV_ARGS(&item.indirectDrawSig)));
+            }
+            catch (HrException e)
+            {
+                DX12_THROW(e, "Backend -> Exception when creating command signature! %s", e.what());
                 return 0;
             }
         }
@@ -2945,10 +2952,12 @@ namespace LinaGX
         auto                   list = stream.list;
 
         LINAGX_VEC<DX12RootParamInfo>* rootParams;
-        if (cmd->useBoundShaderForLayout)
+        if (cmd->layoutSource == DescriptorSetsLayoutSource::LastBoundShader)
             rootParams = &m_shaders.GetItemR(stream.boundShader).rootParams;
+        else if (cmd->layoutSource == DescriptorSetsLayoutSource::CustomShader)
+            rootParams = &m_shaders.GetItemR(cmd->customLayoutShader).rootParams;
         else
-            rootParams = &m_pipelineLayouts.GetItemR(cmd->pipelineLayout).rootParams;
+            rootParams = &m_pipelineLayouts.GetItemR(cmd->customLayout).rootParams;
 
         uint32 dynamicOffsetIndexCounter = 0;
 

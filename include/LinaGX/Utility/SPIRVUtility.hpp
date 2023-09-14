@@ -44,6 +44,7 @@ namespace LinaGX
         static bool GLSL2SPV(ShaderStage stg, const LINAGX_STRING& pShader, const LINAGX_STRING& includePath, DataBlob& spirv, ShaderLayout& outLayout, BackendAPI targetAPI);
         static bool SPV2HLSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, const ShaderLayout& layoutReflection);
         static bool SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, ShaderLayout& layoutReflection);
+        static void PostFillReflection(ShaderLayout& outLayout, BackendAPI targetAPI);
 
     private:
         static void InitResources(TBuiltInResource& resources);

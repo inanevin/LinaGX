@@ -68,7 +68,7 @@ namespace LinaGX
         uint32         set            = 0;
         uint32         elementSize    = 1;
         DescriptorType reflectionType = DescriptorType::UBO;
-        bool           isReadOnly     = true;
+        bool           isWritable     = false;
     };
 
     struct DX12Shader
@@ -175,9 +175,11 @@ namespace LinaGX
 
     struct DX12PipelineLayout
     {
-        bool                                        isValid = false;
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig = NULL;
-        LINAGX_VEC<DX12RootParamInfo>               rootParams;
+        bool                                           isValid            = false;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature>    rootSig            = NULL;
+        Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectIndexedSig = NULL;
+        Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectDrawSig    = NULL;
+        LINAGX_VEC<DX12RootParamInfo>                  rootParams;
     };
 
     class DX12Backend : public Backend

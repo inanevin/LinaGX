@@ -403,12 +403,12 @@ namespace LinaGX
         return outType;
     }
 
-    void FillStructMembers(spirv_cross::CompilerGLSL& compiler, spirv_cross::SPIRType type, LINAGX_VEC<ShaderUBOMember>& members)
+    void FillStructMembers(spirv_cross::CompilerGLSL& compiler, spirv_cross::SPIRType type, LINAGX_VEC<ShaderStructMember>& members)
     {
         unsigned int memberCount = static_cast<unsigned int>(type.member_types.size());
         for (unsigned int i = 0; i < memberCount; i++)
         {
-            ShaderUBOMember member;
+            ShaderStructMember member;
 
             auto& member_type = compiler.get_type(type.member_types[i]);
             member.size       = compiler.get_declared_struct_member_size(type, i);
@@ -533,13 +533,6 @@ namespace LinaGX
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
-        auto addSetStage = [&](uint32 set, ShaderStage stage) {
-            auto& vec = outLayout.perSetData[set].stages;
-            auto  it  = std::find_if(vec.begin(), vec.end(), [stage](ShaderStage vstg) { return vstg == stage; });
-            if (it == vec.end())
-                vec.push_back(stage);
-        };
-
         // Stage Inputs
         {
             if (stg == ShaderStage::Vertex)
@@ -587,40 +580,179 @@ namespace LinaGX
 
         // Pipeline layout & signature
         {
+            auto resizeSet = [&](uint32 setIndex) {
+                if (outLayout.descriptorSetLayouts.size() < setIndex + 1)
+                    outLayout.descriptorSetLayouts.resize(setIndex + 1);
+            };
+
+            auto resizeBinding = [&](uint32 set, uint32 bindingIndex) {
+                if (outLayout.descriptorSetLayouts[set].bindings.size() < bindingIndex + 1)
+                    outLayout.descriptorSetLayouts[set].bindings.resize(bindingIndex + 1);
+            };
+
             for (const auto& resource : resources.uniform_buffers)
             {
-                // Get the SPIR-V ID of the uniform buffer
-                auto id = resource.id;
+                const spirv_cross::SPIRType& type         = compiler.get_type(resource.type_id);
+                auto                         id           = resource.id;
+                const uint32                 set          = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                const uint32                 bindingIndex = compiler.get_decoration(id, spv::DecorationBinding);
+                const uint32                 spvID        = id;
+                const auto                   name         = compiler.get_name(resource.id);
+                const auto                   size         = compiler.get_declared_struct_size(type);
 
-                ShaderUBO ubo = {};
-                ubo.set       = compiler.get_decoration(id, spv::DecorationDescriptorSet);
-                ubo.binding   = compiler.get_decoration(id, spv::DecorationBinding);
-                ubo.spvID     = id;
-                addSetStage(ubo.set, stg);
-
-                auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const ShaderUBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
-                if (it != outLayout.ubos.end())
-                {
-                    it->stages.push_back(stg);
-                    continue;
-                }
-                ubo.stages.push_back(stg);
-
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
-                ubo.size                          = compiler.get_declared_struct_size(type);
-                ubo.name                          = compiler.get_name(resource.id);
+                resizeSet(set);
+                resizeBinding(set, bindingIndex);
+                auto& targetBinding   = outLayout.descriptorSetLayouts[set].bindings[bindingIndex];
+                targetBinding.binding = bindingIndex;
+                targetBinding.name    = name;
+                targetBinding.spvID   = spvID;
+                targetBinding.stages.push_back(stg);
+                targetBinding.size = size;
+                targetBinding.type = DescriptorType::UBO;
 
                 if (type.array.size() > 0)
-                    ubo.elementSize = type.array[0];
+                    targetBinding.descriptorCount = type.array[0];
 
-                auto& psData       = outLayout.perSetData[ubo.set].bindings[ubo.binding];
-                psData.name        = ubo.name;
-                psData.type        = DescriptorType::UBO;
-                psData.elementSize = ubo.elementSize;
+                outLayout.totalDescriptors += targetBinding.descriptorCount;
+                FillStructMembers(compiler, type, targetBinding.structMembers);
+            }
 
-                FillStructMembers(compiler, type, ubo.members);
-                outLayout.ubos.push_back(ubo);
-                outLayout.totalDescriptors += ubo.elementSize;
+            for (const auto& resource : resources.storage_buffers)
+            {
+                const spirv_cross::SPIRType& type         = compiler.get_type(resource.type_id);
+                auto                         id           = resource.id;
+                const uint32                 set          = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                const uint32                 bindingIndex = compiler.get_decoration(id, spv::DecorationBinding);
+                const uint32                 spvID        = id;
+                const auto                   name         = compiler.get_name(resource.id);
+                const auto                   size         = compiler.get_declared_struct_size(type);
+
+                resizeSet(set);
+                resizeBinding(set, bindingIndex);
+                auto& targetBinding   = outLayout.descriptorSetLayouts[set].bindings[bindingIndex];
+                targetBinding.binding = bindingIndex;
+                targetBinding.name    = name;
+                targetBinding.spvID   = spvID;
+                targetBinding.stages.push_back(stg);
+                targetBinding.size            = size;
+                targetBinding.descriptorCount = 1;
+                targetBinding.type            = DescriptorType::SSBO;
+
+                spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
+                targetBinding.isWritable         = !buffer_flags.get(spv::DecorationNonWritable);
+
+                outLayout.totalDescriptors++;
+            }
+
+            for (const auto& resource : resources.separate_samplers)
+            {
+                const spirv_cross::SPIRType& type         = compiler.get_type(resource.type_id);
+                auto                         id           = resource.id;
+                const uint32                 set          = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                const uint32                 bindingIndex = compiler.get_decoration(id, spv::DecorationBinding);
+                const uint32                 spvID        = id;
+                const auto                   name         = compiler.get_name(resource.id);
+                const auto                   size         = 0;
+
+                resizeSet(set);
+                resizeBinding(set, bindingIndex);
+                auto& targetBinding   = outLayout.descriptorSetLayouts[set].bindings[bindingIndex];
+                targetBinding.binding = bindingIndex;
+                targetBinding.name    = name;
+                targetBinding.spvID   = spvID;
+                targetBinding.stages.push_back(stg);
+                targetBinding.size = size;
+                targetBinding.type = DescriptorType::SeparateSampler;
+
+                if (type.array_size_literal[0])
+                {
+                    if (type.array[0] != 1)
+                        targetBinding.descriptorCount = type.array[0];
+                    else
+                        targetBinding.descriptorCount = 0;
+                }
+                else if (type.array.size() > 0)
+                    targetBinding.descriptorCount = type.array[0];
+
+                outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 1 : targetBinding.descriptorCount;
+            }
+
+            for (const auto& resource : resources.separate_images)
+            {
+                const spirv_cross::SPIRType& type         = compiler.get_type(resource.type_id);
+                auto                         id           = resource.id;
+                const uint32                 set          = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                const uint32                 bindingIndex = compiler.get_decoration(id, spv::DecorationBinding);
+                const uint32                 spvID        = id;
+                const auto                   name         = compiler.get_name(resource.id);
+                const auto                   size         = 0;
+
+                resizeSet(set);
+                resizeBinding(set, bindingIndex);
+                auto& targetBinding   = outLayout.descriptorSetLayouts[set].bindings[bindingIndex];
+                targetBinding.binding = bindingIndex;
+                targetBinding.name    = name;
+                targetBinding.spvID   = spvID;
+                targetBinding.stages.push_back(stg);
+                targetBinding.size = size;
+                targetBinding.type = DescriptorType::SeparateImage;
+
+                if (type.array_size_literal[0])
+                {
+                    if (type.array[0] != 1)
+                        targetBinding.descriptorCount = type.array[0];
+                    else
+                        targetBinding.descriptorCount = 0;
+                }
+                else if (type.array.size() > 0)
+                    targetBinding.descriptorCount = type.array[0];
+                else
+                {
+                    // sampler2DArray
+                    targetBinding.descriptorCount = 1;
+                    targetBinding.isArrayType     = true;
+                }
+
+                outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 1 : targetBinding.descriptorCount;
+            }
+
+            for (const auto& resource : resources.sampled_images)
+            {
+                const spirv_cross::SPIRType& type         = compiler.get_type(resource.type_id);
+                auto                         id           = resource.id;
+                const uint32                 set          = compiler.get_decoration(id, spv::DecorationDescriptorSet);
+                const uint32                 bindingIndex = compiler.get_decoration(id, spv::DecorationBinding);
+                const uint32                 spvID        = id;
+                const auto                   name         = compiler.get_name(resource.id);
+                const auto                   size         = 0;
+
+                resizeSet(set);
+                resizeBinding(set, bindingIndex);
+                auto& targetBinding   = outLayout.descriptorSetLayouts[set].bindings[bindingIndex];
+                targetBinding.binding = bindingIndex;
+                targetBinding.name    = name;
+                targetBinding.spvID   = spvID;
+                targetBinding.stages.push_back(stg);
+                targetBinding.size = size;
+                targetBinding.type = DescriptorType::CombinedImageSampler;
+
+                if (type.array_size_literal[0])
+                {
+                    if (type.array[0] != 1)
+                        targetBinding.descriptorCount = type.array[0];
+                    else
+                        targetBinding.descriptorCount = 0;
+                }
+                else if (type.array.size() > 0)
+                    targetBinding.descriptorCount = type.array[0];
+                else
+                {
+                    // sampler2DArray
+                    targetBinding.descriptorCount = 1;
+                    targetBinding.isArrayType     = true;
+                }
+
+                outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 2 : targetBinding.descriptorCount * 2;
             }
 
             if (!resources.push_constant_buffers.empty())
@@ -651,177 +783,6 @@ namespace LinaGX
                     FillStructMembers(compiler, type, block.members);
                     outLayout.constants.push_back(block);
                 }
-            }
-            for (const auto& resource : resources.sampled_images)
-            {
-                auto               id  = resource.id;
-                ShaderSRVTexture2D txt = {};
-
-                // Get the set and binding number for this uniform buffer
-                txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
-                txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                txt.spvID   = id;
-                addSetStage(txt.set, stg);
-
-                auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
-                if (it != outLayout.combinedImageSamplers.end())
-                {
-                    it->stages.push_back(stg);
-                    continue;
-                }
-                txt.stages.push_back(stg);
-
-                // Get type information about the uniform buffer
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
-                txt.name                          = compiler.get_name(resource.id);
-
-                if (type.array_size_literal[0])
-                {
-                    if (type.array[0] != 1)
-                        txt.elementSize = type.array[0];
-                    else
-                        txt.elementSize = 0;
-                }
-                else if (type.array.size() > 0)
-                    txt.elementSize = type.array[0];
-                else
-                {
-                    // sampler2DArray
-                    txt.elementSize    = 1;
-                    txt.isArrayTexture = true;
-                }
-
-                auto& psData       = outLayout.perSetData[txt.set].bindings[txt.binding];
-                psData.name        = txt.name;
-                psData.type        = DescriptorType::CombinedImageSampler;
-                psData.elementSize = txt.elementSize;
-
-                outLayout.combinedImageSamplers.push_back(txt);
-                outLayout.totalDescriptors += txt.elementSize == 0 ? 2 : txt.elementSize * 2;
-            }
-
-            for (const auto& resource : resources.separate_images)
-            {
-                auto               id  = resource.id;
-                ShaderSRVTexture2D txt = {};
-
-                // Get the set and binding number for this uniform buffer
-                txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
-                txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                txt.spvID   = id;
-                addSetStage(txt.set, stg);
-
-                auto it = std::find_if(outLayout.separateImages.begin(), outLayout.separateImages.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
-                if (it != outLayout.separateImages.end())
-                {
-                    it->stages.push_back(stg);
-                    continue;
-                }
-                txt.stages.push_back(stg);
-
-                // Get type information about the uniform buffer
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
-                txt.name                          = compiler.get_name(resource.id);
-
-                if (type.array_size_literal[0])
-                {
-                    if (type.array[0] != 1)
-                        txt.elementSize = type.array[0];
-                    else
-                        txt.elementSize = 0;
-                }
-                else if (type.array.size() > 0)
-                    txt.elementSize = type.array[0];
-                else
-                {
-                    // sampler2DArray
-                    txt.elementSize    = 1;
-                    txt.isArrayTexture = true;
-                }
-
-                auto& psData       = outLayout.perSetData[txt.set].bindings[txt.binding];
-                psData.name        = txt.name;
-                psData.type        = DescriptorType::SeparateImage;
-                psData.elementSize = txt.elementSize;
-
-                outLayout.separateImages.push_back(txt);
-                outLayout.totalDescriptors += txt.elementSize == 0 ? 1 : txt.elementSize;
-            }
-
-            for (const auto& resource : resources.separate_samplers)
-            {
-                auto          id      = resource.id;
-                ShaderSampler sampler = {};
-
-                // Get the set and binding number for this uniform buffer
-                sampler.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
-                sampler.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                sampler.spvID   = id;
-                addSetStage(sampler.set, stg);
-
-                auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const ShaderSampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
-                if (it != outLayout.samplers.end())
-                {
-                    it->stages.push_back(stg);
-                    continue;
-                }
-                sampler.stages.push_back(stg);
-
-                // Get type information about the uniform buffer
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
-                sampler.name                      = compiler.get_name(resource.id);
-
-                if (type.array_size_literal[0])
-                {
-                    if (type.array[0] != 1)
-                        sampler.elementSize = type.array[0];
-                    else
-                        sampler.elementSize = 0;
-                }
-                else if (type.array.size() > 0)
-                    sampler.elementSize = type.array[0];
-
-                auto& psData       = outLayout.perSetData[sampler.set].bindings[sampler.binding];
-                psData.name        = sampler.name;
-                psData.type        = DescriptorType::SeparateSampler;
-                psData.elementSize = sampler.elementSize;
-
-                outLayout.samplers.push_back(sampler);
-                outLayout.totalDescriptors += sampler.elementSize == 0 ? 1 : sampler.elementSize;
-            }
-
-            for (const auto& resource : resources.storage_buffers)
-            {
-                auto       id   = resource.id;
-                ShaderSSBO ssbo = {};
-
-                // Get the set and binding number for this uniform buffer
-                ssbo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
-                ssbo.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                ssbo.spvID   = id;
-                addSetStage(ssbo.set, stg);
-
-                auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const ShaderSSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
-                if (it != outLayout.ssbos.end())
-                {
-                    it->stages.push_back(stg);
-                    continue;
-                }
-                ssbo.stages.push_back(stg);
-
-                // Get type information about the uniform buffer
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
-                ssbo.name                         = compiler.get_name(resource.id);
-                auto& psData                      = outLayout.perSetData[ssbo.set].bindings[ssbo.binding];
-                psData.name                       = ssbo.name;
-                psData.type                       = DescriptorType::SSBO;
-                psData.elementSize                = 1;
-
-                spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
-                ssbo.isReadOnly                  = buffer_flags.get(spv::DecorationNonWritable);
-
-                outLayout.ssbos.push_back(ssbo);
-                outLayout.totalDescriptors++;
             }
         }
 
@@ -914,42 +875,53 @@ namespace LinaGX
             // compiler.set_argument_buffer_device_address_space(0, true);
             // options.pad_argument_buffer_resources = true;
 
-            auto find = [stg](const LINAGX_VEC<ShaderStage>& stgVec) {
-                for (auto stage : stgVec)
+            uint32 bufferID = 0, textureID = 0, samplerID = 0;
+            uint32 drawIDInputBufferID = 0;
+
+            auto checkIfContainsStage = [stg](const ShaderDescriptorSetLayout& layout) {
+                for (const auto& b : layout.bindings)
                 {
-                    if (stg == stage)
+                    for (auto bindingStage : b.stages)
+                    {
+                        if (bindingStage == stg)
+                            return true;
+                    }
+                }
+
+                return false;
+            };
+
+            auto checkIfBindingContainsStage = [stg](const ShaderDescriptorSetBinding& binding) {
+                for (auto bindingStage : binding.stages)
+                {
+                    if (bindingStage == stg)
                         return true;
                 }
 
                 return false;
             };
 
-            uint32 bufferID = 0, textureID = 0, samplerID = 0;
-            uint32 drawIDInputBufferID = 0;
-
             if (stg == ShaderStage::Vertex)
                 bufferID++;
 
-            LINAGX_VEC<uint32> setsSorted;
-            for (const auto& [setHandle, data] : layoutReflection.perSetData)
-                setsSorted.push_back(setHandle);
-
-            std::sort(setsSorted.begin(), setsSorted.end());
-
-            for (auto setIndex : setsSorted)
+            uint32 setIndex = 0;
+            for (const auto& layout : layoutReflection.descriptorSetLayouts)
             {
-                const auto& setData = layoutReflection.perSetData[setIndex];
-                if (!find(setData.stages))
-                    continue;
-
-                LINAGX_VEC<uint32> bindingsSorted;
-                for (const auto& [bindingIndex, bindingData] : setData.bindings)
-                    bindingsSorted.push_back(bindingIndex);
-                std::sort(bindingsSorted.begin(), bindingsSorted.end());
-
-                for (auto bindingIndex : bindingsSorted)
+                if (!checkIfContainsStage(layout))
                 {
-                    const auto& bindingData = setData.bindings.at(bindingIndex);
+                    setIndex++;
+                    continue;
+                }
+
+                uint32 bindingIndex = 0;
+
+                for (const auto& bindingData : layout.bindings)
+                {
+                    if (!checkIfBindingContainsStage(bindingData))
+                    {
+                        bindingIndex++;
+                        continue;
+                    }
 
                     spirv_cross::MSLResourceBinding mslb;
                     mslb.stage    = exec;
@@ -959,7 +931,7 @@ namespace LinaGX
                     if (bindingData.type == DescriptorType::UBO)
                     {
                         mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
-                        mslb.count      = bindingData.elementSize == 0 ? 1 : bindingData.elementSize;
+                        mslb.count      = bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
                         mslb.msl_buffer = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
@@ -973,7 +945,7 @@ namespace LinaGX
                     }
                     else if (bindingData.type == DescriptorType::SeparateImage)
                     {
-                        if (bindingData.elementSize == 0)
+                        if (bindingData.descriptorCount == 0)
                         {
                             mslb.count       = 0;
                             mslb.msl_texture = bufferID;
@@ -981,7 +953,7 @@ namespace LinaGX
                         }
                         else
                         {
-                            mslb.count       = bindingData.elementSize;
+                            mslb.count       = bindingData.descriptorCount;
                             mslb.msl_texture = textureID;
                             textureID += mslb.count;
                         }
@@ -990,7 +962,7 @@ namespace LinaGX
                     }
                     else if (bindingData.type == DescriptorType::SeparateImage)
                     {
-                        if (bindingData.elementSize == 0)
+                        if (bindingData.descriptorCount == 0)
                         {
                             mslb.count       = 0;
                             mslb.msl_texture = bufferID;
@@ -998,7 +970,7 @@ namespace LinaGX
                         }
                         else
                         {
-                            mslb.count       = bindingData.elementSize;
+                            mslb.count       = bindingData.descriptorCount;
                             mslb.msl_sampler = samplerID;
                             samplerID += mslb.count;
                         }
@@ -1007,7 +979,7 @@ namespace LinaGX
                     }
                     else if (bindingData.type == DescriptorType::CombinedImageSampler)
                     {
-                        if (bindingData.elementSize == 0)
+                        if (bindingData.descriptorCount == 0)
                         {
                             mslb.count       = 0;
                             mslb.msl_texture = bufferID;
@@ -1020,7 +992,7 @@ namespace LinaGX
                         }
                         else
                         {
-                            mslb.count       = bindingData.elementSize;
+                            mslb.count       = bindingData.descriptorCount;
                             mslb.msl_texture = textureID;
                             textureID += mslb.count;
                             compiler.add_msl_resource_binding(mslb);
@@ -1030,7 +1002,11 @@ namespace LinaGX
                             compiler.add_msl_resource_binding(mslb);
                         }
                     }
+
+                    bindingIndex++;
                 }
+
+                setIndex++;
             }
 
             // Pcb
@@ -1115,6 +1091,17 @@ namespace LinaGX
         }
 
         return true;
+    }
+
+    void SPIRVUtility::PostFillReflection(ShaderLayout& outLayout, BackendAPI targetAPI)
+    {
+        // If contains push constants
+        // Make sure we assign it to maxium set's maximum binding+1
+        if (!outLayout.constants.empty())
+        {
+            outLayout.constantsSet     = static_cast<uint32>(outLayout.descriptorSetLayouts.size());
+            outLayout.constantsBinding = outLayout.descriptorSetLayouts.empty() ? 0 : static_cast<uint32>(outLayout.descriptorSetLayouts[0].bindings.size());
+        }
     }
 
 } // namespace LinaGX

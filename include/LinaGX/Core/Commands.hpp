@@ -166,17 +166,25 @@ namespace LinaGX
         TextureBuffer* buffers;
     };
 
+    enum class DescriptorSetsLayoutSource
+    {
+        LastBoundShader,
+        CustomLayout,
+        CustomShader,
+    };
+
     struct CMDBindDescriptorSets
     {
-        void*   extension;
-        uint32  firstSet;
-        uint32  setCount;
-        uint16* descriptorSetHandles;
-        bool    useBoundShaderForLayout;
-        uint16  pipelineLayout;
-        bool    isCompute;
-        uint32  dynamicOffsetCount;
-        uint32* dynamicOffsets;
+        void*                      extension;
+        uint32                     firstSet;
+        uint32                     setCount;
+        uint16*                    descriptorSetHandles;
+        bool                       isCompute;
+        uint32                     dynamicOffsetCount;
+        uint32*                    dynamicOffsets;
+        DescriptorSetsLayoutSource layoutSource;
+        uint16                     customLayout;
+        uint32                     customLayoutShader;
     };
 
     struct CMDBindConstants

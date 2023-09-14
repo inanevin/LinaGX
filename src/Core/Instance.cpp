@@ -164,30 +164,7 @@ namespace LinaGX
             outCompiledBlobs[stage] = spv;
         }
 
-        // If contains push constants
-        // Make sure we assign it to maxium set's maximum binding+1
-        if (!outLayout.constants.empty())
-        {
-            uint32 maxSet = 0;
-            for (const auto& [set, bindingData] : outLayout.perSetData)
-            {
-                if (set > maxSet)
-                    maxSet = set;
-            }
-
-            uint32 maxBinding = 0;
-
-            const auto& bindingsPerSet = outLayout.perSetData.at(maxSet).bindings;
-
-            for (const auto& [binding, data] : bindingsPerSet)
-            {
-                if (binding > maxBinding)
-                    maxBinding = binding;
-            }
-
-            outLayout.constantsSet     = maxSet;
-            outLayout.constantsBinding = maxBinding + 1;
-        }
+        SPIRVUtility::PostFillReflection(outLayout, m_initInfo.api);
 
         if (m_initInfo.api == BackendAPI::DX12)
         {
@@ -215,13 +192,18 @@ namespace LinaGX
                 {
                     uint32 maxBinding = 0;
 
-                    for (const auto& ubo : outLayout.ubos)
+                    for (const auto& dcSetLayout : outLayout.descriptorSetLayouts)
                     {
-                        if (ubo.set == 0)
-                            maxBinding = Max(maxBinding, ubo.binding);
+                        for (const auto& binding : dcSetLayout.bindings)
+                        {
+                            if (binding.type == DescriptorType::UBO)
+                                maxBinding++;
+                        }
+
+                        break;
                     }
 
-                    outLayout.drawIDBinding = maxBinding + 1;
+                    outLayout.drawIDBinding = maxBinding;
 
                     hlsl = "\n cbuffer DrawIDBuffer : register(b" + LINAGX_TOSTRING(outLayout.drawIDBinding);
                     hlsl += +") \n  {\n uint LGX_DRAW_ID; \n }; \n";
