@@ -233,6 +233,7 @@ namespace LinaGX
         CallbackMouseWheel       m_cbMouseWheel = nullptr;
         CallbackMouseMove        m_cbMouseMove  = nullptr;
         LINAGX_MAP<uint32, bool> m_globalMouseStates;
+        LINAGX_MAP<uint32, bool> m_globalPrevMouseStates;
         bool                     m_receivedDelta = false;
     };
 } // namespace LinaGX

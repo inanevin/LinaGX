@@ -138,18 +138,18 @@ namespace LinaGX
         if (!m_appActive)
             return false;
 
-        int keyState = GetKey(button);
+        int keyState = m_globalMouseStates[button];
 
-        return keyState == 1 && m_previousStates[button] == 0;
+        return keyState == 1 && m_globalPrevMouseStates[button] == 0;
     }
     bool Input::GetMouseButtonUp(int button)
     {
         if (!m_appActive)
             return false;
 
-        int keyState = GetKey(button);
+        int keyState = m_globalMouseStates[button];
 
-        return keyState == 0 && m_previousStates[button] == 1;
+        return keyState == 0 && m_globalPrevMouseStates[button] == 1;
     }
 
     void Input::Tick()
@@ -165,6 +165,9 @@ namespace LinaGX
     {
         for (int i = 0; i < 256; i++)
             m_previousStates[i] = m_currentStates[i];
+        
+        for(int i = 0; i < 8; i++)
+            m_globalPrevMouseStates[i] = m_globalMouseStates[i];
     }
 
 

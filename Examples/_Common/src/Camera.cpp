@@ -48,6 +48,10 @@ namespace LinaGX::Examples
 
     void Camera::Tick(float dt)
     {
+            if(m_lgx->GetInput().GetMouseButtonDown(1))
+            {
+                int a = 5;
+            }
         if (m_controlsEnabled && m_lgx->GetInput().GetKeyDown(LINAGX_KEY_ESCAPE))
         {
             m_controlsEnabled = false;

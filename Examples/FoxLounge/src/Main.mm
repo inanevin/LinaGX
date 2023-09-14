@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 
-#include "CPUVisibleGPUMemory.hpp"
+#include "FoxLounge.hpp"
 
 using namespace LinaGX::Examples;
 

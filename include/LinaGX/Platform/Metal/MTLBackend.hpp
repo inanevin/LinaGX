@@ -43,6 +43,13 @@ struct MTLTexture2D
     void* ptr = nullptr;
 };
 
+struct MTLBoundDescriptorSet
+{
+    uint16 handle = 0;
+    bool isDirty = false;
+    LINAGX_VEC<uint32> dynamicOffsets;
+};
+
 struct MTLCommandStream
 {
     bool isValid = false;
@@ -65,6 +72,7 @@ struct MTLCommandStream
     bool currentShaderIsCompute = false;
     LINAGX_MAP<uint32, uint64> intermediateResources;
     LINAGX_MAP<uint32, uint16> boundDescriptorSets;
+    LINAGX_MAP<uint32, MTLBoundDescriptorSet> boundSets;
 };
 
 struct MTLSwapchain
@@ -218,6 +226,9 @@ public:
     virtual void   DestroyQueue(uint8 queue) override;
     virtual uint8  GetPrimaryQueue(CommandType type) override;
     
+private:
+    
+    void BindDescriptorSets(MTLCommandStream& stream);
     
 public:
     virtual bool Initialize(const InitInfo& initInfo) override;

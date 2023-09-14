@@ -75,7 +75,7 @@ MTLPixelFormat GetMTLFormat(Format format)
     case Format::R16G16B16A16_SFLOAT:
         return MTLPixelFormatRGBA16Float;
     case Format::R16G16B16A16_UNORM:
-        LOGA(false, "");
+        return MTLPixelFormatRGBA16Unorm;
     case Format::R32G32_SFLOAT:
         return MTLPixelFormatRG32Float;
     case Format::R32G32_SINT:
@@ -1714,6 +1714,260 @@ void MTLBackend::EndFrame() {
 }
 
 
+void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
+{
+    if(stream.currentEncoder == nullptr && stream.currentComputeEncoder == nullptr)
+        return;
+    
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
+    
+    #pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
+
+    auto setBuffer = [&](id<MTLBuffer> const* _Nonnull ptr, uint32 bufferIndex, uint32 count, ShaderStage stage, uint32 offset = 0){
+       
+        if(stage == ShaderStage::Vertex)
+            bufferIndex = bufferIndex + 1;
+        
+       NSRange rng = NSMakeRange(bufferIndex, count);
+
+       LINAGX_VEC<NSUInteger> offsets;
+       offsets.resize(count);
+        
+       for(uint32 i = 0 ; i < count; i++)
+            offsets[i] = offset;
+       
+        if(stage == ShaderStage::Fragment)
+            [encoder setFragmentBuffers:ptr offsets:&offsets[0] withRange:rng];
+        else if(stage == ShaderStage::Compute)
+            [computeEncoder setBuffers:ptr offsets:&offsets[0] withRange:rng];
+        else
+            [encoder setVertexBuffers:ptr offsets:&offsets[0] withRange:rng];
+    };
+    
+    auto setTexture = [&](id<MTLTexture> const* _Nonnull ptr, uint32 textureIndex, uint32 count, ShaderStage stage){
+        NSRange rng = NSMakeRange(textureIndex, count);
+
+       if(stage == ShaderStage::Compute)
+            [computeEncoder setTextures:ptr withRange:rng];
+       else if(stage == ShaderStage::Fragment)
+           [encoder setFragmentTextures:ptr withRange:rng];
+       else
+           [encoder setVertexTextures:ptr withRange:rng];
+    };
+    
+    auto setSampler = [&](id<MTLSamplerState> const* _Nonnull ptr, uint32 samplerIndex, uint32 count, ShaderStage stage){
+        NSRange rng = NSMakeRange(samplerIndex, count);
+
+        if(stage == ShaderStage::Compute)
+            [computeEncoder setSamplerStates:ptr withRange:rng];
+        else if(stage == ShaderStage::Fragment)
+            [encoder setFragmentSamplerStates:ptr withRange:rng];
+        else
+            [encoder setVertexSamplerStates:ptr withRange:rng];
+    };
+    
+#pragma clang diagnostic pop
+    
+    uint32 dynamicOffsetIndexCounter = 0;
+    
+    for(const auto& [setIndex, setData] : stream.boundSets)
+    {
+        if(!setData.isDirty)
+            continue;
+        
+        auto& set = m_descriptorSets.GetItemR(setData.handle);
+        
+        LINAGX_VEC<ShaderStage> allStages;
+        LINAGX_MAP<ShaderStage, uint32> bufferIDStart;
+        LINAGX_MAP<ShaderStage, uint32> textureIDStart;
+        LINAGX_MAP<ShaderStage, uint32> samplerIDStart;
+
+        for(uint32 j = 0; j < setIndex; j++)
+        {
+            const auto& it = stream.boundSets.find(j);
+            if(it == stream.boundSets.end())
+                continue;
+            
+            const auto& boundSet = m_descriptorSets.GetItemR(it->second.handle);
+            
+            for(const auto& binding : boundSet.desc.bindings)
+            {
+                for(auto stg : binding.stages)
+                {
+                    bool found = false;
+                    for(auto existingStg : allStages)
+                    {
+                        if(existingStg == stg)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if(!found)
+                        allStages.push_back(stg);
+                }
+            }
+            
+            for(auto stg: allStages)
+            {
+                bufferIDStart[stg] += boundSet.localBufferID;
+                textureIDStart[stg] += boundSet.localTextureID;
+                samplerIDStart[stg] += boundSet.localSamplerID;
+            }
+        }
+        
+        uint32 dynamicOffsetCounter = 0;
+        
+        for(const auto& mtlBinding : set.bindings)
+        {
+            for(auto stg : mtlBinding.lgxBinding.stages)
+            {
+                if(mtlBinding.lgxBinding.type == DescriptorType::CombinedImageSampler)
+                {
+                    LINAGX_VEC<id<MTLTexture>> textures;
+                    LINAGX_VEC<id<MTLSamplerState>> samplers;
+                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
+                    textures.resize(mtlBinding.resources.size());
+                    samplers.resize(mtlBinding.resources.size());
+                    
+                    for(uint32 k = 0; k < dcCount; k++)
+                    {
+                        const auto& txt = m_texture2Ds.GetItemR(mtlBinding.resources[k]);
+                        id<MTLTexture> mtlTexture = AS_MTL(txt.ptr, id<MTLTexture>);
+                        textures[k] = mtlTexture;
+                        
+                        const auto& sampler = m_samplers.GetItemR(mtlBinding.additionalResources[k]);
+                        id<MTLSamplerState> mtlSampler = AS_MTL(sampler.ptr, id<MTLSamplerState>);
+                        samplers[k] = mtlSampler;
+                    }
+                   
+                    // gonna be a buffer.
+                    if(!mtlBinding.lgxBinding.unbounded)
+                    {
+                        setTexture(&textures[0], textureIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                        setSampler(&samplers[0], samplerIDStart[stg] + mtlBinding.localBufferIDSecondary, dcCount, stg);
+                    }
+                    else
+                    {
+                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
+                        id<MTLBuffer> argBuffer2 = AS_MTL(mtlBinding.argBufferSecondary, id<MTLBuffer>);
+                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
+                        setBuffer(&argBuffer2, bufferIDStart[stg] + mtlBinding.localBufferIDSecondary, 1, stg);
+
+                        [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
+                    }
+                   
+                }
+                else if(mtlBinding.lgxBinding.type == DescriptorType::SeparateImage)
+                {
+                    LINAGX_VEC<id<MTLTexture>> textures;
+                    textures.resize(mtlBinding.resources.size());
+                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
+
+                    for(uint32 k = 0; k < dcCount; k++)
+                    {
+                        const auto& txt = m_texture2Ds.GetItemR(mtlBinding.resources[k]);
+                        id<MTLTexture> mtlTexture = AS_MTL(txt.ptr, id<MTLTexture>);
+                        textures[k] = mtlTexture;
+                    }
+                    
+                    if(!mtlBinding.lgxBinding.unbounded)
+                        setTexture(&textures[0], textureIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                    else
+                    {
+                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
+                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
+                        [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
+                    }
+                    
+                }
+                else if(mtlBinding.lgxBinding.type == DescriptorType::SeparateSampler)
+                {
+                    LINAGX_VEC<id<MTLSamplerState>> samplers;
+                    samplers.resize(mtlBinding.resources.size());
+                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
+
+                    for(uint32 k = 0; k < dcCount; k++)
+                    {
+                        const auto& sampler = m_samplers.GetItemR(mtlBinding.additionalResources[k]);
+                        id<MTLSamplerState> mtlSampler = AS_MTL(sampler.ptr, id<MTLSamplerState>);
+                        samplers[k] = mtlSampler;
+                    }
+                    
+                    if(!mtlBinding.lgxBinding.unbounded)
+                        setSampler(&samplers[0], samplerIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                    else
+                    {
+                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
+                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
+                    }
+                }
+                else if(mtlBinding.lgxBinding.type == DescriptorType::UBO)
+                {
+                    LINAGX_VEC<id<MTLBuffer>> ubos;
+                    ubos.resize(mtlBinding.resources.size());
+                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
+
+                    for(uint32  k = 0; k < dcCount; k++)
+                    {
+                        const auto& res = m_resources.GetItemR(mtlBinding.resources[k]);
+                        id<MTLBuffer> mtlBuffer = AS_MTL(res.ptr, id<MTLBuffer>);
+                        ubos[k] = mtlBuffer;
+                    }
+                    
+                    uint32 offset = 0;
+                    
+                    if(mtlBinding.lgxBinding.useDynamicOffset)
+                    {
+                        offset = setData.dynamicOffsets[dynamicOffsetIndexCounter];
+                        dynamicOffsetIndexCounter++;
+                    }
+                    
+                    if(!mtlBinding.lgxBinding.unbounded)
+                        setBuffer(&ubos[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
+                    else
+                    {
+                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
+                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg, offset);
+                        [encoder useResources:&ubos[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
+                    }
+                }
+                else if(mtlBinding.lgxBinding.type == DescriptorType::SSBO)
+                {
+                    LINAGX_VEC<id<MTLBuffer>> ssbo;
+                    ssbo.resize(mtlBinding.resources.size());
+                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
+
+                    for(uint32  k = 0; k < dcCount; k++)
+                    {
+                        const auto& res = m_resources.GetItemR(mtlBinding.resources[k]);
+                        id<MTLBuffer> mtlBuffer = AS_MTL(res.ptr, id<MTLBuffer>);
+                        ssbo[k] = mtlBuffer;
+                    }
+                    
+                    uint32 offset = 0;
+                    
+                    if(mtlBinding.lgxBinding.useDynamicOffset)
+                    {
+                        offset = setData.dynamicOffsets[dynamicOffsetIndexCounter];
+                        dynamicOffsetIndexCounter++;
+                    }
+                    
+                    if(!mtlBinding.lgxBinding.unbounded)
+                        setBuffer(&ssbo[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
+                    else
+                    {
+                        LOGA(false, "Backend -> Can't use SSBOs as unbounded!");
+                    }
+                }
+            }
+        }
+    }
+}
+
 void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
     id<MTLCommandBuffer> buffer = AS_MTL(stream.currentBuffer, id<MTLCommandBuffer>);
@@ -1785,6 +2039,7 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     [encoder setViewport:vp];
     stream.currentEncoder = AS_VOID(encoder);
     stream.allRenderEncoders.push_back(stream.currentEncoder);
+    BindDescriptorSets(stream);
 }
 
 void MTLBackend::CMD_EndRenderPass(uint8 *data, MTLCommandStream &stream) {
@@ -1844,6 +2099,7 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     
     stream.currentShader = cmd->shader;
     stream.currentShaderIsCompute = shader.isCompute;
+    BindDescriptorSets(stream);
 }
 
 void MTLBackend::CMD_DrawInstanced(uint8 *data, MTLCommandStream &stream) {
@@ -2048,252 +2304,25 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnonnull"
-
-    auto setBuffer = [&](id<MTLBuffer> const* _Nonnull ptr, uint32 bufferIndex, uint32 count, ShaderStage stage, uint32 offset = 0){
-       
-        if(stage == ShaderStage::Vertex)
-            bufferIndex = bufferIndex + 1;
-        
-       NSRange rng = NSMakeRange(bufferIndex, count);
-
-       LINAGX_VEC<NSUInteger> offsets;
-       offsets.resize(count);
-        
-       for(uint32 i = 0 ; i < count; i++)
-            offsets[i] = offset;
-       
-        if(stage == ShaderStage::Fragment)
-            [encoder setFragmentBuffers:ptr offsets:&offsets[0] withRange:rng];
-        else if(stage == ShaderStage::Compute)
-            [computeEncoder setBuffers:ptr offsets:&offsets[0] withRange:rng];
-        else
-            [encoder setVertexBuffers:ptr offsets:&offsets[0] withRange:rng];
-    };
-    
-    auto setTexture = [&](id<MTLTexture> const* _Nonnull ptr, uint32 textureIndex, uint32 count, ShaderStage stage){
-        NSRange rng = NSMakeRange(textureIndex, count);
-
-       if(stage == ShaderStage::Compute)
-            [computeEncoder setTextures:ptr withRange:rng];
-       else if(stage == ShaderStage::Fragment)
-           [encoder setFragmentTextures:ptr withRange:rng];
-       else
-           [encoder setVertexTextures:ptr withRange:rng];
-    };
-    
-    auto setSampler = [&](id<MTLSamplerState> const* _Nonnull ptr, uint32 samplerIndex, uint32 count, ShaderStage stage){
-        NSRange rng = NSMakeRange(samplerIndex, count);
-
-        if(stage == ShaderStage::Compute)
-            [computeEncoder setSamplerStates:ptr withRange:rng];
-        else if(stage == ShaderStage::Fragment)
-            [encoder setFragmentSamplerStates:ptr withRange:rng];
-        else
-            [encoder setVertexSamplerStates:ptr withRange:rng];
-    };
-    
-#pragma clang diagnostic pop
-    
-    uint32 dynamicOffsetIndexCounter = 0;
-    
+    uint32 dynCtr = 0;
     for(uint32 i = 0; i < cmd->setCount; i++)
     {
-        const uint32 setHandle = cmd->descriptorSetHandles[i];
+        const uint16 setHandle = cmd->descriptorSetHandles[i];
         const uint32 setIndex = i + cmd->firstSet;
-        auto& set = m_descriptorSets.GetItemR(setHandle);
+        const auto& set = m_descriptorSets.GetItemR(setHandle);
+        MTLBoundDescriptorSet data = {setHandle, true};
         
-        LINAGX_VEC<ShaderStage> allStages;
-
-        LINAGX_MAP<ShaderStage, uint32> bufferIDStart;
-        LINAGX_MAP<ShaderStage, uint32> textureIDStart;
-        LINAGX_MAP<ShaderStage, uint32> samplerIDStart;
-        
-        for(uint32 j = 0; j < setIndex; j++)
+        for(const auto& binding : set.bindings)
         {
-            const auto& it = stream.boundDescriptorSets.find(j);
-            if(it == stream.boundDescriptorSets.end())
-                continue;
-            
-            const auto& boundSet = m_descriptorSets.GetItemR(it->second);
-            
-            
-            for(const auto& binding : boundSet.desc.bindings)
-            {
-                for(auto stg : binding.stages)
-                {
-                    bool found = false;
-                    for(auto existingStg : allStages)
-                    {
-                        if(existingStg == stg)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    
-                    if(!found)
-                        allStages.push_back(stg);
-                }
-            }
-            
-            for(auto stg: allStages)
-            {
-                bufferIDStart[stg] += boundSet.localBufferID;
-                textureIDStart[stg] += boundSet.localTextureID;
-                samplerIDStart[stg] += boundSet.localSamplerID;
-            }
-           
+            if(binding.lgxBinding.useDynamicOffset)
+                data.dynamicOffsets.push_back(cmd->dynamicOffsets[dynCtr++]);
         }
         
-        stream.boundDescriptorSets[setIndex] = setHandle;
-        
-        for(const auto& mtlBinding : set.bindings)
-        {
-            for(auto stg : mtlBinding.lgxBinding.stages)
-            {
-                if(mtlBinding.lgxBinding.type == DescriptorType::CombinedImageSampler)
-                {
-                    LINAGX_VEC<id<MTLTexture>> textures;
-                    LINAGX_VEC<id<MTLSamplerState>> samplers;
-                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
-                    textures.resize(mtlBinding.resources.size());
-                    samplers.resize(mtlBinding.resources.size());
-                    
-                    for(uint32 k = 0; k < dcCount; k++)
-                    {
-                        const auto& txt = m_texture2Ds.GetItemR(mtlBinding.resources[k]);
-                        id<MTLTexture> mtlTexture = AS_MTL(txt.ptr, id<MTLTexture>);
-                        textures[k] = mtlTexture;
-                        
-                        const auto& sampler = m_samplers.GetItemR(mtlBinding.additionalResources[k]);
-                        id<MTLSamplerState> mtlSampler = AS_MTL(sampler.ptr, id<MTLSamplerState>);
-                        samplers[k] = mtlSampler;
-                    }
-                   
-                    // gonna be a buffer.
-                    if(!mtlBinding.lgxBinding.unbounded)
-                    {
-                        setTexture(&textures[0], textureIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
-                        setSampler(&samplers[0], samplerIDStart[stg] + mtlBinding.localBufferIDSecondary, dcCount, stg);
-                    }
-                    else
-                    {
-                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        id<MTLBuffer> argBuffer2 = AS_MTL(mtlBinding.argBufferSecondary, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
-                        setBuffer(&argBuffer2, bufferIDStart[stg] + mtlBinding.localBufferIDSecondary, 1, stg);
+        stream.boundSets[setIndex] = data;
 
-                        [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
-                    }
-                   
-                }
-                else if(mtlBinding.lgxBinding.type == DescriptorType::SeparateImage)
-                {
-                    LINAGX_VEC<id<MTLTexture>> textures;
-                    textures.resize(mtlBinding.resources.size());
-                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
-
-                    for(uint32 k = 0; k < dcCount; k++)
-                    {
-                        const auto& txt = m_texture2Ds.GetItemR(mtlBinding.resources[k]);
-                        id<MTLTexture> mtlTexture = AS_MTL(txt.ptr, id<MTLTexture>);
-                        textures[k] = mtlTexture;
-                    }
-                    
-                    if(!mtlBinding.lgxBinding.unbounded)
-                        setTexture(&textures[0], textureIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
-                    else
-                    {
-                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
-                        [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
-                    }
-                    
-                }
-                else if(mtlBinding.lgxBinding.type == DescriptorType::SeparateSampler)
-                {
-                    LINAGX_VEC<id<MTLSamplerState>> samplers;
-                    samplers.resize(mtlBinding.resources.size());
-                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
-
-                    for(uint32 k = 0; k < dcCount; k++)
-                    {
-                        const auto& sampler = m_samplers.GetItemR(mtlBinding.additionalResources[k]);
-                        id<MTLSamplerState> mtlSampler = AS_MTL(sampler.ptr, id<MTLSamplerState>);
-                        samplers[k] = mtlSampler;
-                    }
-                    
-                    if(!mtlBinding.lgxBinding.unbounded)
-                        setSampler(&samplers[0], samplerIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
-                    else
-                    {
-                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
-                    }
-                }
-                else if(mtlBinding.lgxBinding.type == DescriptorType::UBO)
-                {
-                    LINAGX_VEC<id<MTLBuffer>> ubos;
-                    ubos.resize(mtlBinding.resources.size());
-                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
-
-                    for(uint32  k = 0; k < dcCount; k++)
-                    {
-                        const auto& res = m_resources.GetItemR(mtlBinding.resources[k]);
-                        id<MTLBuffer> mtlBuffer = AS_MTL(res.ptr, id<MTLBuffer>);
-                        ubos[k] = mtlBuffer;
-                    }
-                    
-                    uint32 offset = 0;
-                    
-                    if(mtlBinding.lgxBinding.useDynamicOffset)
-                    {
-                        offset = cmd->dynamicOffsets[dynamicOffsetIndexCounter];
-                        dynamicOffsetIndexCounter++;
-                    }
-                    
-                    if(!mtlBinding.lgxBinding.unbounded)
-                        setBuffer(&ubos[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
-                    else
-                    {
-                        id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg, offset);
-                        [encoder useResources:&ubos[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
-                    }
-                }
-                else if(mtlBinding.lgxBinding.type == DescriptorType::SSBO)
-                {
-                    LINAGX_VEC<id<MTLBuffer>> ssbo;
-                    ssbo.resize(mtlBinding.resources.size());
-                    uint32 dcCount = static_cast<uint32>(mtlBinding.resources.size());
-
-                    for(uint32  k = 0; k < dcCount; k++)
-                    {
-                        const auto& res = m_resources.GetItemR(mtlBinding.resources[k]);
-                        id<MTLBuffer> mtlBuffer = AS_MTL(res.ptr, id<MTLBuffer>);
-                        ssbo[k] = mtlBuffer;
-                    }
-                    
-                    uint32 offset = 0;
-                    
-                    if(mtlBinding.lgxBinding.useDynamicOffset)
-                    {
-                        offset = cmd->dynamicOffsets[dynamicOffsetIndexCounter];
-                        dynamicOffsetIndexCounter++;
-                    }
-                    
-                    if(!mtlBinding.lgxBinding.unbounded)
-                        setBuffer(&ssbo[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
-                    else
-                    {
-                        LOGA(false, "Backend -> Can't use SSBOs as unbounded!");
-                    }
-                }
-            }
-        }
     }
+    
+    BindDescriptorSets(stream);
 }
 
 void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
