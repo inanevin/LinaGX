@@ -465,7 +465,6 @@ namespace LinaGX
                 }
             }
         }
-   
 
         glslang_stage_t stage = GetStage(stg);
 
@@ -533,15 +532,14 @@ namespace LinaGX
 
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
-        
+
         auto addSetStage = [&](uint32 set, ShaderStage stage) {
-            
             auto& vec = outLayout.perSetData[set].stages;
-            auto it = std::find_if(vec.begin(), vec.end(), [stage](ShaderStage vstg){ return vstg == stage;});
-            if(it == vec.end())
+            auto  it  = std::find_if(vec.begin(), vec.end(), [stage](ShaderStage vstg) { return vstg == stage; });
+            if (it == vec.end())
                 vec.push_back(stage);
-         };
-        
+        };
+
         // Stage Inputs
         {
             if (stg == ShaderStage::Vertex)
@@ -597,7 +595,7 @@ namespace LinaGX
                 ShaderUBO ubo = {};
                 ubo.set       = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ubo.binding   = compiler.get_decoration(id, spv::DecorationBinding);
-                ubo.spvID = id;
+                ubo.spvID     = id;
                 addSetStage(ubo.set, stg);
 
                 auto it = std::find_if(outLayout.ubos.begin(), outLayout.ubos.end(), [ubo](const ShaderUBO& existing) { return ubo.set == existing.set && ubo.binding == existing.binding; });
@@ -611,15 +609,15 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 ubo.size                          = compiler.get_declared_struct_size(type);
                 ubo.name                          = compiler.get_name(resource.id);
-                
+
                 if (type.array.size() > 0)
                     ubo.elementSize = type.array[0];
 
-                auto& psData = outLayout.perSetData[ubo.set].bindings[ubo.binding];
-                psData.name = ubo.name;
-                psData.type = DescriptorType::UBO;
+                auto& psData       = outLayout.perSetData[ubo.set].bindings[ubo.binding];
+                psData.name        = ubo.name;
+                psData.type        = DescriptorType::UBO;
                 psData.elementSize = ubo.elementSize;
-                
+
                 FillStructMembers(compiler, type, ubo.members);
                 outLayout.ubos.push_back(ubo);
                 outLayout.totalDescriptors += ubo.elementSize;
@@ -636,18 +634,24 @@ namespace LinaGX
                 block.size                        = compiler.get_declared_struct_size(type);
                 block.name                        = compiler.get_name(resource.id);
 
-                if (outLayout.constantBlock.size != 0)
+                bool found = false;
+                for (auto& b : outLayout.constants)
                 {
-                    outLayout.constantBlock.stages.push_back(stg);
+                    if (b.name.compare(block.name) == 0)
+                    {
+                        found = true;
+                        b.stages.push_back(stg);
+                        break;
+                    }
                 }
-                else
+
+                if (!found)
                 {
                     block.stages.push_back(stg);
                     FillStructMembers(compiler, type, block.members);
-                    outLayout.constantBlock = block;
+                    outLayout.constants.push_back(block);
                 }
             }
-
             for (const auto& resource : resources.sampled_images)
             {
                 auto               id  = resource.id;
@@ -656,7 +660,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                txt.spvID = id;
+                txt.spvID   = id;
                 addSetStage(txt.set, stg);
 
                 auto it = std::find_if(outLayout.combinedImageSamplers.begin(), outLayout.combinedImageSamplers.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
@@ -670,8 +674,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
-               
-                
+
                 if (type.array_size_literal[0])
                 {
                     if (type.array[0] != 1)
@@ -684,15 +687,15 @@ namespace LinaGX
                 else
                 {
                     // sampler2DArray
-                    txt.elementSize = 1;
+                    txt.elementSize    = 1;
                     txt.isArrayTexture = true;
                 }
-                
-                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
-                psData.name = txt.name;
-                psData.type = DescriptorType::CombinedImageSampler;
+
+                auto& psData       = outLayout.perSetData[txt.set].bindings[txt.binding];
+                psData.name        = txt.name;
+                psData.type        = DescriptorType::CombinedImageSampler;
                 psData.elementSize = txt.elementSize;
-                
+
                 outLayout.combinedImageSamplers.push_back(txt);
                 outLayout.totalDescriptors += txt.elementSize == 0 ? 2 : txt.elementSize * 2;
             }
@@ -705,7 +708,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 txt.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 txt.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                txt.spvID = id;
+                txt.spvID   = id;
                 addSetStage(txt.set, stg);
 
                 auto it = std::find_if(outLayout.separateImages.begin(), outLayout.separateImages.end(), [txt](const ShaderSRVTexture2D& existing) { return txt.set == existing.set && txt.binding == existing.binding; });
@@ -719,8 +722,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 txt.name                          = compiler.get_name(resource.id);
-                
-                
+
                 if (type.array_size_literal[0])
                 {
                     if (type.array[0] != 1)
@@ -733,15 +735,15 @@ namespace LinaGX
                 else
                 {
                     // sampler2DArray
-                    txt.elementSize = 1;
+                    txt.elementSize    = 1;
                     txt.isArrayTexture = true;
                 }
-                
-                auto& psData = outLayout.perSetData[txt.set].bindings[txt.binding];
-                psData.name = txt.name;
-                psData.type = DescriptorType::SeparateImage;
+
+                auto& psData       = outLayout.perSetData[txt.set].bindings[txt.binding];
+                psData.name        = txt.name;
+                psData.type        = DescriptorType::SeparateImage;
                 psData.elementSize = txt.elementSize;
-                
+
                 outLayout.separateImages.push_back(txt);
                 outLayout.totalDescriptors += txt.elementSize == 0 ? 1 : txt.elementSize;
             }
@@ -754,7 +756,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 sampler.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 sampler.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                sampler.spvID = id;
+                sampler.spvID   = id;
                 addSetStage(sampler.set, stg);
 
                 auto it = std::find_if(outLayout.samplers.begin(), outLayout.samplers.end(), [sampler](const ShaderSampler& existing) { return sampler.set == existing.set && sampler.binding == existing.binding; });
@@ -768,8 +770,7 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
                 sampler.name                      = compiler.get_name(resource.id);
-                
-                
+
                 if (type.array_size_literal[0])
                 {
                     if (type.array[0] != 1)
@@ -780,11 +781,11 @@ namespace LinaGX
                 else if (type.array.size() > 0)
                     sampler.elementSize = type.array[0];
 
-                auto& psData = outLayout.perSetData[sampler.set].bindings[sampler.binding];
-                psData.name = sampler.name;
-                psData.type = DescriptorType::SeparateSampler;
+                auto& psData       = outLayout.perSetData[sampler.set].bindings[sampler.binding];
+                psData.name        = sampler.name;
+                psData.type        = DescriptorType::SeparateSampler;
                 psData.elementSize = sampler.elementSize;
-                
+
                 outLayout.samplers.push_back(sampler);
                 outLayout.totalDescriptors += sampler.elementSize == 0 ? 1 : sampler.elementSize;
             }
@@ -797,7 +798,7 @@ namespace LinaGX
                 // Get the set and binding number for this uniform buffer
                 ssbo.set     = compiler.get_decoration(id, spv::DecorationDescriptorSet);
                 ssbo.binding = compiler.get_decoration(id, spv::DecorationBinding);
-                ssbo.spvID = id;
+                ssbo.spvID   = id;
                 addSetStage(ssbo.set, stg);
 
                 auto it = std::find_if(outLayout.ssbos.begin(), outLayout.ssbos.end(), [ssbo](const ShaderSSBO& existing) { return ssbo.set == existing.set && ssbo.binding == existing.binding; });
@@ -811,11 +812,11 @@ namespace LinaGX
                 // Get type information about the uniform buffer
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 ssbo.name                         = compiler.get_name(resource.id);
-                auto& psData =  outLayout.perSetData[ssbo.set].bindings[ssbo.binding];
-                psData.name = ssbo.name;
-                psData.type = DescriptorType::SSBO;
-                psData.elementSize = 1;
-                
+                auto& psData                      = outLayout.perSetData[ssbo.set].bindings[ssbo.binding];
+                psData.name                       = ssbo.name;
+                psData.type                       = DescriptorType::SSBO;
+                psData.elementSize                = 1;
+
                 spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
                 ssbo.isReadOnly                  = buffer_flags.get(spv::DecorationNonWritable);
 
@@ -840,18 +841,22 @@ namespace LinaGX
             spirv_cross::HLSLVertexAttributeRemap attribs;
 
             options.shader_model = 60; // SM6_0
-            
+
             compiler.set_hlsl_options(options);
             compiler.add_vertex_attribute_remap(attribs);
-        
-            if (layoutReflection.constantBlock.size != 0)
+
+            if (!layoutReflection.constants.empty())
             {
+                size_t totalSize = 0;
+                for (const auto& ct : layoutReflection.constants)
+                    totalSize += ct.size;
+
                 std::vector<spirv_cross::RootConstants> constants;
                 spirv_cross::RootConstants              c;
                 c.start   = 0;
-                c.end     = static_cast<uint32>(layoutReflection.constantBlock.size);
-                c.binding = layoutReflection.constantBlock.binding;
-                c.space   = layoutReflection.constantBlock.set;
+                c.end     = static_cast<uint32>(totalSize);
+                c.binding = layoutReflection.constantsBinding;
+                c.space   = layoutReflection.constantsSet;
                 constants.push_back(c);
                 compiler.set_root_constant_layouts(constants);
             }
@@ -865,7 +870,6 @@ namespace LinaGX
             size_t pos = out.find(searchString);
             if (pos != std::string::npos)
                 out.replace(pos, searchString.length(), replaceString);
-
         }
         catch (spirv_cross::CompilerError& e)
         {
@@ -878,34 +882,30 @@ namespace LinaGX
         return true;
     }
 
-   
-
     bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, ShaderLayout& layoutReflection)
     {
-        
+
         auto getExecStage = [](ShaderStage stg) {
-            
-            if(stg == ShaderStage::Fragment)
+            if (stg == ShaderStage::Fragment)
                 return spv::ExecutionModelFragment;
-            else if(stg == ShaderStage::Tesellation)
+            else if (stg == ShaderStage::Tesellation)
                 return spv::ExecutionModelTessellationControl;
-            else if(stg == ShaderStage::Geometry)
+            else if (stg == ShaderStage::Geometry)
             {
                 LOGA(false, "Geometry shaders are not supported on Metal!");
             }
-            else if(stg == ShaderStage::Compute)
-               return spv::ExecutionModelGLCompute;
-            
+            else if (stg == ShaderStage::Compute)
+                return spv::ExecutionModelGLCompute;
+
             return spv::ExecutionModelVertex;
         };
-        
-        
+
         try
         {
             spirv_cross::CompilerMSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
 
             spv::ExecutionModel exec = getExecStage(stg);
-            
+
             spirv_cross::CompilerMSL::Options options;
             options.set_msl_version(3);
             options.argument_buffers_tier = spirv_cross::CompilerMSL::Options::ArgumentBuffersTier::Tier2;
@@ -913,104 +913,103 @@ namespace LinaGX
             // options.runtime_array_rich_descriptor = true;
             // compiler.set_argument_buffer_device_address_space(0, true);
             // options.pad_argument_buffer_resources = true;
-                        
-            auto find = [stg](const LINAGX_VEC<ShaderStage>& stgVec)
-            {
-                for(auto stage : stgVec)
+
+            auto find = [stg](const LINAGX_VEC<ShaderStage>& stgVec) {
+                for (auto stage : stgVec)
                 {
-                    if(stg == stage)
+                    if (stg == stage)
                         return true;
                 }
-                
+
                 return false;
             };
-            
+
             uint32 bufferID = 0, textureID = 0, samplerID = 0;
             uint32 drawIDInputBufferID = 0;
-            
-            if(stg == ShaderStage::Vertex)
+
+            if (stg == ShaderStage::Vertex)
                 bufferID++;
-            
+
             LINAGX_VEC<uint32> setsSorted;
-            for(const auto& [setHandle, data] : layoutReflection.perSetData)
+            for (const auto& [setHandle, data] : layoutReflection.perSetData)
                 setsSorted.push_back(setHandle);
-            
+
             std::sort(setsSorted.begin(), setsSorted.end());
-            
-            for(auto setIndex : setsSorted)
+
+            for (auto setIndex : setsSorted)
             {
                 const auto& setData = layoutReflection.perSetData[setIndex];
-                if(!find(setData.stages))
+                if (!find(setData.stages))
                     continue;
-                
+
                 LINAGX_VEC<uint32> bindingsSorted;
-                for(const auto& [bindingIndex, bindingData] : setData.bindings)
+                for (const auto& [bindingIndex, bindingData] : setData.bindings)
                     bindingsSorted.push_back(bindingIndex);
                 std::sort(bindingsSorted.begin(), bindingsSorted.end());
-                
-                for(auto bindingIndex : bindingsSorted)
+
+                for (auto bindingIndex : bindingsSorted)
                 {
                     const auto& bindingData = setData.bindings.at(bindingIndex);
-                    
+
                     spirv_cross::MSLResourceBinding mslb;
-                    mslb.stage = exec;
+                    mslb.stage    = exec;
                     mslb.desc_set = setIndex;
-                    mslb.binding = bindingIndex;
-                    
-                    if(bindingData.type == DescriptorType::UBO)
+                    mslb.binding  = bindingIndex;
+
+                    if (bindingData.type == DescriptorType::UBO)
                     {
-                        mslb.basetype = spirv_cross::SPIRType::BaseType::Struct;
-                        mslb.count =  bindingData.elementSize == 0 ? 1 : bindingData.elementSize;
+                        mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
+                        mslb.count      = bindingData.elementSize == 0 ? 1 : bindingData.elementSize;
                         mslb.msl_buffer = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
-                    else if(bindingData.type == DescriptorType::SSBO)
+                    else if (bindingData.type == DescriptorType::SSBO)
                     {
-                        mslb.count = 1;
+                        mslb.count      = 1;
                         mslb.msl_buffer = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
-                    else if(bindingData.type == DescriptorType::SeparateImage)
+                    else if (bindingData.type == DescriptorType::SeparateImage)
                     {
-                        if(bindingData.elementSize == 0)
+                        if (bindingData.elementSize == 0)
                         {
-                            mslb.count = 0;
+                            mslb.count       = 0;
                             mslb.msl_texture = bufferID;
                             bufferID++;
                         }
                         else
                         {
-                            mslb.count = bindingData.elementSize;
+                            mslb.count       = bindingData.elementSize;
                             mslb.msl_texture = textureID;
                             textureID += mslb.count;
                         }
-                        
+
                         compiler.add_msl_resource_binding(mslb);
                     }
-                    else if(bindingData.type == DescriptorType::SeparateImage)
+                    else if (bindingData.type == DescriptorType::SeparateImage)
                     {
-                        if(bindingData.elementSize == 0)
+                        if (bindingData.elementSize == 0)
                         {
-                            mslb.count = 0;
+                            mslb.count       = 0;
                             mslb.msl_texture = bufferID;
                             bufferID++;
                         }
                         else
                         {
-                            mslb.count = bindingData.elementSize;
+                            mslb.count       = bindingData.elementSize;
                             mslb.msl_sampler = samplerID;
                             samplerID += mslb.count;
                         }
-                        
+
                         compiler.add_msl_resource_binding(mslb);
                     }
-                    else if(bindingData.type == DescriptorType::CombinedImageSampler)
+                    else if (bindingData.type == DescriptorType::CombinedImageSampler)
                     {
-                        if(bindingData.elementSize == 0)
+                        if (bindingData.elementSize == 0)
                         {
-                            mslb.count = 0;
+                            mslb.count       = 0;
                             mslb.msl_texture = bufferID;
                             bufferID++;
                             compiler.add_msl_resource_binding(mslb);
@@ -1021,81 +1020,85 @@ namespace LinaGX
                         }
                         else
                         {
-                            mslb.count = bindingData.elementSize;
+                            mslb.count       = bindingData.elementSize;
                             mslb.msl_texture = textureID;
                             textureID += mslb.count;
                             compiler.add_msl_resource_binding(mslb);
-                            
+
                             mslb.msl_sampler = samplerID;
                             samplerID += mslb.count;
                             compiler.add_msl_resource_binding(mslb);
                         }
                     }
-                    
                 }
             }
-            
+
             // Pcb
-            for(auto pcstg : layoutReflection.constantBlock.stages)
+            if (!layoutReflection.constants.empty())
             {
-                if(pcstg == stg)
+                for (auto& ct : layoutReflection.constants)
                 {
-                    spirv_cross::MSLResourceBinding mslb;
-                    mslb.stage = exec;
-                    mslb.count = 1;
-                    mslb.binding = spirv_cross::ResourceBindingPushConstantBinding;
-                    mslb.desc_set = spirv_cross::ResourceBindingPushConstantDescriptorSet;
-                    mslb.basetype = spirv_cross::SPIRType::BaseType::Struct;
-                    mslb.msl_buffer = bufferID;
-                    compiler.add_msl_resource_binding(mslb);
-                    layoutReflection.constantBlock.mslBuffers[stg] = bufferID;
-                    bufferID++;
+                    for (auto ctStg : ct.stages)
+                    {
+                        if (ctStg == stg)
+                        {
+                            spirv_cross::MSLResourceBinding mslb;
+                            mslb.stage      = exec;
+                            mslb.count      = 1;
+                            mslb.binding    = spirv_cross::ResourceBindingPushConstantBinding;
+                            mslb.desc_set   = spirv_cross::ResourceBindingPushConstantDescriptorSet;
+                            mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
+                            mslb.msl_buffer = bufferID;
+                            compiler.add_msl_resource_binding(mslb);
+                            ct.mslBuffers[stg] = bufferID;
+                            bufferID++;
+                        }
+                    }
                 }
             }
-            
+
             // DrawID last.
-            if(layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
+            if (layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
             {
                 drawIDInputBufferID = bufferID;
                 bufferID++;
             }
-             
-            
+
             layoutReflection.mslMaxBufferIDs[stg] = bufferID;
-            
+
             compiler.set_msl_options(options);
             out = compiler.compile();
 
-            auto entry = compiler.get_entry_point("main", exec);
+            auto entry                        = compiler.get_entry_point("main", exec);
             layoutReflection.entryPoints[stg] = entry.name;
-            
-            if(layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
+
+            if (layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
             {
                 layoutReflection.drawIDBinding = drawIDInputBufferID;
-                
+
                 LINAGX_STRING insertStr = "";
-                if(!layoutReflection.vertexInputs.empty())
-                   insertStr = layoutReflection.entryPoints[stg] + "(" + layoutReflection.entryPoints[stg] + "_in in [[stage_in]],";
+                if (!layoutReflection.vertexInputs.empty())
+                    insertStr = layoutReflection.entryPoints[stg] + "(" + layoutReflection.entryPoints[stg] + "_in in [[stage_in]],";
                 else
                     insertStr = layoutReflection.entryPoints[stg] + "(";
-                
+
                 // Insert struct definition.
-                LINAGX_STRING structStr =   "struct LGXDrawID\n{\n int value;\n};\n\n";
-            
-                LINAGX_STRING mainVertexLine = "vertex " + layoutReflection.entryPoints[stg] + "_out";
-                auto mainVertexLinePos = out.find(mainVertexLine);
-                LOGA(mainVertexLinePos  != std::string::npos, "SPIRVUtility -> Failed inserting for gl_DrawID!");
+                LINAGX_STRING structStr = "struct LGXDrawID\n{\n int value;\n};\n\n";
+
+                LINAGX_STRING mainVertexLine    = "vertex " + layoutReflection.entryPoints[stg] + "_out";
+                auto          mainVertexLinePos = out.find(mainVertexLine);
+                LOGA(mainVertexLinePos != std::string::npos, "SPIRVUtility -> Failed inserting for gl_DrawID!");
                 out.insert(mainVertexLinePos, structStr);
-                
+
                 // Insert struct argument.
                 LINAGX_STRING toBeInserted = " constant LGXDrawID& lgxDrawID [[buffer(" + LINAGX_TOSTRING(drawIDInputBufferID) + ")]],";
-                auto pos = out.find(insertStr) ;
+                auto          pos          = out.find(insertStr);
                 LOGA(pos != std::string::npos, "SPIRVUtility -> Failed inserting for gl_DrawID!");
                 out.insert(pos + insertStr.length(), toBeInserted);
 
-                const LINAGX_STRING lgxUsageSearchStr = "LGX_GET_DRAW_ID()";
+                const LINAGX_STRING lgxUsageSearchStr  = "LGX_GET_DRAW_ID()";
                 const LINAGX_STRING lgxUsageReplaceStr = "lgxDrawID.value";
-                size_t             lgxUsagePos           = 0;
+                size_t              lgxUsagePos        = 0;
                 while ((pos = out.find(lgxUsageSearchStr, pos)) != std::string::npos)
                 {
                     out.replace(pos, lgxUsageSearchStr.length(), lgxUsageReplaceStr);
@@ -1110,7 +1113,7 @@ namespace LinaGX
             LOGE(log.c_str());
             return false;
         }
-             
+
         return true;
     }
 

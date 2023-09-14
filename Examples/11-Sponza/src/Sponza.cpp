@@ -917,7 +917,7 @@ namespace LinaGX::Examples
                 else
                 {
                     CMDBindIndexBuffers* indx = currentFrame.stream->AddCommand<CMDBindIndexBuffers>();
-                    indx->indexFormat         = mesh.indexType;
+                    indx->indexType         = mesh.indexType;
                     indx->offset              = 0;
                     indx->resource            = mesh.indexBufferGPU;
 

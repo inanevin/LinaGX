@@ -22,6 +22,8 @@ project(Common)
 if(WIN32)
 set(SOURCES 
 src/App.cpp
+src/Camera.cpp
+src/ThreadPool.cpp
 )
 
 endif()
@@ -29,12 +31,16 @@ endif()
 if(APPLE)
 set(SOURCES 
 src/App.mm
+src/Camera.cpp
+src/ThreadPool.cpp
 )
 endif()
 
 set(HEADERS
 
 include/App.hpp
+include/Camera.hpp
+include/ThreadPool.hpp
 )
 
 

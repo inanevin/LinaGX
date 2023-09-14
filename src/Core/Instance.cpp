@@ -166,7 +166,7 @@ namespace LinaGX
 
         // If contains push constants
         // Make sure we assign it to maxium set's maximum binding+1
-        if (outLayout.constantBlock.size != 0)
+        if (!outLayout.constants.empty())
         {
             uint32 maxSet = 0;
             for (const auto& [set, bindingData] : outLayout.perSetData)
@@ -185,8 +185,8 @@ namespace LinaGX
                     maxBinding = binding;
             }
 
-            outLayout.constantBlock.set     = maxSet;
-            outLayout.constantBlock.binding = maxBinding + 1;
+            outLayout.constantsSet     = maxSet;
+            outLayout.constantsBinding = maxBinding + 1;
         }
 
         if (m_initInfo.api == BackendAPI::DX12)
@@ -336,6 +336,16 @@ namespace LinaGX
     void Instance::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
         m_backend->DescriptorUpdateImage(desc);
+    }
+
+    uint16 Instance::CreatePipelineLayout(const PipelineLayoutDesc& desc)
+    {
+        return m_backend->CreatePipelineLayout(desc);
+    }
+
+    void Instance::DestroyPipelineLayout(uint16 layout)
+    {
+        m_backend->DestroyPipelineLayout(layout);
     }
 
     uint8 Instance::CreateQueue(const QueueDesc& desc)

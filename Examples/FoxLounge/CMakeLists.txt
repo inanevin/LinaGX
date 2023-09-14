@@ -23,7 +23,6 @@ if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/FoxLounge.cpp
-src/ThreadPool.cpp
 )
 endif()
 
@@ -31,16 +30,20 @@ if(APPLE)
 set(SOURCES 
 src/Main.mm
 src/FoxLounge.cpp
-src/ThreadPool.cpp
 )
 endif()
 
 set(HEADERS
 include/Main.hpp
 include/FoxLounge.hpp
-include/ThreadPool.hpp
-Resources/Shaders/frag.glsl
-Resources/Shaders/vert.glsl
+Resources/Shaders/default_pbr_frag.glsl
+Resources/Shaders/default_pbr_vert.glsl
+Resources/Shaders/terrain_pbr_frag.glsl
+Resources/Shaders/terrain_pbr_vert.glsl
+Resources/Shaders/skybox_frag.glsl
+Resources/Shaders/skybox_vert.glsl
+Resources/Shaders/screenquad_frag.glsl
+Resources/Shaders/screenquad_vert.glsl
 )
 
 #--------------------------------------------------------------------

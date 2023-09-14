@@ -83,17 +83,6 @@ namespace LinaGX
         uint32                                         constantsSpace     = 0;
         uint32                                         constantsBinding   = 0;
         LINAGX_VEC<DX12RootParamInfo>                  rootParams;
-
-        DX12RootParamInfo* FindRootParam(DescriptorType type, uint32 binding, uint32 set)
-        {
-            for (auto& p : rootParams)
-            {
-                if (p.reflectionType == type && p.binding == binding && p.set == set)
-                    return &p;
-            }
-
-            return nullptr;
-        }
     };
 
     struct DX12Texture2D
@@ -159,12 +148,12 @@ namespace LinaGX
 
     struct DX12DescriptorBinding
     {
-        uint32           binding              = 0;
-        uint32           descriptorCount      = 1;
-        DescriptorType   type                 = DescriptorType::UBO;
-        DescriptorHandle gpuPointer           = {};
-        DescriptorHandle additionalGpuPointer = {};
-        bool             useDynamicOffset     = 0;
+        uint32                  binding              = 0;
+        DescriptorBinding       lgxBinding           = {};
+        DescriptorHandle        gpuPointer           = {};
+        DescriptorHandle        additionalGpuPointer = {};
+        bool                    readOnly             = false;
+        LINAGX_VEC<ShaderStage> stages               = {};
     };
 
     struct DX12DescriptorSet
@@ -182,6 +171,13 @@ namespace LinaGX
         LINAGX_VEC<uint64>                              storedFenceValues;
         LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12Fence>> frameFences;
         std::atomic_flag*                               inUse = nullptr;
+    };
+
+    struct DX12PipelineLayout
+    {
+        bool                                        isValid = false;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig = NULL;
+        LINAGX_VEC<DX12RootParamInfo>               rootParams;
     };
 
     class DX12Backend : public Backend
@@ -216,6 +212,8 @@ namespace LinaGX
         virtual void   DestroyDescriptorSet(uint16 handle) override;
         virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
+        virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
+        virtual void   DestroyPipelineLayout(uint16 layout) override;
         virtual uint32 CreateCommandStream(CommandType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
@@ -273,23 +271,24 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory      = nullptr;
         bool                                  m_allowTearing = false;
 
-        DX12HeapStaging*                                    m_rtvHeap        = nullptr;
-        DX12HeapStaging*                                    m_bufferHeap     = nullptr;
-        DX12HeapStaging*                                    m_textureHeap    = nullptr;
-        DX12HeapStaging*                                    m_dsvHeap        = nullptr;
-        DX12HeapStaging*                                    m_samplerHeap    = nullptr;
-        IDList<uint8, DX12Swapchain>                        m_swapchains     = {10};
-        IDList<uint16, DX12Shader>                          m_shaders        = {20};
-        IDList<uint32, DX12Texture2D>                       m_texture2Ds     = {50};
-        IDList<uint32, DX12CommandStream>                   m_cmdStreams     = {50};
-        IDList<uint16, Microsoft::WRL::ComPtr<ID3D12Fence>> m_fences         = {20};
-        IDList<uint32, DX12Resource>                        m_resources      = {100};
-        IDList<uint16, DX12UserSemaphore>                   m_userSemaphores = {20};
-        IDList<uint32, DX12Sampler>                         m_samplers       = {100};
-        IDList<uint16, DX12DescriptorSet>                   m_descriptorSets = {20};
-        IDList<uint8, DX12Queue>                            m_queues         = {5};
-        DX12HeapGPU*                                        m_gpuHeapBuffer  = nullptr;
-        DX12HeapGPU*                                        m_gpuHeapSampler = nullptr;
+        DX12HeapStaging*                                    m_rtvHeap         = nullptr;
+        DX12HeapStaging*                                    m_bufferHeap      = nullptr;
+        DX12HeapStaging*                                    m_textureHeap     = nullptr;
+        DX12HeapStaging*                                    m_dsvHeap         = nullptr;
+        DX12HeapStaging*                                    m_samplerHeap     = nullptr;
+        IDList<uint8, DX12Swapchain>                        m_swapchains      = {10};
+        IDList<uint16, DX12Shader>                          m_shaders         = {20};
+        IDList<uint32, DX12Texture2D>                       m_texture2Ds      = {50};
+        IDList<uint32, DX12CommandStream>                   m_cmdStreams      = {50};
+        IDList<uint16, Microsoft::WRL::ComPtr<ID3D12Fence>> m_fences          = {20};
+        IDList<uint32, DX12Resource>                        m_resources       = {100};
+        IDList<uint16, DX12UserSemaphore>                   m_userSemaphores  = {20};
+        IDList<uint32, DX12Sampler>                         m_samplers        = {100};
+        IDList<uint16, DX12DescriptorSet>                   m_descriptorSets  = {20};
+        IDList<uint8, DX12Queue>                            m_queues          = {5};
+        IDList<uint16, DX12PipelineLayout>                  m_pipelineLayouts = {10};
+        DX12HeapGPU*                                        m_gpuHeapBuffer   = nullptr;
+        DX12HeapGPU*                                        m_gpuHeapSampler  = nullptr;
 
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
         uint32                                     m_currentFrameIndex    = 0;

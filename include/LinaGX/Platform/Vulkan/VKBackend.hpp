@@ -166,6 +166,12 @@ namespace LinaGX
         uint32              familyIndex = 0;
     };
 
+    struct VKBPipelineLayout
+    {
+        bool             isValid = false;
+        VkPipelineLayout ptr     = nullptr;
+    };
+
     class VKBackend : public Backend
     {
     private:
@@ -198,6 +204,8 @@ namespace LinaGX
         virtual void   DestroyDescriptorSet(uint16 handle) override;
         virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc) override;
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
+        virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
+        virtual void   DestroyPipelineLayout(uint16 layout) override;
         virtual uint32 CreateCommandStream(CommandType cmdType) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
@@ -260,16 +268,17 @@ namespace LinaGX
         uint32 m_currentFrameIndex = 0;
         uint32 m_currentImageIndex = 0;
 
-        IDList<uint8, VKBSwapchain>      m_swapchains     = {5};
-        IDList<uint16, VKBShader>        m_shaders        = {10};
-        IDList<uint32, VKBTexture2D>     m_texture2Ds     = {100};
-        IDList<uint32, VKBCommandStream> m_cmdStreams     = {100};
-        IDList<uint16, VKBUserSemaphore> m_userSemaphores = {20};
-        IDList<uint16, VkFence>          m_fences         = {20};
-        IDList<uint32, VKBResource>      m_resources      = {100};
-        IDList<uint32, VKBSampler>       m_samplers       = {100};
-        IDList<uint16, VKBDescriptorSet> m_descriptorSets = {20};
-        IDList<uint8, VKBQueue>          m_queues         = {5};
+        IDList<uint8, VKBSwapchain>       m_swapchains      = {5};
+        IDList<uint16, VKBShader>         m_shaders         = {10};
+        IDList<uint32, VKBTexture2D>      m_texture2Ds      = {100};
+        IDList<uint32, VKBCommandStream>  m_cmdStreams      = {100};
+        IDList<uint16, VKBUserSemaphore>  m_userSemaphores  = {20};
+        IDList<uint16, VkFence>           m_fences          = {20};
+        IDList<uint32, VKBResource>       m_resources       = {100};
+        IDList<uint32, VKBSampler>        m_samplers        = {100};
+        IDList<uint16, VKBDescriptorSet>  m_descriptorSets  = {20};
+        IDList<uint8, VKBQueue>           m_queues          = {5};
+        IDList<uint16, VKBPipelineLayout> m_pipelineLayouts = {10};
 
         InitInfo                                   m_initInfo     = {};
         LINAGX_VEC<VKBPerFrameData>                m_perFrameData = {};

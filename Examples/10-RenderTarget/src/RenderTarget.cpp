@@ -122,7 +122,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -853,13 +853,13 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
-            bindSets->firstSet              = 0;
-            bindSets->setCount              = 3;
-            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0);
-            bindSets->isCompute             = false;
-            bindSets->dynamicOffsetCount    = 0;
-            bindSets->explicitShaderLayout  = false;
+            CMDBindDescriptorSets* bindSets   = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet                = 0;
+            bindSets->setCount                = 3;
+            bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData0);
+            bindSets->isCompute               = false;
+            bindSets->dynamicOffsetCount      = 0;
+            bindSets->useBoundShaderForLayout = true;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -878,6 +878,13 @@ namespace LinaGX::Examples
                 constants->stagesSize       = 1;
                 constants->offset           = 0;
                 constants->data             = currentFrame.stream->EmplaceAuxMemory<uint32>(obj.index);
+
+                CMDBindConstants* constants2 = currentFrame.stream->AddCommand<CMDBindConstants>();
+                constants2->size             = sizeof(float);
+                constants2->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Fragment);
+                constants2->stagesSize       = 1;
+                constants2->offset           = sizeof(float);
+                constants2->data             = currentFrame.stream->EmplaceAuxMemory<uint32>(1);
 
                 CMDDrawInstanced* draw       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
                 draw->instanceCount          = 1;
@@ -927,13 +934,13 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
-            bindSets->firstSet              = 0;
-            bindSets->setCount              = 3;
-            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
-            bindSets->isCompute             = false;
-            bindSets->dynamicOffsetCount    = 0;
-            bindSets->explicitShaderLayout  = false;
+            CMDBindDescriptorSets* bindSets   = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet                = 0;
+            bindSets->setCount                = 3;
+            bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
+            bindSets->isCompute               = false;
+            bindSets->dynamicOffsetCount      = 0;
+            bindSets->useBoundShaderForLayout = true;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -953,6 +960,12 @@ namespace LinaGX::Examples
                 constants->offset           = 0;
                 constants->data             = currentFrame.stream->EmplaceAuxMemory<uint32>(obj.index);
 
+                CMDBindConstants* constants2 = currentFrame.stream->AddCommand<CMDBindConstants>();
+                constants2->size             = sizeof(float);
+                constants2->stages           = currentFrame.stream->EmplaceAuxMemory<ShaderStage>(ShaderStage::Fragment);
+                constants2->stagesSize       = 1;
+                constants2->offset           = sizeof(float);
+                constants2->data             = currentFrame.stream->EmplaceAuxMemory<uint32>(1);
                 CMDDrawInstanced* draw       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
                 draw->instanceCount          = 1;
                 draw->startInstanceLocation  = 0;
@@ -969,13 +982,13 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
-            bindSets->firstSet              = 0;
-            bindSets->setCount              = 1;
-            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
-            bindSets->isCompute             = false;
-            bindSets->dynamicOffsetCount    = 0;
-            bindSets->explicitShaderLayout  = false;
+            CMDBindDescriptorSets* bindSets   = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet                = 0;
+            bindSets->setCount                = 1;
+            bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
+            bindSets->isCompute               = false;
+            bindSets->dynamicOffsetCount      = 0;
+            bindSets->useBoundShaderForLayout = true;
         }
 
         // Draw quad

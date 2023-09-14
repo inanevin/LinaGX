@@ -1043,14 +1043,15 @@ namespace LinaGX
         // Push constants
         LINAGX_VEC<VkPushConstantRange> constants;
 
-        if (shaderDesc.layout.constantBlock.size != 0)
+        uint32 offset = 0;
+        for (const auto& ct : shaderDesc.layout.constants)
         {
-            const auto&         pc    = shaderDesc.layout.constantBlock;
             VkPushConstantRange range = VkPushConstantRange{};
-            range.size                = static_cast<uint32>(pc.size);
-            range.offset              = 0;
+            range.size                = static_cast<uint32>(ct.size);
+            range.offset              = offset;
+            offset += range.size;
 
-            for (ShaderStage stg : pc.stages)
+            for (ShaderStage stg : ct.stages)
                 range.stageFlags |= GetVKShaderStage(stg);
 
             constants.push_back(range);
@@ -1260,17 +1261,14 @@ namespace LinaGX
         imgCreateInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
 
         if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
-        {
             imgCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        }
         else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
-        {
-            imgCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        }
+            imgCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         else
-        {
-            imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        }
+            imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        if (txtDesc.sampled)
+            imgCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
         VmaAllocationCreateInfo allocinfo = VmaAllocationCreateInfo{};
         allocinfo.usage                   = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
@@ -1488,7 +1486,7 @@ namespace LinaGX
             else
                 bindlessFlags.push_back(0);
 
-            for (auto stg : desc.stages)
+            for (auto stg : binding.stages)
                 vkBinding.stageFlags |= GetVKShaderStage(stg);
 
             bindings.push_back(vkBinding);
@@ -1619,6 +1617,63 @@ namespace LinaGX
         write.descriptorType       = descriptorType;
         write.pImageInfo           = imgInfos.data();
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+    }
+
+    uint16 VKBackend::CreatePipelineLayout(const PipelineLayoutDesc& desc)
+    {
+        VKBPipelineLayout item = {};
+        item.isValid           = true;
+
+        LINAGX_VEC<VkDescriptorSetLayout> setLayouts;
+        LINAGX_VEC<VkPushConstantRange>   constants;
+
+        setLayouts.reserve(desc.descriptorSets.size());
+        for (auto set : desc.descriptorSets)
+        {
+            auto& dcSet = m_descriptorSets.GetItemR(set);
+            setLayouts.push_back(dcSet.layout);
+        }
+
+        // uint32 offset = 0;
+        //
+        // for (const auto& ct : desc.constantRanges)
+        //{
+        //     VkPushConstantRange range = VkPushConstantRange{};
+        //     range.size                = static_cast<uint32>(ct.size);
+        //     range.offset              = offset;
+        //     offset += range.size;
+        //
+        //     for (ShaderStage stg : ct.stages)
+        //         range.stageFlags |= GetVKShaderStage(stg);
+        //
+        //     constants.push_back(range);
+        // }
+
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo = VkPipelineLayoutCreateInfo{};
+        pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.pNext                      = nullptr;
+        pipelineLayoutInfo.flags                      = 0;
+        pipelineLayoutInfo.setLayoutCount             = static_cast<uint32>(setLayouts.size());
+        pipelineLayoutInfo.pSetLayouts                = setLayouts.data();
+        pipelineLayoutInfo.pushConstantRangeCount     = static_cast<uint32>(constants.size());
+        pipelineLayoutInfo.pPushConstantRanges        = constants.data();
+        VkResult res                                  = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, m_allocator, &item.ptr);
+
+        return m_pipelineLayouts.AddItem(item);
+    }
+
+    void VKBackend::DestroyPipelineLayout(uint16 layout)
+    {
+        auto& lyt = m_pipelineLayouts.GetItemR(layout);
+        if (!lyt.isValid)
+        {
+            LOGE("Backend -> Pipeline Layout to be destroyed is not valid!");
+            return;
+        }
+
+        vkDestroyPipelineLayout(m_device, lyt.ptr, m_allocator);
+
+        m_pipelineLayouts.RemoveItem(layout);
     }
 
     uint32 VKBackend::CreateCommandStream(CommandType cmdType)
@@ -2513,6 +2568,11 @@ namespace LinaGX
             LOGA(!q.isValid, "Backend -> Some queues were not destroyed!");
         }
 
+        for (auto& l : m_pipelineLayouts)
+        {
+            LOGA(!l.isValid, "Backend -> Some pipeline layouts were not destroyed!");
+        }
+
         vmaDestroyAllocator(m_vmaAllocator);
         vkDestroyDevice(m_device, m_allocator);
         vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
@@ -2944,7 +3004,7 @@ namespace LinaGX
         CMDBindIndexBuffers* cmd    = reinterpret_cast<CMDBindIndexBuffers*>(data);
         auto                 buffer = stream.buffer;
         const auto&          res    = m_resources.GetItemR(cmd->resource);
-        vkCmdBindIndexBuffer(buffer, res.buffer, cmd->offset, GetVKIndexType(cmd->indexFormat));
+        vkCmdBindIndexBuffer(buffer, res.buffer, cmd->offset, GetVKIndexType(cmd->indexType));
     }
 
     void VKBackend::CMD_CopyResource(uint8* data, VKBCommandStream& stream)
@@ -3035,7 +3095,13 @@ namespace LinaGX
     {
         CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
         auto                   buffer = stream.buffer;
-        const auto&            shader = m_shaders.GetItemR(cmd->explicitShaderLayout ? cmd->layoutShader : stream.boundShader);
+
+        VkPipelineLayout layout = nullptr;
+
+        if (cmd->useBoundShaderForLayout)
+            layout = m_shaders.GetItemR(stream.boundShader).ptrLayout;
+        else
+            layout = m_pipelineLayouts.GetItemR(cmd->pipelineLayout).ptr;
 
         LINAGX_VEC<VkDescriptorSet> sets;
         sets.resize(cmd->setCount);
@@ -3043,7 +3109,7 @@ namespace LinaGX
         for (uint32 i = 0; i < cmd->setCount; i++)
             sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).ptr;
 
-        vkCmdBindDescriptorSets(buffer, cmd->isCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, shader.ptrLayout, cmd->firstSet, cmd->setCount, sets.data(), cmd->dynamicOffsetCount, cmd->dynamicOffsets);
+        vkCmdBindDescriptorSets(buffer, cmd->isCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, layout, cmd->firstSet, cmd->setCount, sets.data(), cmd->dynamicOffsetCount, cmd->dynamicOffsets);
     }
 
     void VKBackend::CMD_BindConstants(uint8* data, VKBCommandStream& stream)

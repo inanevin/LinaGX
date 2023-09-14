@@ -513,7 +513,7 @@ namespace LinaGX::Examples
 
             CMDBindIndexBuffers* bindIndex = currentFrame.stream->AddCommand<CMDBindIndexBuffers>();
             bindIndex->resource            = _indexBufferGPU;
-            bindIndex->indexFormat         = IndexType::Uint32;
+            bindIndex->indexType         = IndexType::Uint32;
             bindIndex->offset              = 0;
         }
 

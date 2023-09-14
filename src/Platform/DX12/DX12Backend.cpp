@@ -1017,16 +1017,37 @@ namespace LinaGX
                 rootParameters.push_back(param);
             }
 
-            if (shaderDesc.layout.constantBlock.size != 0)
-            {
-                shader.constantsSpace   = shaderDesc.layout.constantBlock.set;
-                shader.constantsBinding = shaderDesc.layout.constantBlock.binding;
+            auto containsStage = [](LINAGX_VEC<ShaderStage>& vec, ShaderStage target) {
+                for (auto stg : vec)
+                {
+                    if (stg == target)
+                        return true;
+                }
 
-                const auto&             ct         = shaderDesc.layout.constantBlock;
-                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                return false;
+            };
+
+            if (!shaderDesc.layout.constants.empty())
+            {
+                shader.constantsSpace   = shaderDesc.layout.constantsSet,
+                shader.constantsBinding = shaderDesc.layout.constantsBinding;
+
+                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+
+                LINAGX_VEC<ShaderStage> stages;
+
+                for (const auto& ct : shaderDesc.layout.constants)
+                {
+                    for (auto stg : ct.stages)
+                    {
+                        if (!containsStage)
+                            stages.push_back(stg);
+                    }
+                }
+
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                if (ct.stages.size() == 1)
-                    visibility = GetDXVisibility(ct.stages[0]);
+                if (stages.size() == 1)
+                    visibility = GetDXVisibility(stages[0]);
 
                 DX12RootParamInfo paramInfo = {};
                 paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
@@ -1036,9 +1057,10 @@ namespace LinaGX
                 shader.rootParams.push_back(paramInfo);
 
                 uint32 totalConstants = 0;
-                for (const auto& mem : ct.members)
+                for (const auto& ct : shaderDesc.layout.constants)
                 {
-                    totalConstants += static_cast<uint32>(mem.size) / sizeof(uint32);
+                    for (const auto& mem : ct.members)
+                        totalConstants += static_cast<uint32>(mem.size) / sizeof(uint32);
                 }
 
                 param.InitAsConstants(totalConstants, shader.constantsBinding, shader.constantsSpace, visibility);
@@ -1647,24 +1669,18 @@ namespace LinaGX
             const DescriptorBinding& binding = desc.bindings[i];
 
             DX12DescriptorBinding dx12Binding = {};
-            dx12Binding.descriptorCount       = binding.descriptorCount;
+            dx12Binding.lgxBinding            = binding;
             dx12Binding.binding               = i;
-            dx12Binding.type                  = binding.type;
-            dx12Binding.useDynamicOffset      = binding.useDynamicOffset;
 
             if (binding.type == DescriptorType::CombinedImageSampler)
             {
-                dx12Binding.gpuPointer           = m_gpuHeapBuffer->GetHeapHandleBlock(dx12Binding.descriptorCount);
-                dx12Binding.additionalGpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(dx12Binding.descriptorCount);
+                dx12Binding.gpuPointer           = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
+                dx12Binding.additionalGpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
             }
             else if (binding.type == DescriptorType::SeparateSampler)
-            {
-                dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(dx12Binding.descriptorCount);
-            }
+                dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
             else
-            {
-                dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(dx12Binding.descriptorCount);
-            }
+                dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
 
             item.bindings.push_back(dx12Binding);
         }
@@ -1690,8 +1706,8 @@ namespace LinaGX
         LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
         auto&        bindingData     = item.bindings[desc.binding];
         const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
-        LOGA(descriptorCount <= bindingData.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
-        LOGA(bindingData.type == DescriptorType::UBO || bindingData.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
+        LOGA(descriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.lgxBinding.type == DescriptorType::UBO || bindingData.lgxBinding.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
 
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptors;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors;
@@ -1705,7 +1721,7 @@ namespace LinaGX
                 {
                     const auto& res = m_resources.GetItemR(desc.buffers[i]);
 
-                    if (bindingData.type == DescriptorType::UBO && descriptorCount == 1)
+                    if (bindingData.lgxBinding.type == DescriptorType::UBO && descriptorCount == 1)
                     {
                         DescriptorHandle handle = {};
                         handle.SetGPUHandle(res.allocation->GetResource()->GetGPUVirtualAddress());
@@ -1735,8 +1751,8 @@ namespace LinaGX
         auto&        bindingData        = item.bindings[desc.binding];
         const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
         const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
-        LOGA(txtDescriptorCount <= bindingData.descriptorCount && smpDescriptorCount <= bindingData.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
-        LOGA(bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateSampler || bindingData.type == DescriptorType::SeparateImage, "Backend -> You can only use DescriptorUpdateImage with descriptors of type combined image sampler, separate image or separate sampler! Use DescriptorUpdateBuffer()");
+        LOGA(txtDescriptorCount <= bindingData.lgxBinding.descriptorCount && smpDescriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage, "Backend -> You can only use DescriptorUpdateImage with descriptors of type combined image sampler, separate image or separate sampler! Use DescriptorUpdateBuffer()");
 
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsTxt;
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> destDescriptorsSampler;
@@ -1748,7 +1764,7 @@ namespace LinaGX
         srcDescriptorsSampler.resize(smpDescriptorCount);
 
         uint32 usedCount = 0;
-        if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateImage)
+        if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage)
             usedCount = txtDescriptorCount;
         else
             usedCount = smpDescriptorCount;
@@ -1761,7 +1777,7 @@ namespace LinaGX
             {
                 for (uint32 i = 0; i < usedCount; i++)
                 {
-                    if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateImage)
+                    if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage)
                     {
                         const auto& res                    = m_texture2Ds.GetItemR(desc.textures[i]);
                         const auto& srcResDescriptorHandle = res.desc.usage == Texture2DUsage::ColorTextureRenderTarget ? res.descriptor2 : res.descriptor;
@@ -1775,7 +1791,7 @@ namespace LinaGX
                         destDescriptorsTxt[i] = txtHandle;
                     }
 
-                    if (bindingData.type == DescriptorType::CombinedImageSampler || bindingData.type == DescriptorType::SeparateSampler)
+                    if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateSampler)
                     {
                         const auto& sampler                    = m_samplers.GetItemR(desc.samplers[i]);
                         const auto& srcSamplerDescriptorHandle = sampler.descriptor;
@@ -1786,7 +1802,7 @@ namespace LinaGX
 
                         D3D12_CPU_DESCRIPTOR_HANDLE samplerHandle;
 
-                        if (bindingData.type == DescriptorType::CombinedImageSampler)
+                        if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler)
                             samplerHandle.ptr = binding.additionalGpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
                         else
                             samplerHandle.ptr = binding.gpuPointer.GetCPUHandle() + i * m_samplerHeap->GetDescriptorSize();
@@ -1798,19 +1814,202 @@ namespace LinaGX
             }
         }
 
-        if (bindingData.type == DescriptorType::CombinedImageSampler)
+        if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler)
         {
             m_device->CopyDescriptors(usedCount, destDescriptorsTxt.data(), NULL, usedCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             m_device->CopyDescriptors(usedCount, destDescriptorsSampler.data(), NULL, usedCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
         }
-        else if (bindingData.type == DescriptorType::SeparateImage)
+        else if (bindingData.lgxBinding.type == DescriptorType::SeparateImage)
         {
             m_device->CopyDescriptors(usedCount, destDescriptorsTxt.data(), NULL, usedCount, srcDescriptorsTxt.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         }
-        else if (bindingData.type == DescriptorType::SeparateSampler)
+        else if (bindingData.lgxBinding.type == DescriptorType::SeparateSampler)
         {
             m_device->CopyDescriptors(usedCount, destDescriptorsSampler.data(), NULL, usedCount, srcDescriptorsSampler.data(), NULL, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
         }
+    }
+
+    uint16 DX12Backend::CreatePipelineLayout(const PipelineLayoutDesc& desc)
+    {
+        DX12PipelineLayout item = {};
+        item.isValid            = true;
+
+        // Root signature.
+        {
+            CD3DX12_DESCRIPTOR_RANGE1 descRange[3] = {};
+
+            // Textures & Samplers & Materials
+
+            LINAGX_VEC<CD3DX12_ROOT_PARAMETER1>   rootParameters;
+            LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1> ranges;
+            ranges.resize(shaderDesc.layout.totalDescriptors);
+            uint32 rangeCounter = 0;
+            uint32 setIndex     = 0;
+
+            for (auto set : desc.descriptorSets)
+            {
+                const auto& dscSet = m_descriptorSets.GetItemR(set);
+
+                for (auto b : dscSet.bindings)
+                {
+                    CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                    CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
+                    D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                    if (b.stages.size() == 1)
+                        visibility = GetDXVisibility(b.stages[0]);
+
+                    DX12RootParamInfo paramInfo = {};
+                    paramInfo.rootParameter     = static_cast<uint32>(item.rootParams.size());
+                    paramInfo.binding           = b.binding;
+                    paramInfo.set               = setIndex;
+                    paramInfo.elementSize       = b.lgxBinding.descriptorCount;
+                    paramInfo.reflectionType    = b.lgxBinding.type;
+
+                    if (b.lgxBinding.type == DescriptorType::UBO)
+                    {
+                        if (b.lgxBinding.descriptorCount > 1)
+                        {
+                            ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, b.lgxBinding.descriptorCount, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                            param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                            rangeCounter++;
+                        }
+                        else
+                            param.InitAsConstantBufferView(b.lgxBinding.descriptorCount, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+                    }
+                    else if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
+                    {
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+
+                        rootParameters.push_back(param);
+                        rootParameters.push_back(param2);
+                    }
+                    else if (b.lgxBinding.type == DescriptorType::SeparateImage)
+                    {
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+                    }
+                    else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
+                    {
+
+                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+                    }
+                    else
+                    {
+                        ranges[rangeCounter].Init(!b.lgxBinding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                        rangeCounter++;
+                    }
+
+                    item.rootParams.push_back(paramInfo);
+
+                    rootParameters.push_back(param);
+                }
+            }
+
+            if (shaderDesc.layout.hasGLDrawID)
+            {
+                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
+                param.InitAsConstants(1, shaderDesc.layout.drawIDBinding, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+                drawIDRootParamIndex = static_cast<uint32>(rootParameters.size());
+                rootParameters.push_back(param);
+            }
+
+            auto containsStage = [](LINAGX_VEC<ShaderStage>& vec, ShaderStage target) {
+                for (auto stg : vec)
+                {
+                    if (stg == target)
+                        return true;
+                }
+
+                return false;
+            };
+
+            if (!desc.constantRanges.empty())
+            {
+                shader.constantsSpace   = shaderDesc.layout.constantsSet,
+                shader.constantsBinding = shaderDesc.layout.constantsBinding;
+
+                CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
+
+                LINAGX_VEC<ShaderStage> stages;
+
+                for (const auto& ct : shaderDesc.layout.constants)
+                {
+                    for (auto stg : ct.stages)
+                    {
+                        if (!containsStage)
+                            stages.push_back(stg);
+                    }
+                }
+
+                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+                if (stages.size() == 1)
+                    visibility = GetDXVisibility(stages[0]);
+
+                DX12RootParamInfo paramInfo = {};
+                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
+                paramInfo.reflectionType    = DescriptorType::ConstantBlock;
+                paramInfo.set               = shader.constantsSpace;
+                paramInfo.binding           = shader.constantsBinding;
+                shader.rootParams.push_back(paramInfo);
+
+                uint32 totalConstants = 0;
+                for (const auto& ct : shaderDesc.layout.constants)
+                {
+                    for (const auto& mem : ct.members)
+                        totalConstants += static_cast<uint32>(mem.size) / sizeof(uint32);
+                }
+
+                param.InitAsConstants(totalConstants, shader.constantsBinding, shader.constantsSpace, visibility);
+                rootParameters.push_back(param);
+            }
+
+            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            ComPtr<ID3DBlob>                      signatureBlob = nullptr;
+            ComPtr<ID3DBlob>                      errorBlob     = nullptr;
+
+            HRESULT hr = D3D12SerializeVersionedRootSignature(&rootSig, &signatureBlob, &errorBlob);
+
+            if (FAILED(hr))
+            {
+                LOGA(false, "Backend -> Failed serializing root signature! %s", (char*)errorBlob->GetBufferPointer());
+                return 0;
+            }
+
+            hr = m_device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&item.rootSig));
+
+            if (FAILED(hr))
+            {
+                LOGA(false, "Backend -> Failed creating root signature!");
+                return 0;
+            }
+        }
+
+        return m_pipelineLayouts.AddItem(item);
+    }
+
+    void DX12Backend::DestroyPipelineLayout(uint16 layout)
+    {
+        auto& lyt = m_pipelineLayouts.GetItemR(layout);
+        if (!lyt.isValid)
+        {
+            LOGE("Backend -> Pipeline Layout to be destroyed is not valid!");
+            return;
+        }
+
+        lyt.rootSig.Reset();
+
+        m_pipelineLayouts.RemoveItem(layout);
     }
 
     void DX12Backend::DX12Exception(HrException e)
@@ -2092,6 +2291,11 @@ namespace LinaGX
         for (auto& q : m_queues)
         {
             LOGA(!q.isValid, "Backend -> Some queues were not destroyed!");
+        }
+
+        for (auto& l : m_pipelineLayouts)
+        {
+            LOGA(!l.isValid, "Backend -> Some pipeline layouts were not destroyed!");
         }
 
         ID3D12InfoQueue1* infoQueue = nullptr;
@@ -2649,7 +2853,7 @@ namespace LinaGX
         D3D12_INDEX_BUFFER_VIEW view;
         view.BufferLocation = GetGPUResource(res)->GetGPUVirtualAddress();
         view.SizeInBytes    = static_cast<uint32>(res.size);
-        view.Format         = GetDXIndexType(cmd->indexFormat);
+        view.Format         = GetDXIndexType(cmd->indexType);
         list->IASetIndexBuffer(&view);
     }
 
@@ -2722,11 +2926,29 @@ namespace LinaGX
         UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, static_cast<uint32>(allData.size()) * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
     }
 
+    DX12RootParamInfo* FindRootParam(LINAGX_VEC<DX12RootParamInfo>* rootParams, DescriptorType type, uint32 binding, uint32 set)
+    {
+        const uint32 sz = static_cast<uint32>(rootParams->size());
+        for (uint32 i = 0; i < sz; i++)
+        {
+            auto& p = rootParams->at(i);
+            if (p.reflectionType == type && p.binding == binding && p.set == set)
+                return &p;
+        }
+
+        return nullptr;
+    }
+
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
     {
-        CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
-        auto                   list   = stream.list;
-        auto&                  shader = m_shaders.GetItemR(cmd->explicitShaderLayout ? cmd->layoutShader : stream.boundShader);
+        CMDBindDescriptorSets* cmd  = reinterpret_cast<CMDBindDescriptorSets*>(data);
+        auto                   list = stream.list;
+
+        LINAGX_VEC<DX12RootParamInfo>* rootParams;
+        if (cmd->useBoundShaderForLayout)
+            rootParams = &m_shaders.GetItemR(stream.boundShader).rootParams;
+        else
+            rootParams = &m_pipelineLayouts.GetItemR(cmd->pipelineLayout).rootParams;
 
         uint32 dynamicOffsetIndexCounter = 0;
 
@@ -2737,11 +2959,11 @@ namespace LinaGX
 
             for (const auto& binding : set.bindings)
             {
-                DX12RootParamInfo* param   = shader.FindRootParam(binding.type, binding.binding, targetSetIndex);
+                DX12RootParamInfo* param   = FindRootParam(rootParams, binding.lgxBinding.type, binding.binding, targetSetIndex);
                 uint64             handle  = binding.gpuPointer.GetGPUHandle();
                 uint64             handle2 = binding.additionalGpuPointer.GetGPUHandle();
 
-                if (binding.useDynamicOffset && (binding.type == DescriptorType::UBO || binding.type == DescriptorType::SSBO))
+                if (binding.lgxBinding.useDynamicOffset && (binding.lgxBinding.type == DescriptorType::UBO || binding.lgxBinding.type == DescriptorType::SSBO))
                 {
 
                     const uint64 offset = static_cast<uint64>(cmd->dynamicOffsets[dynamicOffsetIndexCounter]);
@@ -2749,7 +2971,7 @@ namespace LinaGX
                     handle += offset;
                 }
 
-                if (binding.type == DescriptorType::UBO && binding.descriptorCount == 1)
+                if (binding.lgxBinding.type == DescriptorType::UBO && binding.lgxBinding.descriptorCount == 1)
                 {
 
                     if (cmd->isCompute)
@@ -2757,7 +2979,7 @@ namespace LinaGX
                     else
                         list->SetGraphicsRootConstantBufferView(param->rootParameter, handle);
                 }
-                else if (binding.type == DescriptorType::CombinedImageSampler)
+                else if (binding.lgxBinding.type == DescriptorType::CombinedImageSampler)
                 {
                     if (cmd->isCompute)
                     {
@@ -2787,7 +3009,7 @@ namespace LinaGX
         auto              list   = stream.list;
         auto&             shader = m_shaders.GetItemR(stream.boundShader);
 
-        DX12RootParamInfo* param = shader.FindRootParam(DescriptorType::ConstantBlock, shader.constantsBinding, shader.constantsSpace);
+        DX12RootParamInfo* param = FindRootParam(&shader.rootParams, DescriptorType::ConstantBlock, shader.constantsBinding, shader.constantsSpace);
         list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
     }
 

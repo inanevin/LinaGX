@@ -501,6 +501,24 @@ namespace LinaGX
         uint32 bufferIDSecondary = 0;
     };
 
+    struct ShaderDescriptorSetBinding
+    {
+        DescriptorType              type            = DescriptorType::UBO;
+        LINAGX_STRING               name            = "";
+        uint32                      spvID           = 0;
+        uint32                      binding         = 0;
+        uint32                      descriptorCount = 1;
+        LINAGX_VEC<ShaderStage>     stages;
+        bool                        isWritable  = false;
+        bool                        isArrayType = false;
+        LINAGX_VEC<ShaderUBOMember> members;
+    };
+
+    struct ShaderDescriptorSetLayout
+    {
+        LINAGX_VEC<ShaderDescriptorSetBinding> bindings;
+    };
+
     struct ShaderLayout
     {
         LINAGX_VEC<ShaderStageInput>               vertexInputs;
@@ -510,7 +528,9 @@ namespace LinaGX
         LINAGX_VEC<ShaderSRVTexture2D>             separateImages;
         LINAGX_VEC<ShaderSampler>                  samplers;
         LINAGX_MAP<uint32, ShaderLayoutPerSetData> perSetData;
-        ShaderConstantBlock                        constantBlock;
+        LINAGX_VEC<ShaderConstantBlock>            constants;
+        uint32                                     constantsSet     = 0;
+        uint32                                     constantsBinding = 0;
         uint32                                     totalDescriptors = 0;
         bool                                       hasGLDrawID      = false;
         uint32                                     drawIDBinding    = 0;
@@ -596,6 +616,7 @@ namespace LinaGX
     struct Texture2DDesc
     {
         Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
+        bool               sampled            = true;
         DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
         float              depthClear         = 1.0f;
         uint32             stencilClear       = 0;
@@ -623,16 +644,17 @@ namespace LinaGX
 
     struct DescriptorBinding
     {
-        uint32         descriptorCount  = 1;
-        DescriptorType type             = DescriptorType::UBO;
-        bool           unbounded        = false;
-        bool           useDynamicOffset = false;
+        uint32                  descriptorCount  = 1;
+        DescriptorType          type             = DescriptorType::UBO;
+        bool                    unbounded        = false;
+        bool                    useDynamicOffset = false;
+        bool                    isWritable       = false;
+        LINAGX_VEC<ShaderStage> stages;
     };
 
     struct DescriptorSetDesc
     {
         LINAGX_VEC<DescriptorBinding> bindings;
-        LINAGX_VEC<ShaderStage>       stages;
     };
 
     struct DescriptorUpdateImageDesc
@@ -649,6 +671,18 @@ namespace LinaGX
         uint32             binding       = 0;
         LINAGX_VEC<uint32> buffers       = {};
         bool               isWriteAccess = false;
+    };
+
+    struct PipelineLayoutPushConstantRange
+    {
+        LINAGX_VEC<ShaderStage> stages;
+        uint32                  size = 0;
+    };
+
+    struct PipelineLayoutDesc
+    {
+        LINAGX_VEC<uint16>                          descriptorSets;
+        LINAGX_VEC<PipelineLayoutPushConstantRange> constantRanges;
     };
 
     struct ResourceDesc

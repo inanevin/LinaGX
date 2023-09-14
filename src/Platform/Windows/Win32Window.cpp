@@ -885,6 +885,7 @@ namespace LinaGX
     void Win32Window::FreeMouse()
     {
         m_confineStyle = ConfineStyle::None;
+        ClipCursor(NULL);
     }
 
     void Win32Window::SetMouseVisible(bool visible)

@@ -246,6 +246,19 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
+        /// <param name="desc"></param>
+        /// <returns></returns>
+        uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="layout"></param>
+        void DestroyPipelineLayout(uint16 layout);
+
+        /// <summary>
+        ///
+        /// </summary>
         /// <param name="type"></param>
         uint8 CreateQueue(const QueueDesc& desc);
 

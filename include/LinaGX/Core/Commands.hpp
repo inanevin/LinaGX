@@ -154,7 +154,7 @@ namespace LinaGX
         void*     extension;
         uint32    resource;
         uint64    offset;
-        IndexType indexFormat;
+        IndexType indexType;
     };
 
     struct CMDCopyBufferToTexture2D
@@ -172,11 +172,11 @@ namespace LinaGX
         uint32  firstSet;
         uint32  setCount;
         uint16* descriptorSetHandles;
+        bool    useBoundShaderForLayout;
+        uint16  pipelineLayout;
         bool    isCompute;
         uint32  dynamicOffsetCount;
         uint32* dynamicOffsets;
-        bool    explicitShaderLayout;
-        uint32  layoutShader;
     };
 
     struct CMDBindConstants

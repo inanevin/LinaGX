@@ -31,6 +31,10 @@ SOFTWARE.
 
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
+#include "Camera.hpp"
+#include "glm/glm.hpp"
+#include <vector>
+#include <string>
 
 namespace LinaGX
 {
@@ -47,13 +51,67 @@ namespace LinaGX
             LinaGX::CommandStream* transferStream         = nullptr;
             uint64                 transferSemaphoreValue = 0;
             uint16                 transferSemaphore      = 0;
+            uint16                 dscSet0                = 0;
+            uint32                 rscSceneData           = 0;
+            uint8*                 rscSceneDataMapping    = nullptr;
+            uint32                 rtWorldColor           = 0;
+            uint32                 rtWorldDepth           = 0;
+            uint32                 rtWorldColorIndex      = 0;
         };
 
         struct Texture2D
         {
-            LINAGX_STRING                     path      = "";
-            uint32                            gpuHandle = 0;
-            LINAGX_VEC<LinaGX::TextureBuffer> allLevels;
+            std::string                        path      = "";
+            uint32                             gpuHandle = 0;
+            std::vector<LinaGX::TextureBuffer> allLevels;
+        };
+
+        struct WorldObject
+        {
+            glm::mat4   globalMatrix;
+            glm::mat4   invBindMatrix;
+            std::string name              = "";
+            bool        isSkinned         = false;
+            bool        hasMesh           = false;
+            uint32      vertexBufferStart = 0;
+            uint32      indexBufferStart  = 0;
+            uint32      indexCount        = 0;
+        };
+
+        struct VertexNoSkin
+        {
+            LinaGX::LGXVector3 position = {};
+            LinaGX::LGXVector2 uv       = {};
+            LinaGX::LGXVector3 normal   = {};
+        };
+
+        struct VertexSkinned
+        {
+            LinaGX::LGXVector3 position      = {};
+            LinaGX::LGXVector2 uv            = {};
+            LinaGX::LGXVector3 normal        = {};
+            LinaGX::LGXVector4 inBoneIndices = {};
+            LinaGX::LGXVector4 inBoneWeights = {};
+        };
+
+        struct VertexBuffer
+        {
+            uint32 staging = 0;
+            uint32 gpu     = 0;
+        };
+
+        struct GPUSceneData
+        {
+            glm::mat4 view;
+            glm::mat4 proj;
+            glm::vec4 skyColor1;
+            glm::vec4 skyColor2;
+        };
+
+        struct GPUConstantsQuad
+        {
+            uint32 textureID;
+            uint32 samplerID;
         };
 
         class Example : public App
@@ -64,19 +122,40 @@ namespace LinaGX
             virtual void OnTick() override;
 
         private:
-            void ConfigureInitializeLinaGX();
-            void CreateMainWindow();
-            void CreatePerFrameResources();
-            void LoadModel(const char* path, LinaGX::ModelData& outModelData);
-            void LoadTexture(const char* path, uint32 id);
-            void StartTextureLoading();
+            void   ConfigureInitializeLinaGX();
+            void   CreateMainWindow();
+            void   SetupPerFrameResources();
+            void   LoadTexture(const char* path, uint32 id);
+            void   SetupTextures();
+            void   SetupSamplers();
+            void   SetupRenderTargets();
+            void   SetupMaterials();
+            void   LoadAndParseModels();
+            void   SetupDescriptorSets();
+            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::Format passFormat);
+
+            void DrawSkybox();
 
         private:
-            LinaGX::Instance*     m_lgx       = nullptr;
-            LinaGX::Window*       m_window    = nullptr;
-            uint8                 m_swapchain = 0;
-            PerFrameData          m_pfd[FRAMES_IN_FLIGHT];
-            LINAGX_VEC<Texture2D> m_textures;
+            LinaGX::Instance*      m_lgx       = nullptr;
+            LinaGX::Window*        m_window    = nullptr;
+            uint8                  m_swapchain = 0;
+            PerFrameData           m_pfd[FRAMES_IN_FLIGHT];
+            std::vector<Texture2D> m_textures;
+
+            uint16       m_shaderSkybox       = 0;
+            uint16       m_shaderScreenQuad   = 0;
+            uint32       m_indexBufferStaging = 0;
+            uint32       m_indexBufferGPU     = 0;
+            VertexBuffer m_vtxBufferSkinned;
+            VertexBuffer m_vtxBufferNoSkin;
+
+            std::vector<WorldObject> m_worldObjects;
+            std::vector<uint32>      m_samplers;
+
+            uint32 m_skyboxIndexCount = 0;
+            uint16 m_pipelineLayout;
+            Camera m_camera;
         };
 
     } // namespace Examples

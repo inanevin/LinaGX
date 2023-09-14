@@ -1008,7 +1008,7 @@ namespace LinaGX::Examples
             vtx->offset               = 0;
 
             CMDBindIndexBuffers* indx = currentFrame.stream->AddCommand<CMDBindIndexBuffers>();
-            indx->indexFormat         = IndexType::Uint16;
+            indx->indexType         = IndexType::Uint16;
             indx->offset              = 0;
             indx->resource            = _mergedIndexBufferGPU;
         }

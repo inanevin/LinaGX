@@ -218,7 +218,7 @@ namespace LinaGX
             if (!allAnims.empty())
                 delete[] allAnims[0];
 
-            if (allTextures.empty())
+            if (!allTextures.empty())
             {
                 for (auto& b : allTextures)
                 {
