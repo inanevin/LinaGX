@@ -745,6 +745,18 @@ namespace LinaGX::Examples
             bind->customLayout                  = m_pipelineLayout;
         }
 
+        // Global descriptor binding.
+        {
+            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
+            bind->extension                     = nullptr;
+            bind->isCompute                     = false;
+            bind->firstSet                      = 1;
+            bind->setCount                      = 1;
+            bind->dynamicOffsetCount            = 0;
+            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet0);
+            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
+            bind->customLayout                  = m_pipelineLayout2;
+        }
 
         // Global index buffer.
         {
