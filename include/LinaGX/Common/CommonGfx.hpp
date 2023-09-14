@@ -623,6 +623,7 @@ namespace LinaGX
     {
         LINAGX_VEC<uint16>                          descriptorSets;
         LINAGX_VEC<PipelineLayoutPushConstantRange> constantRanges;
+        bool                                        isCompute           = false;
         bool                                        indirectDrawEnabled = false;
     };
 

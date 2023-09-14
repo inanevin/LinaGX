@@ -10,9 +10,6 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 } sceneData;
 
-layout (set = 0, binding = 1) uniform texture2D allTextures[];
-layout (set = 0, binding = 2) uniform sampler allSamplers[];
-
 void main()
 {
 	float factor = clamp(inWorldPos.y * 1.67f + 0.940, 0.0f, 1.0f);

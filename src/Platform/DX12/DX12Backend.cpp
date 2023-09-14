@@ -1254,9 +1254,12 @@ namespace LinaGX
 
         if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
         {
-            resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+            resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
             state              = D3D12_RESOURCE_STATE_DEPTH_WRITE;
             clear              = &depthClear;
+
+            if (!txtDesc.sampled)
+                resourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
         }
         else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
         {
@@ -1310,6 +1313,14 @@ namespace LinaGX
             depthStencilDesc.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
             depthStencilDesc.Flags                         = D3D12_DSV_FLAG_NONE;
             m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {item.descriptor.GetCPUHandle()});
+
+            item.descriptor2                        = m_textureHeap->GetNewHeapHandle();
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.Format                          = DXGI_FORMAT_R32_FLOAT;
+            srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MipLevels             = 1;
+            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor2.GetCPUHandle()});
         }
         else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
         {
@@ -1730,7 +1741,7 @@ namespace LinaGX
                     if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage)
                     {
                         const auto& res                    = m_texture2Ds.GetItemR(desc.textures[i]);
-                        const auto& srcResDescriptorHandle = res.desc.usage == Texture2DUsage::ColorTextureRenderTarget ? res.descriptor2 : res.descriptor;
+                        const auto& srcResDescriptorHandle = (res.desc.usage == Texture2DUsage::ColorTextureRenderTarget || res.desc.usage == Texture2DUsage::DepthStencilTexture) ? res.descriptor2 : res.descriptor;
 
                         D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt;
                         srcHandleTxt.ptr     = srcResDescriptorHandle.GetCPUHandle();
@@ -1829,7 +1840,7 @@ namespace LinaGX
                         rangeCounter++;
                     }
                     else
-                        param.InitAsConstantBufferView(b.lgxBinding.descriptorCount, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+                        param.InitAsConstantBufferView(b.binding, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
                 }
                 else if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
                 {
@@ -1943,7 +1954,7 @@ namespace LinaGX
             rootParameters.push_back(param);
         }
 
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, desc.isCompute ? D3D12_ROOT_SIGNATURE_FLAG_NONE : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
         ComPtr<ID3DBlob>                      signatureBlob = nullptr;
         ComPtr<ID3DBlob>                      errorBlob     = nullptr;
 
@@ -2445,7 +2456,8 @@ namespace LinaGX
             {
                 ThrowIfFailed(allocator->Reset());
                 ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
-                sr.boundShader = 0;
+                sr.boundShader        = 0;
+                sr.boundRootSignature = nullptr;
 
                 if (sr.type == CommandType::Graphics || sr.type == CommandType::Compute)
                 {
@@ -2654,7 +2666,6 @@ namespace LinaGX
     void DX12Backend::CMD_BeginRenderPass(uint8* data, DX12CommandStream& stream)
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
-        auto                list  = stream.list;
 
         LINAGX_VEC<CD3DX12_RESOURCE_BARRIER>             barriers;
         LINAGX_VEC<D3D12_RENDER_PASS_RENDER_TARGET_DESC> colorAttDescs;
@@ -2704,7 +2715,7 @@ namespace LinaGX
             }
         }
 
-        list->ResourceBarrier(begin->colorAttachmentCount, barriers.data());
+        stream.list->ResourceBarrier(begin->colorAttachmentCount, barriers.data());
 
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
@@ -2715,10 +2726,10 @@ namespace LinaGX
             D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{GetDXStoreOp(begin->depthStencilAttachment.depthStoreOp), {}};
             D3D12_RENDER_PASS_ENDING_ACCESS      stencilEnd{GetDXStoreOp(begin->depthStencilAttachment.stencilStoreOp), {}};
             D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.descriptor.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
-            list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
+            stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
         }
         else
-            list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), NULL, D3D12_RENDER_PASS_FLAG_NONE);
+            stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), NULL, D3D12_RENDER_PASS_FLAG_NONE);
 
         CMDSetViewport interVP = {};
         CMDSetScissors interSC = {};
@@ -2738,9 +2749,8 @@ namespace LinaGX
 
     void DX12Backend::CMD_EndRenderPass(uint8* data, DX12CommandStream& stream)
     {
-        CMDEndRenderPass* end  = reinterpret_cast<CMDEndRenderPass*>(data);
-        auto              list = stream.list;
-        list->EndRenderPass();
+        CMDEndRenderPass* end = reinterpret_cast<CMDEndRenderPass*>(data);
+        stream.list->EndRenderPass();
 
         const uint32                         sz = static_cast<uint32>(stream.lastRPImages.size());
         LINAGX_VEC<CD3DX12_RESOURCE_BARRIER> barriers;
@@ -2757,13 +2767,14 @@ namespace LinaGX
                 barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         }
 
-        list->ResourceBarrier(static_cast<uint32>(barriers.size()), barriers.data());
+        stream.list->ResourceBarrier(static_cast<uint32>(barriers.size()), barriers.data());
+        stream.boundShader        = 0;
+        stream.boundRootSignature = nullptr;
     }
 
     void DX12Backend::CMD_SetViewport(uint8* data, DX12CommandStream& stream)
     {
-        CMDSetViewport* cmd  = reinterpret_cast<CMDSetViewport*>(data);
-        auto            list = stream.list;
+        CMDSetViewport* cmd = reinterpret_cast<CMDSetViewport*>(data);
         D3D12_VIEWPORT  vp;
         vp.MinDepth = cmd->minDepth;
         vp.MaxDepth = cmd->maxDepth;
@@ -2771,106 +2782,175 @@ namespace LinaGX
         vp.Width    = static_cast<float>(cmd->width);
         vp.TopLeftX = static_cast<float>(cmd->x);
         vp.TopLeftY = static_cast<float>(cmd->y);
-        list->RSSetViewports(1, &vp);
+        stream.list->RSSetViewports(1, &vp);
     }
 
     void DX12Backend::CMD_SetScissors(uint8* data, DX12CommandStream& stream)
     {
-        CMDSetScissors* cmd  = reinterpret_cast<CMDSetScissors*>(data);
-        auto            list = stream.list;
+        CMDSetScissors* cmd = reinterpret_cast<CMDSetScissors*>(data);
         D3D12_RECT      sc;
         sc.left   = static_cast<LONG>(cmd->x);
         sc.top    = static_cast<LONG>(cmd->y);
         sc.right  = static_cast<LONG>(cmd->x + cmd->width);
         sc.bottom = static_cast<LONG>(cmd->y + cmd->height);
-        list->RSSetScissorRects(1, &sc);
+        stream.list->RSSetScissorRects(1, &sc);
+    }
+
+    DX12RootParamInfo* FindRootParam(LINAGX_VEC<DX12RootParamInfo>* rootParams, DescriptorType type, uint32 binding, uint32 set)
+    {
+        const uint32 sz = static_cast<uint32>(rootParams->size());
+        for (uint32 i = 0; i < sz; i++)
+        {
+            auto& p = rootParams->at(i);
+            if (p.reflectionType == type && p.binding == binding && p.set == set)
+                return &p;
+        }
+
+        return nullptr;
+    }
+
+    void DX12Backend::BindDescriptorSets(DX12CommandStream& stream, DX12Shader& shader)
+    {
+        for (auto& [index, setData] : stream.boundDescriptorSets)
+        {
+            if (!setData.isDirty)
+                continue;
+
+            setData.isDirty = false;
+
+            const auto& set = m_descriptorSets.GetItemR(setData.handle);
+
+            uint32 dynamicOffsetIndexCounter = 0;
+
+            for (const auto& binding : set.bindings)
+            {
+                DX12RootParamInfo* param = FindRootParam(&shader.rootParams, binding.lgxBinding.type, binding.binding, index);
+
+                if (param == nullptr)
+                    continue;
+
+                uint64 handle  = binding.gpuPointer.GetGPUHandle();
+                uint64 handle2 = binding.additionalGpuPointer.GetGPUHandle();
+
+                if (binding.lgxBinding.useDynamicOffset && (binding.lgxBinding.type == DescriptorType::UBO || binding.lgxBinding.type == DescriptorType::SSBO))
+                {
+                    const uint64 offset = static_cast<uint64>(setData.boundDynamicOffsets[dynamicOffsetIndexCounter++]);
+                    dynamicOffsetIndexCounter++;
+                    handle += offset;
+                }
+
+                if (binding.lgxBinding.type == DescriptorType::UBO && binding.lgxBinding.descriptorCount == 1)
+                {
+                    if (shader.isCompute)
+                        stream.list->SetComputeRootConstantBufferView(param->rootParameter, handle);
+                    else
+                        stream.list->SetGraphicsRootConstantBufferView(param->rootParameter, handle);
+                }
+                else if (binding.lgxBinding.type == DescriptorType::CombinedImageSampler)
+                {
+                    if (shader.isCompute)
+                    {
+                        stream.list->SetComputeRootDescriptorTable(param->rootParameter, {handle});
+                        stream.list->SetComputeRootDescriptorTable(param->rootParameter + 1, {handle2});
+                    }
+                    else
+                    {
+                        stream.list->SetGraphicsRootDescriptorTable(param->rootParameter, {handle});
+                        stream.list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {handle2});
+                    }
+                }
+                else
+                {
+                    if (shader.isCompute)
+                        stream.list->SetComputeRootDescriptorTable(param->rootParameter, {handle});
+                    else
+                        stream.list->SetGraphicsRootDescriptorTable(param->rootParameter, {handle});
+                }
+            }
+        }
     }
 
     void DX12Backend::CMD_BindPipeline(uint8* data, DX12CommandStream& stream)
     {
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
-        auto             list   = stream.list;
-        const auto&      shader = m_shaders.GetItemR(cmd->shader);
+        auto&            shader = m_shaders.GetItemR(cmd->shader);
 
         if (!shader.isCompute)
         {
-            list->SetGraphicsRootSignature(shader.rootSig.Get());
-            list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
-            list->SetPipelineState(shader.pso.Get());
+            stream.list->SetGraphicsRootSignature(shader.rootSig.Get());
+            stream.list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
+            stream.list->SetPipelineState(shader.pso.Get());
         }
         else
         {
-            list->SetComputeRootSignature(shader.rootSig.Get());
-            list->SetPipelineState(shader.pso.Get());
+            stream.list->SetComputeRootSignature(shader.rootSig.Get());
+            stream.list->SetPipelineState(shader.pso.Get());
         }
+
+        stream.boundRootSignature = shader.rootSig.Get();
+
+        BindDescriptorSets(stream, shader);
 
         stream.boundShader = cmd->shader;
     }
 
     void DX12Backend::CMD_DrawInstanced(uint8* data, DX12CommandStream& stream)
     {
-        CMDDrawInstanced* cmd  = reinterpret_cast<CMDDrawInstanced*>(data);
-        auto              list = stream.list;
-        list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
+        CMDDrawInstanced* cmd = reinterpret_cast<CMDDrawInstanced*>(data);
+        stream.list->DrawInstanced(cmd->vertexCountPerInstance, cmd->instanceCount, cmd->startVertexLocation, cmd->startInstanceLocation);
     }
 
     void DX12Backend::CMD_DrawIndexedInstanced(uint8* data, DX12CommandStream& stream)
     {
-        CMDDrawIndexedInstanced* cmd  = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
-        auto                     list = stream.list;
-        list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
+        CMDDrawIndexedInstanced* cmd = reinterpret_cast<CMDDrawIndexedInstanced*>(data);
+        stream.list->DrawIndexedInstanced(cmd->indexCountPerInstance, cmd->instanceCount, cmd->startIndexLocation, cmd->baseVertexLocation, cmd->startInstanceLocation);
     }
 
     void DX12Backend::CMD_DrawIndexedIndirect(uint8* data, DX12CommandStream& stream)
     {
         CMDDrawIndexedIndirect* cmd    = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
-        auto                    list   = stream.list;
         auto&                   shader = m_shaders.GetItemR(stream.boundShader);
         auto                    buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
-        list->ExecuteIndirect(shader.indirectIndexedSig.Get(), cmd->count, buffer, 0, NULL, 0);
+        stream.list->ExecuteIndirect(shader.indirectIndexedSig.Get(), cmd->count, buffer, 0, NULL, 0);
     }
 
     void DX12Backend::CMD_DrawIndirect(uint8* data, DX12CommandStream& stream)
     {
         CMDDrawIndirect* cmd    = reinterpret_cast<CMDDrawIndirect*>(data);
-        auto             list   = stream.list;
         auto&            shader = m_shaders.GetItemR(stream.boundShader);
         auto             buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
-        list->ExecuteIndirect(shader.indirectDrawSig.Get(), cmd->count, buffer, 0, NULL, 0);
+        stream.list->ExecuteIndirect(shader.indirectDrawSig.Get(), cmd->count, buffer, 0, NULL, 0);
     }
 
     void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)
     {
         CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
-        auto                  list     = stream.list;
         const auto&           resource = m_resources.GetItemR(cmd->resource);
 
         D3D12_VERTEX_BUFFER_VIEW view;
         view.BufferLocation = GetGPUResource(resource)->GetGPUVirtualAddress();
         view.SizeInBytes    = static_cast<uint32>(resource.size);
         view.StrideInBytes  = static_cast<uint32>(cmd->vertexSize);
-        list->IASetVertexBuffers(cmd->slot, 1, &view);
+        stream.list->IASetVertexBuffers(cmd->slot, 1, &view);
     }
 
     void DX12Backend::CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream)
     {
-        CMDBindIndexBuffers*    cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
-        auto                    list = stream.list;
-        const auto&             res  = m_resources.GetItemR(cmd->resource);
+        CMDBindIndexBuffers*    cmd = reinterpret_cast<CMDBindIndexBuffers*>(data);
+        const auto&             res = m_resources.GetItemR(cmd->resource);
         D3D12_INDEX_BUFFER_VIEW view;
         view.BufferLocation = GetGPUResource(res)->GetGPUVirtualAddress();
         view.SizeInBytes    = static_cast<uint32>(res.size);
         view.Format         = GetDXIndexType(cmd->indexType);
-        list->IASetIndexBuffer(&view);
+        stream.list->IASetIndexBuffer(&view);
     }
 
     void DX12Backend::CMD_CopyResource(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyResource* cmd     = reinterpret_cast<CMDCopyResource*>(data);
-        auto             list    = stream.list;
         const auto&      srcRes  = m_resources.GetItemR(cmd->source);
         const auto&      destRes = m_resources.GetItemR(cmd->destination);
-        list->CopyResource(GetGPUResource(destRes), GetGPUResource(srcRes));
+        stream.list->CopyResource(GetGPUResource(destRes), GetGPUResource(srcRes));
     }
 
     uint64 AlignUp(uint64 value, uint64 alignment)
@@ -2881,7 +2961,6 @@ namespace LinaGX
     void DX12Backend::CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyBufferToTexture2D* cmd        = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
-        auto                      list       = stream.list;
         const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
 
         // Find correct size for staging resource.
@@ -2930,117 +3009,85 @@ namespace LinaGX
         }
 
         const auto& srcRes = m_resources.GetItemR(stagingHandle);
-        UpdateSubresources(list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, static_cast<uint32>(allData.size()) * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
-    }
-
-    DX12RootParamInfo* FindRootParam(LINAGX_VEC<DX12RootParamInfo>* rootParams, DescriptorType type, uint32 binding, uint32 set)
-    {
-        const uint32 sz = static_cast<uint32>(rootParams->size());
-        for (uint32 i = 0; i < sz; i++)
-        {
-            auto& p = rootParams->at(i);
-            if (p.reflectionType == type && p.binding == binding && p.set == set)
-                return &p;
-        }
-
-        return nullptr;
+        UpdateSubresources(stream.list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, static_cast<uint32>(allData.size()) * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
     }
 
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
     {
-        CMDBindDescriptorSets* cmd  = reinterpret_cast<CMDBindDescriptorSets*>(data);
-        auto                   list = stream.list;
+        CMDBindDescriptorSets* cmd = reinterpret_cast<CMDBindDescriptorSets*>(data);
 
-        LINAGX_VEC<DX12RootParamInfo>* rootParams;
-        if (cmd->layoutSource == DescriptorSetsLayoutSource::LastBoundShader)
-            rootParams = &m_shaders.GetItemR(stream.boundShader).rootParams;
-        else if (cmd->layoutSource == DescriptorSetsLayoutSource::CustomShader)
-            rootParams = &m_shaders.GetItemR(cmd->customLayoutShader).rootParams;
-        else
-            rootParams = &m_pipelineLayouts.GetItemR(cmd->customLayout).rootParams;
+        // ID3D12RootSignature* toBind = nullptr;
+        //
+        // LINAGX_VEC<DX12RootParamInfo>* rootParams;
+        // if (cmd->layoutSource == DescriptorSetsLayoutSource::LastBoundShader)
+        //     rootParams = &m_shaders.GetItemR(stream.boundShader).rootParams;
+        // else if (cmd->layoutSource == DescriptorSetsLayoutSource::CustomShader)
+        // {
+        //     auto& sh   = m_shaders.GetItemR(cmd->customLayoutShader);
+        //     rootParams = &sh.rootParams;
+        //     toBind     = sh.rootSig.Get();
+        // }
+        // else
+        // {
+        //     auto& pl   = m_pipelineLayouts.GetItemR(cmd->customLayout);
+        //     rootParams = &pl.rootParams;
+        //     toBind     = pl.rootSig.Get();
+        // }
+        //
+        // if (!stream.hasBoundRootSig)
+        // {
+        //     if (cmd->isCompute)
+        //         stream.list->SetComputeRootSignature(toBind);
+        //     else
+        //         stream.list->SetGraphicsRootSignature(toBind);
+        // }
 
-        uint32 dynamicOffsetIndexCounter = 0;
+        uint32 dynamicOffsetCounter = 0;
 
         for (uint32 i = 0; i < cmd->setCount; i++)
         {
             const uint32             targetSetIndex = i + cmd->firstSet;
             const DX12DescriptorSet& set            = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]);
+            DX12BoundDescriptorSet   data           = {cmd->descriptorSetHandles[i], true};
 
-            for (const auto& binding : set.bindings)
+            for (const auto& b : set.bindings)
             {
-                DX12RootParamInfo* param   = FindRootParam(rootParams, binding.lgxBinding.type, binding.binding, targetSetIndex);
-                uint64             handle  = binding.gpuPointer.GetGPUHandle();
-                uint64             handle2 = binding.additionalGpuPointer.GetGPUHandle();
-
-                if (binding.lgxBinding.useDynamicOffset && (binding.lgxBinding.type == DescriptorType::UBO || binding.lgxBinding.type == DescriptorType::SSBO))
-                {
-
-                    const uint64 offset = static_cast<uint64>(cmd->dynamicOffsets[dynamicOffsetIndexCounter]);
-                    dynamicOffsetIndexCounter++;
-                    handle += offset;
-                }
-
-                if (binding.lgxBinding.type == DescriptorType::UBO && binding.lgxBinding.descriptorCount == 1)
-                {
-
-                    if (cmd->isCompute)
-                        list->SetComputeRootConstantBufferView(param->rootParameter, handle);
-                    else
-                        list->SetGraphicsRootConstantBufferView(param->rootParameter, handle);
-                }
-                else if (binding.lgxBinding.type == DescriptorType::CombinedImageSampler)
-                {
-                    if (cmd->isCompute)
-                    {
-                        list->SetComputeRootDescriptorTable(param->rootParameter, {handle});
-                        list->SetComputeRootDescriptorTable(param->rootParameter + 1, {handle2});
-                    }
-                    else
-                    {
-                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {handle});
-                        list->SetGraphicsRootDescriptorTable(param->rootParameter + 1, {handle2});
-                    }
-                }
-                else
-                {
-                    if (cmd->isCompute)
-                        list->SetComputeRootDescriptorTable(param->rootParameter, {handle});
-                    else
-                        list->SetGraphicsRootDescriptorTable(param->rootParameter, {handle});
-                }
+                if (b.lgxBinding.useDynamicOffset)
+                    data.boundDynamicOffsets.push_back(cmd->dynamicOffsets[dynamicOffsetCounter++]);
             }
+
+            stream.boundDescriptorSets[targetSetIndex] = data;
         }
+
+        if (stream.boundRootSignature != nullptr)
+            BindDescriptorSets(stream, m_shaders.GetItemR(stream.boundShader));
     }
 
     void DX12Backend::CMD_BindConstants(uint8* data, DX12CommandStream& stream)
     {
         CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
-        auto              list   = stream.list;
         auto&             shader = m_shaders.GetItemR(stream.boundShader);
 
         DX12RootParamInfo* param = FindRootParam(&shader.rootParams, DescriptorType::ConstantBlock, shader.constantsBinding, shader.constantsSpace);
-        list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
+        stream.list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
     }
 
     void DX12Backend::CMD_Dispatch(uint8* data, DX12CommandStream& stream)
     {
-        CMDDispatch* cmd  = reinterpret_cast<CMDDispatch*>(data);
-        auto         list = stream.list;
-        list->Dispatch(cmd->groupSizeX, cmd->groupSizeY, cmd->groupSizeZ);
+        CMDDispatch* cmd = reinterpret_cast<CMDDispatch*>(data);
+        stream.list->Dispatch(cmd->groupSizeX, cmd->groupSizeY, cmd->groupSizeZ);
     }
 
     void DX12Backend::CMD_ComputeBarrier(uint8* data, DX12CommandStream& stream)
     {
-        CMDComputeBarrier* cmd  = reinterpret_cast<CMDComputeBarrier*>(data);
-        auto               list = stream.list;
+        CMDComputeBarrier* cmd = reinterpret_cast<CMDComputeBarrier*>(data);
     }
 
     void DX12Backend::CMD_ExecuteSecondaryStream(uint8* data, DX12CommandStream& stream)
     {
         CMDExecuteSecondaryStream* cmd    = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
-        auto                       list   = stream.list;
         auto                       bundle = m_cmdStreams.GetItemR(cmd->secondaryStream->m_gpuHandle).list.Get();
-        list->ExecuteBundle(bundle);
+        stream.list->ExecuteBundle(bundle);
     }
 
 } // namespace LinaGX

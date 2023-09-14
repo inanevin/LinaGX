@@ -12,7 +12,6 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 } sceneData;
 
-
 void main()
 {
     outWorldPos = inPosition;

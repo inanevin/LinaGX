@@ -122,7 +122,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -934,12 +934,12 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindSets   = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
-            bindSets->firstSet                = 0;
-            bindSets->setCount                = 3;
-            bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
-            bindSets->isCompute               = false;
-            bindSets->dynamicOffsetCount      = 0;
+            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet              = 0;
+            bindSets->setCount              = 3;
+            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSetTexture, currentFrame.ssboSet, _descriptorSetSceneData1);
+            bindSets->isCompute             = false;
+            bindSets->dynamicOffsetCount    = 0;
             bindSets->layoutSource          = DescriptorSetsLayoutSource::LastBoundShader;
         }
 
@@ -982,12 +982,12 @@ namespace LinaGX::Examples
 
         // Bind the descriptors
         {
-            CMDBindDescriptorSets* bindSets   = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
-            bindSets->firstSet                = 0;
-            bindSets->setCount                = 1;
-            bindSets->descriptorSetHandles    = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
-            bindSets->isCompute               = false;
-            bindSets->dynamicOffsetCount      = 0;
+            CMDBindDescriptorSets* bindSets = currentFrame.stream->AddCommand<CMDBindDescriptorSets>();
+            bindSets->firstSet              = 0;
+            bindSets->setCount              = 1;
+            bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(currentFrame.descriptorSetQuadTexture);
+            bindSets->isCompute             = false;
+            bindSets->dynamicOffsetCount    = 0;
             bindSets->layoutSource          = DescriptorSetsLayoutSource::LastBoundShader;
         }
 

@@ -1589,20 +1589,20 @@ namespace LinaGX
             setLayouts.push_back(dcSet.layout);
         }
 
-        // uint32 offset = 0;
-        //
-        // for (const auto& ct : desc.constantRanges)
-        //{
-        //     VkPushConstantRange range = VkPushConstantRange{};
-        //     range.size                = static_cast<uint32>(ct.size);
-        //     range.offset              = offset;
-        //     offset += range.size;
-        //
-        //     for (ShaderStage stg : ct.stages)
-        //         range.stageFlags |= GetVKShaderStage(stg);
-        //
-        //     constants.push_back(range);
-        // }
+        uint32 offset = 0;
+
+        for (const auto& ct : desc.constantRanges)
+        {
+            VkPushConstantRange range = VkPushConstantRange{};
+            range.size                = static_cast<uint32>(ct.size);
+            range.offset              = offset;
+            offset += range.size;
+
+            for (ShaderStage stg : ct.stages)
+                range.stageFlags |= GetVKShaderStage(stg);
+
+            constants.push_back(range);
+        }
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = VkPipelineLayoutCreateInfo{};
         pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

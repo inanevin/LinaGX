@@ -370,7 +370,7 @@ namespace LinaGX::Examples
 
         ShaderDepthStencilDesc depthStencilDesc = {
             .depthStencilAttachmentFormat = Format::D32_SFLOAT,
-            .depthWrite                   = true,
+            .depthWrite                   = false,
             .depthTest                    = true,
             .depthCompare                 = CompareOp::LEqual,
             .stencilEnabled               = false,
@@ -515,7 +515,7 @@ namespace LinaGX::Examples
             pfd.rscSceneData = m_lgx->CreateResource(sceneDataResource);
             m_lgx->MapResource(pfd.rscSceneData, pfd.rscSceneDataMapping);
 
-            // Descriptor Set 0
+            // Descriptor Set 0 - Globals
             {
                 LinaGX::DescriptorBinding binding0 = {
                     .descriptorCount = 1,
@@ -523,21 +523,8 @@ namespace LinaGX::Examples
                     .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
                 };
 
-                LinaGX::DescriptorBinding binding1 = {
-                    .descriptorCount = 30, // max amt.
-                    .type            = LinaGX::DescriptorType::SeparateImage,
-                    .unbounded       = true,
-                    .stages          = {LinaGX::ShaderStage::Fragment},
-                };
-
-                LinaGX::DescriptorBinding binding2 = {
-                    .descriptorCount = 5, // max amt.
-                    .type            = LinaGX::DescriptorType::SeparateSampler,
-                    .unbounded       = true,
-                    .stages          = {LinaGX::ShaderStage::Fragment},
-                };
                 LinaGX::DescriptorSetDesc desc = {
-                    .bindings = {binding0, binding1, binding2},
+                    .bindings = {binding0},
                 };
 
                 pfd.dscSet0 = m_lgx->CreateDescriptorSet(desc);
@@ -549,10 +536,33 @@ namespace LinaGX::Examples
                 };
 
                 m_lgx->DescriptorUpdateBuffer(update);
+            }
+
+            // Descriptor Set 1 - Unbounded resources
+            {
+                LinaGX::DescriptorBinding binding0 = {
+                    .descriptorCount = 30, // max amt.
+                    .type            = LinaGX::DescriptorType::SeparateImage,
+                    .unbounded       = true,
+                    .stages          = {LinaGX::ShaderStage::Fragment},
+                };
+
+                LinaGX::DescriptorBinding binding1 = {
+                    .descriptorCount = 5, // max amt.
+                    .type            = LinaGX::DescriptorType::SeparateSampler,
+                    .unbounded       = true,
+                    .stages          = {LinaGX::ShaderStage::Fragment},
+                };
+
+                LinaGX::DescriptorSetDesc desc = {
+                    .bindings = {binding0, binding1},
+                };
+
+                pfd.dscSet1 = m_lgx->CreateDescriptorSet(desc);
 
                 LinaGX::DescriptorUpdateImageDesc imgUpdate = {
-                    .setHandle = pfd.dscSet0,
-                    .binding   = 1,
+                    .setHandle = pfd.dscSet1,
+                    .binding   = 0,
                 };
 
                 for (const auto& txt : m_textures)
@@ -565,8 +575,8 @@ namespace LinaGX::Examples
                 m_lgx->DescriptorUpdateImage(imgUpdate);
 
                 LinaGX::DescriptorUpdateImageDesc smpUpdate = {
-                    .setHandle = pfd.dscSet0,
-                    .binding   = 2,
+                    .setHandle = pfd.dscSet1,
+                    .binding   = 1,
                     .samplers  = m_samplers,
                 };
 
@@ -576,10 +586,16 @@ namespace LinaGX::Examples
 
         PipelineLayoutDesc desc = {
             .descriptorSets = {m_pfd[0].dscSet0},
-            .constantRanges = {{{ShaderStage::Fragment}, sizeof(GPUConstantsQuad)}},
+            .constantRanges = {},
         };
 
-        m_pipelineLayout = m_lgx->CreatePipelineLayout(desc);
+        PipelineLayoutDesc desc2 = {
+            .descriptorSets = {m_pfd[0].dscSet0, m_pfd[0].dscSet1},
+            .constantRanges = {},
+        };
+
+        m_pipelineLayout  = m_lgx->CreatePipelineLayout(desc);
+        m_pipelineLayout2 = m_lgx->CreatePipelineLayout(desc2);
     }
 
     void Example::Initialize()
@@ -650,7 +666,7 @@ namespace LinaGX::Examples
         m_lgx->DestroyResource(m_indexBufferGPU);
         m_lgx->DestroyResource(m_vtxBufferNoSkin.gpu);
         m_lgx->DestroyResource(m_vtxBufferSkinned.gpu);
-        m_lgx->DestroyResource(m_pipelineLayout);
+        m_lgx->DestroyPipelineLayout(m_pipelineLayout);
 
         for (auto smp : m_samplers)
             m_lgx->DestroySampler(smp);
@@ -666,6 +682,7 @@ namespace LinaGX::Examples
             m_lgx->DestroyUserSemaphore(pfd.transferSemaphore);
             m_lgx->DestroyResource(pfd.rscSceneData);
             m_lgx->DestroyDescriptorSet(pfd.dscSet0);
+            m_lgx->DestroyDescriptorSet(pfd.dscSet1);
             m_lgx->DestroyTexture2D(pfd.rtWorldColor);
             m_lgx->DestroyTexture2D(pfd.rtWorldDepth);
         }
@@ -724,8 +741,21 @@ namespace LinaGX::Examples
             bind->setCount                      = 1;
             bind->dynamicOffsetCount            = 0;
             bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet0);
-            bind->useBoundShaderForLayout       = false;
-            bind->pipelineLayout                = m_pipelineLayout;
+            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
+            bind->customLayout                  = m_pipelineLayout;
+        }
+
+        // Global descriptor binding.
+        {
+            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
+            bind->extension                     = nullptr;
+            bind->isCompute                     = false;
+            bind->firstSet                      = 1;
+            bind->setCount                      = 1;
+            bind->dynamicOffsetCount            = 0;
+            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet1);
+            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
+            bind->customLayout                  = m_pipelineLayout2;
         }
 
         // Global index buffer.

@@ -52,6 +52,7 @@ namespace LinaGX
             uint64                 transferSemaphoreValue = 0;
             uint16                 transferSemaphore      = 0;
             uint16                 dscSet0                = 0;
+            uint16                 dscSet1                = 0;
             uint32                 rscSceneData           = 0;
             uint8*                 rscSceneDataMapping    = nullptr;
             uint32                 rtWorldColor           = 0;
@@ -155,6 +156,7 @@ namespace LinaGX
 
             uint32 m_skyboxIndexCount = 0;
             uint16 m_pipelineLayout;
+            uint16 m_pipelineLayout2;
             Camera m_camera;
         };
 

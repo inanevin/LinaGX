@@ -110,16 +110,25 @@ namespace LinaGX
         bool   isSwapchain = false;
     };
 
+    struct DX12BoundDescriptorSet
+    {
+        uint16             handle  = 0;
+        bool               isDirty = false;
+        LINAGX_VEC<uint32> boundDynamicOffsets;
+    };
+
     struct DX12CommandStream
     {
-        bool                                               isValid     = false;
-        uint32                                             boundShader = 0;
-        CommandType                                        type        = CommandType::Graphics;
+        bool                                               isValid            = false;
+        ID3D12RootSignature*                               boundRootSignature = nullptr;
+        uint32                                             boundShader        = 0;
+        CommandType                                        type               = CommandType::Graphics;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
         LINAGX_MAP<uint32, uint64>                         intermediateResources;
         LINAGX_MAP<void*, uint64>                          adjustedBuffers;
         LINAGX_VEC<DX12RenderPassImage>                    lastRPImages;
+        LINAGX_MAP<uint32, DX12BoundDescriptorSet>         boundDescriptorSets;
     };
 
     struct DX12PerFrameData
@@ -236,6 +245,7 @@ namespace LinaGX
         uint16 CreateFence();
         void   DestroyFence(uint16 handle);
         void   WaitForFences(ID3D12Fence* fence, uint64 frameFenceValue);
+        void   BindDescriptorSets(DX12CommandStream& stream, DX12Shader& shader);
 
     public:
         virtual bool Initialize(const InitInfo& initInfo) override;
