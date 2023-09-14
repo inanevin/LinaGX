@@ -1153,6 +1153,26 @@ void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
     
 }
 
+uint16 MTLBackend::CreatePipelineLayout(const LinaGX::PipelineLayoutDesc &desc) {
+    MTLPipelineLayout item = {};
+    item.isValid = true;
+    
+    return m_pipelineLayouts.AddItem(item);
+}
+
+void MTLBackend::DestroyPipelineLayout(uint16 handle)
+{
+    auto& lyt = m_cmdStreams.GetItemR(handle);
+    if (!lyt.isValid)
+    {
+        LOGE("Backend -> Pipeline Layout to be destroyed is not valid!");
+        return;
+    }
+    
+    m_pipelineLayouts.RemoveItem(handle);
+}
+
+
 uint32 MTLBackend::CreateCommandStream(CommandType cmdType) {
     MTLCommandStream item = {};
     item.isValid = true;
@@ -1614,6 +1634,11 @@ void MTLBackend::Shutdown() {
     {
         LOGA(!q.isValid, "Backend -> Some queues were not destroyed!");
     }
+    
+    for (auto& l : m_pipelineLayouts)
+    {
+        LOGA(!l.isValid, "Backend -> Some pipeline layouts were not destroyed!");
+    }
 }
 
 void MTLBackend::Join() {
@@ -1951,7 +1976,7 @@ void MTLBackend::CMD_BindVertexBuffers(uint8 *data, MTLCommandStream &stream) {
 void MTLBackend::CMD_BindIndexBuffers(uint8 *data, MTLCommandStream &stream) {
     CMDBindIndexBuffers*    cmd  = reinterpret_cast<CMDBindIndexBuffers*>(data);
     stream.currentIndexBuffer = cmd->resource;
-    stream.indexBufferType = static_cast<uint8>(cmd->indexFormat);
+    stream.indexBufferType = static_cast<uint8>(cmd->indexType);
 }
 
 void MTLBackend::CMD_CopyResource(uint8 *data, MTLCommandStream &stream) {
@@ -2079,6 +2104,8 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
         const uint32 setIndex = i + cmd->firstSet;
         auto& set = m_descriptorSets.GetItemR(setHandle);
         
+        LINAGX_VEC<ShaderStage> allStages;
+
         LINAGX_MAP<ShaderStage, uint32> bufferIDStart;
         LINAGX_MAP<ShaderStage, uint32> textureIDStart;
         LINAGX_MAP<ShaderStage, uint32> samplerIDStart;
@@ -2091,19 +2118,40 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
             
             const auto& boundSet = m_descriptorSets.GetItemR(it->second);
             
-            for(auto stg : boundSet.desc.stages)
+            
+            for(const auto& binding : boundSet.desc.bindings)
+            {
+                for(auto stg : binding.stages)
+                {
+                    bool found = false;
+                    for(auto existingStg : allStages)
+                    {
+                        if(existingStg == stg)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if(!found)
+                        allStages.push_back(stg);
+                }
+            }
+            
+            for(auto stg: allStages)
             {
                 bufferIDStart[stg] += boundSet.localBufferID;
                 textureIDStart[stg] += boundSet.localTextureID;
                 samplerIDStart[stg] += boundSet.localSamplerID;
             }
+           
         }
         
         stream.boundDescriptorSets[setIndex] = setHandle;
         
         for(const auto& mtlBinding : set.bindings)
         {
-            for(auto stg : set.desc.stages)
+            for(auto stg : mtlBinding.lgxBinding.stages)
             {
                 if(mtlBinding.lgxBinding.type == DescriptorType::CombinedImageSampler)
                 {
@@ -2255,22 +2303,34 @@ void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
     id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
     auto& shader = m_shaders.GetItemR(stream.currentShader);
     
+    uint8* finalData = nullptr;
+    if(cmd->offset != 0)
+    {
+        uint8* bytes = (uint8*)malloc(static_cast<size_t>(cmd->size + cmd->offset));
+        uint8* dummy = (uint8*)malloc(static_cast<size_t>(cmd->offset));
+        std::memcpy(bytes, dummy, cmd->offset);
+        std::memcpy(bytes + cmd->offset, cmd->data, static_cast<size_t>(cmd->size));
+        finalData = bytes;
+    }
+    else
+        finalData = (uint8*)cmd->data;
     
     if(shader.isCompute)
     {
-        uint32 constantIndex = shader.layout.constantBlock.mslBuffers[ShaderStage::Compute];
-        [computeEncoder setBytes:cmd->data length:cmd->size atIndex:constantIndex];
+        uint32 constantIndex = shader.layout.constantsMSLBuffers[ShaderStage::Compute];
+        [computeEncoder setBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
     }
     else
     {
+        
         for (uint32 i = 0; i < cmd->stagesSize; ++i)
         {
             ShaderStage stage = cmd->stages[i];
-            uint32 constantIndex = shader.layout.constantBlock.mslBuffers[stage];
+            uint32 constantIndex = shader.layout.constantsMSLBuffers[stage];
             if (stage == ShaderStage::Vertex) {
-                [encoder setVertexBytes:cmd->data length:cmd->size atIndex:constantIndex];
+                [encoder setVertexBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
             } else if (stage == ShaderStage::Fragment) {
-                [encoder setFragmentBytes:cmd->data length:cmd->size atIndex:constantIndex];
+                [encoder setFragmentBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
             }
         }
     }
@@ -2295,6 +2355,8 @@ void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {
 void MTLBackend::CMD_ExecuteSecondaryStream(uint8 *data, MTLCommandStream &stream) {
     CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
 }
+
+
 
 } // namespace LinaVG
 

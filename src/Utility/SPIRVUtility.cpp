@@ -1026,7 +1026,7 @@ namespace LinaGX
                             mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
                             mslb.msl_buffer = bufferID;
                             compiler.add_msl_resource_binding(mslb);
-                            ct.mslBuffers[stg] = bufferID;
+                            layoutReflection.constantsMSLBuffers[stg] = bufferID;
                             bufferID++;
                         }
                     }

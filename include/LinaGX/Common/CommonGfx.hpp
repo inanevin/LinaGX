@@ -433,7 +433,6 @@ namespace LinaGX
         size_t                          size    = 0;
         uint32                          set     = 0;
         uint32                          binding = 0;
-        LINAGX_MAP<ShaderStage, uint32> mslBuffers;
         LINAGX_VEC<ShaderStructMember>  members;
         LINAGX_VEC<ShaderStage>         stages;
         LINAGX_STRING                   name = "";
@@ -471,6 +470,7 @@ namespace LinaGX
         LINAGX_VEC<ShaderConstantBlock>        constants;
         uint32                                 constantsSet     = 0;
         uint32                                 constantsBinding = 0;
+        LINAGX_MAP<ShaderStage, uint32>        constantsMSLBuffers;
         uint32                                 totalDescriptors = 0;
         bool                                   hasGLDrawID      = false;
         uint32                                 drawIDBinding    = 0;
