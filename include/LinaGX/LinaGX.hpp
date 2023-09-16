@@ -41,6 +41,7 @@ THINGS TO RESEARCH:
 - gl_InstanceIndex and alike and their support.
 - Minimium #version we require?
 - Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
+- allocate N sets & pool them.
 
 FEATURES TO IMPLEMENT
 

@@ -122,7 +122,7 @@ namespace LinaGX::Examples
             LinaGX::Config.errorCallback = LogError;
             LinaGX::Config.infoCallback  = LogInfo;
 
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -966,6 +966,7 @@ namespace LinaGX::Examples
                 constants2->stagesSize       = 1;
                 constants2->offset           = sizeof(float);
                 constants2->data             = currentFrame.stream->EmplaceAuxMemory<uint32>(1);
+
                 CMDDrawInstanced* draw       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
                 draw->instanceCount          = 1;
                 draw->startInstanceLocation  = 0;

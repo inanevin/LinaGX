@@ -19,3 +19,4 @@ void main()
 	vec4 clipPos = sceneData.proj * rotView * vec4(outWorldPos, 1.0);
 	gl_Position = clipPos.xyww;
 }
+

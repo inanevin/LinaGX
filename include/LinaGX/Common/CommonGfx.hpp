@@ -430,12 +430,12 @@ namespace LinaGX
 
     struct ShaderConstantBlock
     {
-        size_t                          size    = 0;
-        uint32                          set     = 0;
-        uint32                          binding = 0;
-        LINAGX_VEC<ShaderStructMember>  members;
-        LINAGX_VEC<ShaderStage>         stages;
-        LINAGX_STRING                   name = "";
+        size_t                         size    = 0;
+        uint32                         set     = 0;
+        uint32                         binding = 0;
+        LINAGX_VEC<ShaderStructMember> members;
+        LINAGX_VEC<ShaderStage>        stages;
+        LINAGX_STRING                  name = "";
     };
 
     struct ShaderLayoutMSLBinding
@@ -516,15 +516,17 @@ namespace LinaGX
         LINAGX_MAP<ShaderStage, DataBlob> stages           = {};
         LINAGX_VEC<ShaderColorAttachment> colorAttachments = {};
         ShaderDepthStencilDesc            depthStencilDesc;
-        ShaderLayout                      layout              = {};
-        PolygonMode                       polygonMode         = PolygonMode::Fill;
-        CullMode                          cullMode            = CullMode::None;
-        FrontFace                         frontFace           = FrontFace::CW;
-        Topology                          topology            = Topology::TriangleList;
-        bool                              blendLogicOpEnabled = false;
-        LogicOp                           blendLogicOp        = LogicOp::Copy;
-        bool                              alphaToCoverage     = false;
-        const char*                       debugName           = "LinaGXShader";
+        ShaderLayout                      layout                  = {};
+        PolygonMode                       polygonMode             = PolygonMode::Fill;
+        CullMode                          cullMode                = CullMode::None;
+        FrontFace                         frontFace               = FrontFace::CW;
+        Topology                          topology                = Topology::TriangleList;
+        bool                              blendLogicOpEnabled     = false;
+        LogicOp                           blendLogicOp            = LogicOp::Copy;
+        bool                              alphaToCoverage         = false;
+        bool                              useCustomPipelineLayout = false;
+        uint16                            customPipelineLayout    = 0;
+        const char*                       debugName               = "LinaGXShader";
     };
 
     struct Viewport

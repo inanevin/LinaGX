@@ -10,9 +10,19 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 } sceneData;
 
+float rand(vec2 co)
+{
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 void main()
 {
-	float factor = clamp(inWorldPos.y * 1.67f + 0.940, 0.0f, 1.0f);
-	outFragColor = mix(sceneData.skyColor1, sceneData.skyColor2, factor);
+    vec3 normalizedDir = normalize(inWorldPos);
+
+	float factor = clamp(normalizedDir.y * 1.67f + 0.940, 0.0f, 1.0f);
+	vec4 color = mix(sceneData.skyColor1, sceneData.skyColor2, factor);
+	float dither = rand(gl_FragCoord.xy) * 0.005; // 0.005 is the dither intensity
+    outFragColor = color + vec4(dither, dither, dither, 0.0);
+	// outFragColor = mix(sceneData.skyColor1, sceneData.skyColor2, factor);
 	// outFragColor = vec4(inWorldPos, 1.0f);
 }

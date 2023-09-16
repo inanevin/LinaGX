@@ -65,7 +65,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -121,8 +121,8 @@ namespace LinaGX::Examples
                 auto& pfd = m_pfd[i];
 
                 LinaGX::DescriptorUpdateImageDesc imgUpdate = {
-                    .setHandle = pfd.dscSet0,
-                    .binding   = 1,
+                    .setHandle = pfd.dscSet1,
+                    .binding   = 0,
                 };
 
                 for (const auto& txt : m_textures)
@@ -137,7 +137,7 @@ namespace LinaGX::Examples
         });
 
         m_swapchain = m_lgx->CreateSwapchain({
-            .format       = Format::B8G8R8A8_UNORM,
+            .format       = Format::B8G8R8A8_SRGB,
             .x            = 0,
             .y            = 0,
             .width        = m_window->GetSize().x,
@@ -180,7 +180,7 @@ namespace LinaGX::Examples
     {
         // Load em.
         LinaGX::ModelData skyDomeData, foxLoungeData, foxData = {};
-        LinaGX::LoadGLTFBinary("Resources/Models/SkyDome/SkyDome.glb", skyDomeData);
+        LinaGX::LoadGLTFBinary("Resources/Models/SkyDome/SkyCube.glb", skyDomeData);
         LinaGX::LoadGLTFBinary("Resources/Models/FoxLounge/FoxLounge.glb", foxLoungeData);
         LinaGX::LoadGLTFBinary("Resources/Models/Fox/Fox.glb", foxData);
 
@@ -350,7 +350,7 @@ namespace LinaGX::Examples
         }
     }
 
-    uint16 Example::CreateShader(const char* vertex, const char* fragment, LinaGX::Format passFormat)
+    uint16 Example::CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout)
     {
         // Compile shaders.
         const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString(vertex);
@@ -378,14 +378,16 @@ namespace LinaGX::Examples
 
         // Create shader program with vertex & fragment stages.
         ShaderDesc shaderDesc = {
-            .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-            .colorAttachments = {att},
-            .depthStencilDesc = depthStencilDesc,
-            .layout           = outLayout,
-            .polygonMode      = PolygonMode::Fill,
-            .cullMode         = CullMode::Back,
-            .frontFace        = FrontFace::CCW,
-            .topology         = Topology::TriangleList,
+            .stages                  = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
+            .colorAttachments        = {att},
+            .depthStencilDesc        = depthStencilDesc,
+            .layout                  = outLayout,
+            .polygonMode             = PolygonMode::Fill,
+            .cullMode                = cullMode,
+            .frontFace               = FrontFace::CCW,
+            .topology                = Topology::TriangleList,
+            .useCustomPipelineLayout = useCustomLayout,
+            .customPipelineLayout    = customLayout,
         };
 
         return m_lgx->CreateShader(shaderDesc);
@@ -541,14 +543,14 @@ namespace LinaGX::Examples
             // Descriptor Set 1 - Unbounded resources
             {
                 LinaGX::DescriptorBinding binding0 = {
-                    .descriptorCount = 30, // max amt.
+                    .descriptorCount = 200, // max amt.
                     .type            = LinaGX::DescriptorType::SeparateImage,
                     .unbounded       = true,
                     .stages          = {LinaGX::ShaderStage::Fragment},
                 };
 
                 LinaGX::DescriptorBinding binding1 = {
-                    .descriptorCount = 5, // max amt.
+                    .descriptorCount = 64, // max amt.
                     .type            = LinaGX::DescriptorType::SeparateSampler,
                     .unbounded       = true,
                     .stages          = {LinaGX::ShaderStage::Fragment},
@@ -585,17 +587,17 @@ namespace LinaGX::Examples
         }
 
         PipelineLayoutDesc desc = {
-            .descriptorSets = {m_pfd[0].dscSet0},
-            .constantRanges = {},
+            .descriptorSets = {m_pfd[0].dscSet0, m_pfd[1].dscSet1},
+            .constantRanges = {{{LinaGX::ShaderStage::Fragment}, sizeof(uint32) * 2}},
         };
 
-        PipelineLayoutDesc desc2 = {
-            .descriptorSets = {m_pfd[0].dscSet0, m_pfd[0].dscSet1},
-            .constantRanges = {},
-        };
+        // PipelineLayoutDesc desc2 = {
+        //     .descriptorSets = {m_pfd[0].dscSet0, m_pfd[0].dscSet1},
+        //     .constantRanges = {{{LinaGX::ShaderStage::Fragment}, sizeof(uint32) * 2}},
+        // };
 
-        m_pipelineLayout  = m_lgx->CreatePipelineLayout(desc);
-        m_pipelineLayout2 = m_lgx->CreatePipelineLayout(desc2);
+        m_pipelineLayout = m_lgx->CreatePipelineLayout(desc);
+        // m_pipelineLayout2 = m_lgx->CreatePipelineLayout(desc2);
     }
 
     void Example::Initialize()
@@ -626,12 +628,11 @@ namespace LinaGX::Examples
             pfd.transferSemaphoreValue++;
             m_lgx->SubmitCommandStreams({.targetQueue = m_lgx->GetPrimaryQueue(CommandType::Transfer), .streams = &pfd.transferStream, .streamCount = 1, .useSignal = true, .signalCount = 1, .signalSemaphores = &pfd.transferSemaphore, .signalValues = &pfd.transferSemaphoreValue});
         }
-
         {
             SetupDescriptorSets();
 
-            m_shaderSkybox = CreateShader("Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::Format::B8G8R8A8_UNORM);
-            // m_shaderScreenQuad = CreateShader("Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::Format::B8G8R8A8_UNORM);
+            m_shaderSkybox     = CreateShader("Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, true, m_pipelineLayout);
+            m_shaderScreenQuad = CreateShader("Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, true, m_pipelineLayout);
         }
 
         // Make sure we wait for all gpu ops before proceeding on the CPU.
@@ -753,9 +754,9 @@ namespace LinaGX::Examples
             bind->firstSet                      = 1;
             bind->setCount                      = 1;
             bind->dynamicOffsetCount            = 0;
-            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet0);
+            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet1);
             bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
-            bind->customLayout                  = m_pipelineLayout2;
+            bind->customLayout                  = m_pipelineLayout;
         }
 
         // Global index buffer.
@@ -775,8 +776,8 @@ namespace LinaGX::Examples
             LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
             RenderPassColorAttachment   colorAttachment;
             colorAttachment.clearColor                           = {0.6f, 0.6f, 0.6f, 1.0f};
-            colorAttachment.texture                              = m_swapchain,
-            colorAttachment.isSwapchain                          = true;
+            colorAttachment.texture                              = currentFrame.rtWorldColor;
+            colorAttachment.isSwapchain                          = false;
             colorAttachment.loadOp                               = LoadOp::Clear;
             colorAttachment.storeOp                              = StoreOp::Store;
             beginRenderPass->colorAttachmentCount                = 1;
@@ -807,58 +808,58 @@ namespace LinaGX::Examples
             LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
         }
 
-        //  // Screen Quad Pass Begin
-        //  {
-        //      LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-        //      RenderPassColorAttachment   colorAttachment;
-        //      colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
-        //      colorAttachment.texture                          = static_cast<uint32>(m_swapchain);
-        //      colorAttachment.isSwapchain                      = true;
-        //      colorAttachment.loadOp                           = LoadOp::Clear;
-        //      colorAttachment.storeOp                          = StoreOp::Store;
-        //      beginRenderPass->colorAttachmentCount            = 1;
-        //      beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-        //      beginRenderPass->viewport                        = viewport;
-        //      beginRenderPass->scissors                        = sc;
-        //      beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
-        //  }
-        //
-        //  // Bind quad shader.
-        //  {
-        //      LinaGX::CMDBindPipeline* pipeline = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindPipeline>();
-        //      pipeline->extension               = nullptr;
-        //      pipeline->shader                  = m_shaderScreenQuad;
-        //  }
-        //
-        //  // Constants.
-        //  {
-        //      GPUConstantsQuad constants = {};
-        //      constants.samplerID        = 0;
-        //      constants.textureID        = currentFrame.rtWorldColorIndex;
-        //
-        //      LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-        //      ct->extension                = nullptr;
-        //      ct->offset                   = 0;
-        //      ct->size                     = sizeof(GPUConstantsQuad);
-        //      ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Fragment);
-        //      ct->stagesSize               = 1;
-        //      ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory(&constants);
-        //  }
-        //
-        //  // Draw quad.
-        //  {
-        //      CMDDrawInstanced* draw       = currentFrame.graphicsStream->AddCommand<CMDDrawInstanced>();
-        //      draw->instanceCount          = 1;
-        //      draw->startInstanceLocation  = 0;
-        //      draw->startVertexLocation    = 0;
-        //      draw->vertexCountPerInstance = 6;
-        //  }
-        //
-        //  // End quad pass.
-        //  {
-        //      LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-        //  }
-        //
+        // Screen Quad Pass Begin
+        {
+            LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
+            RenderPassColorAttachment   colorAttachment;
+            colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
+            colorAttachment.texture                          = static_cast<uint32>(m_swapchain);
+            colorAttachment.isSwapchain                      = true;
+            colorAttachment.loadOp                           = LoadOp::Clear;
+            colorAttachment.storeOp                          = StoreOp::Store;
+            beginRenderPass->colorAttachmentCount            = 1;
+            beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            beginRenderPass->viewport                        = viewport;
+            beginRenderPass->scissors                        = sc;
+            beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
+        }
+
+        // Bind quad shader.
+        {
+            LinaGX::CMDBindPipeline* pipeline = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindPipeline>();
+            pipeline->extension               = nullptr;
+            pipeline->shader                  = m_shaderScreenQuad;
+        }
+
+        // Constants.
+        {
+            GPUConstantsQuad constants = {};
+            constants.samplerID        = 0;
+            constants.textureID        = currentFrame.rtWorldColorIndex;
+
+            LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
+            ct->extension                = nullptr;
+            ct->offset                   = 0;
+            ct->size                     = sizeof(GPUConstantsQuad);
+            ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Fragment);
+            ct->stagesSize               = 1;
+            ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstantsQuad>(constants);
+        }
+
+        // Draw quad.
+        {
+            CMDDrawInstanced* draw       = currentFrame.graphicsStream->AddCommand<CMDDrawInstanced>();
+            draw->instanceCount          = 1;
+            draw->startInstanceLocation  = 0;
+            draw->startVertexLocation    = 0;
+            draw->vertexCountPerInstance = 6;
+        }
+
+        // End quad pass.
+        {
+            LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
+        }
+
         // This does the actual *recording* of every single command stream alive.
         m_lgx->CloseCommandStreams(&currentFrame.graphicsStream, 1);
 

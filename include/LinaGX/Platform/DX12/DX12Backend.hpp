@@ -71,18 +71,24 @@ namespace LinaGX
         bool           isWritable     = false;
     };
 
-    struct DX12Shader
+    struct DX12PipelineLayout
     {
-        Microsoft::WRL::ComPtr<ID3D12PipelineState>    pso                = NULL;
+        bool                                           isValid            = false;
         Microsoft::WRL::ComPtr<ID3D12RootSignature>    rootSig            = NULL;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectIndexedSig = NULL;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectDrawSig    = NULL;
-        Topology                                       topology           = Topology::TriangleList;
-        bool                                           isValid            = false;
-        bool                                           isCompute          = false;
-        uint32                                         constantsSpace     = 0;
-        uint32                                         constantsBinding   = 0;
         LINAGX_VEC<DX12RootParamInfo>                  rootParams;
+        uint32                                         constantsSpace   = 0;
+        uint32                                         constantsBinding = 0;
+    };
+
+    struct DX12Shader
+    {
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso       = NULL;
+        DX12PipelineLayout                          layout    = {};
+        Topology                                    topology  = Topology::TriangleList;
+        bool                                        isValid   = false;
+        bool                                        isCompute = false;
     };
 
     struct DX12Texture2D
@@ -180,15 +186,6 @@ namespace LinaGX
         LINAGX_VEC<uint64>                              storedFenceValues;
         LINAGX_VEC<Microsoft::WRL::ComPtr<ID3D12Fence>> frameFences;
         std::atomic_flag*                               inUse = nullptr;
-    };
-
-    struct DX12PipelineLayout
-    {
-        bool                                           isValid            = false;
-        Microsoft::WRL::ComPtr<ID3D12RootSignature>    rootSig            = NULL;
-        Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectIndexedSig = NULL;
-        Microsoft::WRL::ComPtr<ID3D12CommandSignature> indirectDrawSig    = NULL;
-        LINAGX_VEC<DX12RootParamInfo>                  rootParams;
     };
 
     class DX12Backend : public Backend

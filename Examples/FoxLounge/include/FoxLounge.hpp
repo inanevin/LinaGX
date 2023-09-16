@@ -133,7 +133,7 @@ namespace LinaGX
             void   SetupMaterials();
             void   LoadAndParseModels();
             void   SetupDescriptorSets();
-            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::Format passFormat);
+            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout);
 
             void DrawSkybox();
 
