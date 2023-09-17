@@ -48,10 +48,11 @@ namespace LinaGX
 
     struct VKBShader
     {
-        bool                                    isValid     = false;
-        bool                                    isCompute   = false;
-        VkPipeline                              ptrPipeline = nullptr;
-        VkPipelineLayout                        ptrLayout   = nullptr;
+        bool                                    usingCustomLayout = false;
+        bool                                    isValid           = false;
+        bool                                    isCompute         = false;
+        VkPipeline                              ptrPipeline       = nullptr;
+        VkPipelineLayout                        ptrLayout         = nullptr;
         LINAGX_MAP<ShaderStage, VkShaderModule> modules;
         LINAGX_VEC<VkDescriptorSetLayout>       layouts;
     };

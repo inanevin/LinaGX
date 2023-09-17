@@ -909,6 +909,8 @@ namespace LinaGX
             shaderStages.push_back(info);
         }
 
+        shader.usingCustomLayout = shaderDesc.useCustomPipelineLayout;
+
         if (!shaderDesc.useCustomPipelineLayout)
         {
             auto getPerStageMaxDescriptors = [this](DescriptorType type) {
@@ -1198,7 +1200,8 @@ namespace LinaGX
         for (auto layout : shader.layouts)
             vkDestroyDescriptorSetLayout(m_device, layout, m_allocator);
 
-        vkDestroyPipelineLayout(m_device, shader.ptrLayout, m_allocator);
+        if (!shader.usingCustomLayout)
+            vkDestroyPipelineLayout(m_device, shader.ptrLayout, m_allocator);
         vkDestroyPipeline(m_device, shader.ptrPipeline, m_allocator);
         m_shaders.RemoveItem(handle);
     }

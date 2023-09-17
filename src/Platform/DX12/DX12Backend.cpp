@@ -1194,7 +1194,6 @@ namespace LinaGX
                 LOGA(false, "!!");
             }
         }
-
         try
         {
             ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&shader.pso)));
@@ -1921,8 +1920,9 @@ namespace LinaGX
 
         if (!desc.constantRanges.empty())
         {
-            item.constantsSpace   = static_cast<uint32>(desc.descriptorSets.size());
-            item.constantsBinding = desc.descriptorSets.empty() ? 0 : static_cast<uint32>(m_descriptorSets.GetItemR(desc.descriptorSets.at(0)).bindings.size());
+            item.constantsSpace = static_cast<uint32>(desc.descriptorSets.size());
+            // item.constantsBinding = desc.descriptorSets.empty() ? 0 : static_cast<uint32>(m_descriptorSets.GetItemR(desc.descriptorSets.at(0)).bindings.size());
+            item.constantsBinding = 0;
 
             CD3DX12_ROOT_PARAMETER1 param = CD3DX12_ROOT_PARAMETER1{};
 
@@ -1955,7 +1955,6 @@ namespace LinaGX
             param.InitAsConstants(totalConstants, item.constantsBinding, item.constantsSpace, visibility);
             rootParameters.push_back(param);
         }
-
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSig(static_cast<uint32>(rootParameters.size()), rootParameters.data(), 0, NULL, desc.isCompute ? D3D12_ROOT_SIGNATURE_FLAG_NONE : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
         ComPtr<ID3DBlob>                      signatureBlob = nullptr;
         ComPtr<ID3DBlob>                      errorBlob     = nullptr;

@@ -35,9 +35,9 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MOVE_SPEED   30.0f
-#define ROTATE_SPEED 12.0f
-#define ROTATE_AMT   3.0f
+#define MOVE_SPEED   6.0f
+#define ROTATE_SPEED 16.0f
+#define ROTATE_AMT   6.0f
 
     void Camera::Initialize(LinaGX::Instance* lgx)
     {
@@ -48,10 +48,6 @@ namespace LinaGX::Examples
 
     void Camera::Tick(float dt)
     {
-            if(m_lgx->GetInput().GetMouseButtonDown(1))
-            {
-                int a = 5;
-            }
         if (m_controlsEnabled && m_lgx->GetInput().GetKeyDown(LINAGX_KEY_ESCAPE))
         {
             m_controlsEnabled = false;
@@ -98,8 +94,8 @@ namespace LinaGX::Examples
 
                 const glm::vec3 forwardVec = m_rotation * glm::vec3(0.0f, 0.0f, -1.0f);
                 const glm::vec3 rightVec   = m_rotation * glm::vec3(1.0f, 0.0f, 0.0f);
-                m_position += moveY * dt * glm::normalize(forwardVec);
-                m_position += moveX * dt * glm::normalize(rightVec);
+                m_position += moveY * dt * glm::normalize(forwardVec) * MOVE_SPEED;
+                m_position += moveX * dt * glm::normalize(rightVec) * MOVE_SPEED;
             }
         }
 

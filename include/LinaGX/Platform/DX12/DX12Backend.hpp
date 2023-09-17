@@ -167,7 +167,6 @@ namespace LinaGX
         DescriptorBinding       lgxBinding           = {};
         DescriptorHandle        gpuPointer           = {};
         DescriptorHandle        additionalGpuPointer = {};
-        bool                    readOnly             = false;
         LINAGX_VEC<ShaderStage> stages               = {};
     };
 

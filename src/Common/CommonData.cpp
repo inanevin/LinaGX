@@ -26,22 +26,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Common/CommonData.hpp"
 
 namespace LinaGX
 {
-
-   // uint32 FnvHash::fnvHash(const char* str)
-   // {
-   //     const size_t length = strlen(str) + 1;
-   //     uint32       hash   = OFFSET_BASIS;
-   //     for (size_t i = 0; i < length; ++i)
-   //     {
-   //         hash ^= *str++;
-   //         hash *= FNV_PRIME;
-   //     }
-   //     return hash;
-   // }
+    LINAGX_STRINGID LGX_ToSID(const char* ty)
+    {
+        return FnvHash(ty);
+    }
+    // uint32 FnvHash::fnvHash(const char* str)
+    // {
+    //     const size_t length = strlen(str) + 1;
+    //     uint32       hash   = OFFSET_BASIS;
+    //     for (size_t i = 0; i < length; ++i)
+    //     {
+    //         hash ^= *str++;
+    //         hash *= FNV_PRIME;
+    //     }
+    //     return hash;
+    // }
 
 } // namespace LinaGX

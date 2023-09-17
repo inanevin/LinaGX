@@ -44,6 +44,18 @@ namespace LinaGX
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
 #define BACKBUFFER_COUNT 2
+#define MAX_BONES        30
+
+        enum Shader
+        {
+            Skybox = 0,
+            SCQuad,
+            Terrain,
+            Default,
+            Max,
+        };
+
+        typedef std::unordered_map<LinaGX::GLTFTextureType, const char*> TextureMapping;
 
         struct PerFrameData
         {
@@ -53,8 +65,15 @@ namespace LinaGX
             uint16                 transferSemaphore      = 0;
             uint16                 dscSet0                = 0;
             uint16                 dscSet1                = 0;
+            uint16                 dscSet2                = 0;
             uint32                 rscSceneData           = 0;
             uint8*                 rscSceneDataMapping    = nullptr;
+            uint32                 rscObjDataCPU          = 0;
+            uint32                 rscObjDataGPU          = 0;
+            uint8*                 rscObjDataCPUMapping   = nullptr;
+            uint32                 rscMatDataCPU          = 0;
+            uint32                 rscMatDataGPU          = 0;
+            uint8*                 rscMatDataCPUMapping   = nullptr;
             uint32                 rtWorldColor           = 0;
             uint32                 rtWorldDepth           = 0;
             uint32                 rtWorldColorIndex      = 0;
@@ -67,23 +86,45 @@ namespace LinaGX
             std::vector<LinaGX::TextureBuffer> allLevels;
         };
 
-        struct WorldObject
+        struct GPUMaterialData
         {
-            glm::mat4   globalMatrix;
-            glm::mat4   invBindMatrix;
-            std::string name              = "";
-            bool        isSkinned         = false;
-            bool        hasMesh           = false;
-            uint32      vertexBufferStart = 0;
-            uint32      indexBufferStart  = 0;
-            uint32      indexCount        = 0;
+            glm::vec4 baseColorFac      = {};
+            glm::vec4 emissiveFac       = {};
+            uint32    baseColor         = 0;
+            uint32    metallicRoughness = 0;
+            uint32    emissive          = 0;
+            uint32    normal            = 0;
+            uint32    specialTexture    = 0;
+            float     metallic          = 0.0f;
+            float     roughness         = 0.0f;
+            float     alphaCutoff       = 0.0f;
         };
 
-        struct VertexNoSkin
+        struct Material
         {
-            LinaGX::LGXVector3 position = {};
-            LinaGX::LGXVector2 uv       = {};
-            LinaGX::LGXVector3 normal   = {};
+            std::string                                         name = "";
+            GPUMaterialData                                     gpuMat;
+            Shader                                              shader = Shader::Default;
+            std::unordered_map<LinaGX::GLTFTextureType, uint32> textureIndices;
+        };
+
+        struct MeshPrimitive
+        {
+            uint32 materialIndex     = 0;
+            uint32 vertexBufferStart = 0;
+            uint32 indexBufferStart  = 0;
+            uint32 indexCount        = 0;
+        };
+
+        struct WorldObject
+        {
+            glm::mat4                  globalMatrix;
+            glm::mat4                  invBindMatrix;
+            std::string                name      = "";
+            bool                       isSkinned = false;
+            bool                       hasMesh   = false;
+            std::vector<MeshPrimitive> primitives;
+            bool                       manualDraw = false;
         };
 
         struct VertexSkinned
@@ -107,12 +148,22 @@ namespace LinaGX
             glm::mat4 proj;
             glm::vec4 skyColor1;
             glm::vec4 skyColor2;
+            glm::vec4 pad[2];
         };
 
-        struct GPUConstantsQuad
+        struct GPUObjectData
         {
-            uint32 textureID;
-            uint32 samplerID;
+            glm::mat4 modelMatrix;
+            glm::mat4 bones[MAX_BONES];
+            glm::mat4 normalMatrix;
+            int       hasSkin     = 0;
+            int       padding[15] = {0};
+        };
+
+        struct GPUConstants
+        {
+            uint32 int1;
+            uint32 int2;
         };
 
         class Example : public App
@@ -133,9 +184,11 @@ namespace LinaGX
             void   SetupMaterials();
             void   LoadAndParseModels();
             void   SetupDescriptorSets();
-            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout);
+            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool blend, bool depthWrite);
 
+            void DrawObjects();
             void DrawSkybox();
+            void BindShader(uint32 target);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;
@@ -144,20 +197,20 @@ namespace LinaGX
             PerFrameData           m_pfd[FRAMES_IN_FLIGHT];
             std::vector<Texture2D> m_textures;
 
-            uint16       m_shaderSkybox       = 0;
-            uint16       m_shaderScreenQuad   = 0;
             uint32       m_indexBufferStaging = 0;
             uint32       m_indexBufferGPU     = 0;
-            VertexBuffer m_vtxBufferSkinned;
-            VertexBuffer m_vtxBufferNoSkin;
+            VertexBuffer m_vtxBuffer;
 
             std::vector<WorldObject> m_worldObjects;
             std::vector<uint32>      m_samplers;
+            std::vector<Material>    m_materials;
+            std::vector<uint16>      m_shaders;
 
             uint32 m_skyboxIndexCount = 0;
             uint16 m_pipelineLayout;
             uint16 m_pipelineLayout2;
             Camera m_camera;
+            int32  m_boundShader = -1;
         };
 
     } // namespace Examples

@@ -135,7 +135,7 @@ namespace LinaGX
         float                               roughnessFactor   = 0.0f;
         float                               alphaCutoff       = 0.0f;
         float                               occlusionStrength = 0.0f;
-        float                               emissiveFactors[3];
+        LGXVector3                          emissiveFactor;
         bool                                doubleSided = false;
         bool                                isOpaque    = true;
     };

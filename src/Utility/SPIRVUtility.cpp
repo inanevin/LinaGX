@@ -1099,8 +1099,9 @@ namespace LinaGX
         // Make sure we assign it to maxium set's maximum binding+1
         if (!outLayout.constants.empty())
         {
-            outLayout.constantsSet     = static_cast<uint32>(outLayout.descriptorSetLayouts.size());
-            outLayout.constantsBinding = outLayout.descriptorSetLayouts.empty() ? 0 : static_cast<uint32>(outLayout.descriptorSetLayouts[0].bindings.size());
+            outLayout.constantsSet = static_cast<uint32>(outLayout.descriptorSetLayouts.size());
+            // outLayout.constantsBinding = outLayout.descriptorSetLayouts.empty() ? 0 : static_cast<uint32>(outLayout.descriptorSetLayouts[outLayout.constantsSet - 1].bindings.size() - 1);
+            outLayout.constantsBinding = 0;
         }
     }
 

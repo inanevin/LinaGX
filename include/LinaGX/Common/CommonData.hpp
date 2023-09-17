@@ -84,7 +84,6 @@ namespace LinaGX
     typedef intptr_t  intptr;
     typedef uintptr_t uintptr;
 
-
 #ifndef LINAGX_DISABLE_VC_WARNING
 #if defined(_MSC_VER)
 #define LINAGX_DISABLE_VC_WARNING(w) __pragma(warning(push)) __pragma(warning(disable \
@@ -297,12 +296,10 @@ namespace LinaGX
         uint32          m_defaultStep = 50;
     };
 
-
-
-// https://gist.github.com/hwei/1950649d523afd03285c
-class FnvHash
+    // https://gist.github.com/hwei/1950649d523afd03285c
+    class FnvHash
     {
-        static const unsigned int FNV_PRIME = 16777619u;
+        static const unsigned int FNV_PRIME    = 16777619u;
         static const unsigned int OFFSET_BASIS = 2166136261u;
         template <unsigned int N>
         static constexpr unsigned int fnvHashConst(const char (&str)[N], unsigned int I = N)
@@ -312,7 +309,7 @@ class FnvHash
         static unsigned int fnvHash(const char* str)
         {
             const size_t length = strlen(str) + 1;
-            unsigned int hash = OFFSET_BASIS;
+            unsigned int hash   = OFFSET_BASIS;
             for (size_t i = 0; i < length; ++i)
             {
                 hash ^= *str++;
@@ -322,37 +319,57 @@ class FnvHash
         }
         struct Wrapper
         {
-            Wrapper(const char* str) : str (str) { }
+            Wrapper(const char* str)
+                : str(str)
+            {
+            }
             const char* str;
         };
-        
-        static constexpr unsigned int fnvHashConstexpr(const char* str, std::size_t len, unsigned int hash = OFFSET_BASIS) {
+
+        static constexpr unsigned int fnvHashConstexpr(const char* str, std::size_t len, unsigned int hash = OFFSET_BASIS)
+        {
             return len == 0 ? hash : fnvHashConstexpr(str + 1, len - 1, (hash ^ *str) * FNV_PRIME);
         }
-        
+
         unsigned int hash_value;
+
     public:
         // calulate in run-time
-        FnvHash(Wrapper wrapper) : hash_value(fnvHash(wrapper.str)) { }
+        FnvHash(Wrapper wrapper)
+            : hash_value(fnvHash(wrapper.str))
+        {
+        }
         // calulate in compile-time
         template <unsigned int N>
-        constexpr FnvHash(const char (&str)[N]) : hash_value(fnvHashConst(str)) { }
-        
-        constexpr FnvHash(const char* str, std::size_t len) : hash_value(fnvHashConstexpr(str, len)) { }
-        
+        constexpr FnvHash(const char (&str)[N])
+            : hash_value(fnvHashConst(str))
+        {
+        }
+
+        constexpr FnvHash(const char* str, std::size_t len)
+            : hash_value(fnvHashConstexpr(str, len))
+        {
+        }
+
         // output result
-        constexpr operator unsigned int() const { return this->hash_value; }
+        constexpr operator unsigned int() const
+        {
+            return this->hash_value;
+        }
     };
 
-template <typename T>
-LINAGX_TYPEID LGX_GetTypeID() {
-    return FnvHash(typeid(T).name());
-}
+    template <typename T>
+    LINAGX_TYPEID LGX_GetTypeID()
+    {
+        return FnvHash(typeid(T).name());
+    }
 
-constexpr LINAGX_STRINGID operator"" _hs(const char* str, std::size_t len) noexcept {
-    return FnvHash(str, len);
-}
+    constexpr LINAGX_STRINGID operator"" _hs(const char* str, std::size_t len) noexcept
+    {
+        return FnvHash(str);
+    }
 
+    extern LINAGX_STRINGID LGX_ToSID(const char* ty);
 
     template <typename T>
     class RingBuffer

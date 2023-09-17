@@ -8,7 +8,9 @@ layout(set = 0, binding = 0) uniform SceneData
 	mat4 proj;
 	vec4 skyColor1;
 	vec4 skyColor2;
+	vec4 pad[2];
 } sceneData;
+
 
 float rand(vec2 co)
 {

@@ -64,21 +64,21 @@ namespace LinaGX
             {
                 outData.allMaterials[i] = outData.allMaterials[0] + i;
 
-                const auto&    gltfMat  = model.materials[i];
-                ModelMaterial* mat      = outData.allMaterials[i];
-                mat->index              = static_cast<uint32>(i);
-                mat->name               = gltfMat.name;
-                mat->metallicFactor     = static_cast<float>(gltfMat.pbrMetallicRoughness.metallicFactor);
-                mat->roughnessFactor    = static_cast<float>(gltfMat.pbrMetallicRoughness.roughnessFactor);
-                mat->emissive           = {static_cast<float>(gltfMat.emissiveFactor[0]), static_cast<float>(gltfMat.emissiveFactor[1]), static_cast<float>(gltfMat.emissiveFactor[2])};
-                mat->baseColor          = {static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[0]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[1]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[2]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[3])};
-                mat->alphaCutoff        = static_cast<float>(gltfMat.alphaCutoff);
-                mat->isOpaque           = gltfMat.alphaMode.compare("OPAQUE") == 0;
-                mat->doubleSided        = gltfMat.doubleSided;
-                mat->emissiveFactors[0] = static_cast<float>(gltfMat.emissiveFactor[0]);
-                mat->emissiveFactors[1] = static_cast<float>(gltfMat.emissiveFactor[1]);
-                mat->emissiveFactors[2] = static_cast<float>(gltfMat.emissiveFactor[2]);
-                mat->occlusionStrength  = static_cast<float>(gltfMat.occlusionTexture.strength);
+                const auto&    gltfMat = model.materials[i];
+                ModelMaterial* mat     = outData.allMaterials[i];
+                mat->index             = static_cast<uint32>(i);
+                mat->name              = gltfMat.name;
+                mat->metallicFactor    = static_cast<float>(gltfMat.pbrMetallicRoughness.metallicFactor);
+                mat->roughnessFactor   = static_cast<float>(gltfMat.pbrMetallicRoughness.roughnessFactor);
+                mat->emissive          = {static_cast<float>(gltfMat.emissiveFactor[0]), static_cast<float>(gltfMat.emissiveFactor[1]), static_cast<float>(gltfMat.emissiveFactor[2])};
+                mat->baseColor         = {static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[0]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[1]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[2]), static_cast<float>(gltfMat.pbrMetallicRoughness.baseColorFactor[3])};
+                mat->alphaCutoff       = static_cast<float>(gltfMat.alphaCutoff);
+                mat->isOpaque          = gltfMat.alphaMode.compare("OPAQUE") == 0;
+                mat->doubleSided       = gltfMat.doubleSided;
+                mat->emissiveFactor.x  = static_cast<float>(gltfMat.emissiveFactor[0]);
+                mat->emissiveFactor.y  = static_cast<float>(gltfMat.emissiveFactor[1]);
+                mat->emissiveFactor.z  = static_cast<float>(gltfMat.emissiveFactor[2]);
+                mat->occlusionStrength = static_cast<float>(gltfMat.occlusionTexture.strength);
 
                 if (gltfMat.emissiveTexture.index != -1)
                     mat->textureIndices[GLTFTextureType::Emissive] = gltfMat.emissiveTexture.index;
