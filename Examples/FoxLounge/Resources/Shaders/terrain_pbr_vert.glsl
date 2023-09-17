@@ -11,7 +11,6 @@ layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec3 outNormal;
 
 #define MAX_BONES 30
-#define MAX_BONE_INFLUENCES 4
 
 layout(set = 0, binding = 0) uniform SceneData
 {
@@ -19,7 +18,9 @@ layout(set = 0, binding = 0) uniform SceneData
 	mat4 projection;
 	vec4 skyColor1;
 	vec4 skyColor2;
-    vec4 pad[2];
+    vec4 camPos;
+	int lightCount;
+    int padding[3];
 } sceneData;
 
 struct Object
@@ -43,20 +44,8 @@ layout( push_constant ) uniform constants
 } Constants;
 
 void main() {
-    vec4 skinnedPosition = vec4(0.0);
     Object object = objectData.objects[Constants.objectID];
-
-    for(int i = 0; i < MAX_BONE_INFLUENCES; ++i)
-    {
-        int boneIndex = int(inBoneIndices[i]);
-        float boneWeight = inBoneWeights[i];
-        mat4 boneMatrix = object.bones[boneIndex];
-        skinnedPosition += boneMatrix * vec4(inPosition, 1.0) * boneWeight;
-    }
-
-    skinnedPosition = vec4(inPosition, 1.0);
-        
-    outWorldPos = vec3(object.modelMatrix * skinnedPosition);
+    outWorldPos = vec3(object.modelMatrix * vec4(inPosition, 1.0));
     outUV = vec2(uv.x, uv.y);
     outNormal = mat3(object.normalMatrix) * normal;
     gl_Position = sceneData.projection * sceneData.view *  vec4(outWorldPos, 1.0);

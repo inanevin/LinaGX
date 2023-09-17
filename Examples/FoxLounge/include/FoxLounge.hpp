@@ -156,6 +156,9 @@ namespace LinaGX
             glm::mat4 proj;
             glm::vec4 skyColor1;
             glm::vec4 skyColor2;
+            glm::vec4 camPosition;
+            int       lightCount;
+            int       padding[3];
         };
 
         struct GPUObjectData

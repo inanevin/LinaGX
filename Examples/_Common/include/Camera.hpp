@@ -46,14 +46,19 @@ namespace LinaGX
             void Initialize(LinaGX::Instance* lgx);
             void Tick(float dt);
 
-            const glm::mat4& GetView() const
+            inline const glm::mat4& GetView() const
             {
                 return m_view;
             }
 
-            const glm::mat4& GetProj() const
+            inline const glm::mat4& GetProj() const
             {
                 return m_proj;
+            }
+
+            inline const glm::vec3& GetPosition() const
+            {
+                return m_position;
             }
 
         private:

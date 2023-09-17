@@ -19,7 +19,9 @@ layout(set = 0, binding = 0) uniform SceneData
 	mat4 projection;
 	vec4 skyColor1;
 	vec4 skyColor2;
-    vec4 pad[2];
+    vec4 camPos;
+	int lightCount;
+    int padding[3];
 } sceneData;
 
 struct Object
@@ -35,6 +37,17 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {
     Object objects[];
 } objectData;
+
+struct Light
+{
+    vec4 position;
+    vec4 color;
+};
+
+layout(set = 0, binding = 2) readonly buffer LightData
+{
+    Light lights[];
+} lightData;
 
 layout( push_constant ) uniform constants
 {

@@ -9,10 +9,12 @@ layout (location = 0) out vec3 outWorldPos;
 layout(set = 0, binding = 0) uniform SceneData
 {
 	mat4 view;
-	mat4 proj;
+	mat4 projection;
 	vec4 skyColor1;
 	vec4 skyColor2;
-	vec4 pad[2];
+    vec4 camPos;
+	int lightCount;
+    int padding[3];
 } sceneData;
 
 
@@ -20,7 +22,7 @@ void main()
 {
     outWorldPos = inPosition;
 	mat4 rotView = mat4(mat3(sceneData.view));
-	vec4 clipPos = sceneData.proj * rotView * vec4(outWorldPos, 1.0);
+	vec4 clipPos = sceneData.projection * rotView * vec4(outWorldPos, 1.0);
 	gl_Position = clipPos.xyww;
 }
 

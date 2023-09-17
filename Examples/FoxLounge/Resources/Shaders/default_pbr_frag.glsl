@@ -17,7 +17,9 @@ layout(set = 0, binding = 0) uniform SceneData
 	mat4 projection;
 	vec4 skyColor1;
 	vec4 skyColor2;
-	vec4 pad[2];
+    vec4 camPos;
+	int lightCount;
+    int padding[3];
 } sceneData;
 
 struct Object
@@ -40,7 +42,7 @@ struct Light
     vec4 color;
 };
 
-layout(std430, set = 0, binding = 2) readonly buffer LightData
+layout(set = 0, binding = 2) readonly buffer LightData
 {
     Light lights[];
 } lightData;
@@ -74,6 +76,22 @@ layout( push_constant ) uniform constants
     int material;
 } Constants;
 
+vec3 getNormalFromMap(vec3 normalMap)
+{
+    vec3 tangentNormal = normalMap * 2.0 - 1.0;
+
+    vec3 Q1  = dFdx(inWorldPos);
+    vec3 Q2  = dFdy(inWorldPos);
+    vec2 st1 = dFdx(inUV);
+    vec2 st2 = dFdy(inUV);
+
+    vec3 N   = normalize(inNormal);
+    vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
+    vec3 B  = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
 
 void main()
 {
@@ -84,7 +102,7 @@ void main()
 	vec4 txtMetallicRoughness = texture(sampler2D(allTextures[mat.metallicRoughness], allSamplers[0]), inUV);
 
     outAlbedoRoughness = vec4(txtBaseColor.rgb, txtMetallicRoughness.g * mat.roughness);
-    outNormalMetallic = vec4(txtNormal.rgb, txtMetallicRoughness.b * mat.metallic);
+    outNormalMetallic = vec4(getNormalFromMap(txtNormal.rgb), txtMetallicRoughness.b * mat.metallic);
     outPositionAO = vec4(inWorldPos.rgb, 0.0f);
 }
 
