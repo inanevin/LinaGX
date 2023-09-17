@@ -50,6 +50,7 @@ namespace LinaGX
         {
             Skybox = 0,
             SCQuad,
+            SCLightingPass,
             Terrain,
             Default,
             Max,
@@ -59,24 +60,31 @@ namespace LinaGX
 
         struct PerFrameData
         {
-            LinaGX::CommandStream* graphicsStream         = nullptr;
-            LinaGX::CommandStream* transferStream         = nullptr;
-            uint64                 transferSemaphoreValue = 0;
-            uint16                 transferSemaphore      = 0;
-            uint16                 dscSet0                = 0;
-            uint16                 dscSet1                = 0;
-            uint16                 dscSet2                = 0;
-            uint32                 rscSceneData           = 0;
-            uint8*                 rscSceneDataMapping    = nullptr;
-            uint32                 rscObjDataCPU          = 0;
-            uint32                 rscObjDataGPU          = 0;
-            uint8*                 rscObjDataCPUMapping   = nullptr;
-            uint32                 rscMatDataCPU          = 0;
-            uint32                 rscMatDataGPU          = 0;
-            uint8*                 rscMatDataCPUMapping   = nullptr;
-            uint32                 rtWorldColor           = 0;
-            uint32                 rtWorldDepth           = 0;
-            uint32                 rtWorldColorIndex      = 0;
+            LinaGX::CommandStream* graphicsStream           = nullptr;
+            LinaGX::CommandStream* transferStream           = nullptr;
+            uint64                 transferSemaphoreValue   = 0;
+            uint16                 transferSemaphore        = 0;
+            uint16                 dscSet0                  = 0;
+            uint16                 dscSet1                  = 0;
+            uint16                 dscSet2                  = 0;
+            uint32                 rscSceneData             = 0;
+            uint8*                 rscSceneDataMapping      = nullptr;
+            uint32                 rscObjDataCPU            = 0;
+            uint32                 rscObjDataGPU            = 0;
+            uint8*                 rscObjDataCPUMapping     = nullptr;
+            uint32                 rscLightDataCPU          = 0;
+            uint32                 rscLightDataGPU          = 0;
+            uint8*                 rscLightDataCPUMapping   = nullptr;
+            uint32                 rscMatDataCPU            = 0;
+            uint32                 rscMatDataGPU            = 0;
+            uint8*                 rscMatDataCPUMapping     = nullptr;
+            uint32                 rtWorldDepth             = 0;
+            uint32                 rtGBufPositionAO         = 0;
+            uint32                 rtGBufAlbedoRoughness    = 0;
+            uint32                 rtGBufNormalMetallic     = 0;
+            uint32                 rtGBufStartIndex         = 0;
+            uint32                 rtLightingPass           = 0;
+            uint32                 rtLightingPassStartIndex = 0;
         };
 
         struct Texture2D
@@ -148,7 +156,6 @@ namespace LinaGX
             glm::mat4 proj;
             glm::vec4 skyColor1;
             glm::vec4 skyColor2;
-            glm::vec4 pad[2];
         };
 
         struct GPUObjectData
@@ -158,6 +165,12 @@ namespace LinaGX
             glm::mat4 normalMatrix;
             int       hasSkin     = 0;
             int       padding[15] = {0};
+        };
+
+        struct GPULightData
+        {
+            glm::vec4 position;
+            glm::vec4 color;
         };
 
         struct GPUConstants
@@ -184,10 +197,11 @@ namespace LinaGX
             void   SetupMaterials();
             void   LoadAndParseModels();
             void   SetupDescriptorSets();
-            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool blend, bool depthWrite);
+            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer);
 
             void DrawObjects();
             void DrawSkybox();
+            void DrawFullscreenQuad(uint32 shader);
             void BindShader(uint32 target);
 
         private:

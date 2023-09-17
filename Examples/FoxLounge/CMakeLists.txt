@@ -44,6 +44,8 @@ Resources/Shaders/skybox_frag.glsl
 Resources/Shaders/skybox_vert.glsl
 Resources/Shaders/screenquad_frag.glsl
 Resources/Shaders/screenquad_vert.glsl
+Resources/Shaders/lightpass_frag.glsl
+Resources/Shaders/lightpass_vert.glsl
 )
 
 #--------------------------------------------------------------------

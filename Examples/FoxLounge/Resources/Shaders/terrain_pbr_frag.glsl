@@ -5,7 +5,9 @@
 layout(location = 0) in vec2 inUV;
 layout(location = 1) in vec3 inWorldPos;
 layout(location = 2) in vec3 inNormal;
-layout(location = 0) out vec4 FragColor;
+layout(location = 0) out vec4 outAlbedoRoughness;
+layout(location = 1) out vec4 outNormalMetallic;
+layout(location = 2) out vec4 outPositionAO;
 
 #define MAX_BONES 30
 
@@ -54,6 +56,16 @@ layout (set = 2, binding = 0) readonly buffer MaterialData
 	Material materialData[];
 } materials;
 
+struct Light
+{
+    vec4 position;
+    vec4 color;
+};
+
+layout(std430, set = 0, binding = 2) readonly buffer LightData
+{
+    Light lights[];
+} lightData;
 
 layout( push_constant ) uniform constants
 {
@@ -65,24 +77,38 @@ layout( push_constant ) uniform constants
 void main()
 {
 	Material mat = materials.materialData[Constants.material];
-    vec2 tiledUV = inUV * vec2(16,16);
+    vec2 usedUV = vec2(inUV.x, inUV.y - 1.0f);
+    vec2 tiledUV = usedUV * vec2(16,16);
     vec4 txtBaseColor = texture(sampler2D(allTextures[mat.baseColor], allSamplers[0]), tiledUV);
     vec4 txtNormal = texture(sampler2D(allTextures[mat.normal], allSamplers[0]), tiledUV);
     vec4 txtMetallicRoughness = texture(sampler2D(allTextures[mat.metallicRoughness], allSamplers[0]), tiledUV);
-    float alphaFactor = clamp(pow(clamp((0.5 - length(inUV * vec2(0.5, 0.5))) * 2.190, 0.0, 1.0), 2.0), 0.0, 1.0);
 
-    vec2 uv1 = inUV * vec2(1,1);
-    vec2 uvSample1 = uv1 * vec2(17.1, 16);
+    float alphaFactor1 = length(inUV - vec2(0.5, 0.5));
+    float alphaFactor2 = clamp((0.5 - alphaFactor1) * 2.190, 0.0, 1.0);
+    float alphaFactor = pow(alphaFactor2, 2.0);
+    float alphaFactorExp = clamp(pow(alphaFactor, 6), 0.0, 1.0);
+
+    vec2 uvSample1 = usedUV * vec2(17.1, 16.0);
     vec4 noiseSampled1 = texture(sampler2D(allTextures[mat.specialTexture], allSamplers[0]), uvSample1) * 0.02;
-    vec2 uvSample2 = uv1 * vec2(2.1, 2.1) + noiseSampled1.xy;
+    vec2 uvSample2 = (usedUV  * vec2(2.1, 2.1)) + noiseSampled1.x;
     vec4 noiseSampled2 = texture(sampler2D(allTextures[mat.specialTexture], allSamplers[0]), uvSample2);
-    float noiseClamped = clamp(noiseSampled2, vec4(0.0), vec4(1.0)).r;
+    float noiseClamped = clamp(noiseSampled2.r, 0.0, 1.0);
+
+    // fin base color
     vec4 finalBaseColor = txtBaseColor * noiseClamped;
 
-    float normalFactor = clamp(((noiseClamped -0.65) * clamp(pow(alphaFactor, 6), 0.0, 1.0) * 34.0), 0.0, 1.0);
-    vec4 finalNormal = mix(txtNormal, vec4(0.0), normalFactor);
-    float finalRoughness = clamp(txtMetallicRoughness.r - normalFactor, 0.0, 1.0);
-	FragColor = finalBaseColor;
+    float roughnessFactor = (noiseClamped - 0.65) * alphaFactorExp;
+    roughnessFactor = clamp(roughnessFactor * 34, 0.0, 1.0);
+
+    // fin normal
+    vec4 finalNormal = mix(txtNormal, vec4(0.0), roughnessFactor);
+
+    // fin roughness
+    float finalRoughness = clamp(txtMetallicRoughness.g - roughnessFactor, 0.0, 1.0);
+
+	outAlbedoRoughness = vec4(finalBaseColor.rgb, finalRoughness);
+    outNormalMetallic = vec4(finalNormal.rgb, 0.0f);
+    outPositionAO = vec4(inWorldPos.rgb, 0.0f);
 }
 
 
