@@ -72,9 +72,6 @@ namespace LinaGX
             uint32                 rscObjDataCPU            = 0;
             uint32                 rscObjDataGPU            = 0;
             uint8*                 rscObjDataCPUMapping     = nullptr;
-            uint32                 rscLightDataCPU          = 0;
-            uint32                 rscLightDataGPU          = 0;
-            uint8*                 rscLightDataCPUMapping   = nullptr;
             uint32                 rscMatDataCPU            = 0;
             uint32                 rscMatDataGPU            = 0;
             uint8*                 rscMatDataCPUMapping     = nullptr;
@@ -85,6 +82,8 @@ namespace LinaGX
             uint32                 rtGBufStartIndex         = 0;
             uint32                 rtLightingPass           = 0;
             uint32                 rtLightingPassStartIndex = 0;
+
+            uint32 debugDisplayRT = 0;
         };
 
         struct Texture2D
@@ -157,8 +156,8 @@ namespace LinaGX
             glm::vec4 skyColor1;
             glm::vec4 skyColor2;
             glm::vec4 camPosition;
-            int       lightCount;
-            int       padding[3];
+            glm::vec4 lightPos;
+            glm::vec4 lightColor;
         };
 
         struct GPUObjectData
@@ -168,12 +167,6 @@ namespace LinaGX
             glm::mat4 normalMatrix;
             int       hasSkin     = 0;
             int       padding[15] = {0};
-        };
-
-        struct GPULightData
-        {
-            glm::vec4 position;
-            glm::vec4 color;
         };
 
         struct GPUConstants

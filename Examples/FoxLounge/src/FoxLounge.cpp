@@ -36,6 +36,7 @@ SOFTWARE.
 #include <cstdarg>
 #include <filesystem>
 #include "LinaGX/Common/CommonData.hpp"
+#include "LinaGX/Core/InputMappings.hpp"
 
 namespace LinaGX::Examples
 {
@@ -138,7 +139,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -297,11 +298,13 @@ namespace LinaGX::Examples
         LinaGX::LoadGLTFBinary("Resources/Models/SkyDome/SkyCube.glb", skyDomeData);
         LinaGX::LoadGLTFBinary("Resources/Models/FoxLounge/FoxLounge.glb", foxLoungeData);
         LinaGX::LoadGLTFBinary("Resources/Models/Fox/Fox.glb", foxData);
+
         /*
             We will hold skinned & non-skinned vertices seperately.
             So there will be 2 global vertex buffers in total, holding all data for all objects.
             Same for indices.
         */
+
         std::vector<VertexSkinned> vertices;
         std::vector<uint32>        indices;
 
@@ -319,6 +322,7 @@ namespace LinaGX::Examples
                 mat.gpuMat.baseColorFac = glm::vec4(modMat->baseColor.x, modMat->baseColor.y, modMat->baseColor.z, modMat->baseColor.w);
                 mat.gpuMat.emissiveFac  = glm::vec4(modMat->emissiveFactor.x, modMat->emissiveFactor.y, modMat->emissiveFactor.z, 0.0f);
             }
+
             for (auto* node : modelData.allNodes)
             {
                 if (node->mesh == nullptr)
@@ -331,6 +335,9 @@ namespace LinaGX::Examples
                 wo.isSkinned    = node->skin != nullptr;
                 wo.hasMesh      = node->mesh != nullptr;
                 wo.manualDraw   = manualDraw;
+
+                if (wo.name.compare("fox") == 0)
+                    wo.globalMatrix = glm::scale(wo.globalMatrix, glm::vec3(50.0f));
 
                 if (!node->inverseBindMatrix.empty())
                     wo.invBindMatrix = glm::make_mat4(node->inverseBindMatrix.data());
@@ -665,7 +672,7 @@ namespace LinaGX::Examples
             if (it != mat.textureIndices.end())
             {
                 mat.gpuMat.emissive    = it->second;
-                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 200.0f;
+                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 10.0f;
             }
             else
                 mat.gpuMat.emissive = 0;
@@ -700,19 +707,6 @@ namespace LinaGX::Examples
             pfd.rscObjDataGPU         = m_lgx->CreateResource(objDataResource);
             m_lgx->MapResource(pfd.rscObjDataCPU, pfd.rscObjDataCPUMapping);
 
-            LinaGX::ResourceDesc lightDataResource = {
-                .size          = sizeof(GPULightData) * MAX_LIGHTS,
-                .typeHintFlags = LinaGX::TH_StorageBuffer,
-                .heapType      = LinaGX::ResourceHeap::StagingHeap,
-                .debugName     = "LightData Buffer CPU",
-            };
-
-            pfd.rscLightDataCPU         = m_lgx->CreateResource(lightDataResource);
-            lightDataResource.heapType  = LinaGX::ResourceHeap::GPUOnly;
-            lightDataResource.debugName = "LightData Buffer GPU";
-            pfd.rscLightDataGPU         = m_lgx->CreateResource(lightDataResource);
-            m_lgx->MapResource(pfd.rscLightDataCPU, pfd.rscLightDataCPUMapping);
-
             LinaGX::ResourceDesc matDataResource = {
                 .size          = sizeof(GPUMaterialData) * MAX_MATS,
                 .typeHintFlags = LinaGX::TH_StorageBuffer,
@@ -742,14 +736,8 @@ namespace LinaGX::Examples
                     .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
                 };
 
-                LinaGX::DescriptorBinding binding2 = {
-                    .descriptorCount = 1,
-                    .type            = LinaGX::DescriptorType::SSBO,
-                    .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
-                };
-
                 LinaGX::DescriptorSetDesc desc = {
-                    .bindings = {binding0, binding1, binding2},
+                    .bindings = {binding0, binding1},
                 };
 
                 pfd.dscSet0 = m_lgx->CreateDescriptorSet(desc);
@@ -769,14 +757,6 @@ namespace LinaGX::Examples
                 };
 
                 m_lgx->DescriptorUpdateBuffer(updateObj);
-
-                LinaGX::DescriptorUpdateBufferDesc updateLight = {
-                    .setHandle = pfd.dscSet0,
-                    .binding   = 2,
-                    .buffers   = {pfd.rscLightDataGPU},
-                };
-
-                m_lgx->DescriptorUpdateBuffer(updateLight);
             }
 
             // Descriptor Set 1 - Unbounded resources
@@ -864,6 +844,9 @@ namespace LinaGX::Examples
         };
 
         m_pipelineLayout = m_lgx->CreatePipelineLayout(desc);
+
+        m_pfd[0].debugDisplayRT = m_pfd[0].rtLightingPassStartIndex;
+        m_pfd[1].debugDisplayRT = m_pfd[1].rtLightingPassStartIndex;
     }
 
     void Example::Initialize()
@@ -970,8 +953,6 @@ namespace LinaGX::Examples
             m_lgx->DestroyTexture2D(pfd.rtLightingPass);
             m_lgx->DestroyResource(pfd.rscObjDataCPU);
             m_lgx->DestroyResource(pfd.rscObjDataGPU);
-            m_lgx->DestroyResource(pfd.rscLightDataCPU);
-            m_lgx->DestroyResource(pfd.rscLightDataGPU);
             m_lgx->DestroyResource(pfd.rscMatDataGPU);
         }
 
@@ -1039,6 +1020,7 @@ namespace LinaGX::Examples
         };
 
         draw();
+
         // DrawSkybox();
     }
 
@@ -1087,26 +1069,40 @@ namespace LinaGX::Examples
         // Check for window inputs.
         m_lgx->PollWindowsAndInput();
 
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_1))
+        {
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                m_pfd[i].debugDisplayRT = m_pfd[i].rtLightingPassStartIndex;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_2))
+        {
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                m_pfd[i].debugDisplayRT = m_pfd[i].rtGBufStartIndex;
+        }
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_3))
+        {
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                m_pfd[i].debugDisplayRT = m_pfd[i].rtGBufStartIndex + 1;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
+        {
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                m_pfd[i].debugDisplayRT = m_pfd[i].rtGBufStartIndex + 2;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
+        {
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+                m_pfd[i].debugDisplayRT = m_pfd[i].rtGBufStartIndex + 3;
+        }
+
         // Let LinaGX know we are starting a new frame.
         m_lgx->StartFrame();
 
         const uint32 currentFrameIndex = m_lgx->GetCurrentFrameIndex();
         auto&        currentFrame      = m_pfd[currentFrameIndex];
-
-        std::vector<GPULightData> lights;
-
-        // Lights
-        {
-            GPULightData data = {};
-            data.position     = glm::vec4(1, 2, 0, 0);
-            data.color        = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 0.0f;
-            lights.push_back(data);
-            std::memcpy(currentFrame.rscLightDataCPUMapping, lights.data(), sizeof(GPULightData) * lights.size());
-            LinaGX::CMDCopyResource* copy = currentFrame.transferStream->AddCommand<LinaGX::CMDCopyResource>();
-            copy->destination             = currentFrame.rscLightDataGPU;
-            copy->source                  = currentFrame.rscLightDataCPU;
-            copy->extension               = nullptr;
-        }
 
         // Scene data.
         {
@@ -1119,7 +1115,8 @@ namespace LinaGX::Examples
                 .skyColor1   = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
                 .skyColor2   = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
                 .camPosition = glm::vec4(camPos.x, camPos.y, camPos.z, 0.0f),
-                .lightCount  = static_cast<int32>(lights.size()),
+                .lightPos    = glm::vec4(1.5f, 2.0f, 0.0f, 0.0f),
+                .lightColor  = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 20.0f,
             };
 
             std::memcpy(currentFrame.rscSceneDataMapping, &sceneData, sizeof(GPUSceneData));
@@ -1217,12 +1214,12 @@ namespace LinaGX::Examples
             index->resource                    = m_indexBufferGPU;
         }
 
-        LinaGX::CMDBindVertexBuffers* vtxNoSkin = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
-        vtxNoSkin->extension                    = nullptr;
-        vtxNoSkin->offset                       = 0;
-        vtxNoSkin->slot                         = 0;
-        vtxNoSkin->vertexSize                   = sizeof(VertexSkinned);
-        vtxNoSkin->resource                     = m_vtxBuffer.gpu;
+        LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
+        vtx->extension                    = nullptr;
+        vtx->offset                       = 0;
+        vtx->slot                         = 0;
+        vtx->vertexSize                   = sizeof(VertexSkinned);
+        vtx->resource                     = m_vtxBuffer.gpu;
 
         Viewport     viewport = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
         ScissorsRect sc       = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
@@ -1326,7 +1323,7 @@ namespace LinaGX::Examples
         // Constants.
         {
             GPUConstants constants = {};
-            constants.int1         = currentFrame.rtLightingPassStartIndex;
+            constants.int1         = currentFrame.debugDisplayRT;
             constants.int2         = 0;
 
             LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
