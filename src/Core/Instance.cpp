@@ -260,14 +260,14 @@ namespace LinaGX
         delete stream;
     }
 
-    uint32 Instance::CreateTexture2D(const Texture2DDesc& desc)
+    uint32 Instance::CreateTexture(const TextureDesc& desc)
     {
-        return m_backend->CreateTexture2D(desc);
+        return m_backend->CreateTexture(desc);
     }
 
-    void Instance::DestroyTexture2D(uint32 handle)
+    void Instance::DestroyTexture(uint32 handle)
     {
-        m_backend->DestroyTexture2D(handle);
+        m_backend->DestroyTexture(handle);
     }
 
     uint32 Instance::CreateSampler(const SamplerDesc& desc)

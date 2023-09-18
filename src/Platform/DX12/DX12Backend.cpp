@@ -646,7 +646,7 @@ namespace LinaGX
                     rtvDesc.Format                        = GetDXFormat(desc.format);
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                     m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
-                    swp.colorTextures.push_back(m_texture2Ds.AddItem(color));
+                    swp.colorTextures.push_back(m_textures.AddItem(color));
                 }
             }
 
@@ -679,7 +679,7 @@ namespace LinaGX
         }
 
         for (auto t : swp.colorTextures)
-            DestroyTexture2D(t);
+            DestroyTexture(t);
 
         swp.isValid = false;
         swp.ptr.Reset();
@@ -703,7 +703,7 @@ namespace LinaGX
             //     ThrowIfFailed(swp.ptr->SetFullscreenState(desc.isFullscreen, nullptr));
 
             for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
-                DestroyTexture2D(swp.colorTextures[i]);
+                DestroyTexture(swp.colorTextures[i]);
 
             ThrowIfFailed(swp.ptr->ResizeBuffers(m_initInfo.backbufferCount, desc.width, desc.height, swpDesc.BufferDesc.Format, swpDesc.Flags));
 
@@ -731,7 +731,7 @@ namespace LinaGX
                 rtvDesc.Format                        = GetDXFormat(swp.format);
                 rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
                 m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
-                swp.colorTextures[i] = m_texture2Ds.AddItem(color);
+                swp.colorTextures[i] = m_textures.AddItem(color);
             }
         }
         catch (HrException e)
@@ -1222,7 +1222,7 @@ namespace LinaGX
         m_shaders.RemoveItem(handle);
     }
 
-    uint32 DX12Backend::CreateTexture2D(const Texture2DDesc& txtDesc)
+    uint32 DX12Backend::CreateTexture(const TextureDesc& txtDesc)
     {
         DX12Texture2D item = {};
         item.isValid       = true;
@@ -1253,7 +1253,7 @@ namespace LinaGX
         auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), txtDesc.depthClear, txtDesc.stencilClear);
         auto                  colorClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), cc);
 
-        if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
+        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
         {
             resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
             state              = D3D12_RESOURCE_STATE_DEPTH_WRITE;
@@ -1262,13 +1262,13 @@ namespace LinaGX
             if (!txtDesc.sampled)
                 resourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
         }
-        else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
+        else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
         {
             resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
             state              = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             clear              = &colorClear;
         }
-        else if (txtDesc.usage == Texture2DUsage::ColorTexture)
+        else if (txtDesc.usage == TextureUsage::ColorTexture)
         {
             state = D3D12_RESOURCE_STATE_COMMON;
         }
@@ -1283,7 +1283,7 @@ namespace LinaGX
             DX12_THROW(e, "Backend -> Exception when creating a texture resource! %s", e.what());
         }
 
-        if (txtDesc.usage == Texture2DUsage::ColorTexture || txtDesc.usage == Texture2DUsage::ColorTextureDynamic)
+        if (txtDesc.usage == TextureUsage::ColorTexture || txtDesc.usage == TextureUsage::ColorTextureDynamic)
         {
             // Texture descriptor + SRV
             item.descriptor                         = m_textureHeap->GetNewHeapHandle();
@@ -1305,7 +1305,7 @@ namespace LinaGX
 
             m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor.GetCPUHandle()});
         }
-        else if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
+        else if (txtDesc.usage == TextureUsage::DepthStencilTexture)
         {
             // DS descriptor + DSV
             item.descriptor                                = m_dsvHeap->GetNewHeapHandle();
@@ -1323,7 +1323,7 @@ namespace LinaGX
             srvDesc.Texture2D.MipLevels             = 1;
             m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor2.GetCPUHandle()});
         }
-        else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
+        else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
         {
             // Texture descriptor + RT descriptor + SRV + RTV
             item.descriptor                    = m_rtvHeap->GetNewHeapHandle();
@@ -1342,12 +1342,12 @@ namespace LinaGX
             m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor2.GetCPUHandle()});
         }
 
-        return m_texture2Ds.AddItem(item);
+        return m_textures.AddItem(item);
     }
 
-    void DX12Backend::DestroyTexture2D(uint32 handle)
+    void DX12Backend::DestroyTexture(uint32 handle)
     {
-        auto& txt = m_texture2Ds.GetItemR(handle);
+        auto& txt = m_textures.GetItemR(handle);
         if (!txt.isValid)
         {
             LOGE("Backend -> Texture to be destroyed is not valid!");
@@ -1361,11 +1361,11 @@ namespace LinaGX
         }
         else
         {
-            if (txt.desc.usage == Texture2DUsage::DepthStencilTexture)
+            if (txt.desc.usage == TextureUsage::DepthStencilTexture)
                 m_dsvHeap->FreeHeapHandle(txt.descriptor);
-            else if (txt.desc.usage == Texture2DUsage::ColorTexture || txt.desc.usage == Texture2DUsage::ColorTextureDynamic)
+            else if (txt.desc.usage == TextureUsage::ColorTexture || txt.desc.usage == TextureUsage::ColorTextureDynamic)
                 m_textureHeap->FreeHeapHandle(txt.descriptor);
-            else if (txt.desc.usage == Texture2DUsage::ColorTextureRenderTarget)
+            else if (txt.desc.usage == TextureUsage::ColorTextureRenderTarget)
             {
                 m_rtvHeap->FreeHeapHandle(txt.descriptor);
                 m_textureHeap->FreeHeapHandle(txt.descriptor2);
@@ -1379,7 +1379,7 @@ namespace LinaGX
         }
 
         txt.isValid = false;
-        m_texture2Ds.RemoveItem(handle);
+        m_textures.RemoveItem(handle);
     }
 
     uint32 DX12Backend::CreateSampler(const SamplerDesc& desc)
@@ -1741,8 +1741,8 @@ namespace LinaGX
                 {
                     if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage)
                     {
-                        const auto& res                    = m_texture2Ds.GetItemR(desc.textures[i]);
-                        const auto& srcResDescriptorHandle = (res.desc.usage == Texture2DUsage::ColorTextureRenderTarget || res.desc.usage == Texture2DUsage::DepthStencilTexture) ? res.descriptor2 : res.descriptor;
+                        const auto& res                    = m_textures.GetItemR(desc.textures[i]);
+                        const auto& srcResDescriptorHandle = (res.desc.usage == TextureUsage::ColorTextureRenderTarget || res.desc.usage == TextureUsage::DepthStencilTexture) ? res.descriptor2 : res.descriptor;
 
                         D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt;
                         srcHandleTxt.ptr     = srcResDescriptorHandle.GetCPUHandle();
@@ -2277,7 +2277,7 @@ namespace LinaGX
             LOGA(!shader.isValid, "Backend -> Some shaders were not destroyed!");
         }
 
-        for (auto& txt : m_texture2Ds)
+        for (auto& txt : m_textures)
         {
             LOGA(!txt.isValid, "Backend -> Some textures were not destroyed!");
         }
@@ -2683,7 +2683,7 @@ namespace LinaGX
             {
                 const auto&  swp    = m_swapchains.GetItemR(static_cast<uint8>(att.texture));
                 const uint32 handle = swp.colorTextures[swp._imageIndex];
-                const auto&  txt    = m_texture2Ds.GetItemR(handle);
+                const auto&  txt    = m_textures.GetItemR(handle);
                 barriers[i]         = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
                 CD3DX12_CLEAR_VALUE cv;
@@ -2700,7 +2700,7 @@ namespace LinaGX
             }
             else
             {
-                const auto& txt = m_texture2Ds.GetItemR(att.texture);
+                const auto& txt = m_textures.GetItemR(att.texture);
                 barriers[i]     = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
                 CD3DX12_CLEAR_VALUE cv;
@@ -2720,7 +2720,7 @@ namespace LinaGX
 
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
-            const auto&                          depthTxt = m_texture2Ds.GetItemR(begin->depthStencilAttachment.texture);
+            const auto&                          depthTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
             CD3DX12_CLEAR_VALUE                  clearDepthStencil{GetDXFormat(depthTxt.desc.format), begin->depthStencilAttachment.useDepth ? begin->depthStencilAttachment.clearDepth : 0.0f, begin->depthStencilAttachment.useStencil ? static_cast<UINT8>(begin->depthStencilAttachment.clearStencil) : (uint8)0};
             D3D12_RENDER_PASS_BEGINNING_ACCESS   depthBegin{GetDXLoadOp(begin->depthStencilAttachment.depthLoadOp), {clearDepthStencil}};
             D3D12_RENDER_PASS_BEGINNING_ACCESS   stencilBegin{GetDXLoadOp(begin->depthStencilAttachment.stencilLoadOp), {clearDepthStencil}};
@@ -2760,7 +2760,7 @@ namespace LinaGX
         for (uint32 i = 0; i < sz; i++)
         {
             const auto& data = stream.lastRPImages[i];
-            const auto& txt  = m_texture2Ds.GetItemR(data.txt);
+            const auto& txt  = m_textures.GetItemR(data.txt);
 
             if (data.isSwapchain)
                 barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -2966,7 +2966,7 @@ namespace LinaGX
     void DX12Backend::CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyBufferToTexture2D* cmd        = reinterpret_cast<CMDCopyBufferToTexture2D*>(data);
-        const auto&               dstTexture = m_texture2Ds.GetItemR(cmd->destTexture);
+        const auto&               dstTexture = m_textures.GetItemR(cmd->destTexture);
 
         // Find correct size for staging resource.
         uint64 ogDataSize = 0;

@@ -59,7 +59,7 @@ namespace LinaGX
 
     struct VKBTexture2D
     {
-        Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
+        TextureUsage     usage              = TextureUsage::ColorTexture;
         DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthOnly;
         VkImage            img                = nullptr;
         VkImageView        imgView            = nullptr;
@@ -193,8 +193,8 @@ namespace LinaGX
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
-        virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
-        virtual void   DestroyTexture2D(uint32 handle) override;
+        virtual uint32 CreateTexture(const TextureDesc& desc) override;
+        virtual void   DestroyTexture(uint32 handle) override;
         virtual uint32 CreateSampler(const SamplerDesc& desc) override;
         virtual void   DestroySampler(uint32 handle) override;
         virtual uint32 CreateResource(const ResourceDesc& desc) override;
@@ -271,7 +271,7 @@ namespace LinaGX
 
         IDList<uint8, VKBSwapchain>       m_swapchains      = {5};
         IDList<uint16, VKBShader>         m_shaders         = {10};
-        IDList<uint32, VKBTexture2D>      m_texture2Ds      = {100};
+        IDList<uint32, VKBTexture2D>      m_textures      = {100};
         IDList<uint32, VKBCommandStream>  m_cmdStreams      = {100};
         IDList<uint16, VKBUserSemaphore>  m_userSemaphores  = {20};
         IDList<uint16, VkFence>           m_fences          = {20};

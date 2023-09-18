@@ -200,12 +200,19 @@ namespace LinaGX
         Mat3x3,
     };
 
-    enum class Texture2DUsage
+    enum class TextureUsage
     {
         ColorTexture,
         ColorTextureDynamic,
         ColorTextureRenderTarget,
         DepthStencilTexture
+    };
+
+    enum class TextureType
+    {
+        Texture2D,
+        Texture3D,
+        TextureCube,
     };
 
     enum class DepthStencilAspect
@@ -555,9 +562,10 @@ namespace LinaGX
         uint32 bytesPerPixel;
     };
 
-    struct Texture2DDesc
+    struct TextureDesc
     {
-        Texture2DUsage     usage              = Texture2DUsage::ColorTexture;
+        TextureUsage       usage              = TextureUsage::ColorTexture;
+        TextureType        type               = TextureType::Texture2D;
         bool               sampled            = true;
         DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
         float              depthClear         = 1.0f;

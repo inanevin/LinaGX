@@ -62,8 +62,8 @@ namespace LinaGX
         virtual void   SetSwapchainActive(uint8 swp, bool isActive)                                     = 0;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc)                                       = 0;
         virtual void   DestroyShader(uint16 handle)                                                     = 0;
-        virtual uint32 CreateTexture2D(const Texture2DDesc& desc)                                       = 0;
-        virtual void   DestroyTexture2D(uint32 handle)                                                  = 0;
+        virtual uint32 CreateTexture(const TextureDesc& desc)                                       = 0;
+        virtual void   DestroyTexture(uint32 handle)                                                  = 0;
         virtual uint32 CreateSampler(const SamplerDesc& desc)                                           = 0;
         virtual void   DestroySampler(uint32 handle)                                                    = 0;
         virtual uint32 CreateResource(const ResourceDesc& desc)                                         = 0;

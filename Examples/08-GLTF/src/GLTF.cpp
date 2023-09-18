@@ -271,15 +271,15 @@ namespace LinaGX::Examples
             _baseTexture = _modelData.allTextures;
 
             // Create gpu resource
-            Texture2DDesc desc = {
-                .usage     = Texture2DUsage::ColorTexture,
+            TextureDesc desc = {
+                .usage     = TextureUsage::ColorTexture,
                 .width     = _baseTexture->buffer.width,
                 .height    = _baseTexture->buffer.height,
                 .mipLevels = 1,
                 .format    = Format::R8G8B8A8_UNORM,
                 .debugName = "Lina Logo",
             };
-            _baseColorGPU = _lgx->CreateTexture2D(desc);
+            _baseColorGPU = _lgx->CreateTexture(desc);
         }
 
         //******************* TRANSFER
@@ -452,7 +452,7 @@ namespace LinaGX::Examples
 
         _lgx->DestroyResource(_ubo);
         _lgx->DestroyDescriptorSet(_descriptorSet0);
-        _lgx->DestroyTexture2D(_baseColorGPU);
+        _lgx->DestroyTexture(_baseColorGPU);
         _lgx->DestroySampler(_sampler);
         _lgx->DestroySwapchain(_swapchain);
         _lgx->DestroyShader(_shaderProgram);

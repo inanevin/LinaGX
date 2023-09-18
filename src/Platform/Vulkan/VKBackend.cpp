@@ -429,32 +429,32 @@ namespace LinaGX
         }
     }
 
-    VkImageUsageFlags GetVKImageUsage(Texture2DUsage usage)
+    VkImageUsageFlags GetVKImageUsage(TextureUsage usage)
     {
         switch (usage)
         {
-        case Texture2DUsage::ColorTexture:
-        case Texture2DUsage::ColorTextureDynamic:
+        case TextureUsage::ColorTexture:
+        case TextureUsage::ColorTextureDynamic:
             return VK_IMAGE_USAGE_SAMPLED_BIT;
-        case Texture2DUsage::ColorTextureRenderTarget:
+        case TextureUsage::ColorTextureRenderTarget:
             return VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        case Texture2DUsage::DepthStencilTexture:
+        case TextureUsage::DepthStencilTexture:
             return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         default:
             return VK_IMAGE_USAGE_SAMPLED_BIT;
         }
     }
 
-    VkImageLayout GetVKImageLayout(Texture2DUsage usage)
+    VkImageLayout GetVKImageLayout(TextureUsage usage)
     {
         switch (usage)
         {
-        case Texture2DUsage::ColorTexture:
-        case Texture2DUsage::ColorTextureDynamic:
+        case TextureUsage::ColorTexture:
+        case TextureUsage::ColorTextureDynamic:
             return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
-        case Texture2DUsage::ColorTextureRenderTarget:
+        case TextureUsage::ColorTextureRenderTarget:
             return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        case Texture2DUsage::DepthStencilTexture:
+        case TextureUsage::DepthStencilTexture:
             return VK_IMAGE_LAYOUT_UNDEFINED;
         default:
             return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1206,8 +1206,18 @@ namespace LinaGX
         m_shaders.RemoveItem(handle);
     }
 
-    uint32 VKBackend::CreateTexture2D(const Texture2DDesc& txtDesc)
+    uint32 VKBackend::CreateTexture(const TextureDesc& txtDesc)
     {
+        if (txtDesc.type == TextureType::Texture3D && txtDesc.arrayLength != 1)
+        {
+            LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
+        }
+
+        if (txtDesc.type == TextureType::TextureCube && txtDesc.arrayLength != 6)
+        {
+            LOGA(false, "Backend -> Array length needs to be 6 for Cube textures!");
+        }
+
         VKBTexture2D item       = {};
         item.usage              = txtDesc.usage;
         item.isValid            = true;
@@ -1223,13 +1233,18 @@ namespace LinaGX
         imgCreateInfo.mipLevels         = txtDesc.mipLevels;
         imgCreateInfo.arrayLayers       = txtDesc.arrayLength;
         imgCreateInfo.samples           = VK_SAMPLE_COUNT_1_BIT;
-        imgCreateInfo.tiling            = txtDesc.usage == Texture2DUsage::ColorTextureDynamic ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
+        imgCreateInfo.tiling            = txtDesc.usage == TextureUsage::ColorTextureDynamic ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
         imgCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
         imgCreateInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        if (txtDesc.usage == Texture2DUsage::DepthStencilTexture)
+        if (txtDesc.type == TextureType::Texture3D)
+            imgCreateInfo.imageType = VK_IMAGE_TYPE_3D;
+        else if (txtDesc.type == TextureType::TextureCube)
+            imgCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
             imgCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        else if (txtDesc.usage == Texture2DUsage::ColorTextureRenderTarget)
+        else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
             imgCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         else
             imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -1247,7 +1262,7 @@ namespace LinaGX
         VK_NAME_OBJECT(item.img, VK_OBJECT_TYPE_IMAGE, txtDesc.debugName, info);
 
         VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
-        subResRange.aspectMask              = txtDesc.usage == Texture2DUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
+        subResRange.aspectMask              = txtDesc.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
         subResRange.baseMipLevel            = 0;
         subResRange.levelCount              = txtDesc.mipLevels;
         subResRange.baseArrayLayer          = 0;
@@ -1261,15 +1276,20 @@ namespace LinaGX
         viewInfo.format                = GetVKFormat(txtDesc.format);
         viewInfo.subresourceRange      = subResRange;
 
+        if (txtDesc.type == TextureType::Texture3D)
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+        else if (txtDesc.type == TextureType::TextureCube)
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+
         res = vkCreateImageView(m_device, &viewInfo, m_allocator, &item.imgView);
         VK_CHECK_RESULT(res, "Failed creating image view.");
 
-        return m_texture2Ds.AddItem(item);
+        return m_textures.AddItem(item);
     }
 
-    void VKBackend::DestroyTexture2D(uint32 handle)
+    void VKBackend::DestroyTexture(uint32 handle)
     {
-        auto& txt = m_texture2Ds.GetItemR(handle);
+        auto& txt = m_textures.GetItemR(handle);
         if (!txt.isValid)
         {
             LOGE("Backend -> Texture to be destroyed is not valid!");
@@ -1280,7 +1300,7 @@ namespace LinaGX
         vmaDestroyImage(m_vmaAllocator, txt.img, txt.allocation);
 
         txt.isValid = false;
-        m_texture2Ds.RemoveItem(handle);
+        m_textures.RemoveItem(handle);
     }
 
     uint32 VKBackend::CreateResource(const ResourceDesc& desc)
@@ -1568,7 +1588,7 @@ namespace LinaGX
 
             if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
             {
-                imgInfo.imageView   = m_texture2Ds.GetItemR(desc.textures[i]).imgView;
+                imgInfo.imageView   = m_textures.GetItemR(desc.textures[i]).imgView;
                 imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
 
@@ -2500,7 +2520,7 @@ namespace LinaGX
             LOGA(!pp.isValid, "Backend -> Some shader pipelines were not destroyed!");
         }
 
-        for (auto& txt : m_texture2Ds)
+        for (auto& txt : m_textures)
         {
             LOGA(!txt.isValid, "Backend -> Some textures were not destroyed!");
         }
@@ -2740,7 +2760,7 @@ namespace LinaGX
 
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
-            const auto& depthStencilTxt = m_texture2Ds.GetItemR(begin->depthStencilAttachment.texture);
+            const auto& depthStencilTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
             depthStencilView            = depthStencilTxt.imgView;
         }
 
@@ -2770,7 +2790,7 @@ namespace LinaGX
             }
             else
             {
-                const auto& txt        = m_texture2Ds.GetItemR(att.texture);
+                const auto& txt        = m_textures.GetItemR(att.texture);
                 imageViews[i]          = txt.imgView;
                 images[i]              = txt.img;
                 stream.lastRPImages[i] = {images[i], false};
@@ -3009,7 +3029,7 @@ namespace LinaGX
         stream.intermediateResources[stagingHandle] = PerformanceStats.totalFrames;
 
         const auto& srcResource = m_resources.GetItemR(stagingHandle);
-        const auto& dstTexture  = m_texture2Ds.GetItemR(cmd->destTexture);
+        const auto& dstTexture  = m_textures.GetItemR(cmd->destTexture);
 
         LINAGX_VEC<VkBufferImageCopy> regions;
 
@@ -3031,7 +3051,7 @@ namespace LinaGX
             extent.depth      = 1;
 
             VkImageSubresourceLayers subresLayers = {};
-            subresLayers.aspectMask               = dstTexture.usage == Texture2DUsage::DepthStencilTexture ? (GetVKAspectFlags(dstTexture.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
+            subresLayers.aspectMask               = dstTexture.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(dstTexture.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
             subresLayers.mipLevel                 = i;
             subresLayers.baseArrayLayer           = cmd->destinationSlice;
             subresLayers.layerCount               = 1;

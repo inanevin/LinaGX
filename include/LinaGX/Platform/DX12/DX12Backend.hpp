@@ -99,9 +99,9 @@ namespace LinaGX
         uint64                                 requiredAlignment = 0;
         D3D12MA::Allocation*                   allocation        = NULL;
 
-        Texture2DDesc desc               = {};
-        bool          isValid            = false;
-        bool          isSwapchainTexture = false;
+        TextureDesc desc               = {};
+        bool        isValid            = false;
+        bool        isSwapchainTexture = false;
     };
 
     struct DX12Sampler
@@ -207,8 +207,8 @@ namespace LinaGX
         virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
-        virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
-        virtual void   DestroyTexture2D(uint32 handle) override;
+        virtual uint32 CreateTexture(const TextureDesc& desc) override;
+        virtual void   DestroyTexture(uint32 handle) override;
         virtual uint32 CreateSampler(const SamplerDesc& desc) override;
         virtual void   DestroySampler(uint32 handle) override;
         virtual uint32 CreateResource(const ResourceDesc& desc) override;
@@ -286,7 +286,7 @@ namespace LinaGX
         DX12HeapStaging*                                    m_samplerHeap     = nullptr;
         IDList<uint8, DX12Swapchain>                        m_swapchains      = {10};
         IDList<uint16, DX12Shader>                          m_shaders         = {20};
-        IDList<uint32, DX12Texture2D>                       m_texture2Ds      = {50};
+        IDList<uint32, DX12Texture2D>                       m_textures        = {50};
         IDList<uint32, DX12CommandStream>                   m_cmdStreams      = {50};
         IDList<uint16, Microsoft::WRL::ComPtr<ID3D12Fence>> m_fences          = {20};
         IDList<uint32, DX12Resource>                        m_resources       = {100};

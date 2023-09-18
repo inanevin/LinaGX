@@ -51,9 +51,19 @@ namespace LinaGX
             Skybox = 0,
             SCQuad,
             SCLightingPass,
-            Terrain,
             Default,
-            Max,
+            SH_Max,
+        };
+
+        enum RTType
+        {
+            WorldDepth = 0,
+            GBufPositionAO,
+            GBufAlbedoRoughness,
+            GBufNormalMetallic,
+            LightingPass,
+            Reflections,
+            RT_Max,
         };
 
         typedef std::unordered_map<LinaGX::GLTFTextureType, const char*> TextureMapping;
@@ -75,15 +85,11 @@ namespace LinaGX
             uint32                 rscMatDataCPU            = 0;
             uint32                 rscMatDataGPU            = 0;
             uint8*                 rscMatDataCPUMapping     = nullptr;
-            uint32                 rtWorldDepth             = 0;
-            uint32                 rtGBufPositionAO         = 0;
-            uint32                 rtGBufAlbedoRoughness    = 0;
-            uint32                 rtGBufNormalMetallic     = 0;
-            uint32                 rtGBufStartIndex         = 0;
-            uint32                 rtLightingPass           = 0;
-            uint32                 rtLightingPassStartIndex = 0;
-
-            uint32 debugDisplayRT = 0;
+            uint32                 rtStartIndexGBuffer      = 0;
+            uint32                 rtStartIndexLightingPass = 0;
+            uint32                 rtStartIndexReflections  = 0;
+            std::vector<uint32>    renderTargets;
+            uint32                 debugDisplayRT = 0;
         };
 
         struct Texture2D
@@ -111,7 +117,8 @@ namespace LinaGX
         {
             std::string                                         name = "";
             GPUMaterialData                                     gpuMat;
-            Shader                                              shader = Shader::Default;
+            Shader                                              shader              = Shader::Default;
+            bool                                                applyTerrainEffects = false;
             std::unordered_map<LinaGX::GLTFTextureType, uint32> textureIndices;
         };
 
@@ -173,6 +180,7 @@ namespace LinaGX
         {
             uint32 int1;
             uint32 int2;
+            uint32 int3;
         };
 
         class Example : public App
@@ -190,11 +198,18 @@ namespace LinaGX
             void   SetupTextures();
             void   SetupSamplers();
             void   SetupRenderTargets();
+            void   DestroyRenderTargets();
+            void   UpdateTextures();
             void   SetupMaterials();
             void   LoadAndParseModels();
             void   SetupDescriptorSets();
+            void   SetupShaders();
             uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer);
 
+            void GBufferPass();
+            void LightingPass();
+            void FinalPass();
+            void CaptureCubemap();
             void DrawObjects();
             void DrawSkybox();
             void DrawFullscreenQuad(uint32 shader);

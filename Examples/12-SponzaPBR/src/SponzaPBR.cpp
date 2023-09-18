@@ -380,8 +380,8 @@ namespace LinaGX::Examples
             auto createRenderTargets = [&]() {
                 for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
                 {
-                    Texture2DDesc desc = {
-                        .usage     = Texture2DUsage::ColorTextureRenderTarget,
+                    TextureDesc desc = {
+                        .usage     = TextureUsage::ColorTextureRenderTarget,
                         .width     = _window->GetSize().x,
                         .height    = _window->GetSize().y,
                         .mipLevels = 1,
@@ -389,14 +389,14 @@ namespace LinaGX::Examples
                         .debugName = "LinaGXRTTexture",
                     };
 
-                    _pfd[i].renderTargetColor = _lgx->CreateTexture2D(desc);
+                    _pfd[i].renderTargetColor = _lgx->CreateTexture(desc);
 
                     desc.format             = Format::D32_SFLOAT;
-                    desc.usage              = Texture2DUsage::DepthStencilTexture;
+                    desc.usage              = TextureUsage::DepthStencilTexture;
                     desc.depthStencilAspect = DepthStencilAspect::DepthOnly;
                     desc.debugName          = "LinaGXRTDepthTexture";
 
-                    _pfd[i].renderTargetDepth = _lgx->CreateTexture2D(desc);
+                    _pfd[i].renderTargetDepth = _lgx->CreateTexture(desc);
                 }
             };
 
@@ -421,8 +421,8 @@ namespace LinaGX::Examples
                 // re-create render targets.
                 for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
                 {
-                    _lgx->DestroyTexture2D(_pfd[i].renderTargetColor);
-                    _lgx->DestroyTexture2D(_pfd[i].renderTargetDepth);
+                    _lgx->DestroyTexture(_pfd[i].renderTargetColor);
+                    _lgx->DestroyTexture(_pfd[i].renderTargetDepth);
                 }
 
                 createRenderTargets();
@@ -489,15 +489,15 @@ namespace LinaGX::Examples
             {
                 GLTFTextureType type = static_cast<GLTFTextureType>(k);
 
-                Texture2DDesc desc = {
-                    .usage     = Texture2DUsage::ColorTexture,
+                TextureDesc desc = {
+                    .usage     = TextureUsage::ColorTexture,
                     .width     = 4,
                     .height    = 4,
                     .mipLevels = 1,
                     .format    = type == GLTFTextureType::MetallicRoughness ? Format::R8G8B8A8_UNORM : Format::R8G8B8A8_SRGB,
                     .debugName = "Material Texture",
                 };
-                _defaultTexturesGPU[type].gpuResource = _lgx->CreateTexture2D(desc);
+                _defaultTexturesGPU[type].gpuResource = _lgx->CreateTexture(desc);
             }
 
             _defaultTexturesGPU[GLTFTextureType::BaseColor].path         = "Resources/Textures/default_albedo.png";
@@ -514,15 +514,15 @@ namespace LinaGX::Examples
                 {
                     auto* txt = obj.model.allTextures + i;
 
-                    Texture2DDesc desc = {
-                        .usage     = Texture2DUsage::ColorTexture,
+                    TextureDesc desc = {
+                        .usage     = TextureUsage::ColorTexture,
                         .width     = txt->buffer.width,
                         .height    = txt->buffer.height,
                         .mipLevels = 1,
                         .format    = Format::R8G8B8A8_SRGB,
                         .debugName = "Material Texture",
                     };
-                    obj.texturesGPU[i] = _lgx->CreateTexture2D(desc);
+                    obj.texturesGPU[i] = _lgx->CreateTexture(desc);
                 }
 
                 obj.materials.resize(obj.model.allMaterialsCount);
@@ -925,7 +925,7 @@ namespace LinaGX::Examples
         _lgx->Join();
 
         for (const auto& [type, txt] : _defaultTexturesGPU)
-            _lgx->DestroyTexture2D(txt.gpuResource);
+            _lgx->DestroyTexture(txt.gpuResource);
 
         // Get rid of resources
         for (auto& obj : _objects)
@@ -945,7 +945,7 @@ namespace LinaGX::Examples
             }
 
             for (auto& txt : obj.texturesGPU)
-                _lgx->DestroyTexture2D(txt);
+                _lgx->DestroyTexture(txt);
         }
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -958,8 +958,8 @@ namespace LinaGX::Examples
             _lgx->DestroyCommandStream(_pfd[i].copyStream);
             _lgx->DestroyResource(_pfd[i].ubo0);
             _lgx->DestroyDescriptorSet(_pfd[i].descriptorSetSceneData0);
-            _lgx->DestroyTexture2D(_pfd[i].renderTargetColor);
-            _lgx->DestroyTexture2D(_pfd[i].renderTargetDepth);
+            _lgx->DestroyTexture(_pfd[i].renderTargetColor);
+            _lgx->DestroyTexture(_pfd[i].renderTargetDepth);
             _lgx->DestroyDescriptorSet(_pfd[i].descriptorSetQuadTexture);
         }
 

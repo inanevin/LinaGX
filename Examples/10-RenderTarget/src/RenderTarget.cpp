@@ -242,8 +242,8 @@ namespace LinaGX::Examples
         auto createRenderTargets = [&]() {
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-                Texture2DDesc desc = {
-                    .usage     = Texture2DUsage::ColorTextureRenderTarget,
+                TextureDesc desc = {
+                    .usage     = TextureUsage::ColorTextureRenderTarget,
                     .width     = _window->GetSize().x,
                     .height    = _window->GetSize().y,
                     .mipLevels = 1,
@@ -251,14 +251,14 @@ namespace LinaGX::Examples
                     .debugName = "LinaGXRTTexture",
                 };
 
-                _pfd[i].renderTargetColor = _lgx->CreateTexture2D(desc);
+                _pfd[i].renderTargetColor = _lgx->CreateTexture(desc);
 
                 desc.format             = Format::D32_SFLOAT;
-                desc.usage              = Texture2DUsage::DepthStencilTexture;
+                desc.usage              = TextureUsage::DepthStencilTexture;
                 desc.depthStencilAspect = DepthStencilAspect::DepthOnly;
                 desc.debugName          = "LinaGXRTDepthTexture";
 
-                _pfd[i].renderTargetDepth = _lgx->CreateTexture2D(desc);
+                _pfd[i].renderTargetDepth = _lgx->CreateTexture(desc);
             }
         };
 
@@ -299,8 +299,8 @@ namespace LinaGX::Examples
                 // re-create render targets.
                 for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
                 {
-                    _lgx->DestroyTexture2D(_pfd[i].renderTargetColor);
-                    _lgx->DestroyTexture2D(_pfd[i].renderTargetDepth);
+                    _lgx->DestroyTexture(_pfd[i].renderTargetColor);
+                    _lgx->DestroyTexture(_pfd[i].renderTargetDepth);
                 }
 
                 createRenderTargets();
@@ -399,15 +399,15 @@ namespace LinaGX::Examples
             _baseTexture = _modelData.allTextures[0];
 
             // Create gpu resource
-            Texture2DDesc desc = {
-                .usage     = Texture2DUsage::ColorTexture,
+            TextureDesc desc = {
+                .usage     = TextureUsage::ColorTexture,
                 .width     = _baseTexture->buffer.width,
                 .height    = _baseTexture->buffer.height,
                 .mipLevels = 1,
                 .format    = Format::R8G8B8A8_UNORM,
                 .debugName = "Lina Logo",
             };
-            _baseColorGPU = _lgx->CreateTexture2D(desc);
+            _baseColorGPU = _lgx->CreateTexture(desc);
         }
 
         //******************* TRANSFER
@@ -585,8 +585,8 @@ namespace LinaGX::Examples
             _lgx->DestroyUserSemaphore(_pfd[i].copySemaphore);
             _lgx->DestroyCommandStream(_pfd[i].stream);
             _lgx->DestroyCommandStream(_pfd[i].copyStream);
-            _lgx->DestroyTexture2D(_pfd[i].renderTargetColor);
-            _lgx->DestroyTexture2D(_pfd[i].renderTargetDepth);
+            _lgx->DestroyTexture(_pfd[i].renderTargetColor);
+            _lgx->DestroyTexture(_pfd[i].renderTargetDepth);
             _lgx->DestroyDescriptorSet(_pfd[i].descriptorSetQuadTexture);
         }
 
@@ -595,7 +595,7 @@ namespace LinaGX::Examples
         _lgx->DestroyDescriptorSet(_descriptorSetTexture);
         _lgx->DestroyDescriptorSet(_descriptorSetSceneData0);
         _lgx->DestroyDescriptorSet(_descriptorSetSceneData1);
-        _lgx->DestroyTexture2D(_baseColorGPU);
+        _lgx->DestroyTexture(_baseColorGPU);
         _lgx->DestroySampler(_sampler);
         _lgx->DestroySwapchain(_swapchain);
         _lgx->DestroyShader(_shaderProgramColorPass);

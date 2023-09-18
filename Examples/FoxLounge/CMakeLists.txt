@@ -38,8 +38,6 @@ include/Main.hpp
 include/FoxLounge.hpp
 Resources/Shaders/default_pbr_frag.glsl
 Resources/Shaders/default_pbr_vert.glsl
-Resources/Shaders/terrain_pbr_frag.glsl
-Resources/Shaders/terrain_pbr_vert.glsl
 Resources/Shaders/skybox_frag.glsl
 Resources/Shaders/skybox_vert.glsl
 Resources/Shaders/screenquad_frag.glsl

@@ -382,8 +382,8 @@ namespace LinaGX::Examples
                 {
                     auto* txt = obj.model.allTextures + i;
 
-                    Texture2DDesc desc = {
-                        .usage     = Texture2DUsage::ColorTexture,
+                    TextureDesc desc = {
+                        .usage     = TextureUsage::ColorTexture,
                         .width     = txt->buffer.width,
                         .height    = txt->buffer.height,
                         .mipLevels = 1,
@@ -391,7 +391,7 @@ namespace LinaGX::Examples
                         .debugName = "Material Texture",
                     };
 
-                    obj.texturesGPU[i] = _lgx->CreateTexture2D(desc);
+                    obj.texturesGPU[i] = _lgx->CreateTexture(desc);
                 }
 
                 for (uint32 i = 0; i < obj.model.allNodesCount; i++)
@@ -799,7 +799,7 @@ namespace LinaGX::Examples
         for (auto& obj : _objects)
         {
             for (auto& txt : obj.texturesGPU)
-                _lgx->DestroyTexture2D(txt);
+                _lgx->DestroyTexture(txt);
         }
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)

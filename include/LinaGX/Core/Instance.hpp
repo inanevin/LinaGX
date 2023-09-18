@@ -171,13 +171,13 @@ namespace LinaGX
         /// </summary>
         /// <param name="desc"></param>
         /// <returns></returns>
-        uint32 CreateTexture2D(const Texture2DDesc& desc);
+        uint32 CreateTexture(const TextureDesc& desc);
 
         /// <summary>
         ///
         /// </summary>
         /// <param name="handle"></param>
-        void DestroyTexture2D(uint32 handle);
+        void DestroyTexture(uint32 handle);
 
         /// <summary>
         ///
