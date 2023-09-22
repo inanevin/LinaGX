@@ -32,64 +32,32 @@ SOFTWARE.
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
 #include "Camera.hpp"
-#include "glm/glm.hpp"
-#include <vector>
-#include <string>
+#include "Utility.hpp"
 
 namespace LinaGX
 {
     namespace Examples
     {
-
-#define MAIN_WINDOW_ID   0
-#define FRAMES_IN_FLIGHT 2
-#define BACKBUFFER_COUNT 2
-#define MAX_BONES        30
-
-        enum Shader
-        {
-            Skybox = 0,
-            SCQuad,
-            SCLightingPass,
-            Default,
-            SH_Max,
-        };
-
-        enum RTType
-        {
-            WorldDepth = 0,
-            GBufPositionAO,
-            GBufAlbedoRoughness,
-            GBufNormalMetallic,
-            LightingPass,
-            Reflections,
-            RT_Max,
-        };
-
-        typedef std::unordered_map<LinaGX::GLTFTextureType, const char*> TextureMapping;
-
         struct PerFrameData
         {
-            LinaGX::CommandStream* graphicsStream           = nullptr;
-            LinaGX::CommandStream* transferStream           = nullptr;
-            uint64                 transferSemaphoreValue   = 0;
-            uint16                 transferSemaphore        = 0;
-            uint16                 dscSet0                  = 0;
-            uint16                 dscSet1                  = 0;
-            uint16                 dscSet2                  = 0;
-            uint32                 rscSceneData             = 0;
-            uint8*                 rscSceneDataMapping      = nullptr;
-            uint32                 rscObjDataCPU            = 0;
-            uint32                 rscObjDataGPU            = 0;
-            uint8*                 rscObjDataCPUMapping     = nullptr;
-            uint32                 rscMatDataCPU            = 0;
-            uint32                 rscMatDataGPU            = 0;
-            uint8*                 rscMatDataCPUMapping     = nullptr;
-            uint32                 rtStartIndexGBuffer      = 0;
-            uint32                 rtStartIndexLightingPass = 0;
-            uint32                 rtStartIndexReflections  = 0;
-            std::vector<uint32>    renderTargets;
-            uint32                 debugDisplayRT = 0;
+            LinaGX::CommandStream* graphicsStream         = nullptr;
+            LinaGX::CommandStream* transferStream         = nullptr;
+            uint64                 transferSemaphoreValue = 0;
+            uint16                 transferSemaphore      = 0;
+            uint16                 globalSet              = 0;
+            uint16                 cameraSet0             = 0;
+
+            uint32 rscCameraData0        = 0;
+            uint8* rscCameraDataMapping0 = nullptr;
+
+            uint32 rscSceneData         = 0;
+            uint8* rscSceneDataMapping  = nullptr;
+            uint32 rscObjDataCPU        = 0;
+            uint32 rscObjDataGPU        = 0;
+            uint8* rscObjDataCPUMapping = nullptr;
+
+            uint16 lightingPassMaterialSet  = 0;
+            uint16 finalQuadPassMaterialSet = 0;
         };
 
         struct Texture2D
@@ -99,27 +67,25 @@ namespace LinaGX
             std::vector<LinaGX::TextureBuffer> allLevels;
         };
 
-        struct GPUMaterialData
-        {
-            glm::vec4 baseColorFac      = {};
-            glm::vec4 emissiveFac       = {};
-            uint32    baseColor         = 0;
-            uint32    metallicRoughness = 0;
-            uint32    emissive          = 0;
-            uint32    normal            = 0;
-            uint32    specialTexture    = 0;
-            float     metallic          = 0.0f;
-            float     roughness         = 0.0f;
-            float     alphaCutoff       = 0.0f;
-        };
-
         struct Material
         {
             std::string                                         name = "";
             GPUMaterialData                                     gpuMat;
-            Shader                                              shader              = Shader::Default;
-            bool                                                applyTerrainEffects = false;
             std::unordered_map<LinaGX::GLTFTextureType, uint32> textureIndices;
+            uint16                                              descriptorSets[FRAMES_IN_FLIGHT];
+            uint32                                              stagingResources[FRAMES_IN_FLIGHT];
+            uint32                                              gpuResources[FRAMES_IN_FLIGHT];
+        };
+
+        struct RenderTarget
+        {
+            std::vector<RenderPassColorAttachment> colorAttachments;
+            RenderPassDepthStencilAttachment       depthStencilAttachment;
+        };
+
+        struct Pass
+        {
+            RenderTarget renderTargets[FRAMES_IN_FLIGHT];
         };
 
         struct MeshPrimitive
@@ -141,46 +107,10 @@ namespace LinaGX
             bool                       manualDraw = false;
         };
 
-        struct VertexSkinned
-        {
-            LinaGX::LGXVector3 position      = {};
-            LinaGX::LGXVector2 uv            = {};
-            LinaGX::LGXVector3 normal        = {};
-            LinaGX::LGXVector4 inBoneIndices = {};
-            LinaGX::LGXVector4 inBoneWeights = {};
-        };
-
         struct VertexBuffer
         {
             uint32 staging = 0;
             uint32 gpu     = 0;
-        };
-
-        struct GPUSceneData
-        {
-            glm::mat4 view;
-            glm::mat4 proj;
-            glm::vec4 skyColor1;
-            glm::vec4 skyColor2;
-            glm::vec4 camPosition;
-            glm::vec4 lightPos;
-            glm::vec4 lightColor;
-        };
-
-        struct GPUObjectData
-        {
-            glm::mat4 modelMatrix;
-            glm::mat4 bones[MAX_BONES];
-            glm::mat4 normalMatrix;
-            int       hasSkin     = 0;
-            int       padding[15] = {0};
-        };
-
-        struct GPUConstants
-        {
-            uint32 int1;
-            uint32 int2;
-            uint32 int3;
         };
 
         class Example : public App
@@ -191,28 +121,28 @@ namespace LinaGX
             virtual void OnTick() override;
 
         private:
-            void   ConfigureInitializeLinaGX();
-            void   CreateMainWindow();
-            void   SetupPerFrameResources();
-            void   LoadTexture(const char* path, uint32 id);
-            void   SetupTextures();
-            void   SetupSamplers();
-            void   SetupRenderTargets();
-            void   DestroyRenderTargets();
-            void   UpdateTextures();
-            void   SetupMaterials();
-            void   LoadAndParseModels();
-            void   SetupDescriptorSets();
-            void   SetupShaders();
-            uint16 CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer);
+            void ConfigureInitializeLinaGX();
+            void CreateMainWindow();
+            void SetupStreams();
+            void LoadTexture(const char* path, uint32 id);
+            void SetupTextures();
+            void SetupSamplers();
+            void SetupMaterials();
+            void LoadAndParseModels();
+            void SetupShaders();
+            void SetupPasses();
+            void SetupGlobalResources();
+            void SetupPipelineLayouts();
+            void SetupGlobalDescriptorSet();
+            void CreateDynamicTextures();
+            void DestroyDynamicTextures();
 
-            void GBufferPass();
-            void LightingPass();
-            void FinalPass();
+            void BeginPass(PassType pass);
+            void EndPass();
             void CaptureCubemap();
-            void DrawObjects();
+            void DrawObjects(Shader shader);
             void DrawSkybox();
-            void DrawFullscreenQuad(uint32 shader);
+            void DrawFullscreenQuad(uint32 shader, uint16 materialDescriptorSet);
             void BindShader(uint32 target);
 
         private:
@@ -226,16 +156,17 @@ namespace LinaGX
             uint32       m_indexBufferGPU     = 0;
             VertexBuffer m_vtxBuffer;
 
-            std::vector<WorldObject> m_worldObjects;
             std::vector<uint32>      m_samplers;
-            std::vector<Material>    m_materials;
             std::vector<uint16>      m_shaders;
+            std::vector<WorldObject> m_worldObjects;
+            std::vector<Material>    m_materials;
+            std::vector<Pass>        m_passes;
 
             uint32 m_skyboxIndexCount = 0;
-            uint16 m_pipelineLayout;
-            uint16 m_pipelineLayout2;
             Camera m_camera;
             int32  m_boundShader = -1;
+
+            std::vector<uint16> m_pipelineLayouts;
         };
 
     } // namespace Examples

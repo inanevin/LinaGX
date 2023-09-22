@@ -6,17 +6,6 @@ layout(location = 0) out vec4 FragColor;
 
 #define MAX_BONES 30
 
-layout(set = 0, binding = 0) uniform SceneData
-{
-	mat4 view;
-	mat4 projection;
-	vec4 skyColor1;
-	vec4 skyColor2;
-    vec4 camPos;
-	vec4 lightPosition;
-    vec4 lightColor;
-} sceneData;
-
 struct Object
 {
     mat4 modelMatrix;
@@ -26,42 +15,34 @@ struct Object
     int padding[15];
 };
 
+layout(set = 0, binding = 0) uniform SceneData
+{
+	vec4 skyColor1;
+	vec4 skyColor2;
+	vec4 lightPosition;
+    vec4 lightColor;
+} sceneData;
+
+
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {
     Object objects[];
 } objectData;
 
+layout (set = 0, binding = 2) uniform texture2D allTextures[];
+layout (set = 0, binding = 3) uniform sampler allSamplers[];
 
-layout (set = 1, binding = 0) uniform texture2D allTextures[];
-layout (set = 1, binding = 1) uniform sampler allSamplers[];
-
-struct Material
+layout (set = 1, binding = 0) uniform CameraData
 {
-	vec4 baseColorFac;
-    vec4 emissiveFac;
-    uint baseColor;
-    uint metallicRoughness;
-    uint emissive;
-    uint normal;
-    uint specialTexture;
-    float metallic;
-    float roughness;
-    float alphaCutoff;
-};
+    mat4 view;
+    mat4 projection;
+    vec4 camPos;
+    float padding[12];
+} cameraData;
 
-layout (set = 2, binding = 0) readonly buffer MaterialData
-{
-	Material materialData[];
-} materials;
-
-layout( push_constant ) uniform constants
-{
-	int textureID;
-    int samplerID;
-} Constants;
+layout (set = 2, binding = 0) uniform texture2D inputTextures[3];
 
 const float PI = 3.14159265359;
-
 
 // ----------------------------------------------------------------------------
 float DistributionGGX(vec3 N, vec3 H, float roughness)
@@ -110,15 +91,15 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 void main()
 {
 
-    vec4 albedoRoughness = texture(sampler2D(allTextures[Constants.textureID], allSamplers[Constants.samplerID]), uv);
-    vec4 normalMetallic = texture(sampler2D(allTextures[Constants.textureID + 1], allSamplers[Constants.samplerID]), uv);
-    vec4 positionAO = texture(sampler2D(allTextures[Constants.textureID + 2], allSamplers[Constants.samplerID]), uv);
+    vec4 albedoRoughness = texture(sampler2D(inputTextures[0], allSamplers[0]), uv);
+    vec4 normalMetallic = texture(sampler2D(inputTextures[1], allSamplers[0]), uv);
+    vec4 positionAO = texture(sampler2D(inputTextures[2], allSamplers[0]), uv);
 
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
     float roughness = albedoRoughness.a;
     vec3 N = normalMetallic.rgb;
-    vec3 camPos = vec3(sceneData.camPos.x, sceneData.camPos.y, sceneData.camPos.z);
+    vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - positionAO.rgb);
 
     vec3 F0 = vec3(0.04);

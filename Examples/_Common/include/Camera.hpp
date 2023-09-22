@@ -56,9 +56,9 @@ namespace LinaGX
                 return m_proj;
             }
 
-            inline const glm::vec3& GetPosition() const
+            inline glm::vec4 GetPosition() const
             {
-                return m_position;
+                return glm::vec4(m_position.x, m_position.y, m_position.z, 0.0f);
             }
 
         private:

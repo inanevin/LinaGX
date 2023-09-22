@@ -4,38 +4,47 @@
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 FragColor;
 
-layout (set = 1, binding = 0) uniform texture2D allTextures[];
-layout (set = 1, binding = 1) uniform sampler allSamplers[];
+#define MAX_BONES 30
 
-struct Material
+struct Object
 {
-	vec4 baseColorFac;
-    vec4 emissiveFac;
-    uint baseColor;
-    uint metallicRoughness;
-    uint emissive;
-    uint normal;
-    uint specialTexture;
-    float metallic;
-    float roughness;
-    float alphaCutoff;
+    mat4 modelMatrix;
+    mat4 bones[MAX_BONES];
+    mat4 normalMatrix;
+    int hasSkin;
+    int padding[15];
 };
 
-layout (set = 2, binding = 0) readonly buffer MaterialData
+layout(set = 0, binding = 0) uniform SceneData
 {
-	Material materialData[];
-} materials;
+	vec4 skyColor1;
+	vec4 skyColor2;
+	vec4 lightPosition;
+    vec4 lightColor;
+} sceneData;
 
-layout( push_constant ) uniform constants
+
+layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {
-	int textureID;
-    int samplerID;
-} Constants;
+    Object objects[];
+} objectData;
 
+layout (set = 0, binding = 2) uniform texture2D allTextures[];
+layout (set = 0, binding = 3) uniform sampler allSamplers[];
+
+layout (set = 1, binding = 0) uniform CameraData
+{
+    mat4 view;
+    mat4 projection;
+    vec4 camPos;
+    float padding[12];
+} cameraData;
+
+layout (set = 2, binding = 0) uniform texture2D inputTexture;
 
 void main()
 {
-    FragColor = texture(sampler2D(allTextures[Constants.textureID], allSamplers[Constants.samplerID]), uv);
+    FragColor = texture(sampler2D(inputTexture, allSamplers[0]), uv);
 }
 
 

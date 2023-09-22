@@ -564,18 +564,19 @@ namespace LinaGX
 
     struct TextureDesc
     {
-        TextureUsage       usage              = TextureUsage::ColorTexture;
-        TextureType        type               = TextureType::Texture2D;
-        bool               sampled            = true;
-        DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
-        float              depthClear         = 1.0f;
-        uint32             stencilClear       = 0;
-        uint32             width              = 0;
-        uint32             height             = 0;
-        uint32             mipLevels          = 1;
-        Format             format             = Format::R8G8B8A8_SRGB;
-        uint32             arrayLength        = 1;
-        const char*        debugName          = "LinaGXTexture";
+        TextureUsage       usage                     = TextureUsage::ColorTexture;
+        TextureType        type                      = TextureType::Texture2D;
+        bool               sampled                   = true;
+        bool               usedOutsideFragmentShader = false;
+        DepthStencilAspect depthStencilAspect        = DepthStencilAspect::DepthStencil;
+        float              depthClear                = 1.0f;
+        uint32             stencilClear              = 0;
+        uint32             width                     = 0;
+        uint32             height                    = 0;
+        uint32             mipLevels                 = 1;
+        Format             format                    = Format::R8G8B8A8_SRGB;
+        uint32             arrayLength               = 1;
+        const char*        debugName                 = "LinaGXTexture";
     };
 
     struct SamplerDesc
@@ -631,7 +632,7 @@ namespace LinaGX
 
     struct PipelineLayoutDesc
     {
-        LINAGX_VEC<uint16>                          descriptorSets;
+        LINAGX_VEC<DescriptorSetDesc>               descriptorSetDescriptions;
         LINAGX_VEC<PipelineLayoutPushConstantRange> constantRanges;
         bool                                        isCompute           = false;
         bool                                        indirectDrawEnabled = false;

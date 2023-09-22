@@ -23,6 +23,7 @@ if(WIN32)
 set(SOURCES 
 src/Main.cpp
 src/FoxLounge.cpp
+src/Utility.cpp
 )
 endif()
 
@@ -30,12 +31,14 @@ if(APPLE)
 set(SOURCES 
 src/Main.mm
 src/FoxLounge.cpp
+src/Utility.cpp
 )
 endif()
 
 set(HEADERS
 include/Main.hpp
 include/FoxLounge.hpp
+include/Utility.hpp
 Resources/Shaders/default_pbr_frag.glsl
 Resources/Shaders/default_pbr_vert.glsl
 Resources/Shaders/skybox_frag.glsl

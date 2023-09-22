@@ -113,6 +113,7 @@ NOTES TO DOCUMENT:
  - In Metal, you need to check Format support from Metal docs, along with CPU visible GPU memory considerations. (its gonna be 1 if device has unified memory, thats it).
  - Bindings need to be in order while creating descriptor sets.
  - Dynamic offsets need to adhere to buffer alignment requirements especially on DX12.
+ - If you are using automatic shader pipeline layouts, in vulkan unsized arrays will use max available descriptors per stage. So you can't have the same type of descriptor anywhere in your shader.
 
 UNSUPPORTED ON FIRST RELEASE:
 

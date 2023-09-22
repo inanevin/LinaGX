@@ -51,7 +51,7 @@ namespace LinaGX
         {
             LOGA((m_commandCount < m_maxCommands), "Command Stream -> Max command count (%d) is exceeded (%d)!", m_maxCommands, m_commandCount);
             const LINAGX_TYPEID tid      = LGX_GetTypeID<T>();
-            const size_t typeSize = sizeof(LINAGX_TYPEID);
+            const size_t        typeSize = sizeof(LINAGX_TYPEID);
 
             uint8* currentHead = m_commandBuffer + m_commandIndex;
 
@@ -114,10 +114,10 @@ namespace LinaGX
         void Reset();
 
     private:
-        uint8**   m_commands     = nullptr;
-        uint32    m_commandCount = 0;
-        uint32    m_gpuHandle    = 0;
-        Backend*  m_backend      = nullptr;
+        uint8**     m_commands     = nullptr;
+        uint32      m_commandCount = 0;
+        uint32      m_gpuHandle    = 0;
+        Backend*    m_backend      = nullptr;
         CommandType m_type         = CommandType::Graphics;
 
         uint8* m_commandBuffer     = nullptr;

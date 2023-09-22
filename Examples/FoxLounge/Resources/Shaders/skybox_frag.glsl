@@ -4,11 +4,8 @@ layout (location = 0) out vec4 outAlbedo;
 
 layout(set = 0, binding = 0) uniform SceneData
 {
-	mat4 view;
-	mat4 projection;
 	vec4 skyColor1;
 	vec4 skyColor2;
-    vec4 camPos;
 	vec4 lightPosition;
     vec4 lightColor;
 } sceneData;

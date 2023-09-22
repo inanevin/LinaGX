@@ -93,15 +93,15 @@ namespace LinaGX
 
     struct DX12Texture2D
     {
-        DescriptorHandle                       descriptor        = {};
-        DescriptorHandle                       descriptor2       = {};
-        Microsoft::WRL::ComPtr<ID3D12Resource> rawRes            = NULL;
-        uint64                                 requiredAlignment = 0;
-        D3D12MA::Allocation*                   allocation        = NULL;
-
-        TextureDesc desc               = {};
-        bool        isValid            = false;
-        bool        isSwapchainTexture = false;
+        DescriptorHandle                       descriptor         = {};
+        DescriptorHandle                       descriptor2        = {};
+        Microsoft::WRL::ComPtr<ID3D12Resource> rawRes             = NULL;
+        uint64                                 requiredAlignment  = 0;
+        D3D12MA::Allocation*                   allocation         = NULL;
+        D3D12_RESOURCE_STATES                  state              = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
+        TextureDesc                            desc               = {};
+        bool                                   isValid            = false;
+        bool                                   isSwapchainTexture = false;
     };
 
     struct DX12Sampler

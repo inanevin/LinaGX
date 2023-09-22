@@ -913,87 +913,24 @@ namespace LinaGX
 
         if (!shaderDesc.useCustomPipelineLayout)
         {
-            auto getPerStageMaxDescriptors = [this](DescriptorType type) {
-                switch (type)
-                {
-                case DescriptorType::UBO:
-                    return m_gpuProperties.limits.maxPerStageDescriptorSamplers;
-                case DescriptorType::SSBO:
-                    return m_gpuProperties.limits.maxPerStageDescriptorStorageBuffers;
-                case DescriptorType::CombinedImageSampler:
-                    return m_gpuProperties.limits.maxPerStageDescriptorSamplers;
-                case DescriptorType::SeparateSampler:
-                    return m_gpuProperties.limits.maxPerStageDescriptorSamplers;
-                case DescriptorType::SeparateImage:
-                    return m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
-                }
-            };
-
             shader.layouts.resize(shaderDesc.layout.descriptorSetLayouts.size());
 
             uint32 set = 0;
             for (const auto& descriptorSet : shaderDesc.layout.descriptorSetLayouts)
             {
-                LINAGX_VEC<VkDescriptorSetLayoutBinding> vkBindings;
-                vkBindings.reserve(descriptorSet.bindings.size());
+                DescriptorSetDesc copyDesc;
 
-                bool                                 containsBindless = false;
-                LINAGX_VEC<VkDescriptorBindingFlags> bindlessFlags;
-
-                for (const auto& binding : descriptorSet.bindings)
+                for (const auto& b : descriptorSet.bindings)
                 {
-                    VkDescriptorSetLayoutBinding vkBinding = VkDescriptorSetLayoutBinding{};
-                    vkBinding.binding                      = binding.binding;
-                    vkBinding.descriptorType               = GetVKDescriptorType(binding.type, false);
-                    vkBinding.descriptorCount              = binding.descriptorCount == 0 ? getPerStageMaxDescriptors(binding.type) : binding.descriptorCount;
-
-                    for (ShaderStage stg : binding.stages)
-                        vkBinding.stageFlags |= GetVKShaderStage(stg);
-
-                    vkBindings.push_back(vkBinding);
-
-                    if (vkBinding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE && vkBinding.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSampledImages)
-                    {
-                        containsBindless = true;
-                        bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                    }
-                    else if (vkBinding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER && vkBinding.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
-                    {
-                        containsBindless = true;
-                        bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                    }
-                    else if (vkBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && vkBinding.descriptorCount == m_gpuProperties.limits.maxPerStageDescriptorSamplers)
-                    {
-                        containsBindless = true;
-                        bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                    }
-                    else
-                        bindlessFlags.push_back(0);
+                    DescriptorBinding copyBinding;
+                    copyBinding.descriptorCount = b.descriptorCount;
+                    copyBinding.isWritable      = b.isWritable;
+                    copyBinding.stages          = b.stages;
+                    copyBinding.type            = b.type;
+                    copyBinding.unbounded       = b.descriptorCount == 0;
+                    copyDesc.bindings.push_back(copyBinding);
                 }
-
-                VkDescriptorSetLayoutCreateInfo setInfo = VkDescriptorSetLayoutCreateInfo{};
-                setInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                setInfo.flags                           = 0;
-                setInfo.bindingCount                    = static_cast<uint32>(vkBindings.size());
-                setInfo.pBindings                       = vkBindings.data();
-
-                VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extInfo;
-                extInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
-                extInfo.pBindingFlags = bindlessFlags.data();
-                extInfo.bindingCount  = setInfo.bindingCount;
-                extInfo.pNext         = nullptr;
-
-                if (containsBindless)
-                {
-                    setInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-                    setInfo.pNext = &extInfo;
-                    LOGA(m_initInfo.gpuFeatures.enableBindless, "Enable bindless feature in InitInfo to use bindless descriptors!");
-                }
-
-                VkDescriptorSetLayout layout = nullptr;
-                VkResult              res    = vkCreateDescriptorSetLayout(m_device, &setInfo, m_allocator, &layout);
-                VK_CHECK_RESULT(res, "Failed creating descriptor set layout.");
-
+                VkDescriptorSetLayout layout = CreateDescriptorSetLayout(copyDesc);
                 LOGA(set < static_cast<uint32>(shader.layouts.size()), "Set index is bigger than or equal to shader layouts size, are you sure you setup your sets correctly?");
                 shader.layouts[set] = layout;
                 set++;
@@ -1432,12 +1369,8 @@ namespace LinaGX
         m_resources.RemoveItem(handle);
     }
 
-    uint16 VKBackend::CreateDescriptorSet(const DescriptorSetDesc& desc)
+    VkDescriptorSetLayout VKBackend::CreateDescriptorSetLayout(const DescriptorSetDesc& desc)
     {
-        VKBDescriptorSet item = {};
-        item.isValid          = true;
-        item.bindings         = desc.bindings;
-
         LINAGX_VEC<VkDescriptorSetLayoutBinding> bindings;
         bool                                     containsBindlessTextures = false;
         LINAGX_VEC<VkDescriptorBindingFlags>     bindlessFlags;
@@ -1456,19 +1389,19 @@ namespace LinaGX
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
+                // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
             }
             else if (binding.type == DescriptorType::SeparateSampler && binding.unbounded)
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+                // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
             else if (binding.type == DescriptorType::CombinedImageSampler && binding.unbounded)
             {
                 containsBindlessTextures = true;
                 bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
-                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+                // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
             else
                 bindlessFlags.push_back(0);
@@ -1498,8 +1431,18 @@ namespace LinaGX
             LOGA(m_initInfo.gpuFeatures.enableBindless, "Enable bindless feature in InitInfo to use bindless descriptors!");
         }
 
-        VkResult res = vkCreateDescriptorSetLayout(m_device, &layoutInfo, m_allocator, &item.layout);
+        VkDescriptorSetLayout layout = nullptr;
+        VkResult              res    = vkCreateDescriptorSetLayout(m_device, &layoutInfo, m_allocator, &layout);
         VK_CHECK_RESULT(res, "Backend -> Could not create layout!");
+        return layout;
+    }
+
+    uint16 VKBackend::CreateDescriptorSet(const DescriptorSetDesc& desc)
+    {
+        VKBDescriptorSet item = {};
+        item.isValid          = true;
+        item.bindings         = desc.bindings;
+        item.layout           = CreateDescriptorSetLayout(desc);
 
         VkDescriptorSetAllocateInfo allocInfo = {};
         allocInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1508,7 +1451,7 @@ namespace LinaGX
         allocInfo.descriptorSetCount          = 1;
         allocInfo.pSetLayouts                 = &item.layout;
 
-        res = vkAllocateDescriptorSets(m_device, &allocInfo, &item.ptr);
+        VkResult res = vkAllocateDescriptorSets(m_device, &allocInfo, &item.ptr);
         VK_CHECK_RESULT(res, "Backend -> Could not allocate descriptor set, make sure you have set enough descriptor limits in LinaGX::InitInfo::GPULimits structure!");
         return m_descriptorSets.AddItem(item);
     }
@@ -1611,15 +1554,11 @@ namespace LinaGX
         VKBPipelineLayout item = {};
         item.isValid           = true;
 
-        LINAGX_VEC<VkDescriptorSetLayout> setLayouts;
-        LINAGX_VEC<VkPushConstantRange>   constants;
+        LINAGX_VEC<VkPushConstantRange> constants;
 
-        setLayouts.reserve(desc.descriptorSets.size());
-        for (auto set : desc.descriptorSets)
-        {
-            auto& dcSet = m_descriptorSets.GetItemR(set);
-            setLayouts.push_back(dcSet.layout);
-        }
+        item.setLayouts.reserve(desc.descriptorSetDescriptions.size());
+        for (const auto& setDesc : desc.descriptorSetDescriptions)
+            item.setLayouts.push_back(CreateDescriptorSetLayout(setDesc));
 
         uint32 offset = 0;
 
@@ -1640,8 +1579,8 @@ namespace LinaGX
         pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.pNext                      = nullptr;
         pipelineLayoutInfo.flags                      = 0;
-        pipelineLayoutInfo.setLayoutCount             = static_cast<uint32>(setLayouts.size());
-        pipelineLayoutInfo.pSetLayouts                = setLayouts.data();
+        pipelineLayoutInfo.setLayoutCount             = static_cast<uint32>(item.setLayouts.size());
+        pipelineLayoutInfo.pSetLayouts                = item.setLayouts.data();
         pipelineLayoutInfo.pushConstantRangeCount     = static_cast<uint32>(constants.size());
         pipelineLayoutInfo.pPushConstantRanges        = constants.data();
         VkResult res                                  = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, m_allocator, &item.ptr);
@@ -1657,6 +1596,9 @@ namespace LinaGX
             LOGE("Backend -> Pipeline Layout to be destroyed is not valid!");
             return;
         }
+
+        for (auto sl : lyt.setLayouts)
+            vkDestroyDescriptorSetLayout(m_device, sl, m_allocator);
 
         vkDestroyPipelineLayout(m_device, lyt.ptr, m_allocator);
 

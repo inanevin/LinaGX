@@ -849,6 +849,83 @@ namespace LinaGX
         return true;
     }
 
+    void ProcessDescriptorSetDesc(const DescriptorSetDesc& desc, uint32 setIndex, LINAGX_VEC<CD3DX12_ROOT_PARAMETER1>& rootParameters, LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1>& ranges, uint32& rangeCounter, LINAGX_VEC<DX12RootParamInfo>& rootParamInfos)
+    {
+        uint32 bindingIndex = 0;
+
+        for (const auto& binding : desc.bindings)
+        {
+            CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
+            CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
+            D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+            if (binding.stages.size() == 1)
+                visibility = GetDXVisibility(binding.stages[0]);
+
+            DX12RootParamInfo paramInfo = {};
+            paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
+            paramInfo.binding           = bindingIndex;
+            paramInfo.set               = setIndex;
+            paramInfo.elementSize       = binding.descriptorCount;
+            paramInfo.reflectionType    = binding.type;
+            paramInfo.isWritable        = binding.isWritable;
+            rootParamInfos.push_back(paramInfo);
+
+            auto flags = binding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+
+            if (binding.type == DescriptorType::UBO)
+            {
+                if (binding.descriptorCount > 1)
+                {
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, binding.descriptorCount, bindingIndex, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    rangeCounter++;
+                }
+                else
+                    param.InitAsConstantBufferView(bindingIndex, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+
+                rootParameters.push_back(param);
+            }
+            else if (binding.type == DescriptorType::CombinedImageSampler)
+            {
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
+                rootParameters.push_back(param);
+                rootParameters.push_back(param2);
+            }
+            else if (binding.type == DescriptorType::SeparateImage)
+            {
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
+                rootParameters.push_back(param);
+            }
+            else if (binding.type == DescriptorType::SeparateSampler)
+            {
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
+                rootParameters.push_back(param);
+            }
+            else
+            {
+                ranges[rangeCounter].Init(!binding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, bindingIndex, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                rangeCounter++;
+
+                rootParameters.push_back(param);
+            }
+
+            bindingIndex++;
+        }
+    }
     uint16 DX12Backend::CreateShader(const ShaderDesc& shaderDesc)
     {
         DX12Shader shader = {};
@@ -880,77 +957,23 @@ namespace LinaGX
             uint32 rangeCounter = 0;
 
             uint32 setIndex = 0;
-            for (const auto& descriptorSetLayout : shaderDesc.layout.descriptorSetLayouts)
+
+            for (const auto& descriptorSet : shaderDesc.layout.descriptorSetLayouts)
             {
-                for (const auto& binding : descriptorSetLayout.bindings)
+                DescriptorSetDesc copyDesc;
+
+                for (const auto& b : descriptorSet.bindings)
                 {
-                    CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
-                    CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
-                    D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-                    if (binding.stages.size() == 1)
-                        visibility = GetDXVisibility(binding.stages[0]);
-
-                    DX12RootParamInfo paramInfo = {};
-                    paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                    paramInfo.binding           = binding.binding;
-                    paramInfo.set               = setIndex;
-                    paramInfo.elementSize       = binding.descriptorCount;
-                    paramInfo.reflectionType    = binding.type;
-                    paramInfo.isWritable        = binding.isWritable;
-                    shader.layout.rootParams.push_back(paramInfo);
-
-                    if (binding.type == DescriptorType::UBO)
-                    {
-                        if (binding.descriptorCount > 1)
-                        {
-                            ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, binding.descriptorCount, binding.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                            param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                            rangeCounter++;
-                        }
-                        else
-                            param.InitAsConstantBufferView(binding.binding, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
-
-                        rootParameters.push_back(param);
-                    }
-                    else if (binding.type == DescriptorType::CombinedImageSampler)
-                    {
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        rootParameters.push_back(param);
-                        rootParameters.push_back(param2);
-                    }
-                    else if (binding.type == DescriptorType::SeparateImage)
-                    {
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        rootParameters.push_back(param);
-                    }
-                    else if (binding.type == DescriptorType::SeparateSampler)
-                    {
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.descriptorCount == 0 ? UINT_MAX : binding.descriptorCount, binding.binding, setIndex, binding.descriptorCount == 0 ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        rootParameters.push_back(param);
-                    }
-                    else
-                    {
-                        ranges[rangeCounter].Init(!binding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, binding.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-
-                        rootParameters.push_back(param);
-                    }
+                    DescriptorBinding copyBinding;
+                    copyBinding.descriptorCount = b.descriptorCount;
+                    copyBinding.isWritable      = b.isWritable;
+                    copyBinding.stages          = b.stages;
+                    copyBinding.type            = b.type;
+                    copyBinding.unbounded       = b.descriptorCount == 0;
+                    copyDesc.bindings.push_back(copyBinding);
                 }
 
+                ProcessDescriptorSetDesc(copyDesc, setIndex, rootParameters, ranges, rangeCounter, shader.layout.rootParams);
                 setIndex++;
             }
 
@@ -1266,12 +1289,21 @@ namespace LinaGX
         {
             resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
             state              = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            clear              = &colorClear;
+
+            if (txtDesc.usedOutsideFragmentShader)
+                state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+            clear = &colorClear;
         }
         else if (txtDesc.usage == TextureUsage::ColorTexture)
         {
             state = D3D12_RESOURCE_STATE_COMMON;
+
+            if (txtDesc.usedOutsideFragmentShader)
+                state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         }
+
+        item.state = state;
 
         try
         {
@@ -1633,6 +1665,7 @@ namespace LinaGX
             DX12DescriptorBinding dx12Binding = {};
             dx12Binding.lgxBinding            = binding;
             dx12Binding.binding               = i;
+            dx12Binding.stages                = binding.stages;
 
             if (binding.type == DescriptorType::CombinedImageSampler)
             {
@@ -1800,87 +1833,19 @@ namespace LinaGX
         LINAGX_VEC<CD3DX12_DESCRIPTOR_RANGE1> ranges;
 
         uint32 totalDescriptors = 0;
-        for (auto set : desc.descriptorSets)
+        for (const auto& setDesc : desc.descriptorSetDescriptions)
         {
-            const auto& dscSet = m_descriptorSets.GetItemR(set);
-
-            for (auto b : dscSet.bindings)
-                totalDescriptors += b.lgxBinding.unbounded ? 1 : b.lgxBinding.descriptorCount;
+            for (auto b : setDesc.bindings)
+                totalDescriptors += b.unbounded ? 1 : b.descriptorCount;
         }
 
         ranges.resize(totalDescriptors);
         uint32 rangeCounter = 0;
         uint32 setIndex     = 0;
 
-        for (auto set : desc.descriptorSets)
+        for (const auto& setDesc : desc.descriptorSetDescriptions)
         {
-            const auto& dscSet = m_descriptorSets.GetItemR(set);
-
-            for (auto b : dscSet.bindings)
-            {
-                CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
-                CD3DX12_ROOT_PARAMETER1 param2     = CD3DX12_ROOT_PARAMETER1{};
-                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-
-                if (b.stages.size() == 1)
-                    visibility = GetDXVisibility(b.stages[0]);
-
-                DX12RootParamInfo paramInfo = {};
-                paramInfo.rootParameter     = static_cast<uint32>(rootParameters.size());
-                paramInfo.binding           = b.binding;
-                paramInfo.set               = setIndex;
-                paramInfo.elementSize       = b.lgxBinding.descriptorCount;
-                paramInfo.reflectionType    = b.lgxBinding.type;
-
-                if (b.lgxBinding.type == DescriptorType::UBO)
-                {
-                    if (b.lgxBinding.descriptorCount > 1)
-                    {
-                        ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, b.lgxBinding.descriptorCount, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                        param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                        rangeCounter++;
-                    }
-                    else
-                        param.InitAsConstantBufferView(b.binding, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
-                }
-                else if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
-                {
-                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                    rangeCounter++;
-
-                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                    param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                    rangeCounter++;
-
-                    rootParameters.push_back(param);
-                    rootParameters.push_back(param2);
-                }
-                else if (b.lgxBinding.type == DescriptorType::SeparateImage)
-                {
-                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                    rangeCounter++;
-                }
-                else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
-                {
-
-                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, b.lgxBinding.unbounded ? UINT_MAX : b.lgxBinding.descriptorCount, b.binding, setIndex, b.lgxBinding.unbounded ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
-                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                    rangeCounter++;
-                }
-                else
-                {
-                    ranges[rangeCounter].Init(!b.lgxBinding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, b.binding, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-                    param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
-                    rangeCounter++;
-                }
-
-                item.rootParams.push_back(paramInfo);
-
-                rootParameters.push_back(param);
-            }
-
+            ProcessDescriptorSetDesc(setDesc, setIndex, rootParameters, ranges, rangeCounter, item.rootParams);
             setIndex++;
         }
 
@@ -1889,12 +1854,11 @@ namespace LinaGX
         {
             uint32 maxBinding = 0;
 
-            for (const auto& set : desc.descriptorSets)
+            for (const auto& setDesc : desc.descriptorSetDescriptions)
             {
-                const auto& dcSet = m_descriptorSets.GetItemR(set);
-                for (const auto& binding : dcSet.bindings)
+                for (const auto& binding : setDesc.bindings)
                 {
-                    if (binding.lgxBinding.type == DescriptorType::UBO)
+                    if (binding.type == DescriptorType::UBO)
                         maxBinding++;
                 }
 
@@ -1920,7 +1884,7 @@ namespace LinaGX
 
         if (!desc.constantRanges.empty())
         {
-            item.constantsSpace = static_cast<uint32>(desc.descriptorSets.size());
+            item.constantsSpace = static_cast<uint32>(desc.descriptorSetDescriptions.size());
             // item.constantsBinding = desc.descriptorSets.empty() ? 0 : static_cast<uint32>(m_descriptorSets.GetItemR(desc.descriptorSets.at(0)).bindings.size());
             item.constantsBinding = 0;
 
@@ -2700,8 +2664,8 @@ namespace LinaGX
             }
             else
             {
-                const auto& txt = m_textures.GetItemR(att.texture);
-                barriers[i]     = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                auto& txt   = m_textures.GetItemR(att.texture);
+                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), txt.state, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
                 CD3DX12_CLEAR_VALUE cv;
                 cv.Format   = GetDXFormat(txt.desc.format);
@@ -2765,7 +2729,7 @@ namespace LinaGX
             if (data.isSwapchain)
                 barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
             else
-                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, txt.state);
         }
 
         stream.list->ResourceBarrier(static_cast<uint32>(barriers.size()), barriers.data());
@@ -2893,10 +2857,12 @@ namespace LinaGX
         }
 
         stream.boundRootSignature = shader.layout.rootSig.Get();
+        stream.boundShader        = cmd->shader;
+
+        for (auto& set : stream.boundDescriptorSets)
+            set.second.isDirty = true;
 
         BindDescriptorSets(stream, shader);
-
-        stream.boundShader = cmd->shader;
     }
 
     void DX12Backend::CMD_DrawInstanced(uint8* data, DX12CommandStream& stream)
@@ -3021,34 +2987,6 @@ namespace LinaGX
     {
         CMDBindDescriptorSets* cmd = reinterpret_cast<CMDBindDescriptorSets*>(data);
 
-        ID3D12RootSignature* toBind = nullptr;
-
-        LINAGX_VEC<DX12RootParamInfo>* rootParams;
-        if (cmd->layoutSource == DescriptorSetsLayoutSource::LastBoundShader)
-            rootParams = &m_shaders.GetItemR(stream.boundShader).layout.rootParams;
-        else if (cmd->layoutSource == DescriptorSetsLayoutSource::CustomShader)
-        {
-            auto& sh   = m_shaders.GetItemR(cmd->customLayoutShader);
-            rootParams = &sh.layout.rootParams;
-            toBind     = sh.layout.rootSig.Get();
-        }
-        else
-        {
-            auto& pl   = m_pipelineLayouts.GetItemR(cmd->customLayout);
-            rootParams = &pl.rootParams;
-            toBind     = pl.rootSig.Get();
-        }
-
-        if (toBind != stream.boundRootSignature)
-        {
-            if (cmd->isCompute)
-                stream.list->SetComputeRootSignature(toBind);
-            else
-                stream.list->SetGraphicsRootSignature(toBind);
-
-            stream.boundRootSignature = toBind;
-        }
-
         uint32 dynamicOffsetCounter = 0;
 
         for (uint32 i = 0; i < cmd->setCount; i++)
@@ -3066,7 +3004,8 @@ namespace LinaGX
             stream.boundDescriptorSets[targetSetIndex] = data;
         }
 
-        BindDescriptorSets(stream, m_shaders.GetItemR(stream.boundShader));
+        if (stream.boundRootSignature != nullptr)
+            BindDescriptorSets(stream, m_shaders.GetItemR(stream.boundShader));
     }
 
     void DX12Backend::CMD_BindConstants(uint8* data, DX12CommandStream& stream)

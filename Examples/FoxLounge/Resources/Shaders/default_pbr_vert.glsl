@@ -13,17 +13,6 @@ layout(location = 2) out vec3 outNormal;
 #define MAX_BONES 30
 #define MAX_BONE_INFLUENCES 4
 
-layout(set = 0, binding = 0) uniform SceneData
-{
-	mat4 view;
-	mat4 projection;
-	vec4 skyColor1;
-	vec4 skyColor2;
-    vec4 camPos;
-	vec4 lightPosition;
-    vec4 lightColor;
-} sceneData;
-
 struct Object
 {
     mat4 modelMatrix;
@@ -33,15 +22,34 @@ struct Object
     int padding[15];
 };
 
+layout(set = 0, binding = 0) uniform SceneData
+{
+	vec4 skyColor1;
+	vec4 skyColor2;
+	vec4 lightPosition;
+    vec4 lightColor;
+} sceneData;
+
+
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {
     Object objects[];
 } objectData;
 
+layout (set = 0, binding = 2) uniform texture2D allTextures[];
+layout (set = 0, binding = 3) uniform sampler allSamplers[];
+
+layout (set = 1, binding = 0) uniform CameraData
+{
+    mat4 view;
+    mat4 projection;
+    vec4 camPos;
+} cameraData;
+
 layout( push_constant ) uniform constants
 {
 	int objectID;
-    int materialID;
+    int applyTerrainEffects;
 } Constants;
 
 void main() {
@@ -61,5 +69,5 @@ void main() {
     outWorldPos = vec3(object.modelMatrix * skinnedPosition);
     outUV = vec2(uv.x, uv.y);
     outNormal = mat3(object.normalMatrix) * normal;
-    gl_Position = sceneData.projection * sceneData.view *  vec4(outWorldPos, 1.0);
+    gl_Position = cameraData.projection * cameraData.view *  vec4(outWorldPos, 1.0);
 }

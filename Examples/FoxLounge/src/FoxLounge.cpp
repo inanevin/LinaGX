@@ -29,9 +29,7 @@ SOFTWARE.
 #include "App.hpp"
 #include "FoxLounge.hpp"
 #include "ThreadPool.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include "glm/gtc/quaternion.hpp"
+
 #include <iostream>
 #include <cstdarg>
 #include <filesystem>
@@ -45,101 +43,13 @@ namespace LinaGX::Examples
 #define MAX_LIGHTS  10
 #define MAX_MATS    10
 
-    /*
-        Normally you'd do this in an editor.
-        But hey this is a sample app :)
-        And we want to have custom shaders/materials controlled from code setup.
-        So we are not gonna be using GLTF texture mappings.
-    */
-    std::unordered_map<uint32, TextureMapping> g_materialTextureMapping =
-        {
-            {"Lantern"_hs, {
-                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/Image-2.png"},
-                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/Image-3.png"},
-                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/Image-1.png"},
-                               {LinaGX::GLTFTextureType::Emissive, "Resources/Textures/Image.png"},
-                           }},
-
-            {"Cat"_hs, {
-                           {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/concrete_cat_statue_diff_2k.jpg"},
-                           {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"},
-                           {LinaGX::GLTFTextureType::Normal, "Resources/Textures/concrete_cat_statue_nor_gl.png"},
-                       }},
-            {"Fox"_hs, {
-                           {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/rock_surface_diff_2k.png"},
-                           {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/rock_surface_rough_2k.png"},
-                           {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_surface_nor_gl_2k.png"},
-                       }},
-            {"RockBig"_hs, {
-                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/coast_rocks_05_diff_2k.jpg"},
-                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/coast_rocks_05_rough_png.png"},
-                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/coast_rocks_05_nor_gl_png.png"},
-                           }},
-            {"RockSmall"_hs, {
-                                 {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/rock_moss_set_01_diff_2k.jpg"},
-                                 {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/rock_moss_set_01_rough_2k.png"},
-                                 {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_moss_set_01_nor_gl.png"},
-                             }},
-            {"Terrain"_hs, {
-                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/park_dirt_diff_2k.png"},
-                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/park_dirt_rough_2k.png"},
-                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/park_dirt_nor_gl_2k.png"},
-                           }},
-            {"Tree"_hs, {
-                            {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/island_tree_02_diff_2k.jpg"},
-                            {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/island_tree_02_rough.png"},
-                            {LinaGX::GLTFTextureType::Normal, "Resources/Textures/island_tree_02_nor_gl.png"},
-                        }},
-
-    };
-
-    /*
-        Import normals and roughness maps as linear formats.
-    */
-    std::vector<uint32> g_linearTextures = {
-        "Resources/Textures/Image-3.png"_hs,
-        "Resources/Textures/Image-1.png"_hs,
-        "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"_hs,
-        "Resources/Textures/concrete_cat_statue_nor_gl.png"_hs,
-        "Resources/Textures/rock_surface_rough_2k.png"_hs,
-        "Resources/Textures/rock_surface_nor_dx_2k.png"_hs,
-        "Resources/Textures/coast_rocks_05_rough_png.png"_hs,
-        "Resources/Textures/coast_rocks_05_nor_gl_png.png"
-        "Resources/Textures/rock_moss_set_01_rough_2k.png"_hs,
-        "Resources/Textures/rock_moss_set_01_nor_gl.png"_hs,
-        "Resources/Textures/park_dirt_rough_2k.png"_hs,
-        "Resources/Textures/park_dirt_nor_gl_2k.png"_hs,
-        "Resources/Textures/island_tree_02_nor_gl.png"_hs,
-        "Resources/Textures/island_tree_02_rough.png"_hs,
-        "Resources/Textures/noiseTexture.png"_hs,
-    };
-    glm::mat4 TranslateRotateScale(const LGXVector3& pos, const LGXVector4& rot, const LGXVector3& scale)
-    {
-        glm::vec3 p     = glm::vec3(pos.x, pos.y, pos.z);
-        glm::vec3 s     = glm::vec3(scale.x, scale.y, scale.z);
-        glm::quat r     = glm::quat(rot.w, rot.x, rot.y, rot.z);
-        glm::mat4 model = glm::mat4(1.0f);
-        model           = glm::translate(model, p);
-        model *= glm::mat4_cast(r);
-        model = glm::scale(model, s);
-        return model;
-    }
-
-    glm::mat4 CalculateGlobalMatrix(LinaGX::ModelNode* node)
-    {
-        const glm::mat4 nodeLocal = node->localMatrix.empty() ? TranslateRotateScale(node->position, node->quatRot, node->scale) : glm::make_mat4(node->localMatrix.data());
-        if (node->parent != nullptr)
-            return CalculateGlobalMatrix(node->parent) * nodeLocal;
-        return nodeLocal;
-    }
-
     void Example::ConfigureInitializeLinaGX()
     {
         LinaGX::Config.logLevel      = LogLevel::Verbose;
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::DX12;
+        BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -181,9 +91,8 @@ namespace LinaGX::Examples
 
             m_lgx->RecreateSwapchain(resizeDesc);
 
-            DestroyRenderTargets();
-            SetupRenderTargets();
-            UpdateTextures();
+            DestroyDynamicTextures();
+            CreateDynamicTextures();
         });
 
         m_swapchain = m_lgx->CreateSwapchain({
@@ -199,35 +108,7 @@ namespace LinaGX::Examples
         });
     }
 
-    void Example::UpdateTextures()
-    {
-        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        {
-            auto& pfd = m_pfd[i];
-
-            LinaGX::DescriptorUpdateImageDesc imgUpdate = {
-                .setHandle = pfd.dscSet1,
-                .binding   = 0,
-            };
-
-            for (const auto& txt : m_textures)
-                imgUpdate.textures.push_back(txt.gpuHandle);
-
-            pfd.rtStartIndexGBuffer = static_cast<uint32>(imgUpdate.textures.size());
-            imgUpdate.textures.push_back(pfd.renderTargets[RTType::GBufAlbedoRoughness]);
-            imgUpdate.textures.push_back(pfd.renderTargets[RTType::GBufNormalMetallic]);
-            imgUpdate.textures.push_back(pfd.renderTargets[RTType::GBufPositionAO]);
-            imgUpdate.textures.push_back(pfd.renderTargets[RTType::WorldDepth]);
-            pfd.rtStartIndexLightingPass = static_cast<uint32>(imgUpdate.textures.size());
-            imgUpdate.textures.push_back(pfd.renderTargets[RTType::LightingPass]);
-            pfd.rtStartIndexReflections = static_cast<uint32>(imgUpdate.textures.size());
-            imgUpdate.textures.push_back(pfd.renderTargets[RTType::Reflections]);
-
-            m_lgx->DescriptorUpdateImage(imgUpdate);
-        }
-    }
-
-    void Example::SetupPerFrameResources()
+    void Example::SetupStreams()
     {
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
@@ -268,23 +149,69 @@ namespace LinaGX::Examples
             return -1;
         };
 
+        const auto& materialTextureMapping = Utility::GetMaterialTextureMapping();
+
         // Normally you'd do such a custom setup on an editor
         // but well this is an example app :).
         for (auto& mat : m_materials)
         {
             auto        sid     = LinaGX::LGX_ToSID(mat.name.c_str());
-            const auto& mapping = g_materialTextureMapping[sid];
+            const auto& mapping = materialTextureMapping.at(sid);
 
             for (const auto& [type, path] : mapping)
                 mat.textureIndices[type] = getTextureIndex(path);
 
             if (sid == "Terrain"_hs)
-            {
                 mat.gpuMat.specialTexture = getTextureIndex("Resources/Textures/noiseTexture.png");
-                mat.applyTerrainEffects   = true;
+
+            mat.gpuMat.baseColor         = mat.textureIndices.at(LinaGX::GLTFTextureType::BaseColor);
+            mat.gpuMat.normal            = mat.textureIndices.at(LinaGX::GLTFTextureType::Normal);
+            mat.gpuMat.metallicRoughness = mat.textureIndices.at(LinaGX::GLTFTextureType::MetallicRoughness);
+            auto it                      = mat.textureIndices.find(LinaGX::GLTFTextureType::Emissive);
+
+            if (it != mat.textureIndices.end())
+            {
+                mat.gpuMat.emissive    = it->second;
+                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 10.0f;
             }
             else
-                mat.shader = Shader::Default;
+                mat.gpuMat.emissive = 0;
+
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+
+                LinaGX::ResourceDesc matDataResource = {
+                    .size          = sizeof(GPUMaterialData),
+                    .typeHintFlags = LinaGX::TH_ConstantBuffer,
+                    .heapType      = LinaGX::ResourceHeap::StagingHeap,
+                    .debugName     = "Material Data Staging",
+                };
+
+                mat.stagingResources[i]   = m_lgx->CreateResource(matDataResource);
+                matDataResource.heapType  = LinaGX::ResourceHeap::GPUOnly;
+                matDataResource.debugName = "Material Data GPU";
+                mat.gpuResources[i]       = m_lgx->CreateResource(matDataResource);
+
+                uint8* mapping = nullptr;
+                m_lgx->MapResource(mat.stagingResources[i], mapping);
+                std::memcpy(mapping, &mat.gpuMat, sizeof(GPUMaterialData));
+                m_lgx->UnmapResource(mat.stagingResources[i]);
+
+                LinaGX::CMDCopyResource* copy = m_pfd[0].transferStream->AddCommand<LinaGX::CMDCopyResource>();
+                copy->extension               = nullptr;
+                copy->source                  = mat.stagingResources[i];
+                copy->destination             = mat.gpuResources[i];
+
+                mat.descriptorSets[i] = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionObjectMaterial());
+
+                LinaGX::DescriptorUpdateBufferDesc update = {
+                    .setHandle = mat.descriptorSets[i],
+                    .binding   = 0,
+                    .buffers   = {mat.gpuResources[i]},
+                };
+
+                m_lgx->DescriptorUpdateBuffer(update);
+            }
         }
     }
 
@@ -328,7 +255,7 @@ namespace LinaGX::Examples
                 m_worldObjects.push_back({});
                 auto& wo        = m_worldObjects.back();
                 wo.name         = node->name;
-                wo.globalMatrix = CalculateGlobalMatrix(node);
+                wo.globalMatrix = Utility::CalculateGlobalMatrix(node);
                 wo.isSkinned    = node->skin != nullptr;
                 wo.hasMesh      = node->mesh != nullptr;
                 wo.manualDraw   = manualDraw;
@@ -466,209 +393,148 @@ namespace LinaGX::Examples
         }
     }
 
-    uint16 Example::CreateShader(const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, bool useCustomLayout, uint16 customLayout, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer)
-    {
-        // Compile shaders.
-        const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString(vertex);
-        const std::string                         fragShader = LinaGX::ReadFileContentsAsString(fragment);
-        ShaderLayout                              outLayout  = {};
-        ShaderCompileData                         dataVertex = {vtxShader, "Resources/Shaders/Include"};
-        ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
-        std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
-        m_lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
-
-        // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
-        ColorBlendAttachment blendAtt = {
-            .blendEnabled        = false,
-            .srcColorBlendFactor = BlendFactor::SrcAlpha,
-            .dstColorBlendFactor = BlendFactor::OneMinusSrcAlpha,
-            .colorBlendOp        = BlendOp::Add,
-            .srcAlphaBlendFactor = BlendFactor::One,
-            .dstAlphaBlendFactor = BlendFactor::Zero,
-            .alphaBlendOp        = BlendOp::Add,
-        };
-
-        ShaderColorAttachment att = ShaderColorAttachment{
-            .format          = passFormat,
-            .blendAttachment = {},
-        };
-
-        std::vector<ShaderColorAttachment> colorAttachments;
-
-        colorAttachments.push_back(att);
-
-        if (gBuffer)
-        {
-            colorAttachments.push_back(att);
-            colorAttachments.push_back(att);
-        }
-
-        ShaderDepthStencilDesc depthStencilDesc = {
-            .depthStencilAttachmentFormat = Format::D32_SFLOAT,
-            .depthWrite                   = depthWrite,
-            .depthTest                    = true,
-            .depthCompare                 = depthCompare,
-            .stencilEnabled               = false,
-        };
-
-        // Create shader program with vertex & fragment stages.
-        ShaderDesc shaderDesc = {
-            .stages                  = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-            .colorAttachments        = colorAttachments,
-            .depthStencilDesc        = depthStencilDesc,
-            .layout                  = outLayout,
-            .polygonMode             = PolygonMode::Fill,
-            .cullMode                = cullMode,
-            .frontFace               = front,
-            .topology                = Topology::TriangleList,
-            .useCustomPipelineLayout = useCustomLayout,
-            .customPipelineLayout    = customLayout,
-        };
-        return m_lgx->CreateShader(shaderDesc);
-    }
-
-    void Example::GBufferPass()
-    {
-        auto& currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
-
-        const Viewport     viewport = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-        const ScissorsRect sc       = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
-
-        // Render pass begin
-        {
-            RenderPassColorAttachment albedoRoughness;
-            albedoRoughness.clearColor  = {0.1f, 0.1f, 0.1f, 1.0f};
-            albedoRoughness.texture     = currentFrame.renderTargets[RTType::GBufAlbedoRoughness];
-            albedoRoughness.isSwapchain = false;
-            albedoRoughness.loadOp      = LoadOp::Clear;
-            albedoRoughness.storeOp     = StoreOp::Store;
-
-            RenderPassColorAttachment normalMetallic = albedoRoughness;
-            normalMetallic.texture                   = currentFrame.renderTargets[RTType::GBufNormalMetallic];
-
-            RenderPassColorAttachment positionAO = albedoRoughness;
-            positionAO.texture                   = currentFrame.renderTargets[RTType::GBufPositionAO];
-
-            LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-
-            beginRenderPass->colorAttachmentCount                = 3;
-            beginRenderPass->colorAttachments                    = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(albedoRoughness, normalMetallic, positionAO);
-            beginRenderPass->viewport                            = viewport;
-            beginRenderPass->scissors                            = sc;
-            beginRenderPass->depthStencilAttachment.useDepth     = true;
-            beginRenderPass->depthStencilAttachment.depthLoadOp  = LoadOp::Clear;
-            beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
-            beginRenderPass->depthStencilAttachment.texture      = currentFrame.renderTargets[RTType::WorldDepth];
-            beginRenderPass->depthStencilAttachment.clearDepth   = 1.0f;
-            beginRenderPass->depthStencilAttachment.useStencil   = false;
-        }
-
-        // Objects
-        {
-            DrawObjects();
-        }
-
-        // End render pass
-        {
-            LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-        }
-    }
-
-    void Example::LightingPass()
-    {
-        auto&              currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
-        const Viewport     viewport     = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-        const ScissorsRect sc           = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
-
-        // Lighting Pass Begin
-        {
-            LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-            RenderPassColorAttachment   colorAttachment;
-            colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
-            colorAttachment.texture                          = currentFrame.renderTargets[RTType::LightingPass];
-            colorAttachment.isSwapchain                      = false;
-            colorAttachment.loadOp                           = LoadOp::Clear;
-            colorAttachment.storeOp                          = StoreOp::Store;
-            beginRenderPass->colorAttachmentCount            = 1;
-            beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-            beginRenderPass->viewport                        = viewport;
-            beginRenderPass->scissors                        = sc;
-            beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
-        }
-
-        // Constants.
-        {
-            GPUConstants constants = {};
-            constants.int1         = currentFrame.rtStartIndexGBuffer;
-            constants.int2         = 0;
-
-            LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-            ct->extension                = nullptr;
-            ct->offset                   = 0;
-            ct->size                     = sizeof(GPUConstants);
-            ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
-            ct->stagesSize               = 2;
-            ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
-        }
-
-        // Draw quad.
-        {
-            DrawFullscreenQuad(Shader::SCLightingPass);
-        }
-
-        // End quad pass.
-        {
-            LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-        }
-    }
-
-    void Example::FinalPass()
-    {
-        auto&              currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
-        const Viewport     viewport     = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-        const ScissorsRect sc           = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
-
-        // Screen Quad Pass Begin
-        {
-            LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-            RenderPassColorAttachment   colorAttachment;
-            colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
-            colorAttachment.texture                          = static_cast<uint32>(m_swapchain);
-            colorAttachment.isSwapchain                      = true;
-            colorAttachment.loadOp                           = LoadOp::Clear;
-            colorAttachment.storeOp                          = StoreOp::Store;
-            beginRenderPass->colorAttachmentCount            = 1;
-            beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-            beginRenderPass->viewport                        = viewport;
-            beginRenderPass->scissors                        = sc;
-            beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
-        }
-
-        // Constants.
-        {
-            GPUConstants constants = {};
-            constants.int1         = currentFrame.debugDisplayRT;
-            constants.int2         = 0;
-
-            LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-            ct->extension                = nullptr;
-            ct->offset                   = 0;
-            ct->size                     = sizeof(GPUConstants);
-            ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
-            ct->stagesSize               = 2;
-            ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
-        }
-
-        // Draw quad.
-        {
-            DrawFullscreenQuad(Shader::SCQuad);
-        }
-
-        // End quad pass.
-        {
-            LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-        }
-    }
+    //  void Example::GBufferPass()
+    //  {
+    //      //  auto& currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
+    //      //
+    //      //  const Viewport     viewport = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+    //      //  const ScissorsRect sc       = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
+    //      //
+    //      //  // Render pass begin
+    //      //  {
+    //      //      RenderPassColorAttachment albedoRoughness;
+    //      //      albedoRoughness.clearColor  = {0.1f, 0.1f, 0.1f, 1.0f};
+    //      //      albedoRoughness.texture     = currentFrame.renderTargets[RTType::GBufAlbedoRoughness];
+    //      //      albedoRoughness.isSwapchain = false;
+    //      //      albedoRoughness.loadOp      = LoadOp::Clear;
+    //      //      albedoRoughness.storeOp     = StoreOp::Store;
+    //      //
+    //      //      RenderPassColorAttachment normalMetallic = albedoRoughness;
+    //      //      normalMetallic.texture                   = currentFrame.renderTargets[RTType::GBufNormalMetallic];
+    //      //
+    //      //      RenderPassColorAttachment positionAO = albedoRoughness;
+    //      //      positionAO.texture                   = currentFrame.renderTargets[RTType::GBufPositionAO];
+    //      //
+    //      //      LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
+    //      //
+    //      //      beginRenderPass->colorAttachmentCount                = 3;
+    //      //      beginRenderPass->colorAttachments                    = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(albedoRoughness, normalMetallic, positionAO);
+    //      //      beginRenderPass->viewport                            = viewport;
+    //      //      beginRenderPass->scissors                            = sc;
+    //      //      beginRenderPass->depthStencilAttachment.useDepth     = true;
+    //      //      beginRenderPass->depthStencilAttachment.depthLoadOp  = LoadOp::Clear;
+    //      //      beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
+    //      //      beginRenderPass->depthStencilAttachment.texture      = currentFrame.renderTargets[RTType::WorldDepth];
+    //      //      beginRenderPass->depthStencilAttachment.clearDepth   = 1.0f;
+    //      //      beginRenderPass->depthStencilAttachment.useStencil   = false;
+    //      //  }
+    //      //
+    //      //  // Objects
+    //      //  {
+    //      //      DrawObjects();
+    //      //  }
+    //      //
+    //      //  // End render pass
+    //      //  {
+    //      //      LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
+    //      //  }
+    //  }
+    //
+    // void Example::LightingPass()
+    // {
+    //     // auto&              currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
+    //     // const Viewport     viewport     = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+    //     // const ScissorsRect sc           = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
+    //     //
+    //     // // Lighting Pass Begin
+    //     // {
+    //     //     LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
+    //     //     RenderPassColorAttachment   colorAttachment;
+    //     //     colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
+    //     //     colorAttachment.texture                          = currentFrame.renderTargets[RTType::LightingPass];
+    //     //     colorAttachment.isSwapchain                      = false;
+    //     //     colorAttachment.loadOp                           = LoadOp::Clear;
+    //     //     colorAttachment.storeOp                          = StoreOp::Store;
+    //     //     beginRenderPass->colorAttachmentCount            = 1;
+    //     //     beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+    //     //     beginRenderPass->viewport                        = viewport;
+    //     //     beginRenderPass->scissors                        = sc;
+    //     //     beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
+    //     // }
+    //     //
+    //     // // Constants.
+    //     // {
+    //     //     GPUConstants constants = {};
+    //     //     constants.int1         = currentFrame.rtStartIndexGBuffer;
+    //     //     constants.int2         = 0;
+    //     //
+    //     //     LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
+    //     //     ct->extension                = nullptr;
+    //     //     ct->offset                   = 0;
+    //     //     ct->size                     = sizeof(GPUConstants);
+    //     //     ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
+    //     //     ct->stagesSize               = 2;
+    //     //     ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
+    //     // }
+    //     //
+    //     // // Draw quad.
+    //     // {
+    //     //     DrawFullscreenQuad(Shader::SCLightingPass);
+    //     // }
+    //     //
+    //     // // End quad pass.
+    //     // {
+    //     //     LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
+    //     // }
+    // }
+    //
+    // void Example::FinalPass()
+    //{
+    //     auto&              currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
+    //     const Viewport     viewport     = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+    //     const ScissorsRect sc           = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
+    //
+    //     // Screen Quad Pass Begin
+    //     {
+    //         LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
+    //         RenderPassColorAttachment   colorAttachment;
+    //         colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
+    //         colorAttachment.texture                          = static_cast<uint32>(m_swapchain);
+    //         colorAttachment.isSwapchain                      = true;
+    //         colorAttachment.loadOp                           = LoadOp::Clear;
+    //         colorAttachment.storeOp                          = StoreOp::Store;
+    //         beginRenderPass->colorAttachmentCount            = 1;
+    //         beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+    //         beginRenderPass->viewport                        = viewport;
+    //         beginRenderPass->scissors                        = sc;
+    //         beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
+    //     }
+    //
+    //     // Constants.
+    //     {
+    //         // GPUConstants constants = {};
+    //         // constants.int1         = currentFrame.debugDisplayRT;
+    //         // constants.int2         = 0;
+    //         //
+    //         // LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
+    //         // ct->extension                = nullptr;
+    //         // ct->offset                   = 0;
+    //         // ct->size                     = sizeof(GPUConstants);
+    //         // ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
+    //         // ct->stagesSize               = 2;
+    //         // ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
+    //     }
+    //
+    //     // Draw quad.
+    //     {
+    //         DrawFullscreenQuad(Shader::SCQuad);
+    //     }
+    //
+    //     // End quad pass.
+    //     {
+    //         LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
+    //     }
+    // }
 
     void Example::SetupTextures()
     {
@@ -707,9 +573,10 @@ namespace LinaGX::Examples
 
         // Create gpu handles & record transfer commands.
         {
+            const auto& linearTextures = Utility::GetLinearTextures();
 
-            auto isLinear = [](const char* path) -> bool {
-                for (auto& linear : g_linearTextures)
+            auto isLinear = [&](const char* path) -> bool {
+                for (auto& linear : linearTextures)
                 {
                     auto sid = LinaGX::LGX_ToSID(path);
 
@@ -719,6 +586,7 @@ namespace LinaGX::Examples
 
                 return false;
             };
+
             auto& pfd = m_pfd[0];
             for (auto& txt : m_textures)
             {
@@ -761,88 +629,152 @@ namespace LinaGX::Examples
         };
 
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
-    } // namespace LinaGX::Examples
+    }
 
-    void Example::SetupRenderTargets()
+    void Example::SetupGlobalDescriptorSet()
     {
-        LinaGX::TextureDesc desc = {
-            .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .sampled = true,
-            .width   = m_window->GetSize().x,
-            .height  = m_window->GetSize().y,
-            .format  = LinaGX::Format::R32G32B32A32_SFLOAT,
-        };
-
-        LinaGX::TextureDesc descDepth = {
-            .usage              = LinaGX::TextureUsage::DepthStencilTexture,
-            .sampled            = true,
-            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
-            .width              = m_window->GetSize().x,
-            .height             = m_window->GetSize().y,
-            .format             = LinaGX::Format::D32_SFLOAT,
-            .debugName          = "RT Depth Texture",
-        };
-
-        LinaGX::TextureDesc reflectionsCube = {
-            .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .type        = LinaGX::TextureType::TextureCube,
-            .sampled     = true,
-            .width       = m_window->GetSize().x,
-            .height      = m_window->GetSize().y,
-            .format      = LinaGX::Format::R32G32B32A32_SFLOAT,
-            .arrayLength = 6,
-        };
-
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             auto& pfd = m_pfd[i];
-            pfd.renderTargets.clear();
-            pfd.renderTargets.resize(RTType::RT_Max);
-            desc.debugName                                 = "GBuffer AlbedoRoughness";
-            pfd.renderTargets[RTType::GBufAlbedoRoughness] = m_lgx->CreateTexture(desc);
-            desc.debugName                                 = "GBuffer NormalMetallic";
-            pfd.renderTargets[RTType::GBufNormalMetallic]  = m_lgx->CreateTexture(desc);
-            desc.debugName                                 = "GBuffer PositionAO";
-            pfd.renderTargets[RTType::GBufPositionAO]      = m_lgx->CreateTexture(desc);
-            desc.debugName                                 = "RT Lighting Pass";
-            pfd.renderTargets[RTType::LightingPass]        = m_lgx->CreateTexture(desc);
-            pfd.renderTargets[RTType::WorldDepth]          = m_lgx->CreateTexture(descDepth);
-            pfd.renderTargets[RTType::Reflections]         = m_lgx->CreateTexture(reflectionsCube);
-        }
-    }
 
-    void Example::DestroyRenderTargets()
-    {
-        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        {
-            const auto& pfd = m_pfd[i];
-            for (auto rt : pfd.renderTargets)
-                m_lgx->DestroyTexture(rt);
-        }
-    }
-
-    void Example::SetupDescriptorSets()
-    {
-        std::vector<GPUMaterialData> materialData;
-
-        for (auto& mat : m_materials)
-        {
-            mat.gpuMat.baseColor         = mat.textureIndices.at(LinaGX::GLTFTextureType::BaseColor);
-            mat.gpuMat.normal            = mat.textureIndices.at(LinaGX::GLTFTextureType::Normal);
-            mat.gpuMat.metallicRoughness = mat.textureIndices.at(LinaGX::GLTFTextureType::MetallicRoughness);
-            auto it                      = mat.textureIndices.find(LinaGX::GLTFTextureType::Emissive);
-
-            if (it != mat.textureIndices.end())
+            // Descriptor Set 0 - Globals
             {
-                mat.gpuMat.emissive    = it->second;
-                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 10.0f;
-            }
-            else
-                mat.gpuMat.emissive = 0;
+                pfd.globalSet = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionGlobal());
 
-            materialData.push_back(mat.gpuMat);
+                LinaGX::DescriptorUpdateBufferDesc update = {
+                    .setHandle = pfd.globalSet,
+                    .binding   = 0,
+                    .buffers   = {pfd.rscSceneData},
+                };
+
+                m_lgx->DescriptorUpdateBuffer(update);
+
+                LinaGX::DescriptorUpdateBufferDesc update2 = {
+                    .setHandle = pfd.globalSet,
+                    .binding   = 1,
+                    .buffers   = {pfd.rscObjDataGPU},
+                };
+
+                m_lgx->DescriptorUpdateBuffer(update2);
+
+                LinaGX::DescriptorUpdateImageDesc imgUpdate = {
+                    .setHandle = pfd.globalSet,
+                    .binding   = 2,
+                };
+
+                for (const auto& txt : m_textures)
+                    imgUpdate.textures.push_back(txt.gpuHandle);
+
+                m_lgx->DescriptorUpdateImage(imgUpdate);
+
+                LinaGX::DescriptorUpdateImageDesc smpUpdate = {
+                    .setHandle = pfd.globalSet,
+                    .binding   = 3,
+                    .samplers  = m_samplers,
+                };
+
+                m_lgx->DescriptorUpdateImage(smpUpdate);
+            }
+
+            // Descriptor Set 1 - Camera Data.
+            {
+                pfd.cameraSet0 = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionCameraData());
+
+                LinaGX::DescriptorUpdateBufferDesc update = {
+                    .setHandle = pfd.cameraSet0,
+                    .binding   = 0,
+                    .buffers   = {pfd.rscCameraData0},
+                };
+
+                m_lgx->DescriptorUpdateBuffer(update);
+            }
+
+            // Lighting pass set.
+            {
+                pfd.lightingPassMaterialSet  = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionLightingPass());
+                pfd.finalQuadPassMaterialSet = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionQuadPass());
+            }
+        }
+    }
+
+    void Example::SetupPipelineLayouts()
+    {
+        m_pipelineLayouts.resize(PipelineLayoutType::PL_Max);
+
+        LinaGX::PipelineLayoutDesc pipelineLayoutSetGlobal = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal()},
+            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
+        };
+
+        m_pipelineLayouts[PipelineLayoutType::PL_GlobalSet] = m_lgx->CreatePipelineLayout(pipelineLayoutSetGlobal);
+
+        LinaGX::PipelineLayoutDesc pipelineLayoutGlobalCam = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData()},
+            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
+        };
+        m_pipelineLayouts[PipelineLayoutType::PL_GlobalAndCameraSet] = m_lgx->CreatePipelineLayout(pipelineLayoutGlobalCam);
+
+        LinaGX::PipelineLayoutDesc pipelineLayoutDefaultObjects = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionObjectMaterial()},
+            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
+        };
+        m_pipelineLayouts[PipelineLayoutType::PL_DefaultObjects] = m_lgx->CreatePipelineLayout(pipelineLayoutDefaultObjects);
+
+        LinaGX::PipelineLayoutDesc pipelineLayoutLightingPass = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionLightingPass()},
+            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
+        };
+        m_pipelineLayouts[PipelineLayoutType::PL_LightingPass] = m_lgx->CreatePipelineLayout(pipelineLayoutLightingPass);
+
+        LinaGX::PipelineLayoutDesc pipelineLayoutFinalQuadPass = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionQuadPass()},
+            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
+        };
+        m_pipelineLayouts[PipelineLayoutType::PL_FinalQuadPass] = m_lgx->CreatePipelineLayout(pipelineLayoutFinalQuadPass);
+    }
+
+    void Example::SetupShaders()
+    {
+        m_shaders.resize(Shader::SH_Max);
+
+        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects]);
+        m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass]);
+        m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass]);
+        // m_shaders[Shader::Skybox]         = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false, m_pipelineLayout);
+    }
+
+    void Example::SetupPasses()
+    {
+        m_passes.resize(PassType::PS_Max, {});
+
+        for (auto& pass : m_passes)
+        {
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                // LinaGX::ResourceDesc resource = {
+                //     .size          = sizeof(GPUMaterialData) * MAX_MATS,
+                //     .typeHintFlags = LinaGX::TH_StorageBuffer,
+                //     .heapType      = LinaGX::ResourceHeap::StagingHeap,
+                //     .debugName     = "Pass Data GPU",
+                // };
+            }
         }
 
+        // m_passes[PassType::ObjectsDefault].pipelineLayout = m_pipelineLayouts[PipelineLayoutType::DefaultObjects];
+
+        // pass.descriptorSets[i] = m_lgx->CreateDescriptorSet(Utility::GetPassSetDescription());
+
+        // LinaGX::DescriptorUpdateBufferDesc update = {
+        //     .setHandle = pass.descriptorSets[i],
+        //     .binding   = 0,
+        //     .buffers   = {pass.resources[i]},
+        // };
+
+        // m_lgx->DescriptorUpdateBuffer(update);
+    }
+
+    void Example::SetupGlobalResources()
+    {
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             auto& pfd = m_pfd[i];
@@ -870,139 +802,175 @@ namespace LinaGX::Examples
             pfd.rscObjDataGPU         = m_lgx->CreateResource(objDataResource);
             m_lgx->MapResource(pfd.rscObjDataCPU, pfd.rscObjDataCPUMapping);
 
-            LinaGX::ResourceDesc matDataResource = {
-                .size          = sizeof(GPUMaterialData) * MAX_MATS,
-                .typeHintFlags = LinaGX::TH_StorageBuffer,
+            LinaGX::ResourceDesc cameraDataResource = {
+                .size          = sizeof(GPUCameraData),
+                .typeHintFlags = LinaGX::TH_ConstantBuffer,
                 .heapType      = LinaGX::ResourceHeap::StagingHeap,
-                .debugName     = "Material Data Buffer CPU",
+                .debugName     = "Camera Data 1",
             };
 
-            pfd.rscMatDataCPU         = m_lgx->CreateResource(matDataResource);
-            matDataResource.heapType  = LinaGX::ResourceHeap::GPUOnly;
-            matDataResource.debugName = "Material Data Buffer GPU";
-            pfd.rscMatDataGPU         = m_lgx->CreateResource(matDataResource);
-            m_lgx->MapResource(pfd.rscMatDataCPU, pfd.rscMatDataCPUMapping);
-            std::memcpy(pfd.rscMatDataCPUMapping, materialData.data(), sizeof(GPUMaterialData) * materialData.size());
-            m_lgx->UnmapResource(pfd.rscMatDataCPU);
-
-            // Descriptor Set 0 - Globals
-            {
-                LinaGX::DescriptorBinding binding0 = {
-                    .descriptorCount = 1,
-                    .type            = LinaGX::DescriptorType::UBO,
-                    .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
-                };
-
-                LinaGX::DescriptorBinding binding1 = {
-                    .descriptorCount = 1,
-                    .type            = LinaGX::DescriptorType::SSBO,
-                    .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
-                };
-
-                LinaGX::DescriptorSetDesc desc = {
-                    .bindings = {binding0, binding1},
-                };
-
-                pfd.dscSet0 = m_lgx->CreateDescriptorSet(desc);
-
-                LinaGX::DescriptorUpdateBufferDesc update = {
-                    .setHandle = pfd.dscSet0,
-                    .binding   = 0,
-                    .buffers   = {pfd.rscSceneData},
-                };
-
-                m_lgx->DescriptorUpdateBuffer(update);
-
-                LinaGX::DescriptorUpdateBufferDesc updateObj = {
-                    .setHandle = pfd.dscSet0,
-                    .binding   = 1,
-                    .buffers   = {pfd.rscObjDataGPU},
-                };
-
-                m_lgx->DescriptorUpdateBuffer(updateObj);
-            }
-
-            // Descriptor Set 1 - Unbounded resources
-            {
-                LinaGX::DescriptorBinding binding0 = {
-                    .descriptorCount = 200, // max amt.
-                    .type            = LinaGX::DescriptorType::SeparateImage,
-                    .unbounded       = true,
-                    .stages          = {LinaGX::ShaderStage::Fragment},
-                };
-
-                LinaGX::DescriptorBinding binding1 = {
-                    .descriptorCount = 64, // max amt.
-                    .type            = LinaGX::DescriptorType::SeparateSampler,
-                    .unbounded       = true,
-                    .stages          = {LinaGX::ShaderStage::Fragment},
-                };
-
-                LinaGX::DescriptorSetDesc desc = {
-                    .bindings = {binding0, binding1},
-                };
-
-                pfd.dscSet1 = m_lgx->CreateDescriptorSet(desc);
-
-                LinaGX::DescriptorUpdateImageDesc smpUpdate = {
-                    .setHandle = pfd.dscSet1,
-                    .binding   = 1,
-                    .samplers  = m_samplers,
-                };
-
-                m_lgx->DescriptorUpdateImage(smpUpdate);
-            }
-
-            // Descriptor Set 2 - Material data
-            {
-                LinaGX::DescriptorBinding binding0 = {
-                    .descriptorCount = 1,
-                    .type            = LinaGX::DescriptorType::SSBO,
-                    .stages          = {LinaGX::ShaderStage::Fragment},
-                };
-
-                LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
-
-                pfd.dscSet2 = m_lgx->CreateDescriptorSet(desc);
-
-                LinaGX::DescriptorUpdateBufferDesc update = {
-                    .setHandle = pfd.dscSet2,
-                    .binding   = 0,
-                    .buffers   = {pfd.rscMatDataGPU},
-                };
-
-                m_lgx->DescriptorUpdateBuffer(update);
-            }
+            pfd.rscCameraData0 = m_lgx->CreateResource(cameraDataResource);
+            m_lgx->MapResource(pfd.rscCameraData0, pfd.rscCameraDataMapping0);
         }
+    }
+
+    void Example::CreateDynamicTextures()
+    {
+        LinaGX::TextureDesc defaultRTDesc = {
+            .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
+            .sampled = true,
+            .width   = m_window->GetSize().x,
+            .height  = m_window->GetSize().y,
+            .format  = LinaGX::Format::R32G32B32A32_SFLOAT,
+        };
+
+        LinaGX::TextureDesc descDepth = {
+            .usage              = LinaGX::TextureUsage::DepthStencilTexture,
+            .sampled            = true,
+            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
+            .width              = m_window->GetSize().x,
+            .height             = m_window->GetSize().y,
+            .format             = LinaGX::Format::D32_SFLOAT,
+            .debugName          = "RT Depth Texture",
+        };
+
+        LinaGX::TextureDesc reflectionsCube = {
+            .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
+            .type        = LinaGX::TextureType::TextureCube,
+            .sampled     = true,
+            .width       = m_window->GetSize().x,
+            .height      = m_window->GetSize().y,
+            .format      = LinaGX::Format::R32G32B32A32_SFLOAT,
+            .arrayLength = 6,
+        };
+
+        LinaGX::RenderPassColorAttachment colorAttachment;
+        colorAttachment.clearColor = {0.3f, 0.1f, 0.1f, 1.0f};
+        colorAttachment.loadOp     = LinaGX::LoadOp::Clear;
+        colorAttachment.storeOp    = LinaGX::StoreOp::Store;
+
+        LinaGX::RenderPassDepthStencilAttachment depthStencilAttachment;
+        depthStencilAttachment.depthLoadOp  = LinaGX::LoadOp::Clear;
+        depthStencilAttachment.depthStoreOp = LinaGX::StoreOp::Store;
+        depthStencilAttachment.clearDepth   = 1.0f;
+        depthStencilAttachment.useStencil   = false;
+
+        LinaGX::DescriptorUpdateImageDesc updateImage = {};
+        updateImage.binding                           = 1;
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
-            LinaGX::CMDCopyResource* copy = m_pfd[0].transferStream->AddCommand<LinaGX::CMDCopyResource>();
-            copy->extension               = nullptr;
-            copy->source                  = m_pfd[i].rscMatDataCPU;
-            copy->destination             = m_pfd[i].rscMatDataGPU;
+            auto& objsDefault = m_passes[PassType::PS_ObjectsDefault];
+            objsDefault.renderTargets[i].colorAttachments.clear();
+
+            // GBuf Albedo Roughness
+            defaultRTDesc.debugName     = "GBuf Albedo Roughness";
+            colorAttachment.isSwapchain = false;
+            colorAttachment.texture     = m_lgx->CreateTexture(defaultRTDesc);
+            objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
+
+            // GBuf NormalMetallic
+            defaultRTDesc.debugName = "GBuf Normal Metallic";
+            colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
+            objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
+
+            // GBuf PositionAO
+            defaultRTDesc.debugName = "GBuf PositionAO";
+            colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
+            objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
+
+            // GBuf depth stencil.
+            defaultRTDesc.debugName                             = "Depth";
+            depthStencilAttachment.useDepth                     = true;
+            depthStencilAttachment.texture                      = m_lgx->CreateTexture(descDepth);
+            objsDefault.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
+
+            // Lighting pass descriptor set will use above 3 images.
+            LinaGX::DescriptorUpdateImageDesc imgUpdateLightingPass = {
+                .setHandle = m_pfd[i].lightingPassMaterialSet,
+                .binding   = 0,
+                .textures  = {objsDefault.renderTargets[i].colorAttachments[0].texture, objsDefault.renderTargets[i].colorAttachments[1].texture, objsDefault.renderTargets[i].colorAttachments[2].texture},
+            };
+
+            m_lgx->DescriptorUpdateImage(imgUpdateLightingPass);
+
+            auto& lightingDefault = m_passes[PassType::PS_Lighting];
+            lightingDefault.renderTargets[i].colorAttachments.clear();
+
+            defaultRTDesc.debugName     = "Lighting Pass Output";
+            colorAttachment.isSwapchain = false;
+            colorAttachment.texture     = m_lgx->CreateTexture(defaultRTDesc);
+            lightingDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
+
+            depthStencilAttachment.useDepth                         = false;
+            lightingDefault.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
+
+            auto& finalQuad = m_passes[PassType::PS_FinalQuad];
+            finalQuad.renderTargets[i].colorAttachments.clear();
+
+            colorAttachment.isSwapchain = true;
+            colorAttachment.texture     = static_cast<uint32>(m_swapchain);
+            finalQuad.renderTargets[i].colorAttachments.push_back(colorAttachment);
+
+            depthStencilAttachment.useDepth                   = false;
+            finalQuad.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
+
+            LinaGX::DescriptorUpdateImageDesc imgUpdateFinalQuadPass = {
+                .setHandle = m_pfd[i].finalQuadPassMaterialSet,
+                .binding   = 0,
+                .textures  = {lightingDefault.renderTargets[i].colorAttachments[0].texture},
+            };
+
+            m_lgx->DescriptorUpdateImage(imgUpdateFinalQuadPass);
         }
-
-        PipelineLayoutDesc desc = {
-            .descriptorSets = {m_pfd[0].dscSet0, m_pfd[0].dscSet1, m_pfd[0].dscSet2},
-            .constantRanges = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
-        };
-
-        m_pipelineLayout = m_lgx->CreatePipelineLayout(desc);
-
-        UpdateTextures();
-
-        m_pfd[0].debugDisplayRT = m_pfd[0].rtStartIndexLightingPass;
-        m_pfd[1].debugDisplayRT = m_pfd[1].rtStartIndexLightingPass;
     }
 
-    void Example::SetupShaders()
+    void Example::DestroyDynamicTextures()
     {
-        m_shaders.resize(Shader::SH_Max);
-        m_shaders[Shader::Skybox]         = CreateShader("Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, true, m_pipelineLayout, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false);
-        m_shaders[Shader::SCQuad]         = CreateShader("Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, true, m_pipelineLayout, CompareOp::Less, LinaGX::FrontFace::CCW, false, false);
-        m_shaders[Shader::SCLightingPass] = CreateShader("Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R32G32B32A32_SFLOAT, true, m_pipelineLayout, CompareOp::Less, LinaGX::FrontFace::CCW, false, false);
-        m_shaders[Shader::Default]        = CreateShader("Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, true, m_pipelineLayout, CompareOp::Less, LinaGX::FrontFace::CCW, true, true);
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        {
+            for (auto& pass : m_passes)
+            {
+                const auto& rt = pass.renderTargets[i];
+
+                for (auto& att : rt.colorAttachments)
+                {
+                    if (!att.isSwapchain)
+                        m_lgx->DestroyTexture(att.texture);
+                }
+
+                if (rt.depthStencilAttachment.useDepth)
+                    m_lgx->DestroyTexture(rt.depthStencilAttachment.texture);
+            }
+        }
+    }
+
+    void Example::BeginPass(PassType pass)
+    {
+        const uint32       currentFrameIndex = m_lgx->GetCurrentFrameIndex();
+        const auto&        currentFrame      = m_pfd[currentFrameIndex];
+        const Viewport     viewport          = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+        const ScissorsRect sc                = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
+        auto&              passData          = m_passes[pass];
+
+        // Pass Begin
+        {
+            auto& rt = passData.renderTargets[currentFrameIndex];
+
+            LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
+            beginRenderPass->extension                  = nullptr;
+            beginRenderPass->colorAttachmentCount       = static_cast<uint32>(rt.colorAttachments.size());
+            beginRenderPass->colorAttachments           = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::RenderPassColorAttachment>(rt.colorAttachments.data(), sizeof(LinaGX::RenderPassColorAttachment) * rt.colorAttachments.size());
+            beginRenderPass->depthStencilAttachment     = rt.depthStencilAttachment;
+            beginRenderPass->viewport                   = viewport;
+            beginRenderPass->scissors                   = sc;
+        }
+    }
+
+    void Example::EndPass()
+    {
+        auto&                     currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
+        LinaGX::CMDEndRenderPass* end          = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
     }
 
     void Example::Initialize()
@@ -1020,14 +988,17 @@ namespace LinaGX::Examples
 
         // Resource init.
         {
-            SetupPerFrameResources();
+            SetupStreams();
             LoadAndParseModels();
             SetupTextures();
             SetupMaterials();
             SetupSamplers();
-            SetupRenderTargets();
-            SetupDescriptorSets();
+            SetupGlobalResources();
+            SetupGlobalDescriptorSet();
+            SetupPipelineLayouts();
             SetupShaders();
+            SetupPasses();
+            CreateDynamicTextures();
         }
 
         // Above operations will record bunch of transfer commands.
@@ -1049,15 +1020,17 @@ namespace LinaGX::Examples
                     LinaGX::FreeImage(level.pixels);
             }
 
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                for (auto& mat : m_materials)
+                {
+                    m_lgx->DestroyResource(mat.stagingResources[i]);
+                }
+            }
+
             // Also these are safe to release.
             m_lgx->DestroyResource(m_indexBufferStaging);
             m_lgx->DestroyResource(m_vtxBuffer.staging);
-
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-            {
-                auto& pfd = m_pfd[i];
-                m_lgx->DestroyResource(pfd.rscMatDataCPU);
-            }
         }
 
         m_camera.Initialize(m_lgx);
@@ -1076,7 +1049,6 @@ namespace LinaGX::Examples
         m_lgx->DestroySwapchain(m_swapchain);
         m_lgx->DestroyResource(m_indexBufferGPU);
         m_lgx->DestroyResource(m_vtxBuffer.gpu);
-        m_lgx->DestroyPipelineLayout(m_pipelineLayout);
 
         for (auto smp : m_samplers)
             m_lgx->DestroySampler(smp);
@@ -1084,7 +1056,10 @@ namespace LinaGX::Examples
         for (const auto& t2d : m_textures)
             m_lgx->DestroyTexture(t2d.gpuHandle);
 
-        DestroyRenderTargets();
+        DestroyDynamicTextures();
+
+        for (auto lyt : m_pipelineLayouts)
+            m_lgx->DestroyPipelineLayout(lyt);
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
@@ -1093,12 +1068,23 @@ namespace LinaGX::Examples
             m_lgx->DestroyCommandStream(pfd.transferStream);
             m_lgx->DestroyUserSemaphore(pfd.transferSemaphore);
             m_lgx->DestroyResource(pfd.rscSceneData);
-            m_lgx->DestroyDescriptorSet(pfd.dscSet0);
-            m_lgx->DestroyDescriptorSet(pfd.dscSet1);
-            m_lgx->DestroyDescriptorSet(pfd.dscSet2);
+            m_lgx->DestroyDescriptorSet(pfd.globalSet);
+            m_lgx->DestroyDescriptorSet(pfd.cameraSet0);
+            m_lgx->DestroyDescriptorSet(pfd.lightingPassMaterialSet);
+            m_lgx->DestroyDescriptorSet(pfd.finalQuadPassMaterialSet);
             m_lgx->DestroyResource(pfd.rscObjDataCPU);
             m_lgx->DestroyResource(pfd.rscObjDataGPU);
-            m_lgx->DestroyResource(pfd.rscMatDataGPU);
+            m_lgx->DestroyResource(pfd.rscCameraData0);
+
+            for (auto& mat : m_materials)
+            {
+                m_lgx->DestroyResource(mat.gpuResources[i]);
+                m_lgx->DestroyDescriptorSet(mat.descriptorSets[i]);
+            }
+
+            for (const auto& pass : m_passes)
+            {
+            }
         }
 
         // Terminate renderer & shutdown app.
@@ -1110,9 +1096,12 @@ namespace LinaGX::Examples
     {
     }
 
-    void Example::DrawObjects()
+    void Example::DrawObjects(Shader shader)
     {
-        auto& currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
+        BindShader(shader);
+
+        const uint32 currentFrameIndex = m_lgx->GetCurrentFrameIndex();
+        auto&        currentFrame      = m_pfd[currentFrameIndex];
 
         struct PrimData
         {
@@ -1142,14 +1131,23 @@ namespace LinaGX::Examples
             {
                 const auto& mat = m_materials[matIndex];
 
-                BindShader(mat.shader);
+                // Bind material descriptor.
+                {
+                    LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
+                    bind->extension                     = nullptr;
+                    bind->isCompute                     = false;
+                    bind->firstSet                      = 2;
+                    bind->setCount                      = 1;
+                    bind->dynamicOffsetCount            = 0;
+                    bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(mat.descriptorSets[currentFrameIndex]);
+                    bind->layoutSource                  = DescriptorSetsLayoutSource::LastBoundShader;
+                }
 
                 for (const auto& primData : prims)
                 {
                     GPUConstants constants = {};
                     constants.int1         = primData.objIndex;
-                    constants.int2         = primData.prim->materialIndex;
-                    constants.int3         = mat.applyTerrainEffects;
+                    constants.int2         = 0;
 
                     LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
                     ct->extension                = nullptr;
@@ -1177,23 +1175,32 @@ namespace LinaGX::Examples
 
     void Example::DrawSkybox()
     {
-        auto& pfd = m_pfd[m_lgx->GetCurrentFrameIndex()];
-
-        BindShader(Shader::Skybox);
-
-        LinaGX::CMDDrawIndexedInstanced* draw = pfd.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
-        draw->extension                       = nullptr;
-        draw->baseVertexLocation              = 0;
-        draw->startIndexLocation              = 0;
-        draw->startInstanceLocation           = 0;
-        draw->instanceCount                   = 1;
-        draw->indexCountPerInstance           = m_skyboxIndexCount;
+        // auto& pfd = m_pfd[m_lgx->GetCurrentFrameIndex()];
+        //
+        // BindShader(Shader::SH_Skybox);
+        //
+        // LinaGX::CMDDrawIndexedInstanced* draw = pfd.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
+        // draw->extension                       = nullptr;
+        // draw->baseVertexLocation              = 0;
+        // draw->startIndexLocation              = 0;
+        // draw->startInstanceLocation           = 0;
+        // draw->instanceCount                   = 1;
+        // draw->indexCountPerInstance           = m_skyboxIndexCount;
     }
 
-    void Example::DrawFullscreenQuad(uint32 shader)
+    void Example::DrawFullscreenQuad(uint32 shader, uint16 materialDescriptorSet)
     {
         auto& pfd = m_pfd[m_lgx->GetCurrentFrameIndex()];
         BindShader(shader);
+
+        LinaGX::CMDBindDescriptorSets* bind = pfd.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
+        bind->extension                     = nullptr;
+        bind->isCompute                     = false;
+        bind->firstSet                      = 2;
+        bind->setCount                      = 1;
+        bind->dynamicOffsetCount            = 0;
+        bind->descriptorSetHandles          = pfd.graphicsStream->EmplaceAuxMemory<uint16>(materialDescriptorSet);
+        bind->layoutSource                  = DescriptorSetsLayoutSource::LastBoundShader;
 
         CMDDrawInstanced* draw       = pfd.graphicsStream->AddCommand<CMDDrawInstanced>();
         draw->instanceCount          = 1;
@@ -1217,37 +1224,40 @@ namespace LinaGX::Examples
 
     void Example::OnTick()
     {
+        m_boundShader = -1;
+        m_camera.Tick(m_deltaSeconds);
+
         // Check for window inputs.
         m_lgx->PollWindowsAndInput();
 
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_1))
-        {
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexLightingPass;
-        }
-
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_2))
-        {
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer;
-        }
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_3))
-        {
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 1;
-        }
-
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
-        {
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 2;
-        }
-
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
-        {
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 3;
-        }
+        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_1))
+        // {
+        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexLightingPass;
+        // }
+        //
+        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_2))
+        // {
+        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer;
+        // }
+        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_3))
+        // {
+        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 1;
+        // }
+        //
+        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
+        // {
+        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 2;
+        // }
+        //
+        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
+        // {
+        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 3;
+        // }
 
         // Let LinaGX know we are starting a new frame.
         m_lgx->StartFrame();
@@ -1257,17 +1267,11 @@ namespace LinaGX::Examples
 
         // Scene data.
         {
-            m_camera.Tick(m_deltaSeconds);
-            const auto& camPos = m_camera.GetPosition();
-
             GPUSceneData sceneData = {
-                .view        = m_camera.GetView(),
-                .proj        = m_camera.GetProj(),
-                .skyColor1   = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
-                .skyColor2   = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
-                .camPosition = glm::vec4(camPos.x, camPos.y, camPos.z, 0.0f),
-                .lightPos    = glm::vec4(1.5f, 2.0f, 0.0f, 0.0f),
-                .lightColor  = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 20.0f,
+                .skyColor1  = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
+                .skyColor2  = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
+                .lightPos   = glm::vec4(1.5f, 2.0f, 0.0f, 0.0f),
+                .lightColor = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 20.0f,
             };
 
             std::memcpy(currentFrame.rscSceneDataMapping, &sceneData, sizeof(GPUSceneData));
@@ -1284,11 +1288,10 @@ namespace LinaGX::Examples
                 GPUObjectData data = {};
                 glm::mat4     mat  = glm::mat4(1.0f);
                 glm::quat     q    = glm::quat(glm::vec3(0.0f, DEG2RAD(0.0f), 0.0f));
-                mat                = TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {10.0f, 10.0f, 10.0f});
-                // data.modelMatrix   = mat;
-                data.modelMatrix  = obj.globalMatrix;
-                data.normalMatrix = glm::transpose(glm::inverse(glm::mat3(data.modelMatrix)));
-                data.hasSkin      = obj.isSkinned;
+                mat                = Utility::TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {10.0f, 10.0f, 10.0f});
+                data.modelMatrix   = obj.globalMatrix;
+                data.normalMatrix  = glm::transpose(glm::inverse(glm::mat3(data.modelMatrix)));
+                data.hasSkin       = obj.isSkinned;
                 objData.push_back(data);
             }
 
@@ -1325,35 +1328,9 @@ namespace LinaGX::Examples
             bind->firstSet                      = 0;
             bind->setCount                      = 1;
             bind->dynamicOffsetCount            = 0;
-            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet0);
+            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.globalSet);
             bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
-            bind->customLayout                  = m_pipelineLayout;
-        }
-
-        // Global descriptor binding.
-        {
-            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
-            bind->extension                     = nullptr;
-            bind->isCompute                     = false;
-            bind->firstSet                      = 1;
-            bind->setCount                      = 1;
-            bind->dynamicOffsetCount            = 0;
-            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet1);
-            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
-            bind->customLayout                  = m_pipelineLayout;
-        }
-
-        // Global descriptor binding.
-        {
-            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
-            bind->extension                     = nullptr;
-            bind->isCompute                     = false;
-            bind->firstSet                      = 2;
-            bind->setCount                      = 1;
-            bind->dynamicOffsetCount            = 0;
-            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.dscSet2);
-            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
-            bind->customLayout                  = m_pipelineLayout;
+            bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalSet];
         }
 
         // Global index buffer.
@@ -1365,16 +1342,53 @@ namespace LinaGX::Examples
             index->resource                    = m_indexBufferGPU;
         }
 
-        LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
-        vtx->extension                    = nullptr;
-        vtx->offset                       = 0;
-        vtx->slot                         = 0;
-        vtx->vertexSize                   = sizeof(VertexSkinned);
-        vtx->resource                     = m_vtxBuffer.gpu;
+        // Global vertex buffer.
+        {
+            LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
+            vtx->extension                    = nullptr;
+            vtx->offset                       = 0;
+            vtx->slot                         = 0;
+            vtx->vertexSize                   = sizeof(VertexSkinned);
+            vtx->resource                     = m_vtxBuffer.gpu;
+        }
 
-        GBufferPass();
-        LightingPass();
-        FinalPass();
+        // Camera data.
+        {
+            const auto& camPos = m_camera.GetPosition();
+
+            GPUCameraData camData = {
+                .view        = m_camera.GetView(),
+                .proj        = m_camera.GetProj(),
+                .camPosition = m_camera.GetPosition(),
+            };
+
+            std::memcpy(currentFrame.rscCameraDataMapping0, &camData, sizeof(GPUCameraData));
+        }
+
+        // Bind camera data descriptor.
+        {
+            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
+            bind->extension                     = nullptr;
+            bind->isCompute                     = false;
+            bind->firstSet                      = 1;
+            bind->setCount                      = 1;
+            bind->dynamicOffsetCount            = 0;
+            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.cameraSet0);
+            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
+            bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalAndCameraSet];
+        }
+
+        BeginPass(PassType::PS_ObjectsDefault);
+        DrawObjects(Shader::SH_Default);
+        EndPass();
+
+        BeginPass(PassType::PS_Lighting);
+        DrawFullscreenQuad(Shader::SH_LightingPass, currentFrame.lightingPassMaterialSet);
+        EndPass();
+
+        BeginPass(PassType::PS_FinalQuad);
+        DrawFullscreenQuad(Shader::SH_Quad, currentFrame.finalQuadPassMaterialSet);
+        EndPass();
 
         // This does the actual *recording* of every single command stream alive.
         m_lgx->CloseCommandStreams(&currentFrame.graphicsStream, 1);

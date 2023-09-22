@@ -59,7 +59,7 @@ namespace LinaGX
 
     struct VKBTexture2D
     {
-        TextureUsage     usage              = TextureUsage::ColorTexture;
+        TextureUsage       usage              = TextureUsage::ColorTexture;
         DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthOnly;
         VkImage            img                = nullptr;
         VkImageView        imgView            = nullptr;
@@ -169,8 +169,9 @@ namespace LinaGX
 
     struct VKBPipelineLayout
     {
-        bool             isValid = false;
-        VkPipelineLayout ptr     = nullptr;
+        bool                              isValid = false;
+        VkPipelineLayout                  ptr     = nullptr;
+        LINAGX_VEC<VkDescriptorSetLayout> setLayouts;
     };
 
     class VKBackend : public Backend
@@ -216,8 +217,9 @@ namespace LinaGX
         virtual uint8  GetPrimaryQueue(CommandType type) override;
 
     private:
-        uint16 CreateFence();
-        void   DestroyFence(uint16 handle);
+        uint16                CreateFence();
+        void                  DestroyFence(uint16 handle);
+        VkDescriptorSetLayout CreateDescriptorSetLayout(const DescriptorSetDesc& desc);
 
     public:
         virtual bool Initialize(const InitInfo& initInfo) override;
@@ -271,7 +273,7 @@ namespace LinaGX
 
         IDList<uint8, VKBSwapchain>       m_swapchains      = {5};
         IDList<uint16, VKBShader>         m_shaders         = {10};
-        IDList<uint32, VKBTexture2D>      m_textures      = {100};
+        IDList<uint32, VKBTexture2D>      m_textures        = {100};
         IDList<uint32, VKBCommandStream>  m_cmdStreams      = {100};
         IDList<uint16, VKBUserSemaphore>  m_userSemaphores  = {20};
         IDList<uint16, VkFence>           m_fences          = {20};
