@@ -32,6 +32,7 @@
 #define LINAGX_METAL_BACKEND_HPP
 
 #include "LinaGX/Core/Backend.hpp"
+#include "LinaGX/Core/Commands.hpp"
 #include <atomic>
 
 namespace LinaGX
@@ -68,11 +69,14 @@ struct MTLCommandStream
     LINAGX_VEC<uint8> writtenSwapchains;
     uint32 currentShader = 0;
     uint32 currentIndexBuffer = 0;
+    bool currentShaderExists = false;
     uint8 indexBufferType = 0;
     bool currentShaderIsCompute = false;
     LINAGX_MAP<uint32, uint64> intermediateResources;
     LINAGX_MAP<uint32, uint16> boundDescriptorSets;
     LINAGX_MAP<uint32, MTLBoundDescriptorSet> boundSets;
+    bool containsDelayedVtxBind = false;
+    CMDBindVertexBuffers delayedVtxBind;
 };
 
 struct MTLSwapchain
@@ -204,8 +208,8 @@ public:
     virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
     virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
     virtual void   DestroyShader(uint16 handle) override;
-    virtual uint32 CreateTexture2D(const Texture2DDesc& desc) override;
-    virtual void   DestroyTexture2D(uint32 handle) override;
+    virtual uint32 CreateTexture(const TextureDesc& desc) override;
+    virtual void   DestroyTexture(uint32 handle) override;
     virtual uint32 CreateSampler(const SamplerDesc& desc) override;
     virtual void   DestroySampler(uint32 handle) override;
     virtual uint32 CreateResource(const ResourceDesc& desc) override;
@@ -257,13 +261,14 @@ private:
     void CMD_Dispatch(uint8* data, MTLCommandStream& stream);
     void CMD_ComputeBarrier(uint8* data, MTLCommandStream& stream);
     void CMD_ExecuteSecondaryStream(uint8* data, MTLCommandStream& stream);
+    void CMD_Barrier(uint8* data, MTLCommandStream& stream);
     
 private:
     
     
     IDList<uint8,  MTLSwapchain>                       m_swapchains     = {10};
     IDList<uint16, MTLShader>                          m_shaders        = {20};
-    IDList<uint32, MTLTexture2D>                       m_texture2Ds     = {50};
+    IDList<uint32, MTLTexture2D>                       m_textures     = {50};
     IDList<uint32, MTLCommandStream>                   m_cmdStreams     = {50};
     IDList<uint16, MTLFence> m_fences                                   = {20};
     IDList<uint32, MTLResource>                        m_resources      = {100};

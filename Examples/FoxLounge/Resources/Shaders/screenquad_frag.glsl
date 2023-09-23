@@ -30,7 +30,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 } objectData;
 
 layout (set = 0, binding = 2) uniform texture2D allTextures[];
-layout (set = 0, binding = 3) uniform sampler allSamplers[];
+layout (set = 0, binding = 3) uniform sampler defaultSampler;
 
 layout (set = 1, binding = 0) uniform CameraData
 {
@@ -44,7 +44,7 @@ layout (set = 2, binding = 0) uniform texture2D inputTexture;
 
 void main()
 {
-    FragColor = texture(sampler2D(inputTexture, allSamplers[0]), uv);
+    FragColor = texture(sampler2D(inputTexture, defaultSampler), uv);
 }
 
 

@@ -145,8 +145,8 @@ namespace LinaGX
         {
         public:
             // Texture.
-            static std::unordered_map<uint32, TextureMapping> GetMaterialTextureMapping();
-            static std::vector<uint32>                        GetLinearTextures();
+            static std::unordered_map<LINAGX_STRINGID, TextureMapping> GetMaterialTextureMapping();
+            static std::vector<LINAGX_STRINGID>                        GetLinearTextures();
 
             // Matrix.
             static glm::mat4 TranslateRotateScale(const LinaGX::LGXVector3& pos, const LinaGX::LGXVector4& rot, const LinaGX::LGXVector3& scale);

@@ -443,6 +443,7 @@ namespace LinaGX
         LINAGX_VEC<ShaderStructMember> members;
         LINAGX_VEC<ShaderStage>        stages;
         LINAGX_STRING                  name = "";
+        LINAGX_MAP<ShaderStage, bool>  isActive;
     };
 
     struct ShaderLayoutMSLBinding
@@ -453,16 +454,18 @@ namespace LinaGX
 
     struct ShaderDescriptorSetBinding
     {
-        DescriptorType                 type            = DescriptorType::UBO;
-        LINAGX_STRING                  name            = "";
-        uint32                         spvID           = 0;
-        uint32                         binding         = 0;
-        uint32                         descriptorCount = 1;
-        size_t                         size            = 0;
-        LINAGX_VEC<ShaderStage>        stages;
-        bool                           isWritable  = false;
-        bool                           isArrayType = false;
-        LINAGX_VEC<ShaderStructMember> structMembers;
+        DescriptorType                  type            = DescriptorType::UBO;
+        LINAGX_STRING                   name            = "";
+        uint32                          spvID           = 0;
+        uint32                          binding         = 0;
+        uint32                          descriptorCount = 1;
+        size_t                          size            = 0;
+        LINAGX_VEC<ShaderStage>         stages;
+        bool                            isWritable  = false;
+        bool                            isArrayType = false;
+        LINAGX_VEC<ShaderStructMember>  structMembers;
+        LINAGX_MAP<ShaderStage, bool>   isActive;
+        LINAGX_MAP<ShaderStage, uint32> mslBufferID;
     };
 
     struct ShaderDescriptorSetLayout

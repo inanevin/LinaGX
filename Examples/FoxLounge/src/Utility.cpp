@@ -37,9 +37,9 @@ namespace LinaGX::Examples
            And we want to have custom shaders/materials controlled from code setup.
            So we are not gonna be using GLTF texture mappings.
     */
-    std::unordered_map<uint32, TextureMapping> Utility::GetMaterialTextureMapping()
+    std::unordered_map<LINAGX_STRINGID, TextureMapping> Utility::GetMaterialTextureMapping()
     {
-        std::unordered_map<uint32, TextureMapping> materialTextureMapping =
+        std::unordered_map<LINAGX_STRINGID, TextureMapping> materialTextureMapping =
             {
                 {"Lantern"_hs, {
                                    {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/Image-2.png"},
@@ -87,9 +87,9 @@ namespace LinaGX::Examples
     /*
         Import normals and roughness maps as linear formats.
     */
-    std::vector<uint32> Utility::GetLinearTextures()
+    std::vector<LINAGX_STRINGID> Utility::GetLinearTextures()
     {
-        std::vector<uint32> linearTextures = {
+        std::vector<LINAGX_STRINGID> linearTextures = {
             "Resources/Textures/Image-3.png"_hs,
             "Resources/Textures/Image-1.png"_hs,
             "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"_hs,
@@ -151,9 +151,8 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding3 = {
-            .descriptorCount = 32, // max amt.
+            .descriptorCount = 1, // max amt.
             .type            = LinaGX::DescriptorType::SeparateSampler,
-            .unbounded       = true,
             .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
 

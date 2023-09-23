@@ -532,6 +532,7 @@ namespace LinaGX
 
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+        auto activeResources = compiler.get_active_interface_variables();
 
         // Stage Inputs
         {
@@ -609,6 +610,7 @@ namespace LinaGX
                 targetBinding.stages.push_back(stg);
                 targetBinding.size = size;
                 targetBinding.type = DescriptorType::UBO;
+                targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array.size() > 0)
                     targetBinding.descriptorCount = type.array[0];
@@ -637,6 +639,7 @@ namespace LinaGX
                 targetBinding.size            = size;
                 targetBinding.descriptorCount = 1;
                 targetBinding.type            = DescriptorType::SSBO;
+                targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
                 targetBinding.isWritable         = !buffer_flags.get(spv::DecorationNonWritable);
@@ -663,6 +666,7 @@ namespace LinaGX
                 targetBinding.stages.push_back(stg);
                 targetBinding.size = size;
                 targetBinding.type = DescriptorType::SeparateSampler;
+                targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array_size_literal[0])
                 {
@@ -696,6 +700,7 @@ namespace LinaGX
                 targetBinding.stages.push_back(stg);
                 targetBinding.size = size;
                 targetBinding.type = DescriptorType::SeparateImage;
+                targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array_size_literal[0])
                 {
@@ -735,6 +740,7 @@ namespace LinaGX
                 targetBinding.stages.push_back(stg);
                 targetBinding.size = size;
                 targetBinding.type = DescriptorType::CombinedImageSampler;
+                targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array_size_literal[0])
                 {
@@ -765,6 +771,7 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 block.size                        = compiler.get_declared_struct_size(type);
                 block.name                        = compiler.get_name(resource.id);
+                block.isActive[stg] = activeResources.count(id) > 0;
 
                 bool found = false;
                 for (auto& b : outLayout.constants)
@@ -773,6 +780,7 @@ namespace LinaGX
                     {
                         found = true;
                         b.stages.push_back(stg);
+                        b.isActive[stg] = activeResources.count(id) > 0;
                         break;
                     }
                 }
@@ -878,51 +886,24 @@ namespace LinaGX
             uint32 bufferID = 0, textureID = 0, samplerID = 0;
             uint32 drawIDInputBufferID = 0;
 
-            auto checkIfContainsStage = [stg](const ShaderDescriptorSetLayout& layout) {
-                for (const auto& b : layout.bindings)
-                {
-                    for (auto bindingStage : b.stages)
-                    {
-                        if (bindingStage == stg)
-                            return true;
-                    }
-                }
-
-                return false;
-            };
-
-            auto checkIfBindingContainsStage = [stg](const ShaderDescriptorSetBinding& binding) {
-                for (auto bindingStage : binding.stages)
-                {
-                    if (bindingStage == stg)
-                        return true;
-                }
-
-                return false;
-            };
-
             if (stg == ShaderStage::Vertex)
                 bufferID++;
 
             uint32 setIndex = 0;
-            for (const auto& layout : layoutReflection.descriptorSetLayouts)
+            for (auto& layout : layoutReflection.descriptorSetLayouts)
             {
-                if (!checkIfContainsStage(layout))
-                {
-                    setIndex++;
-                    continue;
-                }
-
                 uint32 bindingIndex = 0;
 
-                for (const auto& bindingData : layout.bindings)
+                for (auto& bindingData : layout.bindings)
                 {
-                    if (!checkIfBindingContainsStage(bindingData))
+                    // If not exists for this stage, or not active skip entirely.
+                    auto it = bindingData.isActive.find(stg);
+                    if(it == bindingData.isActive.end() || it->second == false)
                     {
                         bindingIndex++;
                         continue;
                     }
-
+                
                     spirv_cross::MSLResourceBinding mslb;
                     mslb.stage    = exec;
                     mslb.desc_set = setIndex;
@@ -933,6 +914,7 @@ namespace LinaGX
                         mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
                         mslb.count      = bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
                         mslb.msl_buffer = bufferID;
+                        bindingData.mslBufferID[stg] = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
@@ -940,6 +922,7 @@ namespace LinaGX
                     {
                         mslb.count      = 1;
                         mslb.msl_buffer = bufferID;
+                        bindingData.mslBufferID[stg] = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
@@ -949,29 +932,33 @@ namespace LinaGX
                         {
                             mslb.count       = 0;
                             mslb.msl_texture = bufferID;
+                            bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                         }
                         else
                         {
                             mslb.count       = bindingData.descriptorCount;
                             mslb.msl_texture = textureID;
+                            bindingData.mslBufferID[stg] = textureID;
                             textureID += mslb.count;
                         }
 
                         compiler.add_msl_resource_binding(mslb);
                     }
-                    else if (bindingData.type == DescriptorType::SeparateImage)
+                    else if (bindingData.type == DescriptorType::SeparateSampler)
                     {
                         if (bindingData.descriptorCount == 0)
                         {
                             mslb.count       = 0;
                             mslb.msl_texture = bufferID;
+                            bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                         }
                         else
                         {
                             mslb.count       = bindingData.descriptorCount;
                             mslb.msl_sampler = samplerID;
+                            bindingData.mslBufferID[stg] = samplerID;
                             samplerID += mslb.count;
                         }
 
@@ -983,6 +970,7 @@ namespace LinaGX
                         {
                             mslb.count       = 0;
                             mslb.msl_texture = bufferID;
+                            bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                             compiler.add_msl_resource_binding(mslb);
 
@@ -994,6 +982,7 @@ namespace LinaGX
                         {
                             mslb.count       = bindingData.descriptorCount;
                             mslb.msl_texture = textureID;
+                            bindingData.mslBufferID[stg] = textureID;
                             textureID += mslb.count;
                             compiler.add_msl_resource_binding(mslb);
 
@@ -1014,21 +1003,20 @@ namespace LinaGX
             {
                 for (auto& ct : layoutReflection.constants)
                 {
-                    for (auto ctStg : ct.stages)
+                    auto it = ct.isActive.find(stg);
+                    
+                    if(it != ct.isActive.end() && it->second == true)
                     {
-                        if (ctStg == stg)
-                        {
-                            spirv_cross::MSLResourceBinding mslb;
-                            mslb.stage      = exec;
-                            mslb.count      = 1;
-                            mslb.binding    = spirv_cross::ResourceBindingPushConstantBinding;
-                            mslb.desc_set   = spirv_cross::ResourceBindingPushConstantDescriptorSet;
-                            mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
-                            mslb.msl_buffer = bufferID;
-                            compiler.add_msl_resource_binding(mslb);
-                            layoutReflection.constantsMSLBuffers[stg] = bufferID;
-                            bufferID++;
-                        }
+                        spirv_cross::MSLResourceBinding mslb;
+                        mslb.stage      = exec;
+                        mslb.count      = 1;
+                        mslb.binding    = spirv_cross::ResourceBindingPushConstantBinding;
+                        mslb.desc_set   = spirv_cross::ResourceBindingPushConstantDescriptorSet;
+                        mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
+                        mslb.msl_buffer = bufferID;
+                        compiler.add_msl_resource_binding(mslb);
+                        layoutReflection.constantsMSLBuffers[stg] = bufferID;
+                        bufferID++;
                     }
                 }
             }

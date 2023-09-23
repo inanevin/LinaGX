@@ -34,7 +34,7 @@ SOFTWARE.
 namespace LinaGX
 {
 
-bool OSXWindow::Create(uint32_t sid, const char *title, LinaGX::int32 x, LinaGX::int32 y, LinaGX::uint32 width, LinaGX::uint32 height, LinaGX::WindowStyle style, LinaGX::Window *parent) { 
+bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, LinaGX::int32 y, LinaGX::uint32 width, LinaGX::uint32 height, LinaGX::WindowStyle style, LinaGX::Window *parent) { 
     
         m_size = LGXVector2ui{width, height};
     m_position = LGXVector2i{x,y};

@@ -567,7 +567,7 @@ namespace LinaGX::Examples
                 LinaGX::DescriptorUpdateImageDesc smpUpdate = {
                     .setHandle = pfd.globalSet,
                     .binding   = 3,
-                    .samplers  = m_samplers,
+                    .samplers  = {m_samplers[0]}
                 };
 
                 m_lgx->DescriptorUpdateImage(smpUpdate);
@@ -1018,7 +1018,7 @@ namespace LinaGX::Examples
                     auto& map = materialPrimitiveBatch[prim.materialIndex];
                     map.push_back({&prim, objIndex});
                 }
-
+                    
                 objIndex++;
             }
 

@@ -40,6 +40,7 @@ SOFTWARE.
 #include <functional>
 #include <typeinfo>
 #include <functional>
+#include <string_view>
 
 namespace LinaGX
 {
@@ -142,7 +143,7 @@ namespace LinaGX
 #endif
 
 #ifndef LINAGX_STRINGID
-#define LINAGX_STRINGID uint32_t
+#define LINAGX_STRINGID uint64_t
 #endif
 
 #ifndef LINAGX_TYPEID
@@ -326,9 +327,21 @@ namespace LinaGX
             const char* str;
         };
 
-        static constexpr unsigned int fnvHashConstexpr(const char* str, std::size_t len, unsigned int hash = OFFSET_BASIS)
+        // static constexpr unsigned int fnvHashConstexpr(const char* str, std::size_t len, unsigned int hash = OFFSET_BASIS)
+        // {
+        //     return len == 0 ? hash : fnvHashConstexpr(str + 1, len - 1, (hash ^ *str) * FNV_PRIME);
+        // }
+        
+        static constexpr unsigned int fnvHashConstexpr(const char* str)
         {
-            return len == 0 ? hash : fnvHashConstexpr(str + 1, len - 1, (hash ^ *str) * FNV_PRIME);
+            const size_t length = std::char_traits<char>::length(str) + 1;
+            unsigned int hash   = OFFSET_BASIS;
+            for (size_t i = 0; i < length; ++i)
+            {
+                hash ^= *str++;
+                hash *= FNV_PRIME;
+            }
+            return hash;
         }
 
         unsigned int hash_value;
@@ -339,15 +352,16 @@ namespace LinaGX
             : hash_value(fnvHash(wrapper.str))
         {
         }
-        // calulate in compile-time
-        template <unsigned int N>
-        constexpr FnvHash(const char (&str)[N])
-            : hash_value(fnvHashConst(str))
-        {
-        }
+        
+        //// calulate in compile-time
+        //template <unsigned int N>
+        //constexpr FnvHash(const char (&str)[N])
+        //    : hash_value(fnvHashConst(str))
+        //{
+        //}
 
-        constexpr FnvHash(const char* str, std::size_t len)
-            : hash_value(fnvHashConstexpr(str, len))
+        constexpr FnvHash(const char* str)
+            : hash_value(fnvHashConstexpr(str))
         {
         }
 
@@ -364,9 +378,9 @@ namespace LinaGX
         return FnvHash(typeid(T).name());
     }
 
-    constexpr LINAGX_STRINGID operator"" _hs(const char* str, std::size_t len) noexcept
+    constexpr LINAGX_STRINGID operator"" _hs(const char* str, size_t len) noexcept
     {
-        return FnvHash(str);
+       return FnvHash(str);
     }
 
     extern LINAGX_STRINGID LGX_ToSID(const char* ty);

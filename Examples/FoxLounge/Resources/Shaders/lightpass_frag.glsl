@@ -30,7 +30,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 } objectData;
 
 layout (set = 0, binding = 2) uniform texture2D allTextures[];
-layout (set = 0, binding = 3) uniform sampler allSamplers[];
+layout (set = 0, binding = 3) uniform sampler defaultSampler;
 
 layout (set = 1, binding = 0) uniform CameraData
 {
@@ -91,9 +91,9 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 void main()
 {
 
-    vec4 albedoRoughness = texture(sampler2D(inputTextures[0], allSamplers[0]), uv);
-    vec4 normalMetallic = texture(sampler2D(inputTextures[1], allSamplers[0]), uv);
-    vec4 positionAO = texture(sampler2D(inputTextures[2], allSamplers[0]), uv);
+    vec4 albedoRoughness = texture(sampler2D(inputTextures[0], defaultSampler), uv);
+    vec4 normalMetallic = texture(sampler2D(inputTextures[1], defaultSampler), uv);
+    vec4 positionAO = texture(sampler2D(inputTextures[2], defaultSampler), uv);
 
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
