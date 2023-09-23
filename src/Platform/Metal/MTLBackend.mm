@@ -874,7 +874,6 @@ uint16 MTLBackend::CreateDescriptorSet(const DescriptorSetDesc &desc) {
     item.isValid = true;
     item.desc = desc;
   
-    uint32 bufferID = 0, textureID = 0, samplerID = 0;
     auto device = AS_MTL(m_device, id<MTLDevice>);
 
     auto createArgEncoder = [device](MTLBinding& bnd, bool isSecondary, DescriptorType type) {
@@ -907,66 +906,22 @@ uint16 MTLBackend::CreateDescriptorSet(const DescriptorSetDesc &desc) {
         MTLBinding bnd = {};
         bnd.lgxBinding = binding;
         
-        if(binding.type == DescriptorType::UBO || binding.type == DescriptorType::SSBO)
+        if(binding.unbounded)
         {
-            bnd.localBufferID = bufferID;
-            bufferID += binding.descriptorCount;
-        }
-        else if(binding.type == DescriptorType::CombinedImageSampler)
-        {
-            if(binding.unbounded)
+            if(binding.type == DescriptorType::CombinedImageSampler)
             {
-                bnd.localBufferID = bufferID;
-                bufferID++;
                 createArgEncoder(bnd, false, binding.type);
-
-                bnd.localBufferIDSecondary = bufferID;
-                bufferID++;
                 createArgEncoder(bnd, true, binding.type);
             }
-            else
-            {
-                bnd.localBufferID = textureID;
-                textureID += binding.descriptorCount;
-                
-                bnd.localBufferIDSecondary = samplerID;
-                samplerID += binding.descriptorCount;
-            }
-        }
-        else if(binding.type == DescriptorType::SeparateImage)
-        {
-            if(binding.unbounded)
-            {
-                bnd.localBufferID = bufferID;
-                bufferID++;
+            else if(binding.type != DescriptorType::SSBO)
                 createArgEncoder(bnd, false, binding.type);
-            }
-            else{
-                bnd.localBufferID = textureID;
-                textureID += binding.descriptorCount;
-            }
         }
-        else if(binding.type == DescriptorType::SeparateSampler)
-        {
-            if(binding.unbounded)
-            {
-                bnd.localBufferID = bufferID;
-                bufferID++;
-                createArgEncoder(bnd, false, binding.type);
-            }
-            else{
-                bnd.localBufferID = samplerID;
-                samplerID += binding.descriptorCount;
-            }
-        }
+     
         
         item.bindings.push_back(bnd);
 
     }
-    
-    item.localBufferID = bufferID;
-    item.localTextureID = textureID;
-    item.localSamplerID = samplerID;
+
     
     return m_descriptorSets.AddItem(item);
 }
@@ -1732,9 +1687,6 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
 
     auto setBuffer = [&](id<MTLBuffer> const* _Nonnull ptr, uint32 bufferIndex, uint32 count, ShaderStage stage, uint32 offset = 0){
        
-        if(stage == ShaderStage::Vertex)
-            bufferIndex = bufferIndex + 1;
-        
        NSRange rng = NSMakeRange(bufferIndex, count);
 
        LINAGX_VEC<NSUInteger> offsets;
@@ -1777,59 +1729,34 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
     
     uint32 dynamicOffsetIndexCounter = 0;
     
-    for(const auto& [setIndex, setData] : stream.boundSets)
+    const auto& boundShader = m_shaders.GetItemR(stream.currentShader);
+    const auto& reflection = boundShader.layout;
+    
+    for(auto& [setIndex, setData] : stream.boundSets)
     {
         if(!setData.isDirty)
             continue;
         
+        setData.isDirty = false;
+        
         auto& set = m_descriptorSets.GetItemR(setData.handle);
-        
-        LINAGX_VEC<ShaderStage> allStages;
-        LINAGX_MAP<ShaderStage, uint32> bufferIDStart;
-        LINAGX_MAP<ShaderStage, uint32> textureIDStart;
-        LINAGX_MAP<ShaderStage, uint32> samplerIDStart;
-
-        for(uint32 j = 0; j < setIndex; j++)
-        {
-            const auto& it = stream.boundSets.find(j);
-            if(it == stream.boundSets.end())
-                continue;
-            
-            const auto& boundSet = m_descriptorSets.GetItemR(it->second.handle);
-            
-            for(const auto& binding : boundSet.desc.bindings)
-            {
-                for(auto stg : binding.stages)
-                {
-                    bool found = false;
-                    for(auto existingStg : allStages)
-                    {
-                        if(existingStg == stg)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    
-                    if(!found)
-                        allStages.push_back(stg);
-                }
-            }
-            
-            for(auto stg: allStages)
-            {
-                bufferIDStart[stg] += boundSet.localBufferID;
-                textureIDStart[stg] += boundSet.localTextureID;
-                samplerIDStart[stg] += boundSet.localSamplerID;
-            }
-        }
-        
+        const auto& reflectionBindings = reflection.descriptorSetLayouts.at(setIndex).bindings;
         uint32 dynamicOffsetCounter = 0;
+        uint32 bindingIndex = 0;
         
         for(const auto& mtlBinding : set.bindings)
         {
             for(auto stg : mtlBinding.lgxBinding.stages)
             {
+                const auto& reflectionBindingData = reflectionBindings.at(bindingIndex);
+                
+                auto it = reflectionBindingData.isActive.find(stg);
+                
+                if(it == reflectionBindingData.isActive.end() || it->second == false)
+                    continue;
+                
+                const uint32 bufferID = reflectionBindingData.mslBufferID.at(stg);
+                
                 if(mtlBinding.lgxBinding.type == DescriptorType::CombinedImageSampler)
                 {
                     LINAGX_VEC<id<MTLTexture>> textures;
@@ -1852,15 +1779,15 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     // gonna be a buffer.
                     if(!mtlBinding.lgxBinding.unbounded)
                     {
-                        setTexture(&textures[0], textureIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
-                        setSampler(&samplers[0], samplerIDStart[stg] + mtlBinding.localBufferIDSecondary, dcCount, stg);
+                        setTexture(&textures[0], bufferID, dcCount, stg);
+                        setSampler(&samplers[0], bufferID + dcCount, dcCount, stg);
                     }
                     else
                     {
                         id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
                         id<MTLBuffer> argBuffer2 = AS_MTL(mtlBinding.argBufferSecondary, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
-                        setBuffer(&argBuffer2, bufferIDStart[stg] + mtlBinding.localBufferIDSecondary, 1, stg);
+                        setBuffer(&argBuffer, bufferID, 1, stg);
+                        setBuffer(&argBuffer2, bufferID + 1, 1, stg);
 
                         [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
                     }
@@ -1880,11 +1807,11 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     }
                     
                     if(!mtlBinding.lgxBinding.unbounded)
-                        setTexture(&textures[0], textureIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                        setTexture(&textures[0], bufferID, dcCount, stg);
                     else
                     {
                         id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
+                        setBuffer(&argBuffer, bufferID, 1, stg);
                         [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
                     }
                     
@@ -1903,11 +1830,11 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     }
                     
                     if(!mtlBinding.lgxBinding.unbounded)
-                        setSampler(&samplers[0], samplerIDStart[stg] + mtlBinding.localBufferID, dcCount, stg);
+                        setSampler(&samplers[0], bufferID, dcCount, stg);
                     else
                     {
                         id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg);
+                        setBuffer(&argBuffer, bufferID, 1, stg);
                     }
                 }
                 else if(mtlBinding.lgxBinding.type == DescriptorType::UBO)
@@ -1932,11 +1859,11 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     }
                     
                     if(!mtlBinding.lgxBinding.unbounded)
-                        setBuffer(&ubos[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
+                        setBuffer(&ubos[0], bufferID, dcCount, stg, offset);
                     else
                     {
                         id<MTLBuffer> argBuffer = AS_MTL(mtlBinding.argBuffer, id<MTLBuffer>);
-                        setBuffer(&argBuffer, bufferIDStart[stg] + mtlBinding.localBufferID, 1, stg, offset);
+                        setBuffer(&argBuffer, bufferID, 1, stg, offset);
                         [encoder useResources:&ubos[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
                     }
                 }
@@ -1962,13 +1889,15 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     }
                     
                     if(!mtlBinding.lgxBinding.unbounded)
-                        setBuffer(&ssbo[0], bufferIDStart[stg] + mtlBinding.localBufferID, dcCount, stg, offset);
+                        setBuffer(&ssbo[0], bufferID, dcCount, stg, offset);
                     else
                     {
                         LOGA(false, "Backend -> Can't use SSBOs as unbounded!");
                     }
                 }
             }
+            
+            bindingIndex++;
         }
     }
 }
@@ -2114,7 +2043,7 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     stream.currentShaderIsCompute = shader.isCompute;
     stream.currentShaderExists = true;
     
-    for (auto& set : stream.boundDescriptorSets)
+    for (auto& set : stream.boundSets)
         set.second.isDirty = true;
     
     BindDescriptorSets(stream);
@@ -2373,7 +2302,11 @@ void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
     
     if(shader.isCompute)
     {
-        uint32 constantIndex = shader.layout.constantsMSLBuffers[ShaderStage::Compute];
+        auto it = shader.layout.constantsMSLBuffers.find(ShaderStage::Compute);
+        if(it == shader.layout.constantsMSLBuffers.end())
+            return;
+
+        uint32 constantIndex = it->second;
         [computeEncoder setBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
     }
     else
@@ -2382,7 +2315,12 @@ void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
         for (uint32 i = 0; i < cmd->stagesSize; ++i)
         {
             ShaderStage stage = cmd->stages[i];
-            uint32 constantIndex = shader.layout.constantsMSLBuffers[stage];
+            
+            auto it = shader.layout.constantsMSLBuffers.find(stage);
+            if(it == shader.layout.constantsMSLBuffers.end())
+                continue;
+            
+            uint32 constantIndex = it->second;
             if (stage == ShaderStage::Vertex) {
                 [encoder setVertexBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
             } else if (stage == ShaderStage::Fragment) {

@@ -37,7 +37,6 @@ layout (set = 1, binding = 0) uniform CameraData
     mat4 view;
     mat4 projection;
     vec4 camPos;
-    float padding[12];
 } cameraData;
 
 layout (set = 2, binding = 0) uniform texture2D inputTextures[3];

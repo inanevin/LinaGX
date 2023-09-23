@@ -154,8 +154,6 @@ struct MTLBinding
     void* argBufferSecondary = nullptr;
     void* argEncoder = nullptr;
     void* argEncoderSecondary = nullptr;
-    uint32 localBufferID = 0;
-    uint32 localBufferIDSecondary = 0;
 };
 
 struct MTLDescriptorSet
@@ -164,9 +162,6 @@ struct MTLDescriptorSet
     void* buffer = nullptr;
     DescriptorSetDesc desc = {};
     LINAGX_VEC<MTLBinding> bindings;
-    uint32 localBufferID = 0;
-    uint32 localTextureID = 0;
-    uint32 localSamplerID = 0;
 };
 
 struct MTLQueue

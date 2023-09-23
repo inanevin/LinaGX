@@ -112,7 +112,6 @@ namespace LinaGX
             glm::mat4 view;
             glm::mat4 proj;
             glm::vec4 camPosition;
-            float     padding[12] = {0};
         };
 
         struct GPUSceneData
