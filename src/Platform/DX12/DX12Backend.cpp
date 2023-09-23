@@ -1290,7 +1290,7 @@ namespace LinaGX
             resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
             state              = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
-            if (txtDesc.usedOutsideFragmentShader)
+            if (txtDesc.sampledOutsideFragment)
                 state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
             clear = &colorClear;
@@ -1299,7 +1299,7 @@ namespace LinaGX
         {
             state = D3D12_RESOURCE_STATE_COMMON;
 
-            if (txtDesc.usedOutsideFragmentShader)
+            if (txtDesc.sampledOutsideFragment)
                 state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         }
 
@@ -3033,6 +3033,10 @@ namespace LinaGX
         CMDExecuteSecondaryStream* cmd    = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
         auto                       bundle = m_cmdStreams.GetItemR(cmd->secondaryStream->m_gpuHandle).list.Get();
         stream.list->ExecuteBundle(bundle);
+    }
+
+    void DX12Backend::CMD_Barrier(uint8* data, DX12CommandStream& stream)
+    {
     }
 
 } // namespace LinaGX

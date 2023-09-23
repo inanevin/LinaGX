@@ -567,7 +567,7 @@ namespace LinaGX
         TextureUsage       usage                     = TextureUsage::ColorTexture;
         TextureType        type                      = TextureType::Texture2D;
         bool               sampled                   = true;
-        bool               usedOutsideFragmentShader = false;
+        bool               sampledOutsideFragment = false;
         bool               isCubemap                 = false;
         DepthStencilAspect depthStencilAspect        = DepthStencilAspect::DepthStencil;
         float              depthClear                = 1.0f;

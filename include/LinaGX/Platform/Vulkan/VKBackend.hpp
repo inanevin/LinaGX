@@ -59,15 +59,20 @@ namespace LinaGX
 
     struct VKBTexture2D
     {
-        TextureUsage            usage              = TextureUsage::ColorTexture;
-        DepthStencilAspect      depthStencilAspect = DepthStencilAspect::DepthOnly;
-        VkImage                 img                = nullptr;
-        LINAGX_VEC<VkImageView> imgViews           = {};
-        VkImageView             cubeView           = nullptr;
-        VmaAllocation_T*        allocation         = nullptr;
-        bool                    isValid            = false;
-        bool                    isCubemap          = false;
-        uint32                  arrayLength        = 0;
+        bool               isValid                = false;
+        bool               isCubemap              = false;
+        bool               sampledOutsideFragment = false;
+        TextureUsage       usage                  = TextureUsage::ColorTexture;
+        DepthStencilAspect depthStencilAspect     = DepthStencilAspect::DepthOnly;
+        uint32             arrayLength            = 0;
+        uint32             mipLevels              = 0;
+        VkImageLayout      imgLayout              = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
+
+        // LINAGX_VEC<VkImageView> imgViews           = {};
+        VkImage          img        = nullptr;
+        VkImageView      imgView    = nullptr;
+        VkImageView      cubeView   = nullptr;
+        VmaAllocation_T* allocation = nullptr;
     };
 
     struct VKBSampler
@@ -121,12 +126,13 @@ namespace LinaGX
 
     struct VKBResource
     {
-        bool             isValid    = false;
-        bool             isMapped   = false;
-        uint64           size       = 0;
-        ResourceHeap     heapType   = ResourceHeap::StagingHeap;
-        VkBuffer         buffer     = nullptr;
-        VmaAllocation_T* allocation = nullptr;
+        bool             isValid     = false;
+        bool             isMapped    = false;
+        uint64           size        = 0;
+        ResourceHeap     heapType    = ResourceHeap::StagingHeap;
+        VkBuffer         buffer      = nullptr;
+        VmaAllocation_T* allocation  = nullptr;
+        VkAccessFlags    accessFlags = 0;
     };
 
     struct VKBUserSemaphore
@@ -250,6 +256,7 @@ namespace LinaGX
         void CMD_Dispatch(uint8* data, VKBCommandStream& stream);
         void CMD_ComputeBarrier(uint8* data, VKBCommandStream& stream);
         void CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream);
+        void CMD_Barrier(uint8* data, VKBCommandStream& stream);
 
     private:
         void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize);

@@ -49,7 +49,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::DX12;
+        BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -586,6 +586,7 @@ namespace LinaGX::Examples
             };
 
             auto& pfd = m_pfd[0];
+
             for (auto& txt : m_textures)
             {
                 LinaGX::Format format = LinaGX::Format::R8G8B8A8_SRGB;
@@ -605,13 +606,53 @@ namespace LinaGX::Examples
                 };
 
                 txt.gpuHandle = m_lgx->CreateTexture(desc);
+            }
 
+            // Transition all to transfer destination.
+            {
+                LinaGX::CMDBarrier* textureBarrier   = pfd.transferStream->AddCommand<LinaGX::CMDBarrier>();
+                textureBarrier->extension            = nullptr;
+                textureBarrier->resourceBarrierCount = 0;
+                textureBarrier->textureBarrierCount  = static_cast<uint32>(m_textures.size());
+                textureBarrier->textureBarriers      = pfd.transferStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * m_textures.size());
+
+                uint32 index = 0;
+                for (const auto& txt : m_textures)
+                {
+                    auto& barrier   = textureBarrier->textureBarriers[index];
+                    barrier.texture = txt.gpuHandle;
+                    barrier.toState = LinaGX::TextureBarrierState::TransferDestination;
+                    index++;
+                }
+            }
+
+            // Perform copy.
+            for (auto& txt : m_textures)
+            {
                 LinaGX::CMDCopyBufferToTexture2D* copyTxt = pfd.transferStream->AddCommand<LinaGX::CMDCopyBufferToTexture2D>();
                 copyTxt->extension                        = nullptr;
                 copyTxt->destTexture                      = txt.gpuHandle;
                 copyTxt->mipLevels                        = static_cast<uint32>(txt.allLevels.size()),
-                copyTxt->buffers                          = pfd.transferStream->EmplaceAuxMemory<TextureBuffer>(txt.allLevels.data(), sizeof(TextureBuffer) * txt.allLevels.size());
+                copyTxt->buffers                          = pfd.transferStream->EmplaceAuxMemory<LinaGX::TextureBuffer>(txt.allLevels.data(), sizeof(LinaGX::TextureBuffer) * txt.allLevels.size());
                 copyTxt->destinationSlice                 = 0;
+            }
+
+            // Transition all to shader read;
+            {
+                LinaGX::CMDBarrier* textureBarrier   = pfd.transferStream->AddCommand<LinaGX::CMDBarrier>();
+                textureBarrier->extension            = nullptr;
+                textureBarrier->resourceBarrierCount = 0;
+                textureBarrier->textureBarrierCount  = static_cast<uint32>(m_textures.size());
+                textureBarrier->textureBarriers      = pfd.transferStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * m_textures.size());
+
+                uint32 index = 0;
+                for (const auto& txt : m_textures)
+                {
+                    auto& barrier   = textureBarrier->textureBarriers[index];
+                    barrier.texture = txt.gpuHandle;
+                    barrier.toState = LinaGX::TextureBarrierState::ShaderRead;
+                    index++;
+                }
             }
         }
     }
@@ -814,18 +855,17 @@ namespace LinaGX::Examples
 
         LinaGX::TextureDesc reflectionsCube = {
             .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .type        = LinaGX::TextureType::TextureCube,
+            .type        = LinaGX::TextureType::Texture2D,
             .sampled     = true,
+            .isCubemap   = false,
             .width       = m_window->GetSize().x,
             .height      = m_window->GetSize().y,
             .format      = LinaGX::Format::R32G32B32A32_SFLOAT,
-            .arrayLength = 6,
+            .arrayLength = 3,
         };
 
         LinaGX::RenderPassColorAttachment colorAttachment;
         colorAttachment.clearColor = {0.3f, 0.1f, 0.1f, 1.0f};
-        colorAttachment.loadOp     = LinaGX::LoadOp::Clear;
-        colorAttachment.storeOp    = LinaGX::StoreOp::Store;
 
         LinaGX::RenderPassDepthStencilAttachment depthStencilAttachment;
         depthStencilAttachment.depthLoadOp  = LinaGX::LoadOp::Clear;
@@ -838,6 +878,8 @@ namespace LinaGX::Examples
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
+            colorAttachment.loadOp  = LinaGX::LoadOp::Clear;
+            colorAttachment.storeOp = LinaGX::StoreOp::Store;
 
             auto& objsDefault = m_passes[PassType::PS_ObjectsDefault];
             objsDefault.renderTargets[i].colorAttachments.clear();
@@ -890,6 +932,7 @@ namespace LinaGX::Examples
             reflectionsCube.debugName   = "Reflection Cube";
             colorAttachment.isSwapchain = false;
             colorAttachment.texture     = m_lgx->CreateTexture(reflectionsCube);
+            // colorAttachment.loadOp      = LoadOp::Load;
             reflections.renderTargets[i].colorAttachments.push_back(colorAttachment);
             depthStencilAttachment.useDepth                     = false;
             reflections.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
@@ -897,6 +940,7 @@ namespace LinaGX::Examples
             auto& finalQuad = m_passes[PassType::PS_FinalQuad];
             finalQuad.renderTargets[i].colorAttachments.clear();
 
+            // colorAttachment.loadOp      = LoadOp::Clear;
             colorAttachment.isSwapchain = true;
             colorAttachment.texture     = static_cast<uint32>(m_swapchain);
             finalQuad.renderTargets[i].colorAttachments.push_back(colorAttachment);
@@ -1391,16 +1435,28 @@ namespace LinaGX::Examples
             bind->isCompute                     = false;
             bind->firstSet                      = 1;
             bind->setCount                      = 1;
-            bind->dynamicOffsetCount            = 1;
-            bind->dynamicOffsets                = currentFrame.graphicsStream->EmplaceAuxMemory<uint32>(0);
-            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.cameraSet0);
-            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
-            bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalAndCameraSet];
+            bind->dynamicOffsetCount            = 0;
+            // bind->dynamicOffsets                = currentFrame.graphicsStream->EmplaceAuxMemory<uint32>(0);
+            bind->descriptorSetHandles = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.cameraSet0);
+            bind->layoutSource         = DescriptorSetsLayoutSource::CustomLayout;
+            bind->customLayout         = m_pipelineLayouts[PipelineLayoutType::PL_GlobalAndCameraSet];
         }
 
         BeginPass(PassType::PS_ObjectsDefault);
         DrawObjects(Shader::SH_Default);
         EndPass();
+
+        BeginPass(PassType::PS_LightingReflections, 0);
+        BindShader(Shader::SH_LightingPass);
+        BindMaterialSet(currentFrame.lightingPassMaterialSet);
+        DrawFullscreenQuad();
+        EndPass();
+
+        // BeginPass(PassType::PS_LightingReflections, 1);
+        // BindShader(Shader::SH_LightingPass);
+        // BindMaterialSet(currentFrame.lightingPassMaterialSet);
+        // DrawFullscreenQuad();
+        // EndPass();
 
         BeginPass(PassType::PS_Lighting);
         BindShader(Shader::SH_LightingPass);

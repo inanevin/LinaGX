@@ -461,6 +461,31 @@ namespace LinaGX
         }
     }
 
+    VkImageLayout GetVKImageLayoutTextureBarrier(TextureBarrierState state)
+    {
+        switch (state)
+        {
+        case LinaGX::TextureBarrierState::ColorAttachment:
+            return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case LinaGX::TextureBarrierState::DepthStencilAttachment:
+            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case LinaGX::TextureBarrierState::DepthAttachment:
+            return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+        case LinaGX::TextureBarrierState::StencilAttachment:
+            return VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+        case LinaGX::TextureBarrierState::ShaderRead:
+            return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case LinaGX::TextureBarrierState::Present:
+            return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        case LinaGX::TextureBarrierState::TransferSource:
+            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case LinaGX::TextureBarrierState::TransferDestination:
+            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        default:
+            break;
+        }
+    }
+
     VkImageAspectFlags GetVKAspectFlags(DepthStencilAspect depthStencilAspect)
     {
         switch (depthStencilAspect)
@@ -609,6 +634,68 @@ namespace LinaGX
             return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
         default:
             return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        }
+    }
+
+    VkAccessFlags GetVKAccessMaskFromLayout(VkImageLayout layout)
+    {
+        switch (layout)
+        {
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+        case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+            return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            return VK_ACCESS_TRANSFER_READ_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            return VK_ACCESS_TRANSFER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            return VK_ACCESS_SHADER_READ_BIT;
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+            return VK_ACCESS_MEMORY_READ_BIT;
+        default:
+            return VK_ACCESS_MEMORY_READ_BIT;
+        }
+    }
+
+    VkAccessFlags GetVKAccessMaskFromResourceBarrier(ResourceBarrierState state)
+    {
+        switch (state)
+        {
+        case LinaGX::ResourceBarrierState::TransferRead:
+            return VK_ACCESS_TRANSFER_READ_BIT;
+        case LinaGX::ResourceBarrierState::TransferWrite:
+            return VK_ACCESS_TRANSFER_WRITE_BIT;
+        default:
+            return 0;
+        }
+    }
+
+    VkPipelineStageFlags GetVKPipelineStageFromLayout(VkImageLayout layout, bool sampledOutsideFragment)
+    {
+        switch (layout)
+        {
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+        case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+            return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            return VK_PIPELINE_STAGE_TRANSFER_BIT;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: {
+            if (sampledOutsideFragment)
+                return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+            else
+                return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+            return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        default:
+            return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         }
     }
 
@@ -1155,12 +1242,14 @@ namespace LinaGX
             LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
         }
 
-        VKBTexture2D item       = {};
-        item.usage              = txtDesc.usage;
-        item.isValid            = true;
-        item.depthStencilAspect = txtDesc.depthStencilAspect;
-        item.arrayLength        = txtDesc.arrayLength;
-        item.isCubemap          = txtDesc.isCubemap;
+        VKBTexture2D item           = {};
+        item.usage                  = txtDesc.usage;
+        item.isValid                = true;
+        item.depthStencilAspect     = txtDesc.depthStencilAspect;
+        item.arrayLength            = txtDesc.arrayLength;
+        item.isCubemap              = txtDesc.isCubemap;
+        item.mipLevels              = txtDesc.mipLevels;
+        item.sampledOutsideFragment = txtDesc.sampledOutsideFragment;
 
         VkImageCreateInfo imgCreateInfo = VkImageCreateInfo{};
         imgCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1174,6 +1263,7 @@ namespace LinaGX
         imgCreateInfo.tiling            = txtDesc.usage == TextureUsage::ColorTextureDynamic ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
         imgCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
         imgCreateInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        item.imgLayout                  = imgCreateInfo.initialLayout;
 
         if (txtDesc.type == TextureType::Texture3D)
             imgCreateInfo.imageType = VK_IMAGE_TYPE_3D;
@@ -1200,15 +1290,15 @@ namespace LinaGX
 
         VK_NAME_OBJECT(item.img, VK_OBJECT_TYPE_IMAGE, txtDesc.debugName, info);
 
-        item.imgViews.resize(txtDesc.arrayLength);
+        // item.imgViews.resize(txtDesc.arrayLength);
 
-        auto createView = [&](uint32 baseArrayLayer, VkImageView& imgView) {
+        auto createView = [&](uint32 baseArrayLayer, uint32 layerCount, VkImageView& imgView) {
             VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
             subResRange.aspectMask              = txtDesc.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
             subResRange.baseMipLevel            = 0;
             subResRange.levelCount              = txtDesc.mipLevels;
             subResRange.baseArrayLayer          = baseArrayLayer;
-            subResRange.layerCount              = txtDesc.arrayLength;
+            subResRange.layerCount              = layerCount;
 
             VkImageViewCreateInfo viewInfo = VkImageViewCreateInfo{};
             viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1225,11 +1315,13 @@ namespace LinaGX
             VK_CHECK_RESULT(res, "Failed creating image view.");
         };
 
-        for (uint32 i = 0; i < txtDesc.arrayLength; i++)
-            createView(i, item.imgViews[i]);
+        createView(0, txtDesc.arrayLength, item.imgView);
 
-        if (txtDesc.isCubemap)
-            createView(0, item.cubeView);
+        // for (uint32 i = 0; i < txtDesc.arrayLength; i++)
+        //     createView(i, item.imgViews[i]);
+        //
+        // if (txtDesc.isCubemap)
+        //     createView(0, item.cubeView);
 
         return m_textures.AddItem(item);
     }
@@ -1243,8 +1335,10 @@ namespace LinaGX
             return;
         }
 
-        for (auto view : txt.imgViews)
-            vkDestroyImageView(m_device, view, m_allocator);
+        // for (auto view : txt.imgViews)
+        //     vkDestroyImageView(m_device, view, m_allocator);
+
+        vkDestroyImageView(m_device, txt.imgView, m_allocator);
 
         if (txt.isCubemap)
             vkDestroyImageView(m_device, txt.cubeView, m_allocator);
@@ -1546,17 +1640,19 @@ namespace LinaGX
 
             if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
             {
-                auto& txt = m_textures.GetItemR(desc.textures[i]);
+                auto& txt         = m_textures.GetItemR(desc.textures[i]);
+                imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgView;
 
-                if (txt.isCubemap)
-                    imgInfo.imageView = txt.cubeView;
-                else
-                {
-                    if (desc.baseArrayLevels.empty())
-                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
-                    else
-                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[desc.baseArrayLevels[i]];
-                }
+                // if (txt.isCubemap)
+                //     imgInfo.imageView = txt.cubeView;
+                // else
+                //{
+                //
+                //     if (desc.baseArrayLevels.empty())
+                //         imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
+                //     else
+                //         imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[desc.baseArrayLevels[i]];
+                // }
 
                 imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
@@ -1635,6 +1731,7 @@ namespace LinaGX
     {
         VKBCommandStream item = {};
         item.isValid          = true;
+        item.type             = cmdType;
 
         const uint32 familyIndex = m_queueData[cmdType == CommandType::Secondary ? CommandType::Graphics : cmdType].familyIndex;
 
@@ -2729,7 +2826,7 @@ namespace LinaGX
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
             const auto& depthStencilTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
-            depthStencilView            = depthStencilTxt.imgViews[0];
+            depthStencilView            = depthStencilTxt.imgView;
         }
 
         LINAGX_VEC<VkRenderingAttachmentInfo> colorAttachments;
@@ -2742,6 +2839,7 @@ namespace LinaGX
 
         stream.lastRPImages.clear();
         stream.lastRPImages.resize(begin->colorAttachmentCount);
+        VkImageLayout fromLayout = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
 
         for (uint32 i = 0; i < begin->colorAttachmentCount; i++)
         {
@@ -2759,9 +2857,10 @@ namespace LinaGX
             else
             {
                 const auto& txt        = m_textures.GetItemR(att.texture);
-                imageViews[i]          = txt.imgViews[att.layer];
+                imageViews[i]          = txt.imgView;
                 images[i]              = txt.img;
                 stream.lastRPImages[i] = {images[i], false};
+                fromLayout             = txt.imgLayout;
             }
 
             info.sType              = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -3041,9 +3140,9 @@ namespace LinaGX
 
         UnmapResource(stagingHandle);
 
-        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd->mipLevels, dstTexture.arrayLength);
+        // TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd->mipLevels, dstTexture.arrayLength);
         vkCmdCopyBufferToImage(buffer, srcResource.buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32>(regions.size()), regions.data());
-        TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd->mipLevels, dstTexture.arrayLength);
+        // TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd->mipLevels, dstTexture.arrayLength);
     }
 
     void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)
@@ -3115,6 +3214,81 @@ namespace LinaGX
         auto                       buffer    = stream.buffer;
         auto                       bufferSec = m_cmdStreams.GetItemR(cmd->secondaryStream->m_gpuHandle).buffer;
         vkCmdExecuteCommands(stream.buffer, 1, &bufferSec);
+    }
+
+    void VKBackend::CMD_Barrier(uint8* data, VKBCommandStream& stream)
+    {
+        CMDBarrier* cmd    = reinterpret_cast<CMDBarrier*>(data);
+        auto        buffer = stream.buffer;
+
+        LINAGX_VEC<VkImageMemoryBarrier> imgBarriers;
+        imgBarriers.resize(cmd->textureBarrierCount);
+
+        VkPipelineStageFlags srcStage = 0, dstStage = 0;
+
+        for (uint32 i = 0; i < cmd->textureBarrierCount; i++)
+        {
+            const auto& txtBarrier = cmd->textureBarriers[i];
+            auto&       txt        = m_textures.GetItemR(txtBarrier.texture);
+
+            auto oldLayout = txt.imgLayout;
+            auto newLayout = GetVKImageLayoutTextureBarrier(txtBarrier.toState);
+            txt.imgLayout  = newLayout;
+
+            VkImageMemoryBarrier vkBarrier            = {};
+            vkBarrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            vkBarrier.oldLayout                       = oldLayout;
+            vkBarrier.newLayout                       = newLayout;
+            vkBarrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+            vkBarrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+            vkBarrier.image                           = txt.img;
+            vkBarrier.subresourceRange.aspectMask     = txt.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txt.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
+            vkBarrier.subresourceRange.baseMipLevel   = 0;
+            vkBarrier.subresourceRange.levelCount     = txt.mipLevels;
+            vkBarrier.subresourceRange.baseArrayLayer = 0;
+            vkBarrier.subresourceRange.layerCount     = txt.arrayLength;
+
+            vkBarrier.srcAccessMask = GetVKAccessMaskFromLayout(oldLayout);
+            vkBarrier.dstAccessMask = GetVKAccessMaskFromLayout(newLayout);
+
+            if (vkBarrier.dstAccessMask & VK_ACCESS_SHADER_READ_BIT && stream.type == LinaGX::CommandType::Transfer)
+                vkBarrier.dstAccessMask ~ = VK_ACCESS_SHADER_READ_BIT;
+
+            imgBarriers[i] = vkBarrier;
+            srcStage |= GetVKPipelineStageFromLayout(oldLayout, txt.sampledOutsideFragment);
+
+            auto fetchedDestStage = GetVKPipelineStageFromLayout(newLayout, txt.sampledOutsideFragment);
+
+            if (stream.type == LinaGX::CommandType::Transfer && fetchedDestStage != VK_PIPELINE_STAGE_TRANSFER_BIT)
+                dstStage |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            else
+                dstStage |= fetchedDestStage;
+        }
+
+        LINAGX_VEC<VkBufferMemoryBarrier> rscBarriers;
+        rscBarriers.resize(cmd->resourceBarrierCount);
+
+        for (uint32 i = 0; i < cmd->resourceBarrierCount; i++)
+        {
+            const auto& rscBarrier = cmd->resourceBarriers[i];
+            auto&       res        = m_resources.GetItemR(rscBarrier.resource);
+
+            VkBufferMemoryBarrier vkBarrier = {};
+            vkBarrier.sType                 = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            vkBarrier.buffer                = res.buffer;
+            vkBarrier.srcQueueFamilyIndex   = VK_QUEUE_FAMILY_IGNORED;
+            vkBarrier.dstQueueFamilyIndex   = VK_QUEUE_FAMILY_IGNORED;
+            vkBarrier.size                  = VK_WHOLE_SIZE;
+            vkBarrier.offset                = 0;
+            vkBarrier.srcAccessMask         = res.accessFlags;
+            vkBarrier.dstAccessMask         = GetVKAccessMaskFromResourceBarrier(rscBarrier.toState);
+
+            res.accessFlags = vkBarrier.dstAccessMask;
+
+            rscBarriers[i] = vkBarrier;
+        }
+
+        vkCmdPipelineBarrier(buffer, srcStage, dstStage, 0, 0, nullptr, cmd->resourceBarrierCount, rscBarriers.data(), cmd->textureBarrierCount, imgBarriers.data());
     }
 
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize)

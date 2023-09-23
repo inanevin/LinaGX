@@ -105,6 +105,15 @@ namespace LinaGX
             return reinterpret_cast<T*>(initialHead);
         }
 
+        template <typename T>
+        T* EmplaceAuxMemory(size_t size)
+        {
+            uint8* initialHead = m_auxMemory + m_auxMemoryIndex;
+            m_auxMemoryIndex += static_cast<uint32>(size);
+            LOGA(m_auxMemoryIndex < m_auxMemorySize, "Exceeded aux memory limit!");
+            return reinterpret_cast<T*>(initialHead);
+        }
+
     private:
         friend class Instance;
         friend class VKBackend;
