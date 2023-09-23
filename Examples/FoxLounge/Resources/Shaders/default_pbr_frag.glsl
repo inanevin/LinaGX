@@ -89,7 +89,7 @@ void main()
     // Terrain has special texture, silly way to detect that.
     if(materialData.specialTexture != -1)
     {
-        vec2 usedUV = vec2(inUV.x, inUV.y - 1.0f);
+        vec2 usedUV = vec2(inUV.x, inUV.y);
         vec2 tiledUV = usedUV * vec2(16,16);
         vec4 txtBaseColor = texture(sampler2D(allTextures[materialData.baseColor], allSamplers[0]), tiledUV);
         vec4 txtNormal = texture(sampler2D(allTextures[materialData.normal], allSamplers[0]), tiledUV);
@@ -100,20 +100,20 @@ void main()
         float alphaFactor = pow(alphaFactor2, 2.0);
         float alphaFactorExp = clamp(pow(alphaFactor, 6), 0.0, 1.0);
 
-        vec2 uvSample1 = usedUV * vec2(17.1, 16.0);
-        vec4 noiseSampled1 = texture(sampler2D(allTextures[materialData.specialTexture], allSamplers[0]), uvSample1) * 0.02;
-        vec2 uvSample2 = (usedUV  * vec2(2.1, 2.1)) + noiseSampled1.x;
+        vec2 uvSample1 = usedUV * vec2(17.1, 16);
+        vec4 noiseSampled1 = texture(sampler2D(allTextures[materialData.specialTexture], allSamplers[0]), uvSample1) * 0.02f;
+        vec2 uvSample2 = vec2(usedUV.x, usedUV.y - 1.0f) * vec2(2.1, 2.1) + noiseSampled1.xy;
         vec4 noiseSampled2 = texture(sampler2D(allTextures[materialData.specialTexture], allSamplers[0]), uvSample2);
-        float noiseClamped = clamp(noiseSampled2.r, 0.0, 1.0);
+        vec4 noiseClamped = clamp(noiseSampled2, vec4(0.0), vec4(1.0));
 
         // fin base color
         vec4 finalBaseColor = txtBaseColor * noiseClamped;
 
-        float roughnessFactor = (noiseClamped - 0.65) * alphaFactorExp;
+        float roughnessFactor = (noiseClamped - vec4(0.65)).r * alphaFactorExp;
         roughnessFactor = clamp(roughnessFactor * 34, 0.0, 1.0);
 
         // fin normal
-        vec4 finalNormal = mix(txtNormal, vec4(0.0), roughnessFactor);
+        vec4 finalNormal = txtNormal;
 
         // fin roughness
         float finalRoughness = clamp(txtMetallicRoughness.g - roughnessFactor, 0.0, 1.0);

@@ -40,7 +40,8 @@ namespace LinaGX
         LoadOp     loadOp;
         StoreOp    storeOp;
         LGXVector4 clearColor;
-        uint32     texture     = 0;
+        uint32     texture;
+        uint32     layer;
         bool       isSwapchain = false;
     };
 

@@ -71,6 +71,7 @@ namespace LinaGX
         enum PassType
         {
             PS_ObjectsDefault = 0,
+            PS_LightingReflections,
             PS_Lighting,
             PS_FinalQuad,
             PS_Max,

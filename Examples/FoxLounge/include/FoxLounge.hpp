@@ -137,12 +137,13 @@ namespace LinaGX
             void CreateDynamicTextures();
             void DestroyDynamicTextures();
 
-            void BeginPass(PassType pass);
+            void BeginPass(PassType pass, uint32 layer = 0);
             void EndPass();
             void CaptureCubemap();
             void DrawObjects(Shader shader);
             void DrawSkybox();
-            void DrawFullscreenQuad(uint32 shader, uint16 materialDescriptorSet);
+            void BindMaterialSet(uint16 materialSet);
+            void DrawFullscreenQuad();
             void BindShader(uint32 target);
 
         private:

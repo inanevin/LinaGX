@@ -49,7 +49,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -237,9 +237,8 @@ namespace LinaGX::Examples
             for (auto* modMat : modelData.allMaterials)
             {
                 m_materials.push_back({});
-                auto& mat = m_materials.back();
-                mat.name  = modMat->name;
-
+                auto& mat               = m_materials.back();
+                mat.name                = modMat->name;
                 mat.gpuMat.alphaCutoff  = modMat->alphaCutoff;
                 mat.gpuMat.metallic     = modMat->metallicFactor;
                 mat.gpuMat.roughness    = modMat->roughnessFactor;
@@ -251,7 +250,6 @@ namespace LinaGX::Examples
             {
                 if (node->mesh == nullptr)
                     continue;
-
                 m_worldObjects.push_back({});
                 auto& wo        = m_worldObjects.back();
                 wo.name         = node->name;
@@ -624,10 +622,9 @@ namespace LinaGX::Examples
             .minFilter  = Filter::Linear,
             .magFilter  = Filter::Linear,
             .mode       = SamplerAddressMode::Repeat,
-            .mipmapMode = MipmapMode::Linear,
+            .mipmapMode = MipmapMode::Nearest,
             .anisotropy = 8,
         };
-
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
     }
 
@@ -736,7 +733,6 @@ namespace LinaGX::Examples
     void Example::SetupShaders()
     {
         m_shaders.resize(Shader::SH_Max);
-
         m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects]);
         m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass]);
         m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass]);
@@ -751,26 +747,8 @@ namespace LinaGX::Examples
         {
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-                // LinaGX::ResourceDesc resource = {
-                //     .size          = sizeof(GPUMaterialData) * MAX_MATS,
-                //     .typeHintFlags = LinaGX::TH_StorageBuffer,
-                //     .heapType      = LinaGX::ResourceHeap::StagingHeap,
-                //     .debugName     = "Pass Data GPU",
-                // };
             }
         }
-
-        // m_passes[PassType::ObjectsDefault].pipelineLayout = m_pipelineLayouts[PipelineLayoutType::DefaultObjects];
-
-        // pass.descriptorSets[i] = m_lgx->CreateDescriptorSet(Utility::GetPassSetDescription());
-
-        // LinaGX::DescriptorUpdateBufferDesc update = {
-        //     .setHandle = pass.descriptorSets[i],
-        //     .binding   = 0,
-        //     .buffers   = {pass.resources[i]},
-        // };
-
-        // m_lgx->DescriptorUpdateBuffer(update);
     }
 
     void Example::SetupGlobalResources()
@@ -860,6 +838,7 @@ namespace LinaGX::Examples
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
+
             auto& objsDefault = m_passes[PassType::PS_ObjectsDefault];
             objsDefault.renderTargets[i].colorAttachments.clear();
 
@@ -905,6 +884,16 @@ namespace LinaGX::Examples
             depthStencilAttachment.useDepth                         = false;
             lightingDefault.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
 
+            auto& reflections = m_passes[PassType::PS_LightingReflections];
+            reflections.renderTargets[i].colorAttachments.clear();
+
+            reflectionsCube.debugName   = "Reflection Cube";
+            colorAttachment.isSwapchain = false;
+            colorAttachment.texture     = m_lgx->CreateTexture(reflectionsCube);
+            reflections.renderTargets[i].colorAttachments.push_back(colorAttachment);
+            depthStencilAttachment.useDepth                     = false;
+            reflections.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
+
             auto& finalQuad = m_passes[PassType::PS_FinalQuad];
             finalQuad.renderTargets[i].colorAttachments.clear();
 
@@ -945,7 +934,7 @@ namespace LinaGX::Examples
         }
     }
 
-    void Example::BeginPass(PassType pass)
+    void Example::BeginPass(PassType pass, uint32 layer)
     {
         const uint32       currentFrameIndex = m_lgx->GetCurrentFrameIndex();
         const auto&        currentFrame      = m_pfd[currentFrameIndex];
@@ -964,6 +953,9 @@ namespace LinaGX::Examples
             beginRenderPass->depthStencilAttachment     = rt.depthStencilAttachment;
             beginRenderPass->viewport                   = viewport;
             beginRenderPass->scissors                   = sc;
+
+            for (uint32 i = 0; i < beginRenderPass->colorAttachmentCount; i++)
+                beginRenderPass->colorAttachments[i].layer = layer;
         }
     }
 
@@ -1188,10 +1180,9 @@ namespace LinaGX::Examples
         // draw->indexCountPerInstance           = m_skyboxIndexCount;
     }
 
-    void Example::DrawFullscreenQuad(uint32 shader, uint16 materialDescriptorSet)
+    void Example::BindMaterialSet(uint16 materialSet)
     {
         auto& pfd = m_pfd[m_lgx->GetCurrentFrameIndex()];
-        BindShader(shader);
 
         LinaGX::CMDBindDescriptorSets* bind = pfd.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
         bind->extension                     = nullptr;
@@ -1199,8 +1190,13 @@ namespace LinaGX::Examples
         bind->firstSet                      = 2;
         bind->setCount                      = 1;
         bind->dynamicOffsetCount            = 0;
-        bind->descriptorSetHandles          = pfd.graphicsStream->EmplaceAuxMemory<uint16>(materialDescriptorSet);
+        bind->descriptorSetHandles          = pfd.graphicsStream->EmplaceAuxMemory<uint16>(materialSet);
         bind->layoutSource                  = DescriptorSetsLayoutSource::LastBoundShader;
+    }
+
+    void Example::DrawFullscreenQuad()
+    {
+        auto& pfd = m_pfd[m_lgx->GetCurrentFrameIndex()];
 
         CMDDrawInstanced* draw       = pfd.graphicsStream->AddCommand<CMDDrawInstanced>();
         draw->instanceCount          = 1;
@@ -1230,34 +1226,57 @@ namespace LinaGX::Examples
         // Check for window inputs.
         m_lgx->PollWindowsAndInput();
 
-        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_1))
-        // {
-        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexLightingPass;
-        // }
-        //
-        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_2))
-        // {
-        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer;
-        // }
-        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_3))
-        // {
-        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 1;
-        // }
-        //
-        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
-        // {
-        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 2;
-        // }
-        //
-        // if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
-        // {
-        //     for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-        //         m_pfd[i].debugDisplayRT = m_pfd[i].rtStartIndexGBuffer + 3;
-        // }
+        bool dbgUpdate = false;
+
+        uint32 dbgUpdateTxt[2] = {0};
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_1))
+        {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_Lighting].renderTargets[0].colorAttachments[0].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_Lighting].renderTargets[1].colorAttachments[0].texture;
+            dbgUpdate       = true;
+        }
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_2))
+        {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_ObjectsDefault].renderTargets[0].colorAttachments[0].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_ObjectsDefault].renderTargets[1].colorAttachments[0].texture;
+            dbgUpdate       = true;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_3))
+        {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_ObjectsDefault].renderTargets[0].colorAttachments[1].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_ObjectsDefault].renderTargets[1].colorAttachments[1].texture;
+            dbgUpdate       = true;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
+        {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_ObjectsDefault].renderTargets[0].colorAttachments[2].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_ObjectsDefault].renderTargets[1].colorAttachments[2].texture;
+            dbgUpdate       = true;
+        }
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
+        {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_ObjectsDefault].renderTargets[0].depthStencilAttachment.texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_ObjectsDefault].renderTargets[1].depthStencilAttachment.texture;
+            dbgUpdate       = true;
+        }
+
+        if (dbgUpdate)
+        {
+            m_lgx->Join();
+
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            {
+                LinaGX::DescriptorUpdateImageDesc imgUpdate = {
+                    .setHandle = m_pfd[i].finalQuadPassMaterialSet,
+                    .binding   = 0,
+                    .textures  = {dbgUpdateTxt[i]},
+                };
+
+                m_lgx->DescriptorUpdateImage(imgUpdate);
+            }
+        }
 
         // Let LinaGX know we are starting a new frame.
         m_lgx->StartFrame();
@@ -1372,7 +1391,8 @@ namespace LinaGX::Examples
             bind->isCompute                     = false;
             bind->firstSet                      = 1;
             bind->setCount                      = 1;
-            bind->dynamicOffsetCount            = 0;
+            bind->dynamicOffsetCount            = 1;
+            bind->dynamicOffsets                = currentFrame.graphicsStream->EmplaceAuxMemory<uint32>(0);
             bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.cameraSet0);
             bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
             bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalAndCameraSet];
@@ -1383,11 +1403,15 @@ namespace LinaGX::Examples
         EndPass();
 
         BeginPass(PassType::PS_Lighting);
-        DrawFullscreenQuad(Shader::SH_LightingPass, currentFrame.lightingPassMaterialSet);
+        BindShader(Shader::SH_LightingPass);
+        BindMaterialSet(currentFrame.lightingPassMaterialSet);
+        DrawFullscreenQuad();
         EndPass();
 
         BeginPass(PassType::PS_FinalQuad);
-        DrawFullscreenQuad(Shader::SH_Quad, currentFrame.finalQuadPassMaterialSet);
+        BindShader(Shader::SH_Quad);
+        BindMaterialSet(currentFrame.finalQuadPassMaterialSet);
+        DrawFullscreenQuad();
         EndPass();
 
         // This does the actual *recording* of every single command stream alive.

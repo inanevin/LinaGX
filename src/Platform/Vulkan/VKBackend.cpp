@@ -1150,9 +1150,9 @@ namespace LinaGX
             LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
         }
 
-        if (txtDesc.type == TextureType::TextureCube && txtDesc.arrayLength != 6)
+        if (txtDesc.isCubemap && txtDesc.arrayLength != 6)
         {
-            LOGA(false, "Backend -> Array length needs to be 6 for Cube textures!");
+            LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
         }
 
         VKBTexture2D item       = {};
@@ -1160,6 +1160,7 @@ namespace LinaGX
         item.isValid            = true;
         item.depthStencilAspect = txtDesc.depthStencilAspect;
         item.arrayLength        = txtDesc.arrayLength;
+        item.isCubemap          = txtDesc.isCubemap;
 
         VkImageCreateInfo imgCreateInfo = VkImageCreateInfo{};
         imgCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1176,7 +1177,8 @@ namespace LinaGX
 
         if (txtDesc.type == TextureType::Texture3D)
             imgCreateInfo.imageType = VK_IMAGE_TYPE_3D;
-        else if (txtDesc.type == TextureType::TextureCube)
+
+        if (txtDesc.isCubemap)
             imgCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
         if (txtDesc.usage == TextureUsage::DepthStencilTexture)
@@ -1198,28 +1200,36 @@ namespace LinaGX
 
         VK_NAME_OBJECT(item.img, VK_OBJECT_TYPE_IMAGE, txtDesc.debugName, info);
 
-        VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
-        subResRange.aspectMask              = txtDesc.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
-        subResRange.baseMipLevel            = 0;
-        subResRange.levelCount              = txtDesc.mipLevels;
-        subResRange.baseArrayLayer          = 0;
-        subResRange.layerCount              = txtDesc.arrayLength > 1 ? txtDesc.arrayLength : 1;
+        item.imgViews.resize(txtDesc.arrayLength);
 
-        VkImageViewCreateInfo viewInfo = VkImageViewCreateInfo{};
-        viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.pNext                 = nullptr;
-        viewInfo.image                 = item.img;
-        viewInfo.viewType              = txtDesc.arrayLength > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format                = GetVKFormat(txtDesc.format);
-        viewInfo.subresourceRange      = subResRange;
+        auto createView = [&](uint32 baseArrayLayer, VkImageView& imgView) {
+            VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
+            subResRange.aspectMask              = txtDesc.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
+            subResRange.baseMipLevel            = 0;
+            subResRange.levelCount              = txtDesc.mipLevels;
+            subResRange.baseArrayLayer          = baseArrayLayer;
+            subResRange.layerCount              = txtDesc.arrayLength;
 
-        if (txtDesc.type == TextureType::Texture3D)
-            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
-        else if (txtDesc.type == TextureType::TextureCube)
-            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+            VkImageViewCreateInfo viewInfo = VkImageViewCreateInfo{};
+            viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewInfo.pNext                 = nullptr;
+            viewInfo.image                 = item.img;
+            viewInfo.viewType              = txtDesc.arrayLength > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.format                = GetVKFormat(txtDesc.format);
+            viewInfo.subresourceRange      = subResRange;
 
-        res = vkCreateImageView(m_device, &viewInfo, m_allocator, &item.imgView);
-        VK_CHECK_RESULT(res, "Failed creating image view.");
+            if (txtDesc.type == TextureType::Texture3D)
+                viewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+
+            res = vkCreateImageView(m_device, &viewInfo, m_allocator, &imgView);
+            VK_CHECK_RESULT(res, "Failed creating image view.");
+        };
+
+        for (uint32 i = 0; i < txtDesc.arrayLength; i++)
+            createView(i, item.imgViews[i]);
+
+        if (txtDesc.isCubemap)
+            createView(0, item.cubeView);
 
         return m_textures.AddItem(item);
     }
@@ -1233,7 +1243,12 @@ namespace LinaGX
             return;
         }
 
-        vkDestroyImageView(m_device, txt.imgView, m_allocator);
+        for (auto view : txt.imgViews)
+            vkDestroyImageView(m_device, view, m_allocator);
+
+        if (txt.isCubemap)
+            vkDestroyImageView(m_device, txt.cubeView, m_allocator);
+
         vmaDestroyImage(m_vmaAllocator, txt.img, txt.allocation);
 
         txt.isValid = false;
@@ -1531,7 +1546,18 @@ namespace LinaGX
 
             if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
             {
-                imgInfo.imageView   = m_textures.GetItemR(desc.textures[i]).imgView;
+                auto& txt = m_textures.GetItemR(desc.textures[i]);
+
+                if (txt.isCubemap)
+                    imgInfo.imageView = txt.cubeView;
+                else
+                {
+                    if (desc.baseArrayLevels.empty())
+                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
+                    else
+                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[desc.baseArrayLevels[i]];
+                }
+
                 imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
 
@@ -2703,7 +2729,7 @@ namespace LinaGX
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
             const auto& depthStencilTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
-            depthStencilView            = depthStencilTxt.imgView;
+            depthStencilView            = depthStencilTxt.imgViews[0];
         }
 
         LINAGX_VEC<VkRenderingAttachmentInfo> colorAttachments;
@@ -2733,7 +2759,7 @@ namespace LinaGX
             else
             {
                 const auto& txt        = m_textures.GetItemR(att.texture);
-                imageViews[i]          = txt.imgView;
+                imageViews[i]          = txt.imgViews[att.layer];
                 images[i]              = txt.img;
                 stream.lastRPImages[i] = {images[i], false};
             }

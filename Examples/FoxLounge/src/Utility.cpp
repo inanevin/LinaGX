@@ -106,7 +106,6 @@ namespace LinaGX::Examples
             "Resources/Textures/island_tree_02_rough.png"_hs,
             "Resources/Textures/noiseTexture.png"_hs,
         };
-
         return linearTextures;
     }
 

@@ -54,6 +54,7 @@ layout( push_constant ) uniform constants
 
 void main() {
     vec4 skinnedPosition = vec4(0.0);
+
     Object object = objectData.objects[Constants.objectID];
 
     for(int i = 0; i < MAX_BONE_INFLUENCES; ++i)

@@ -210,9 +210,9 @@ namespace LinaGX
 
     enum class TextureType
     {
+        Texture1D,
         Texture2D,
         Texture3D,
-        TextureCube,
     };
 
     enum class DepthStencilAspect
@@ -568,6 +568,7 @@ namespace LinaGX
         TextureType        type                      = TextureType::Texture2D;
         bool               sampled                   = true;
         bool               usedOutsideFragmentShader = false;
+        bool               isCubemap                 = false;
         DepthStencilAspect depthStencilAspect        = DepthStencilAspect::DepthStencil;
         float              depthClear                = 1.0f;
         uint32             stencilClear              = 0;
@@ -610,10 +611,11 @@ namespace LinaGX
 
     struct DescriptorUpdateImageDesc
     {
-        uint16             setHandle = 0;
-        uint32             binding   = 0;
-        LINAGX_VEC<uint32> textures  = {};
-        LINAGX_VEC<uint32> samplers  = {};
+        uint16             setHandle       = 0;
+        uint32             binding         = 0;
+        LINAGX_VEC<uint32> textures        = {};
+        LINAGX_VEC<uint32> samplers        = {};
+        LINAGX_VEC<uint32> baseArrayLevels = {};
     };
 
     struct DescriptorUpdateBufferDesc

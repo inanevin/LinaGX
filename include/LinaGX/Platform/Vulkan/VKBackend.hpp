@@ -59,13 +59,15 @@ namespace LinaGX
 
     struct VKBTexture2D
     {
-        TextureUsage       usage              = TextureUsage::ColorTexture;
-        DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthOnly;
-        VkImage            img                = nullptr;
-        VkImageView        imgView            = nullptr;
-        VmaAllocation_T*   allocation         = nullptr;
-        bool               isValid            = false;
-        uint32             arrayLength        = 0;
+        TextureUsage            usage              = TextureUsage::ColorTexture;
+        DepthStencilAspect      depthStencilAspect = DepthStencilAspect::DepthOnly;
+        VkImage                 img                = nullptr;
+        LINAGX_VEC<VkImageView> imgViews           = {};
+        VkImageView             cubeView           = nullptr;
+        VmaAllocation_T*        allocation         = nullptr;
+        bool                    isValid            = false;
+        bool                    isCubemap          = false;
+        uint32                  arrayLength        = 0;
     };
 
     struct VKBSampler

@@ -35,9 +35,9 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MOVE_SPEED   6.0f
-#define ROTATE_SPEED 16.0f
-#define ROTATE_AMT   6.0f
+#define MOVE_SPEED   16.0f
+#define ROTATE_SPEED 32.0f
+#define ROTATE_AMT   3.0f
 
     void Camera::Initialize(LinaGX::Instance* lgx)
     {
