@@ -239,6 +239,7 @@ namespace LinaGX
     struct TextureBarrier
     {
         uint32              texture;
+        bool                isSwapchain;
         TextureBarrierState toState;
     };
 

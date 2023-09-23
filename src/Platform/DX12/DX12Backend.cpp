@@ -441,6 +441,44 @@ namespace LinaGX
             return D3D12_COLOR_WRITE_ENABLE_ALL;
         }
     }
+
+    D3D12_RESOURCE_STATES GetDXTextureBarrierState(TextureBarrierState state, bool usedOutsideFragment)
+    {
+        switch (state)
+        {
+        case LinaGX::TextureBarrierState::ColorAttachment:
+        case LinaGX::TextureBarrierState::DepthStencilAttachment:
+        case LinaGX::TextureBarrierState::DepthAttachment:
+        case LinaGX::TextureBarrierState::StencilAttachment:
+            return D3D12_RESOURCE_STATE_RENDER_TARGET;
+        case LinaGX::TextureBarrierState::ShaderRead: {
+            if (usedOutsideFragment)
+                return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            else
+                return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        }
+        case LinaGX::TextureBarrierState::Present:
+            return D3D12_RESOURCE_STATE_PRESENT;
+        case LinaGX::TextureBarrierState::TransferSource:
+            return D3D12_RESOURCE_STATE_COPY_SOURCE;
+        case LinaGX::TextureBarrierState::TransferDestination:
+            return D3D12_RESOURCE_STATE_COPY_DEST;
+        default:
+            return D3D12_RESOURCE_STATE_COMMON;
+        }
+    }
+    D3D12_RESOURCE_STATES GetDXResourceBarrierState(ResourceBarrierState state)
+    {
+        switch (state)
+        {
+        case LinaGX::ResourceBarrierState::TransferRead:
+            return D3D12_RESOURCE_STATE_COPY_SOURCE;
+        case LinaGX::ResourceBarrierState::TransferWrite:
+            return D3D12_RESOURCE_STATE_COPY_DEST;
+        default:
+            return D3D12_RESOURCE_STATE_COMMON;
+        }
+    }
     void FillBorderColor(BorderColor bc, float* color)
     {
         switch (bc)
@@ -2395,7 +2433,7 @@ namespace LinaGX
             return;
         }
 
-        for (const auto [id, frame] : stream.intermediateResources)
+        for (const auto& [id, frame] : stream.intermediateResources)
             DestroyResource(id);
 
         stream.isValid = false;
@@ -2632,12 +2670,8 @@ namespace LinaGX
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
 
-        LINAGX_VEC<CD3DX12_RESOURCE_BARRIER>             barriers;
         LINAGX_VEC<D3D12_RENDER_PASS_RENDER_TARGET_DESC> colorAttDescs;
-        barriers.resize(begin->colorAttachmentCount);
         colorAttDescs.resize(begin->colorAttachmentCount);
-        stream.lastRPImages.clear();
-        stream.lastRPImages.resize(begin->colorAttachmentCount);
 
         for (uint32 i = 0; i < begin->colorAttachmentCount; i++)
         {
@@ -2648,7 +2682,6 @@ namespace LinaGX
                 const auto&  swp    = m_swapchains.GetItemR(static_cast<uint8>(att.texture));
                 const uint32 handle = swp.colorTextures[swp._imageIndex];
                 const auto&  txt    = m_textures.GetItemR(handle);
-                barriers[i]         = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
                 CD3DX12_CLEAR_VALUE cv;
                 cv.Format   = GetDXFormat(txt.desc.format);
@@ -2659,13 +2692,11 @@ namespace LinaGX
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
 
-                colorAttDescs[i]       = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
-                stream.lastRPImages[i] = {handle, true};
+                colorAttDescs[i] = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
             }
             else
             {
                 auto& txt   = m_textures.GetItemR(att.texture);
-                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), txt.state, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
                 CD3DX12_CLEAR_VALUE cv;
                 cv.Format   = GetDXFormat(txt.desc.format);
@@ -2675,12 +2706,9 @@ namespace LinaGX
                 cv.Color[3] = att.clearColor.w;
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
-                colorAttDescs[i]       = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
-                stream.lastRPImages[i] = {att.texture, false};
+                colorAttDescs[i] = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
             }
         }
-
-        stream.list->ResourceBarrier(begin->colorAttachmentCount, barriers.data());
 
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
@@ -2716,23 +2744,6 @@ namespace LinaGX
     {
         CMDEndRenderPass* end = reinterpret_cast<CMDEndRenderPass*>(data);
         stream.list->EndRenderPass();
-
-        const uint32                         sz = static_cast<uint32>(stream.lastRPImages.size());
-        LINAGX_VEC<CD3DX12_RESOURCE_BARRIER> barriers;
-        barriers.resize(stream.lastRPImages.size());
-
-        for (uint32 i = 0; i < sz; i++)
-        {
-            const auto& data = stream.lastRPImages[i];
-            const auto& txt  = m_textures.GetItemR(data.txt);
-
-            if (data.isSwapchain)
-                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.rawRes.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-            else
-                barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(txt.allocation->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, txt.state);
-        }
-
-        stream.list->ResourceBarrier(static_cast<uint32>(barriers.size()), barriers.data());
         stream.boundShader        = 0;
         stream.boundRootSignature = nullptr;
     }
@@ -3037,6 +3048,54 @@ namespace LinaGX
 
     void DX12Backend::CMD_Barrier(uint8* data, DX12CommandStream& stream)
     {
+        CMDBarrier* cmd = reinterpret_cast<CMDBarrier*>(data);
+
+        LINAGX_VEC<CD3DX12_RESOURCE_BARRIER> barriers;
+        barriers.reserve(cmd->textureBarrierCount + cmd->resourceBarrierCount);
+
+        for (uint32 i = 0; i < cmd->textureBarrierCount; i++)
+        {
+            const auto& barrier = cmd->textureBarriers[i];
+
+            uint32 txtIndex = barrier.texture;
+
+            if (barrier.isSwapchain)
+            {
+                auto& swp = m_swapchains.GetItemR(static_cast<uint8>(barrier.texture));
+                txtIndex  = swp.colorTextures[swp._imageIndex];
+            }
+
+            auto& txt      = m_textures.GetItemR(txtIndex);
+            auto  newState = GetDXTextureBarrierState(barrier.toState, txt.desc.sampledOutsideFragment);
+
+            // Will decay to common & promoted on first usage.
+            if (stream.type == CommandType::Transfer && newState != D3D12_RESOURCE_STATE_COPY_DEST && newState != D3D12_RESOURCE_STATE_COPY_SOURCE)
+                continue;
+
+            auto dxRes = txt.rawRes.Get() != nullptr ? txt.rawRes.Get() : txt.allocation->GetResource();
+            auto dxBar = CD3DX12_RESOURCE_BARRIER::Transition(dxRes, txt.state, newState);
+            txt.state  = newState;
+            barriers.push_back(dxBar);
+        }
+
+        for (uint32 i = 0; i < cmd->resourceBarrierCount; i++)
+        {
+            const auto& barrier  = cmd->resourceBarriers[i];
+            auto&       res      = m_resources.GetItemR(barrier.resource);
+            auto        dxRes    = res.cpuVisibleResource.Get() != nullptr ? res.cpuVisibleResource.Get() : res.allocation->GetResource();
+            auto        newState = GetDXResourceBarrierState(barrier.toState);
+
+            // Will decay to common & promoted on first usage.
+            if (stream.type == CommandType::Transfer && newState != D3D12_RESOURCE_STATE_COPY_DEST && newState != D3D12_RESOURCE_STATE_COPY_SOURCE)
+                continue;
+
+            auto dxBar = CD3DX12_RESOURCE_BARRIER::Transition(dxRes, res.state, newState);
+            res.state  = newState;
+            barriers.push_back(dxBar);
+        }
+
+        if (!barriers.empty())
+            stream.list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
     }
 
 } // namespace LinaGX

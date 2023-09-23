@@ -482,7 +482,7 @@ namespace LinaGX
         case LinaGX::TextureBarrierState::TransferDestination:
             return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         default:
-            break;
+            return VK_IMAGE_LAYOUT_UNDEFINED;
         }
     }
 
@@ -804,6 +804,7 @@ namespace LinaGX
         swp.width                   = vkbSwapchain.extent.width;
         swp.height                  = vkbSwapchain.extent.height;
         swp.isValid                 = true;
+        swp.imgLayouts.resize(swp.imgs.size(), VK_IMAGE_LAYOUT_UNDEFINED);
 
         if (swp.format != swpFormat)
         {
@@ -883,6 +884,8 @@ namespace LinaGX
         swp.format = vkbSwapchain.image_format;
         swp.width  = vkbSwapchain.extent.width;
         swp.height = vkbSwapchain.extent.height;
+        swp.imgLayouts.clear();
+        swp.imgLayouts.resize(swp.imgs.size(), VK_IMAGE_LAYOUT_UNDEFINED);
 
         vkDestroySwapchainKHR(m_device, oldSwapchain, m_allocator);
 
@@ -1767,7 +1770,7 @@ namespace LinaGX
             return;
         }
 
-        for (const auto [id, frame] : stream.intermediateResources)
+        for (const auto& [id, frame] : stream.intermediateResources)
             DestroyResource(id);
 
         stream.isValid = false;
@@ -2837,10 +2840,6 @@ namespace LinaGX
         imageViews.resize(begin->colorAttachmentCount);
         images.resize(begin->colorAttachmentCount);
 
-        stream.lastRPImages.clear();
-        stream.lastRPImages.resize(begin->colorAttachmentCount);
-        VkImageLayout fromLayout = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
-
         for (uint32 i = 0; i < begin->colorAttachmentCount; i++)
         {
             const auto&               att = begin->colorAttachments[i];
@@ -2848,19 +2847,16 @@ namespace LinaGX
 
             if (att.isSwapchain)
             {
-                const auto& swp        = m_swapchains.GetItemR(static_cast<uint8>(att.texture));
-                imageViews[i]          = swp.views[swp._imageIndex];
-                images[i]              = swp.imgs[swp._imageIndex];
-                stream.lastRPImages[i] = {images[i], true};
+                const auto& swp = m_swapchains.GetItemR(static_cast<uint8>(att.texture));
+                imageViews[i]   = swp.views[swp._imageIndex];
+                images[i]       = swp.imgs[swp._imageIndex];
                 stream.swapchainWrites.push_back(static_cast<uint8>(att.texture));
             }
             else
             {
-                const auto& txt        = m_textures.GetItemR(att.texture);
-                imageViews[i]          = txt.imgView;
-                images[i]              = txt.img;
-                stream.lastRPImages[i] = {images[i], false};
-                fromLayout             = txt.imgLayout;
+                const auto& txt = m_textures.GetItemR(att.texture);
+                imageViews[i]   = txt.imgView;
+                images[i]       = txt.img;
             }
 
             info.sType              = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -2932,12 +2928,7 @@ namespace LinaGX
         renderingInfo.colorAttachmentCount = begin->colorAttachmentCount;
         renderingInfo.pColorAttachments    = colorAttachments.data();
 
-        auto buffer = stream.buffer;
-
-        for (auto img : images)
-            TransitionImageLayout(buffer, img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 1);
-
-        vkCmdBeginRendering(buffer, &renderingInfo);
+        vkCmdBeginRendering(stream.buffer, &renderingInfo);
         CMD_SetViewport((uint8*)&interVP, stream);
         CMD_SetScissors((uint8*)&interSC, stream);
     }
@@ -2947,16 +2938,6 @@ namespace LinaGX
         CMDEndRenderPass* end    = reinterpret_cast<CMDEndRenderPass*>(data);
         auto              buffer = stream.buffer;
         vkCmdEndRendering(buffer);
-
-        for (const auto& imgData : stream.lastRPImages)
-        {
-            if (imgData.isSwapchain)
-                TransitionImageLayout(buffer, imgData.ptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1, 1);
-            else
-                TransitionImageLayout(buffer, imgData.ptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 1);
-        }
-
-        stream.lastRPImages.clear();
     }
 
     void VKBackend::CMD_SetViewport(uint8* data, VKBCommandStream& stream)
@@ -3229,35 +3210,54 @@ namespace LinaGX
         for (uint32 i = 0; i < cmd->textureBarrierCount; i++)
         {
             const auto& txtBarrier = cmd->textureBarriers[i];
-            auto&       txt        = m_textures.GetItemR(txtBarrier.texture);
 
-            auto oldLayout = txt.imgLayout;
-            auto newLayout = GetVKImageLayoutTextureBarrier(txtBarrier.toState);
-            txt.imgLayout  = newLayout;
+            VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            auto          newLayout = GetVKImageLayoutTextureBarrier(txtBarrier.toState);
 
-            VkImageMemoryBarrier vkBarrier            = {};
-            vkBarrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            VkImageMemoryBarrier vkBarrier = {};
+            vkBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+
+            bool sampledOutsideFragment = false;
+
+            if (txtBarrier.isSwapchain)
+            {
+                auto& swp                             = m_swapchains.GetItemR(static_cast<uint32>(txtBarrier.texture));
+                oldLayout                             = swp.imgLayouts[swp._imageIndex];
+                swp.imgLayouts[swp._imageIndex]       = newLayout;
+                vkBarrier.image                       = swp.imgs[swp._imageIndex];
+                vkBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                vkBarrier.subresourceRange.layerCount = 1;
+                vkBarrier.subresourceRange.levelCount = 1;
+            }
+            else
+            {
+                auto& txt                             = m_textures.GetItemR(txtBarrier.texture);
+                oldLayout                             = txt.imgLayout;
+                txt.imgLayout                         = newLayout;
+                vkBarrier.image                       = txt.img;
+                vkBarrier.subresourceRange.aspectMask = txt.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txt.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
+                vkBarrier.subresourceRange.layerCount = txt.arrayLength;
+                vkBarrier.subresourceRange.levelCount = txt.mipLevels;
+                sampledOutsideFragment                = txt.sampledOutsideFragment;
+            }
+
             vkBarrier.oldLayout                       = oldLayout;
             vkBarrier.newLayout                       = newLayout;
             vkBarrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
             vkBarrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-            vkBarrier.image                           = txt.img;
-            vkBarrier.subresourceRange.aspectMask     = txt.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txt.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
             vkBarrier.subresourceRange.baseMipLevel   = 0;
-            vkBarrier.subresourceRange.levelCount     = txt.mipLevels;
             vkBarrier.subresourceRange.baseArrayLayer = 0;
-            vkBarrier.subresourceRange.layerCount     = txt.arrayLength;
 
             vkBarrier.srcAccessMask = GetVKAccessMaskFromLayout(oldLayout);
             vkBarrier.dstAccessMask = GetVKAccessMaskFromLayout(newLayout);
 
             if (vkBarrier.dstAccessMask & VK_ACCESS_SHADER_READ_BIT && stream.type == LinaGX::CommandType::Transfer)
-                vkBarrier.dstAccessMask = ~VK_ACCESS_SHADER_READ_BIT;
+                vkBarrier.dstAccessMask &= ~VK_ACCESS_SHADER_READ_BIT;
 
             imgBarriers[i] = vkBarrier;
-            srcStage |= GetVKPipelineStageFromLayout(oldLayout, txt.sampledOutsideFragment);
+            srcStage |= GetVKPipelineStageFromLayout(oldLayout, sampledOutsideFragment);
 
-            auto fetchedDestStage = GetVKPipelineStageFromLayout(newLayout, txt.sampledOutsideFragment);
+            auto fetchedDestStage = GetVKPipelineStageFromLayout(newLayout, sampledOutsideFragment);
 
             if (stream.type == LinaGX::CommandType::Transfer && fetchedDestStage != VK_PIPELINE_STAGE_TRANSFER_BIT)
                 dstStage |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
@@ -3293,6 +3293,7 @@ namespace LinaGX
 
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize)
     {
+        return;
         VkImageMemoryBarrier barrier{};
         barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.oldLayout                       = oldLayout;

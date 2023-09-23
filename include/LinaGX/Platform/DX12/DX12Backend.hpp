@@ -133,7 +133,6 @@ namespace LinaGX
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
         LINAGX_MAP<uint32, uint64>                         intermediateResources;
         LINAGX_MAP<void*, uint64>                          adjustedBuffers;
-        LINAGX_VEC<DX12RenderPassImage>                    lastRPImages;
         LINAGX_MAP<uint32, DX12BoundDescriptorSet>         boundDescriptorSets;
     };
 

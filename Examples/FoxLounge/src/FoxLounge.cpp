@@ -49,7 +49,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -391,149 +391,6 @@ namespace LinaGX::Examples
         }
     }
 
-    //  void Example::GBufferPass()
-    //  {
-    //      //  auto& currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
-    //      //
-    //      //  const Viewport     viewport = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-    //      //  const ScissorsRect sc       = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
-    //      //
-    //      //  // Render pass begin
-    //      //  {
-    //      //      RenderPassColorAttachment albedoRoughness;
-    //      //      albedoRoughness.clearColor  = {0.1f, 0.1f, 0.1f, 1.0f};
-    //      //      albedoRoughness.texture     = currentFrame.renderTargets[RTType::GBufAlbedoRoughness];
-    //      //      albedoRoughness.isSwapchain = false;
-    //      //      albedoRoughness.loadOp      = LoadOp::Clear;
-    //      //      albedoRoughness.storeOp     = StoreOp::Store;
-    //      //
-    //      //      RenderPassColorAttachment normalMetallic = albedoRoughness;
-    //      //      normalMetallic.texture                   = currentFrame.renderTargets[RTType::GBufNormalMetallic];
-    //      //
-    //      //      RenderPassColorAttachment positionAO = albedoRoughness;
-    //      //      positionAO.texture                   = currentFrame.renderTargets[RTType::GBufPositionAO];
-    //      //
-    //      //      LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-    //      //
-    //      //      beginRenderPass->colorAttachmentCount                = 3;
-    //      //      beginRenderPass->colorAttachments                    = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(albedoRoughness, normalMetallic, positionAO);
-    //      //      beginRenderPass->viewport                            = viewport;
-    //      //      beginRenderPass->scissors                            = sc;
-    //      //      beginRenderPass->depthStencilAttachment.useDepth     = true;
-    //      //      beginRenderPass->depthStencilAttachment.depthLoadOp  = LoadOp::Clear;
-    //      //      beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
-    //      //      beginRenderPass->depthStencilAttachment.texture      = currentFrame.renderTargets[RTType::WorldDepth];
-    //      //      beginRenderPass->depthStencilAttachment.clearDepth   = 1.0f;
-    //      //      beginRenderPass->depthStencilAttachment.useStencil   = false;
-    //      //  }
-    //      //
-    //      //  // Objects
-    //      //  {
-    //      //      DrawObjects();
-    //      //  }
-    //      //
-    //      //  // End render pass
-    //      //  {
-    //      //      LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-    //      //  }
-    //  }
-    //
-    // void Example::LightingPass()
-    // {
-    //     // auto&              currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
-    //     // const Viewport     viewport     = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-    //     // const ScissorsRect sc           = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
-    //     //
-    //     // // Lighting Pass Begin
-    //     // {
-    //     //     LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-    //     //     RenderPassColorAttachment   colorAttachment;
-    //     //     colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
-    //     //     colorAttachment.texture                          = currentFrame.renderTargets[RTType::LightingPass];
-    //     //     colorAttachment.isSwapchain                      = false;
-    //     //     colorAttachment.loadOp                           = LoadOp::Clear;
-    //     //     colorAttachment.storeOp                          = StoreOp::Store;
-    //     //     beginRenderPass->colorAttachmentCount            = 1;
-    //     //     beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-    //     //     beginRenderPass->viewport                        = viewport;
-    //     //     beginRenderPass->scissors                        = sc;
-    //     //     beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
-    //     // }
-    //     //
-    //     // // Constants.
-    //     // {
-    //     //     GPUConstants constants = {};
-    //     //     constants.int1         = currentFrame.rtStartIndexGBuffer;
-    //     //     constants.int2         = 0;
-    //     //
-    //     //     LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-    //     //     ct->extension                = nullptr;
-    //     //     ct->offset                   = 0;
-    //     //     ct->size                     = sizeof(GPUConstants);
-    //     //     ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
-    //     //     ct->stagesSize               = 2;
-    //     //     ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
-    //     // }
-    //     //
-    //     // // Draw quad.
-    //     // {
-    //     //     DrawFullscreenQuad(Shader::SCLightingPass);
-    //     // }
-    //     //
-    //     // // End quad pass.
-    //     // {
-    //     //     LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-    //     // }
-    // }
-    //
-    // void Example::FinalPass()
-    //{
-    //     auto&              currentFrame = m_pfd[m_lgx->GetCurrentFrameIndex()];
-    //     const Viewport     viewport     = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-    //     const ScissorsRect sc           = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
-    //
-    //     // Screen Quad Pass Begin
-    //     {
-    //         LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-    //         RenderPassColorAttachment   colorAttachment;
-    //         colorAttachment.clearColor                       = {0.6f, 0.6f, 0.6f, 1.0f};
-    //         colorAttachment.texture                          = static_cast<uint32>(m_swapchain);
-    //         colorAttachment.isSwapchain                      = true;
-    //         colorAttachment.loadOp                           = LoadOp::Clear;
-    //         colorAttachment.storeOp                          = StoreOp::Store;
-    //         beginRenderPass->colorAttachmentCount            = 1;
-    //         beginRenderPass->colorAttachments                = currentFrame.graphicsStream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-    //         beginRenderPass->viewport                        = viewport;
-    //         beginRenderPass->scissors                        = sc;
-    //         beginRenderPass->depthStencilAttachment.useDepth = beginRenderPass->depthStencilAttachment.useStencil = false;
-    //     }
-    //
-    //     // Constants.
-    //     {
-    //         // GPUConstants constants = {};
-    //         // constants.int1         = currentFrame.debugDisplayRT;
-    //         // constants.int2         = 0;
-    //         //
-    //         // LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-    //         // ct->extension                = nullptr;
-    //         // ct->offset                   = 0;
-    //         // ct->size                     = sizeof(GPUConstants);
-    //         // ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
-    //         // ct->stagesSize               = 2;
-    //         // ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
-    //     }
-    //
-    //     // Draw quad.
-    //     {
-    //         DrawFullscreenQuad(Shader::SCQuad);
-    //     }
-    //
-    //     // End quad pass.
-    //     {
-    //         LinaGX::CMDEndRenderPass* end = currentFrame.graphicsStream->AddCommand<LinaGX::CMDEndRenderPass>();
-    //     }
-    // }
-
     void Example::SetupTextures()
     {
         std::vector<std::string> texturePaths;
@@ -619,9 +476,10 @@ namespace LinaGX::Examples
                 uint32 index = 0;
                 for (const auto& txt : m_textures)
                 {
-                    auto& barrier   = textureBarrier->textureBarriers[index];
-                    barrier.texture = txt.gpuHandle;
-                    barrier.toState = LinaGX::TextureBarrierState::TransferDestination;
+                    auto& barrier       = textureBarrier->textureBarriers[index];
+                    barrier.texture     = txt.gpuHandle;
+                    barrier.toState     = LinaGX::TextureBarrierState::TransferDestination;
+                    barrier.isSwapchain = false;
                     index++;
                 }
             }
@@ -648,9 +506,10 @@ namespace LinaGX::Examples
                 uint32 index = 0;
                 for (const auto& txt : m_textures)
                 {
-                    auto& barrier   = textureBarrier->textureBarriers[index];
-                    barrier.texture = txt.gpuHandle;
-                    barrier.toState = LinaGX::TextureBarrierState::ShaderRead;
+                    auto& barrier       = textureBarrier->textureBarriers[index];
+                    barrier.texture     = txt.gpuHandle;
+                    barrier.toState     = LinaGX::TextureBarrierState::ShaderRead;
+                    barrier.isSwapchain = false;
                     index++;
                 }
             }
@@ -1442,15 +1301,55 @@ namespace LinaGX::Examples
             bind->customLayout         = m_pipelineLayouts[PipelineLayoutType::PL_GlobalAndCameraSet];
         }
 
+        // Transition to attachment optimal.
+        {
+            LinaGX::CMDBarrier* barrier   = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->extension            = nullptr;
+            barrier->resourceBarrierCount = 0;
+            barrier->textureBarrierCount  = 5;
+            barrier->textureBarriers      = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * barrier->textureBarrierCount);
+
+            barrier->textureBarriers[0].texture = m_passes[PS_ObjectsDefault].renderTargets[currentFrameIndex].colorAttachments[0].texture;
+            barrier->textureBarriers[1].texture = m_passes[PS_ObjectsDefault].renderTargets[currentFrameIndex].colorAttachments[1].texture;
+            barrier->textureBarriers[2].texture = m_passes[PS_ObjectsDefault].renderTargets[currentFrameIndex].colorAttachments[2].texture;
+            barrier->textureBarriers[3].texture = m_passes[PS_Lighting].renderTargets[currentFrameIndex].colorAttachments[0].texture;
+            barrier->textureBarriers[4].texture = static_cast<uint32>(m_swapchain);
+
+            for (uint32 i = 0; i < barrier->textureBarrierCount; i++)
+            {
+                barrier->textureBarriers[i].isSwapchain = false;
+                barrier->textureBarriers[i].toState     = LinaGX::TextureBarrierState::ColorAttachment;
+            }
+            barrier->textureBarriers[4].isSwapchain = true;
+        }
+
         BeginPass(PassType::PS_ObjectsDefault);
         DrawObjects(Shader::SH_Default);
         EndPass();
 
-        BeginPass(PassType::PS_LightingReflections, 0);
-        BindShader(Shader::SH_LightingPass);
-        BindMaterialSet(currentFrame.lightingPassMaterialSet);
-        DrawFullscreenQuad();
-        EndPass();
+        // Transition to shader read.
+        {
+            LinaGX::CMDBarrier* barrier         = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->extension                  = nullptr;
+            barrier->resourceBarrierCount       = 0;
+            barrier->textureBarrierCount        = 3;
+            barrier->textureBarriers            = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * barrier->textureBarrierCount);
+            barrier->textureBarriers[0].texture = m_passes[PS_ObjectsDefault].renderTargets[currentFrameIndex].colorAttachments[0].texture;
+            barrier->textureBarriers[1].texture = m_passes[PS_ObjectsDefault].renderTargets[currentFrameIndex].colorAttachments[1].texture;
+            barrier->textureBarriers[2].texture = m_passes[PS_ObjectsDefault].renderTargets[currentFrameIndex].colorAttachments[2].texture;
+
+            for (uint32 i = 0; i < barrier->textureBarrierCount; i++)
+            {
+                barrier->textureBarriers[i].isSwapchain = false;
+                barrier->textureBarriers[i].toState     = LinaGX::TextureBarrierState::ShaderRead;
+            }
+        }
+
+        // BeginPass(PassType::PS_LightingReflections, 0);
+        // BindShader(Shader::SH_LightingPass);
+        // BindMaterialSet(currentFrame.lightingPassMaterialSet);
+        // DrawFullscreenQuad();
+        // EndPass();
 
         // BeginPass(PassType::PS_LightingReflections, 1);
         // BindShader(Shader::SH_LightingPass);
@@ -1464,11 +1363,35 @@ namespace LinaGX::Examples
         DrawFullscreenQuad();
         EndPass();
 
+        // Transition to shader read.
+        {
+            LinaGX::CMDBarrier* barrier             = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->extension                      = nullptr;
+            barrier->resourceBarrierCount           = 0;
+            barrier->textureBarrierCount            = 1;
+            barrier->textureBarriers                = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * barrier->textureBarrierCount);
+            barrier->textureBarriers[0].texture     = m_passes[PS_Lighting].renderTargets[currentFrameIndex].colorAttachments[0].texture;
+            barrier->textureBarriers[0].isSwapchain = false;
+            barrier->textureBarriers[0].toState     = LinaGX::TextureBarrierState::ShaderRead;
+        }
+
         BeginPass(PassType::PS_FinalQuad);
         BindShader(Shader::SH_Quad);
         BindMaterialSet(currentFrame.finalQuadPassMaterialSet);
         DrawFullscreenQuad();
         EndPass();
+
+        // Transition to present;
+        {
+            LinaGX::CMDBarrier* barrier             = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->extension                      = nullptr;
+            barrier->resourceBarrierCount           = 0;
+            barrier->textureBarrierCount            = 1;
+            barrier->textureBarriers                = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * barrier->textureBarrierCount);
+            barrier->textureBarriers[0].texture     = static_cast<uint32>(m_swapchain);
+            barrier->textureBarriers[0].isSwapchain = true;
+            barrier->textureBarriers[0].toState     = LinaGX::TextureBarrierState::Present;
+        }
 
         // This does the actual *recording* of every single command stream alive.
         m_lgx->CloseCommandStreams(&currentFrame.graphicsStream, 1);

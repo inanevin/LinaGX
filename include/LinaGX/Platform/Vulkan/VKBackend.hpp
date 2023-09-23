@@ -83,22 +83,23 @@ namespace LinaGX
 
     struct VKBSwapchain
     {
-        bool                    isValid     = false;
-        bool                    isActive    = true;
-        uint32                  width       = 0;
-        uint32                  height      = 0;
-        VkFormat                format      = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
-        Format                  depthFormat = Format::D32_SFLOAT;
-        VkSwapchainKHR          ptr         = nullptr;
-        VkSurfaceKHR            surface     = nullptr;
-        VkPresentModeKHR        presentMode = VK_PRESENT_MODE_FIFO_KHR;
-        LINAGX_VEC<VkImage>     imgs;
-        LINAGX_VEC<VkImageView> views;
-        uint32                  _imageIndex              = 0;
-        bool                    gotImage                 = false;
-        uint8                   _submittedQueue          = 0;
-        uint32                  _submittedSemaphoreIndex = 0;
-        LINAGX_VEC<VkSemaphore> imageAcquiredSemaphores;
+        bool                      isValid     = false;
+        bool                      isActive    = true;
+        uint32                    width       = 0;
+        uint32                    height      = 0;
+        VkFormat                  format      = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
+        Format                    depthFormat = Format::D32_SFLOAT;
+        VkSwapchainKHR            ptr         = nullptr;
+        VkSurfaceKHR              surface     = nullptr;
+        VkPresentModeKHR          presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        LINAGX_VEC<VkImageLayout> imgLayouts  = {VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED};
+        LINAGX_VEC<VkImage>       imgs;
+        LINAGX_VEC<VkImageView>   views;
+        uint32                    _imageIndex              = 0;
+        bool                      gotImage                 = false;
+        uint8                     _submittedQueue          = 0;
+        uint32                    _submittedSemaphoreIndex = 0;
+        LINAGX_VEC<VkSemaphore>   imageAcquiredSemaphores;
     };
 
     struct VKBPerFrameData
@@ -114,14 +115,13 @@ namespace LinaGX
 
     struct VKBCommandStream
     {
-        bool                           isValid     = false;
-        CommandType                    type        = CommandType::Graphics;
-        uint32                         boundShader = 0;
-        VkCommandBuffer                buffer      = nullptr;
-        VkCommandPool                  pool        = nullptr;
-        LINAGX_MAP<uint32, uint64>     intermediateResources;
-        LINAGX_VEC<uint8>              swapchainWrites;
-        LINAGX_VEC<VKBRenderPassImage> lastRPImages;
+        bool                       isValid     = false;
+        CommandType                type        = CommandType::Graphics;
+        uint32                     boundShader = 0;
+        VkCommandBuffer            buffer      = nullptr;
+        VkCommandPool              pool        = nullptr;
+        LINAGX_MAP<uint32, uint64> intermediateResources;
+        LINAGX_VEC<uint8>          swapchainWrites;
     };
 
     struct VKBResource
@@ -151,7 +151,7 @@ namespace LinaGX
 
     struct VKBQueuePerFrameData
     {
-        VkSemaphore             startFrameWaitSemaphore;
+        VkSemaphore             startFrameWaitSemaphore        = nullptr;
         uint64                  storedStartFrameSemaphoreValue = 0;
         LINAGX_VEC<VkSemaphore> submitSemaphoreBuffer;
         uint32                  submitSemaphoreIndex = 0;
