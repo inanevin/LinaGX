@@ -3252,7 +3252,7 @@ namespace LinaGX
             vkBarrier.dstAccessMask = GetVKAccessMaskFromLayout(newLayout);
 
             if (vkBarrier.dstAccessMask & VK_ACCESS_SHADER_READ_BIT && stream.type == LinaGX::CommandType::Transfer)
-                vkBarrier.dstAccessMask ~ = VK_ACCESS_SHADER_READ_BIT;
+                vkBarrier.dstAccessMask = ~VK_ACCESS_SHADER_READ_BIT;
 
             imgBarriers[i] = vkBarrier;
             srcStage |= GetVKPipelineStageFromLayout(oldLayout, txt.sampledOutsideFragment);
