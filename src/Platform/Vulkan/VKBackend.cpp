@@ -36,6 +36,7 @@ SOFTWARE.
 
 #define VMA_IMPLEMENTATION
 #include "LinaGX/Platform/Vulkan/SDK/vk_mem_alloc.h"
+#include <easy/profiler.h>
 
 namespace LinaGX
 {
@@ -2707,6 +2708,7 @@ namespace LinaGX
 
         const uint64 timeout = static_cast<uint64>(5000000000);
 
+        EASY_BLOCK("VKB: Waiting for semaphores");
         if (!waitSemaphores.empty())
         {
             VkSemaphoreWaitInfo waitInfo = VkSemaphoreWaitInfo{};
@@ -2720,7 +2722,10 @@ namespace LinaGX
             VK_CHECK_RESULT(res, "Backend -> Failed waiting for semaphores!");
         }
 
+        EASY_END_BLOCK;
         frame.submissionCount = 0;
+
+        EASY_BLOCK("VKB: Acquiring images.");
 
         // Acquire images for each swapchain
         const uint8 swpSize = m_swapchains.GetNextFreeID();
@@ -2749,6 +2754,9 @@ namespace LinaGX
             }
         }
 
+        EASY_END_BLOCK;
+        EASY_BLOCK("VKB: Ridding intermediate resources...");
+
         const uint32 cmdSize = m_cmdStreams.GetNextFreeID();
         for (uint32 i = 0; i < cmdSize; i++)
         {
@@ -2768,6 +2776,7 @@ namespace LinaGX
                     ++it;
             }
         }
+        EASY_END_BLOCK;
     }
 
     void VKBackend::Present(const PresentDesc& present)

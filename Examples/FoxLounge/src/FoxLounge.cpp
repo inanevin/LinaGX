@@ -54,7 +54,7 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback = LogError;
         LinaGX::Config.infoCallback  = LogInfo;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -179,10 +179,13 @@ namespace LinaGX::Examples
             if (it != mat.textureIndices.end())
             {
                 mat.gpuMat.emissive    = it->second;
-                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 10.0f;
+                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 2.0f;
             }
             else
-                mat.gpuMat.emissive = 0;
+            {
+                 mat.gpuMat.emissive = 0;
+                 mat.gpuMat.emissiveFac = glm::vec4(0,0,0,0);
+            }
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
@@ -1547,7 +1550,6 @@ namespace LinaGX::Examples
         EASY_END_BLOCK;
         auto end      = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - now);
-        LOGT("FRAME TOOK %d MS", duration.count());
     }
 
 } // namespace LinaGX::Examples

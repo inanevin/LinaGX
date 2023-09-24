@@ -2107,9 +2107,6 @@ namespace LinaGX
             {
                 UINT dxgiFactoryFlags = 0;
 
-                // Enable the debug layer (requires the Graphics Tools "optional feature").
-                // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-
 #ifndef NDEBUG
                 ComPtr<ID3D12Debug> debugController;
                 if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
@@ -2321,12 +2318,13 @@ namespace LinaGX
             LOGA(!l.isValid, "Backend -> Some pipeline layouts were not destroyed!");
         }
 
+#ifndef NDEBUG
         ID3D12InfoQueue1* infoQueue = nullptr;
         if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
         {
             infoQueue->UnregisterMessageCallback(msgCallback);
         }
-
+#endif
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];
@@ -2698,7 +2696,7 @@ namespace LinaGX
             }
             else
             {
-                auto& txt   = m_textures.GetItemR(att.texture);
+                auto& txt = m_textures.GetItemR(att.texture);
 
                 CD3DX12_CLEAR_VALUE cv;
                 cv.Format   = GetDXFormat(txt.desc.format);
@@ -2983,7 +2981,7 @@ namespace LinaGX
             textureData.SlicePitch             = textureData.RowPitch * static_cast<LONG_PTR>(height);
             allData.push_back(textureData);
         };
-      
+
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
             const auto& buffer                   = cmd->buffers[i];
