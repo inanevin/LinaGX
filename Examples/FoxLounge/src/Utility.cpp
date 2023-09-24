@@ -166,9 +166,10 @@ namespace LinaGX::Examples
     LinaGX::DescriptorSetDesc Utility::GetSetDescriptionCameraData()
     {
         LinaGX::DescriptorBinding binding0 = {
-            .descriptorCount = 1,
-            .type            = LinaGX::DescriptorType::UBO,
-            .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
+            .descriptorCount  = 1,
+            .type             = LinaGX::DescriptorType::UBO,
+            .useDynamicOffset = true,
+            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
@@ -193,7 +194,7 @@ namespace LinaGX::Examples
         LinaGX::DescriptorBinding binding0 = {
             .descriptorCount = 1,
             .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = { LinaGX::ShaderStage::Fragment},
+            .stages          = {LinaGX::ShaderStage::Fragment},
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};

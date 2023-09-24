@@ -106,7 +106,7 @@ namespace LinaGX
         }
 
         template <typename T>
-        T* EmplaceAuxMemory(size_t size)
+        T* EmplaceAuxMemorySizeOnly(size_t size)
         {
             uint8* initialHead = m_auxMemory + m_auxMemoryIndex;
             m_auxMemoryIndex += static_cast<uint32>(size);

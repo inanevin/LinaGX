@@ -71,6 +71,7 @@ namespace LinaGX
         enum PassType
         {
             PS_ObjectsDefault = 0,
+            PS_ObjectsReflection,
             PS_LightingReflections,
             PS_Lighting,
             PS_FinalQuad,
@@ -112,6 +113,7 @@ namespace LinaGX
             glm::mat4 view;
             glm::mat4 proj;
             glm::vec4 camPosition;
+            glm::vec4 padding[7];
         };
 
         struct GPUSceneData

@@ -2254,6 +2254,8 @@ namespace LinaGX
                         LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
                 }
             }
+
+            GPUInfo.minConstantBufferOffsetAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
         }
         catch (HrException e)
         {
@@ -2981,7 +2983,7 @@ namespace LinaGX
             textureData.SlicePitch             = textureData.RowPitch * static_cast<LONG_PTR>(height);
             allData.push_back(textureData);
         };
-
+      
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
             const auto& buffer                   = cmd->buffers[i];

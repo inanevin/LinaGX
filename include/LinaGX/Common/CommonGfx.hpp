@@ -567,20 +567,20 @@ namespace LinaGX
 
     struct TextureDesc
     {
-        TextureUsage       usage                     = TextureUsage::ColorTexture;
-        TextureType        type                      = TextureType::Texture2D;
-        bool               sampled                   = true;
+        TextureUsage       usage                  = TextureUsage::ColorTexture;
+        TextureType        type                   = TextureType::Texture2D;
+        bool               sampled                = true;
         bool               sampledOutsideFragment = false;
-        bool               isCubemap                 = false;
-        DepthStencilAspect depthStencilAspect        = DepthStencilAspect::DepthStencil;
-        float              depthClear                = 1.0f;
-        uint32             stencilClear              = 0;
-        uint32             width                     = 0;
-        uint32             height                    = 0;
-        uint32             mipLevels                 = 1;
-        Format             format                    = Format::R8G8B8A8_SRGB;
-        uint32             arrayLength               = 1;
-        const char*        debugName                 = "LinaGXTexture";
+        bool               isCubemap              = false;
+        DepthStencilAspect depthStencilAspect     = DepthStencilAspect::DepthStencil;
+        float              depthClear             = 1.0f;
+        uint32             stencilClear           = 0;
+        uint32             width                  = 0;
+        uint32             height                 = 0;
+        uint32             mipLevels              = 1;
+        Format             format                 = Format::R8G8B8A8_SRGB;
+        uint32             arrayLength            = 1;
+        const char*        debugName              = "LinaGXTexture";
     };
 
     struct SamplerDesc
@@ -626,6 +626,8 @@ namespace LinaGX
         uint16             setHandle     = 0;
         uint32             binding       = 0;
         LINAGX_VEC<uint32> buffers       = {};
+        LINAGX_VEC<uint32> ranges        = {};
+        LINAGX_VEC<uint32> offsets       = {};
         bool               isWriteAccess = false;
     };
 
@@ -695,8 +697,9 @@ namespace LinaGX
     {
         LINAGX_STRING      deviceName = "";
         LINAGX_VEC<Format> supportedImageFormats;
-        uint64             totalCPUVisibleGPUMemorySize = 0;
-        uint64             dedicatedVideoMemory         = 0;
+        uint64             totalCPUVisibleGPUMemorySize     = 0;
+        uint64             dedicatedVideoMemory             = 0;
+        uint32             minConstantBufferOffsetAlignment = 0;
     };
 
     struct PerformanceStatistics

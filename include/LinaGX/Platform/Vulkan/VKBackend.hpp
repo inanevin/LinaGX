@@ -68,9 +68,9 @@ namespace LinaGX
         uint32             mipLevels              = 0;
         VkImageLayout      imgLayout              = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
 
-        // LINAGX_VEC<VkImageView> imgViews           = {};
+        LINAGX_VEC<VkImageView> imgViews           = {};
         VkImage          img        = nullptr;
-        VkImageView      imgView    = nullptr;
+        //VkImageView      imgView    = nullptr;
         VkImageView      cubeView   = nullptr;
         VmaAllocation_T* allocation = nullptr;
     };

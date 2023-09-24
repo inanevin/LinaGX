@@ -46,9 +46,13 @@ namespace LinaGX
             uint16                 transferSemaphore      = 0;
             uint16                 globalSet              = 0;
             uint16                 cameraSet0             = 0;
+            uint16                 cameraSetCubemap       = 0;
 
             uint32 rscCameraData0        = 0;
             uint8* rscCameraDataMapping0 = nullptr;
+
+            uint32 rscCameraDataCubemap        = 0;
+            uint8* rscCameraDataMappingCubemap = nullptr;
 
             uint32 rscSceneData         = 0;
             uint8* rscSceneDataMapping  = nullptr;
@@ -56,8 +60,8 @@ namespace LinaGX
             uint32 rscObjDataGPU        = 0;
             uint8* rscObjDataCPUMapping = nullptr;
 
-            uint16 lightingPassMaterialSet  = 0;
-            uint16 finalQuadPassMaterialSet = 0;
+            uint16 lightingPassMaterialSet            = 0;
+            uint16 finalQuadPassMaterialSet           = 0;
         };
 
         struct Texture2D
@@ -145,6 +149,7 @@ namespace LinaGX
             void BindMaterialSet(uint16 materialSet);
             void DrawFullscreenQuad();
             void BindShader(uint32 target);
+            void ReflectionPass();
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;

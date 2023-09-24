@@ -1318,11 +1318,13 @@ namespace LinaGX
             VK_CHECK_RESULT(res, "Failed creating image view.");
         };
 
-        createView(0, txtDesc.arrayLength, item.imgView);
+        // createView(0, txtDesc.arrayLength, item.imgView);
 
-        // for (uint32 i = 0; i < txtDesc.arrayLength; i++)
-        //     createView(i, item.imgViews[i]);
-        //
+        item.imgViews.resize(txtDesc.arrayLength);
+
+        for (uint32 i = 0; i < txtDesc.arrayLength; i++)
+            createView(i, VK_REMAINING_ARRAY_LAYERS, item.imgViews[i]);
+
         // if (txtDesc.isCubemap)
         //     createView(0, item.cubeView);
 
@@ -1338,10 +1340,10 @@ namespace LinaGX
             return;
         }
 
-        // for (auto view : txt.imgViews)
-        //     vkDestroyImageView(m_device, view, m_allocator);
+        for (auto view : txt.imgViews)
+            vkDestroyImageView(m_device, view, m_allocator);
 
-        vkDestroyImageView(m_device, txt.imgView, m_allocator);
+        // vkDestroyImageView(m_device, txt.imgView, m_allocator);
 
         if (txt.isCubemap)
             vkDestroyImageView(m_device, txt.cubeView, m_allocator);
@@ -1598,8 +1600,9 @@ namespace LinaGX
             const auto&            res   = m_resources.GetItemR(desc.buffers[i]);
             VkDescriptorBufferInfo binfo = {};
             binfo.buffer                 = res.buffer;
-            binfo.offset                 = 0;
-            binfo.range                  = res.size;
+
+            binfo.offset = desc.offsets.empty() ? 0 : desc.offsets[i];
+            binfo.range  = desc.ranges.empty() ? res.size : desc.ranges[i];
             bufferInfos.push_back(binfo);
         }
 
@@ -1643,19 +1646,18 @@ namespace LinaGX
 
             if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
             {
-                auto& txt         = m_textures.GetItemR(desc.textures[i]);
-                imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgView;
+                auto& txt = m_textures.GetItemR(desc.textures[i]);
+                // imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgView;
 
-                // if (txt.isCubemap)
-                //     imgInfo.imageView = txt.cubeView;
-                // else
-                //{
-                //
-                //     if (desc.baseArrayLevels.empty())
-                //         imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
-                //     else
-                //         imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[desc.baseArrayLevels[i]];
-                // }
+                if (txt.isCubemap)
+                    imgInfo.imageView = txt.cubeView;
+                else
+                {
+                    if (desc.baseArrayLevels.empty())
+                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
+                    else
+                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[desc.baseArrayLevels[i]];
+                }
 
                 imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
@@ -2492,6 +2494,8 @@ namespace LinaGX
                     GPUInfo.totalCPUVisibleGPUMemorySize = Max(GPUInfo.totalCPUVisibleGPUMemorySize, gpuMemProps.memoryHeaps[type.heapIndex].size);
                 }
             }
+
+            GPUInfo.minConstantBufferOffsetAlignment = m_minUniformBufferOffsetAlignment;
         }
 
         // Vma
@@ -2829,7 +2833,7 @@ namespace LinaGX
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
             const auto& depthStencilTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
-            depthStencilView            = depthStencilTxt.imgView;
+            depthStencilView            = depthStencilTxt.imgViews[0];
         }
 
         LINAGX_VEC<VkRenderingAttachmentInfo> colorAttachments;
@@ -2855,7 +2859,7 @@ namespace LinaGX
             else
             {
                 const auto& txt = m_textures.GetItemR(att.texture);
-                imageViews[i]   = txt.imgView;
+                imageViews[i]   = txt.imgViews[att.layer];
                 images[i]       = txt.img;
             }
 
