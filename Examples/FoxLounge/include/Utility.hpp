@@ -138,8 +138,14 @@ namespace LinaGX
             LinaGX::LGXVector3 position      = {};
             LinaGX::LGXVector2 uv            = {};
             LinaGX::LGXVector3 normal        = {};
-            LinaGX::LGXVector4 inBoneIndices = {};
-            LinaGX::LGXVector4 inBoneWeights = {};
+           // LinaGX::LGXVector4 inBoneIndices = {};
+           // LinaGX::LGXVector4 inBoneWeights = {};
+        };
+
+        struct GPUBuffer
+        {
+            uint32 staging = 0;
+            uint32 gpu     = 0;
         };
 
         class Utility
@@ -159,7 +165,7 @@ namespace LinaGX
             static LinaGX::DescriptorSetDesc GetSetDescriptionQuadPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();
 
-            static uint32 CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout);
+            static uint32 CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout, const char* debugName);
         };
     } // namespace Examples
 } // namespace LinaGX

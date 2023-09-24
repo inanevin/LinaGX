@@ -36,6 +36,7 @@ SOFTWARE.
 #include "LinaGX/Core/Commands.hpp"
 #include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
+#include <fstream>
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "nvapi/nvapi.h"
@@ -832,18 +833,36 @@ namespace LinaGX
             arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
             arguments.push_back(L"-HV 2021");                 //-WX
 
-            // We will still get reflection info, just with a smaller binary.
-            arguments.push_back(L"-Qstrip_debug");
-            arguments.push_back(L"-Qstrip_reflect");
-
-#ifndef NDEBUG
-            arguments.push_back(DXC_ARG_DEBUG); //-Zi
-#else
-            arguments.push_back(DXC_ARG_OPTIMIZATION_LEVEL3);
-#endif
+            if (Config.dx12Config.enableShaderDebugInformation)
+            {
+                arguments.push_back(DXC_ARG_DEBUG);
+                arguments.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
+                arguments.push_back(DXC_ARG_PREFER_FLOW_CONTROL);
+            }
+            else
+            {
+                arguments.push_back(L"-Qstrip_debug");
+                arguments.push_back(L"-Qstrip_reflect");
+                arguments.push_back(DXC_ARG_OPTIMIZATION_LEVEL3);
+            }
 
             ComPtr<IDxcResult> result;
             ThrowIfFailed(idxcCompiler->Compile(&sourceBuffer, arguments.data(), static_cast<uint32>(arguments.size()), NULL, IID_PPV_ARGS(result.GetAddressOf())));
+
+            if (Config.dx12Config.serializeShaderDebugSymbols)
+            {
+                ComPtr<IDxcBlob>      pDebugData;
+                ComPtr<IDxcBlobUtf16> pDebugDataPath;
+                result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(pDebugData.GetAddressOf()), pDebugDataPath.GetAddressOf());
+                const wchar_t* pdbPath = reinterpret_cast<const wchar_t*>(pDebugDataPath->GetBufferPointer());
+
+                if (pDebugData && pdbPath)
+                {
+                    std::ofstream outFile(pdbPath, std::ios::binary);
+                    outFile.write(reinterpret_cast<const char*>(pDebugData->GetBufferPointer()), pDebugData->GetBufferSize());
+                    outFile.close();
+                }
+            }
 
             ComPtr<IDxcBlobUtf8> errors;
             ComPtr<IDxcBlobWide> outputName;
@@ -872,11 +891,12 @@ namespace LinaGX
 
             ComPtr<IDxcBlob> code;
             result->GetResult(&code);
-
             const SIZE_T sz = code->GetBufferSize();
             outBlob.size    = code->GetBufferSize();
             outBlob.ptr     = new uint8[sz];
             LINAGX_MEMCPY(outBlob.ptr, code->GetBufferPointer(), outBlob.size);
+            code->Release();
+            sourceBlob->Release();
         }
         catch (HrException e)
         {
@@ -1151,6 +1171,7 @@ namespace LinaGX
             cpsd.CS                                = {blob.ptr, blob.size};
             cpsd.NodeMask                          = 0;
             m_device->CreateComputePipelineState(&cpsd, IID_PPV_ARGS(&shader.pso));
+            NAME_DX12_OBJECT_CSTR(shader.pso, shaderDesc.debugName);
             return m_shaders.AddItem(shader);
         }
 
@@ -2107,20 +2128,21 @@ namespace LinaGX
             {
                 UINT dxgiFactoryFlags = 0;
 
-#ifndef NDEBUG
-                ComPtr<ID3D12Debug> debugController;
-                if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+                if (Config.dx12Config.enableDebugLayers)
                 {
-                    debugController->EnableDebugLayer();
+                    ComPtr<ID3D12Debug> debugController;
+                    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+                    {
+                        debugController->EnableDebugLayer();
 
-                    // Enable additional debug layers.
-                    dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+                        // Enable additional debug layers.
+                        dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+                    }
+                    else
+                    {
+                        LOGE("Backend -> Failed enabling debug layers!");
+                    }
                 }
-                else
-                {
-                    LOGE("Backend -> Failed enabling debug layers!");
-                }
-#endif
 
                 ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
 
@@ -2151,16 +2173,17 @@ namespace LinaGX
                 }
             }
 
-#ifndef NDEBUG
-            // Dbg callback
+            if (Config.dx12Config.enableDebugLayers)
             {
-                ID3D12InfoQueue1* infoQueue = nullptr;
-                if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+                // Dbg callback
                 {
-                    infoQueue->RegisterMessageCallback(&MessageCallback, D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, nullptr, &msgCallback);
+                    ID3D12InfoQueue1* infoQueue = nullptr;
+                    if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+                    {
+                        infoQueue->RegisterMessageCallback(&MessageCallback, D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, nullptr, &msgCallback);
+                    }
                 }
             }
-#endif
 
             // Allocator
             {
@@ -2318,13 +2341,15 @@ namespace LinaGX
             LOGA(!l.isValid, "Backend -> Some pipeline layouts were not destroyed!");
         }
 
-#ifndef NDEBUG
-        ID3D12InfoQueue1* infoQueue = nullptr;
-        if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+        if (Config.dx12Config.enableDebugLayers)
         {
-            infoQueue->UnregisterMessageCallback(msgCallback);
+            ID3D12InfoQueue1* infoQueue = nullptr;
+            if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))
+            {
+                infoQueue->UnregisterMessageCallback(msgCallback);
+            }
         }
-#endif
+
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];

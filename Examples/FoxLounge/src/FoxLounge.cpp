@@ -50,9 +50,10 @@ namespace LinaGX::Examples
 
     void Example::ConfigureInitializeLinaGX()
     {
-        LinaGX::Config.logLevel      = LogLevel::Verbose;
-        LinaGX::Config.errorCallback = LogError;
-        LinaGX::Config.infoCallback  = LogInfo;
+        LinaGX::Config.logLevel                               = LogLevel::Verbose;
+        LinaGX::Config.errorCallback                          = LogError;
+        LinaGX::Config.infoCallback                           = LogInfo;
+        LinaGX::Config.dx12Config.serializeShaderDebugSymbols = true;
 
         BackendAPI api = BackendAPI::DX12;
 
@@ -74,7 +75,6 @@ namespace LinaGX::Examples
              .gpuFeatures           = features,
              .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
         };
-
         m_lgx = new LinaGX::Instance();
         m_lgx->Initialize(initInfo);
     }
@@ -169,7 +169,10 @@ namespace LinaGX::Examples
                 mat.textureIndices[type] = getTextureIndex(path);
 
             if (sid == "Terrain"_hs)
+            {
                 mat.gpuMat.specialTexture = getTextureIndex("Resources/Textures/noiseTexture.png");
+                mat.gpuMat.baseColorFac   = glm::vec4(1);
+            }
 
             mat.gpuMat.baseColor         = mat.textureIndices.at(LinaGX::GLTFTextureType::BaseColor);
             mat.gpuMat.normal            = mat.textureIndices.at(LinaGX::GLTFTextureType::Normal);
@@ -183,8 +186,8 @@ namespace LinaGX::Examples
             }
             else
             {
-                 mat.gpuMat.emissive = 0;
-                 mat.gpuMat.emissiveFac = glm::vec4(0,0,0,0);
+                mat.gpuMat.emissive    = -1;
+                mat.gpuMat.emissiveFac = glm::vec4(0, 0, 0, 0);
             }
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -241,8 +244,47 @@ namespace LinaGX::Examples
             Same for indices.
         */
 
-        std::vector<VertexSkinned> vertices;
-        std::vector<uint32>        indices;
+        auto& pfd = m_pfd[0];
+
+        auto createIndexBuffer = [&](std::vector<uint32>& indices, GPUBuffer& buf) {
+            LinaGX::ResourceDesc indexBufferDesc = {
+                .size          = sizeof(uint32) * indices.size(),
+                .typeHintFlags = LinaGX::TH_IndexBuffer,
+                .heapType      = ResourceHeap::StagingHeap,
+                .debugName     = "IB Staging",
+            };
+
+            buf.staging               = m_lgx->CreateResource(indexBufferDesc);
+            indexBufferDesc.heapType  = ResourceHeap::GPUOnly;
+            indexBufferDesc.debugName = "IB GPU";
+            buf.gpu                   = m_lgx->CreateResource(indexBufferDesc);
+
+            // Map to CPU & copy.
+            uint8* mapped = nullptr;
+            m_lgx->MapResource(buf.staging, mapped);
+            std::memcpy(mapped, indices.data(), indices.size() * sizeof(uint32));
+            m_lgx->UnmapResource(buf.staging);
+        };
+
+        auto createVertexBuffer = [&](std::vector<VertexSkinned>& vertices, GPUBuffer& buf) {
+            LinaGX::ResourceDesc vtxBufDesc = {
+                .size          = sizeof(VertexSkinned) * vertices.size(),
+                .typeHintFlags = LinaGX::TH_VertexBuffer,
+                .heapType      = ResourceHeap::StagingHeap,
+                .debugName     = "VB Staging",
+            };
+
+            buf.staging          = m_lgx->CreateResource(vtxBufDesc);
+            vtxBufDesc.heapType  = ResourceHeap::GPUOnly;
+            vtxBufDesc.debugName = "VB GPU";
+            buf.gpu              = m_lgx->CreateResource(vtxBufDesc);
+
+            // Map to CPU & copy.
+            uint8* mapped = nullptr;
+            m_lgx->MapResource(buf.staging, mapped);
+            std::memcpy(mapped, vertices.data(), vertices.size() * sizeof(VertexSkinned));
+            m_lgx->UnmapResource(buf.staging);
+        };
 
         uint32 matIndex     = 0;
         auto   parseObjects = [&](const LinaGX::ModelData& modelData, bool manualDraw) {
@@ -278,12 +320,17 @@ namespace LinaGX::Examples
 
                 for (auto* p : node->mesh->primitives)
                 {
+                    // if (p->material != nullptr && p->material->name.compare("Terrain") != 0)
+                    //     continue;
+
                     wo.primitives.push_back({});
                     MeshPrimitive& primitive = wo.primitives.back();
 
-                    primitive.vertexBufferStart = static_cast<uint32>(vertices.size());
-                    primitive.indexBufferStart  = static_cast<uint32>(indices.size());
-                    primitive.materialIndex     = p->material ? (matIndex + p->material->index) : 0;
+                    std::vector<VertexSkinned> vertices;
+                    std::vector<uint32>        indices;
+
+                    primitive.materialIndex = p->material ? (matIndex + p->material->index) : 0;
+                    primitive.materialIndex = 0;
 
                     for (uint32 k = 0; k < p->vertexCount; k++)
                     {
@@ -293,23 +340,23 @@ namespace LinaGX::Examples
                         vtx.uv             = p->texCoords[k];
                         vtx.normal         = p->normals[k];
 
-                        if (!p->weights.empty())
-                            vtx.inBoneWeights = p->weights[k];
-
-                        if (!p->jointsui16.empty())
-                        {
-                            vtx.inBoneIndices.x = static_cast<float>(p->jointsui16[k].x);
-                            vtx.inBoneIndices.y = static_cast<float>(p->jointsui16[k].y);
-                            vtx.inBoneIndices.z = static_cast<float>(p->jointsui16[k].z);
-                            vtx.inBoneIndices.w = static_cast<float>(p->jointsui16[k].w);
-                        }
-                        else if (!p->jointsui8.empty())
-                        {
-                            vtx.inBoneIndices.x = static_cast<float>(p->jointsui8[k].x);
-                            vtx.inBoneIndices.y = static_cast<float>(p->jointsui8[k].y);
-                            vtx.inBoneIndices.z = static_cast<float>(p->jointsui8[k].z);
-                            vtx.inBoneIndices.w = static_cast<float>(p->jointsui8[k].w);
-                        }
+                        // if (!p->weights.empty())
+                        //     vtx.inBoneWeights = p->weights[k];
+                        //
+                        // if (!p->jointsui16.empty())
+                        // {
+                        //     vtx.inBoneIndices.x = static_cast<float>(p->jointsui16[k].x);
+                        //     vtx.inBoneIndices.y = static_cast<float>(p->jointsui16[k].y);
+                        //     vtx.inBoneIndices.z = static_cast<float>(p->jointsui16[k].z);
+                        //     vtx.inBoneIndices.w = static_cast<float>(p->jointsui16[k].w);
+                        // }
+                        // else if (!p->jointsui8.empty())
+                        // {
+                        //     vtx.inBoneIndices.x = static_cast<float>(p->jointsui8[k].x);
+                        //     vtx.inBoneIndices.y = static_cast<float>(p->jointsui8[k].y);
+                        //     vtx.inBoneIndices.z = static_cast<float>(p->jointsui8[k].z);
+                        //     vtx.inBoneIndices.w = static_cast<float>(p->jointsui8[k].w);
+                        // }
                     }
 
                     if (p->indexType == LinaGX::IndexType::Uint16)
@@ -331,6 +378,19 @@ namespace LinaGX::Examples
                         std::memcpy(indices.data() + origSize, p->indices.data(), p->indices.size());
                         primitive.indexCount += sz;
                     }
+
+                    createVertexBuffer(vertices, primitive.vtxBuffer);
+                    createIndexBuffer(indices, primitive.indexBuffer);
+
+                    LinaGX::CMDCopyResource* copy = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
+                    copy->extension               = nullptr;
+                    copy->destination             = primitive.indexBuffer.gpu;
+                    copy->source                  = primitive.indexBuffer.staging;
+
+                    LinaGX::CMDCopyResource* copySkinned = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
+                    copySkinned->extension               = nullptr;
+                    copySkinned->destination             = primitive.vtxBuffer.gpu;
+                    copySkinned->source                  = primitive.vtxBuffer.staging;
                 }
             }
 
@@ -338,69 +398,9 @@ namespace LinaGX::Examples
         };
 
         parseObjects(skyDomeData, true);
-        m_skyboxIndexCount = static_cast<uint32>(indices.size());
+        // m_skyboxIndexCount = static_cast<uint32>(indices.size());
         parseObjects(foxLoungeData, false);
         parseObjects(foxData, false);
-
-        auto& pfd = m_pfd[0];
-
-        // Global index buffer creation
-        {
-            LinaGX::ResourceDesc indexBufferDesc = {
-                .size          = sizeof(uint32) * indices.size(),
-                .typeHintFlags = LinaGX::TH_IndexBuffer,
-                .heapType      = ResourceHeap::StagingHeap,
-                .debugName     = "IB Staging",
-            };
-
-            m_indexBufferStaging      = m_lgx->CreateResource(indexBufferDesc);
-            indexBufferDesc.heapType  = ResourceHeap::GPUOnly;
-            indexBufferDesc.debugName = "IB GPU";
-            m_indexBufferGPU          = m_lgx->CreateResource(indexBufferDesc);
-
-            // Map to CPU & copy.
-            uint8* mapped = nullptr;
-            m_lgx->MapResource(m_indexBufferStaging, mapped);
-            std::memcpy(mapped, indices.data(), indices.size() * sizeof(uint32));
-            m_lgx->UnmapResource(m_indexBufferStaging);
-
-            // Record the transfers.
-            LinaGX::CMDCopyResource* copy = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
-            copy->extension               = nullptr;
-            copy->destination             = m_indexBufferGPU;
-            copy->source                  = m_indexBufferStaging;
-        }
-
-        // Global vertex buffers.
-        {
-            auto createVtx = [&](VertexBuffer& b, size_t sz, const char* dbg, const char* dbg2) {
-                LinaGX::ResourceDesc vtxBufDesc = {
-                    .size          = sz,
-                    .typeHintFlags = LinaGX::TH_VertexBuffer,
-                    .heapType      = ResourceHeap::StagingHeap,
-                    .debugName     = dbg,
-                };
-
-                b.staging            = m_lgx->CreateResource(vtxBufDesc);
-                vtxBufDesc.heapType  = ResourceHeap::GPUOnly;
-                vtxBufDesc.debugName = dbg2;
-                b.gpu                = m_lgx->CreateResource(vtxBufDesc);
-            };
-
-            createVtx(m_vtxBuffer, sizeof(VertexSkinned) * vertices.size(), "VB Staging", "VB GPU");
-
-            // Map to CPU & copy.
-            uint8* mapped = nullptr;
-            m_lgx->MapResource(m_vtxBuffer.staging, mapped);
-            std::memcpy(mapped, vertices.data(), vertices.size() * sizeof(VertexSkinned));
-            m_lgx->UnmapResource(m_vtxBuffer.staging);
-
-            // Record the transfers.
-            LinaGX::CMDCopyResource* copySkinned = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
-            copySkinned->extension               = nullptr;
-            copySkinned->destination             = m_vtxBuffer.gpu;
-            copySkinned->source                  = m_vtxBuffer.staging;
-        }
     }
 
     void Example::SetupTextures()
@@ -538,8 +538,11 @@ namespace LinaGX::Examples
             .minFilter  = Filter::Linear,
             .magFilter  = Filter::Linear,
             .mode       = SamplerAddressMode::Repeat,
-            .mipmapMode = MipmapMode::Nearest,
+            .mipmapMode = MipmapMode::Linear,
             .anisotropy = 8,
+            .minLod     = 0.0f,
+            .maxLod     = 15.0f,
+            .mipLodBias = 6.0f,
         };
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
     }
@@ -661,9 +664,9 @@ namespace LinaGX::Examples
         LOGT("Compiling shaders...");
 
         m_shaders.resize(Shader::SH_Max);
-        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects]);
-        m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass]);
-        m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass]);
+        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
+        m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass], "Deferred Lighting");
+        m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass], "Final Quad");
         // m_shaders[Shader::Skybox]         = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false, m_pipelineLayout);
     }
 
@@ -1005,10 +1008,15 @@ namespace LinaGX::Examples
             }
 
             // Also these are safe to release.
-            m_lgx->DestroyResource(m_indexBufferStaging);
-            m_lgx->DestroyResource(m_vtxBuffer.staging);
+            for (const auto& obj : m_worldObjects)
+            {
+                for (const auto& p : obj.primitives)
+                {
+                    m_lgx->DestroyResource(p.indexBuffer.staging);
+                    m_lgx->DestroyResource(p.vtxBuffer.staging);
+                }
+            }
         }
-
         m_camera.Initialize(m_lgx);
         EASY_PROFILER_ENABLE;
         EASY_MAIN_THREAD;
@@ -1028,8 +1036,15 @@ namespace LinaGX::Examples
             m_lgx->DestroyShader(s);
 
         m_lgx->DestroySwapchain(m_swapchain);
-        m_lgx->DestroyResource(m_indexBufferGPU);
-        m_lgx->DestroyResource(m_vtxBuffer.gpu);
+
+        for (const auto& obj : m_worldObjects)
+        {
+            for (const auto& p : obj.primitives)
+            {
+                m_lgx->DestroyResource(p.indexBuffer.gpu);
+                m_lgx->DestroyResource(p.vtxBuffer.gpu);
+            }
+        }
 
         for (auto smp : m_samplers)
             m_lgx->DestroySampler(smp);
@@ -1140,13 +1155,32 @@ namespace LinaGX::Examples
                     ct->stagesSize               = 2;
                     ct->data                     = currentFrame.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
 
+                    // Global index buffer.
+                    {
+                        LinaGX::CMDBindIndexBuffers* index = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindIndexBuffers>();
+                        index->extension                   = nullptr;
+                        index->indexType                   = LinaGX::IndexType::Uint32;
+                        index->offset                      = 0;
+                        index->resource                    = primData.prim->indexBuffer.gpu;
+                    }
+
+                    // Global vertex buffer.
+                    {
+                        LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
+                        vtx->extension                    = nullptr;
+                        vtx->offset                       = 0;
+                        vtx->slot                         = 0;
+                        vtx->vertexSize                   = sizeof(VertexSkinned);
+                        vtx->resource                     = primData.prim->vtxBuffer.gpu;
+                    }
+
                     LinaGX::CMDDrawIndexedInstanced* draw = currentFrame.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
                     draw->extension                       = nullptr;
                     draw->instanceCount                   = 1;
                     draw->startInstanceLocation           = 0;
-                    draw->startIndexLocation              = primData.prim->indexBufferStart;
+                    draw->startIndexLocation              = 0;
                     draw->indexCountPerInstance           = primData.prim->indexCount;
-                    draw->baseVertexLocation              = primData.prim->vertexBufferStart;
+                    draw->baseVertexLocation              = 0;
                 }
             }
         };
@@ -1422,10 +1456,11 @@ namespace LinaGX::Examples
                 GPUObjectData data = {};
                 glm::mat4     mat  = glm::mat4(1.0f);
                 glm::quat     q    = glm::quat(glm::vec3(0.0f, DEG2RAD(0.0f), 0.0f));
-                mat                = Utility::TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {10.0f, 10.0f, 10.0f});
-                data.modelMatrix   = obj.globalMatrix;
-                data.normalMatrix  = glm::transpose(glm::inverse(glm::mat3(data.modelMatrix)));
-                data.hasSkin       = obj.isSkinned;
+                mat                = Utility::TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {0.2f, 0.2f, 0.2f});
+                // data.modelMatrix   = mat;
+                data.modelMatrix  = obj.globalMatrix;
+                data.normalMatrix = glm::transpose(glm::inverse(glm::mat3(data.modelMatrix)));
+                data.hasSkin      = obj.isSkinned;
                 objData.push_back(data);
             }
 
@@ -1468,25 +1503,6 @@ namespace LinaGX::Examples
             bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.globalSet);
             bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
             bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalSet];
-        }
-
-        // Global index buffer.
-        {
-            LinaGX::CMDBindIndexBuffers* index = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindIndexBuffers>();
-            index->extension                   = nullptr;
-            index->indexType                   = LinaGX::IndexType::Uint32;
-            index->offset                      = 0;
-            index->resource                    = m_indexBufferGPU;
-        }
-
-        // Global vertex buffer.
-        {
-            LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
-            vtx->extension                    = nullptr;
-            vtx->offset                       = 0;
-            vtx->slot                         = 0;
-            vtx->vertexSize                   = sizeof(VertexSkinned);
-            vtx->resource                     = m_vtxBuffer.gpu;
         }
 
         // ReflectionPass();

@@ -42,6 +42,7 @@ endif()
 
 add_subdirectory(Dependencies/easy_profiler)
 target_link_libraries(${PROJECT_NAME} PUBLIC easy_profiler)  # STEP 2 ##########
+target_compile_definitions(easy_profiler PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAGX_ITERATOR_DEBUG_LEVEL})
 
 if(APPLE)
 

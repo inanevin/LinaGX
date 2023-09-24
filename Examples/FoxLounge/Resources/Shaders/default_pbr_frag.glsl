@@ -87,16 +87,16 @@ vec3 getNormalFromMap(vec3 normalMap)
 
 void main()
 {
-     // vec4 txtEmissive = texture(sampler2D(allTextures[materialData.emissive], defaultSampler), inUV) * materialData.emissiveFac;
-	 // vec4 txtBaseColor = texture(sampler2D(allTextures[materialData.baseColor], defaultSampler), inUV) * materialData.baseColorFac + txtEmissive;
-	 // vec4 txtNormal = texture(sampler2D(allTextures[materialData.normal], defaultSampler), inUV);
-	 // vec4 txtMetallicRoughness = texture(sampler2D(allTextures[materialData.metallicRoughness], defaultSampler), inUV);
-     // outAlbedoRoughness = vec4(txtBaseColor.rgb, txtMetallicRoughness.g * materialData.roughness);
-     // outNormalMetallic = vec4(getNormalFromMap(txtNormal.rgb), txtMetallicRoughness.b * materialData.metallic);
-     // outPositionAO = vec4(inWorldPos.rgb, 0.0f);
+     vec4 txtEmissive = vec4(0.0);
 
-     outAlbedoRoughness = vec4(0.5f, 0.5f, 0.5, 1.0f);
-     outNormalMetallic = vec4(1.0f);
+     if(materialData.emissive != -1)
+        txtEmissive = texture(sampler2D(allTextures[materialData.emissive], defaultSampler), inUV) * materialData.emissiveFac;
+
+	 vec4 txtBaseColor = texture(sampler2D(allTextures[materialData.baseColor], defaultSampler), inUV) * materialData.baseColorFac + txtEmissive;
+	 vec4 txtNormal = texture(sampler2D(allTextures[materialData.normal], defaultSampler), inUV);
+	 vec4 txtMetallicRoughness = texture(sampler2D(allTextures[materialData.metallicRoughness], defaultSampler), inUV);
+     outAlbedoRoughness = vec4(txtBaseColor.rgb, txtMetallicRoughness.g * materialData.roughness);
+     outNormalMetallic = vec4(getNormalFromMap(txtNormal.rgb), txtMetallicRoughness.b * materialData.metallic);
      outPositionAO = vec4(inWorldPos.rgb, 0.0f);
 
    //// Terrain has special texture, silly way to detect that.

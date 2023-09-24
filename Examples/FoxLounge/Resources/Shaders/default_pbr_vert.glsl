@@ -4,8 +4,8 @@
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 uv;
 layout(location = 2) in vec3 normal;
-layout(location = 3) in vec4 inBoneIndices;
-layout(location = 4) in vec4 inBoneWeights;
+// layout(location = 3) in vec4 inBoneIndices;
+// layout(location = 4) in vec4 inBoneWeights;
 layout(location = 0) out vec2 outUV;
 layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec3 outNormal;
@@ -58,13 +58,13 @@ void main() {
 
     Object object = objectData.objects[Constants.objectID];
 
-    for(int i = 0; i < MAX_BONE_INFLUENCES; ++i)
-    {
-        int boneIndex = int(inBoneIndices[i]);
-        float boneWeight = inBoneWeights[i];
-        mat4 boneMatrix = object.bones[boneIndex];
-        skinnedPosition += boneMatrix * vec4(inPosition, 1.0) * boneWeight;
-    }
+    //for(int i = 0; i < MAX_BONE_INFLUENCES; ++i)
+    //{
+    //    int boneIndex = int(inBoneIndices[i]);
+    //    float boneWeight = inBoneWeights[i];
+    //    mat4 boneMatrix = object.bones[boneIndex];
+    //    skinnedPosition += boneMatrix * vec4(inPosition, 1.0) * boneWeight;
+    //}
 
     skinnedPosition = vec4(inPosition, 1.0);
         

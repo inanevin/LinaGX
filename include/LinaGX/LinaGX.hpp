@@ -58,6 +58,10 @@ FEATURES TO IMPLEMENT
 - Secondary command buffers (+++).
 - Group all barrier calls.
 
+- Metal texture 3d shaibas
+- metal debug layers config.
+- Carry everything to config.
+
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.
 - Subpasses maybe.

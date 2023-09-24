@@ -2088,29 +2088,25 @@ namespace LinaGX
         requiredExtensions.push_back("VK_KHR_surface");
         requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
-#ifndef NDEBUG
-        // Debug messenger
-        requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
+        if (Config.vulkanConfig.enableValidationLayers)
+            requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         // Instance builder
         vkb::InstanceBuilder builder;
-        builder = builder.set_app_name(initInfo.appName).request_validation_layers(true).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
+        builder = builder.set_app_name(initInfo.appName).request_validation_layers(Config.vulkanConfig.enableValidationLayers).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
 
         // Extensions
         for (auto ext : requiredExtensions)
             builder.enable_extension(ext);
 
-        // Messenger
-        builder.set_debug_callback(VkDebugCallback);
-
         VkDebugUtilsMessageSeverityFlagsEXT severity = 0;
 
-#ifndef NDEBUG
-        severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
-#endif
-        builder.set_debug_messenger_severity(severity);
-        builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+        if (Config.vulkanConfig.enableValidationLayers)
+        {
+            builder.set_debug_callback(VkDebugCallback);
+            builder.set_debug_messenger_severity(severity);
+            builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+        }
 
         auto res = builder.build();
         if (!res)
@@ -2635,7 +2631,10 @@ namespace LinaGX
 
         vmaDestroyAllocator(m_vmaAllocator);
         vkDestroyDevice(m_device, m_allocator);
-        vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+
+        if (m_debugMessenger != nullptr)
+            vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+
         vkDestroyInstance(m_vkInstance, m_allocator);
     }
 

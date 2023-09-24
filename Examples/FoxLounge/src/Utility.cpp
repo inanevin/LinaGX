@@ -30,7 +30,6 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
-
     /*
            Normally you'd do this in an editor.
            But hey this is a sample app :)
@@ -69,7 +68,7 @@ namespace LinaGX::Examples
                                      {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_moss_set_01_nor_gl.png"},
                                  }},
                 {"Terrain"_hs, {
-                                   {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/park_dirt_diff_2k.png"},
+                                   {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/park_dirt_diff_2k.jpg"},
                                    {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/park_dirt_rough_2k.png"},
                                    {LinaGX::GLTFTextureType::Normal, "Resources/Textures/park_dirt_nor_gl_2k.png"},
                                }},
@@ -215,7 +214,7 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    uint32 Utility::CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout)
+    uint32 Utility::CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout, const char* debugName)
     {
         // Compile shaders.
         const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString(vertex);
@@ -272,6 +271,7 @@ namespace LinaGX::Examples
             .topology                = Topology::TriangleList,
             .useCustomPipelineLayout = useCustomLayout,
             .customPipelineLayout    = layout,
+            .debugName               = debugName,
         };
 
         return lgx->CreateShader(shaderDesc);

@@ -94,10 +94,10 @@ namespace LinaGX
 
         struct MeshPrimitive
         {
-            uint32 materialIndex     = 0;
-            uint32 vertexBufferStart = 0;
-            uint32 indexBufferStart  = 0;
-            uint32 indexCount        = 0;
+            GPUBuffer vtxBuffer;
+            GPUBuffer indexBuffer;
+            uint32    materialIndex = 0;
+            uint32    indexCount    = 0;
         };
 
         struct WorldObject
@@ -109,12 +109,6 @@ namespace LinaGX
             bool                       hasMesh   = false;
             std::vector<MeshPrimitive> primitives;
             bool                       manualDraw = false;
-        };
-
-        struct VertexBuffer
-        {
-            uint32 staging = 0;
-            uint32 gpu     = 0;
         };
 
         class Example : public App
@@ -161,9 +155,8 @@ namespace LinaGX
             PerFrameData           m_pfd[FRAMES_IN_FLIGHT];
             std::vector<Texture2D> m_textures;
 
-            uint32       m_indexBufferStaging = 0;
-            uint32       m_indexBufferGPU     = 0;
-            VertexBuffer m_vtxBuffer;
+           // GPUBuffer m_indxBuffer;
+           // GPUBuffer m_vtxBuffer;
 
             std::vector<uint32>      m_samplers;
             std::vector<uint16>      m_shaders;

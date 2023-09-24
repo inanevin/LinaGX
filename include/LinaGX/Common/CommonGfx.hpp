@@ -711,12 +711,20 @@ namespace LinaGX
 
     struct VulkanConfiguration
     {
-        bool flipViewport = true;
+        bool flipViewport           = true;
+        bool enableValidationLayers = true;
     };
 
     struct DX12Configuration
     {
-        bool allowTearing = true;
+        bool allowTearing                 = true;
+        bool enableDebugLayers            = true;
+        bool enableShaderDebugInformation = true;
+        bool serializeShaderDebugSymbols  = false;
+    };
+
+    struct MetalConfiguration
+    {
     };
 
     struct Configuration
@@ -726,6 +734,7 @@ namespace LinaGX
         LogLevel            logLevel      = LogLevel::Normal;
         VulkanConfiguration vulkanConfig  = {};
         DX12Configuration   dx12Config    = {};
+        MetalConfiguration  mtlConfig     = {};
     };
 
     struct GPUFeatures
