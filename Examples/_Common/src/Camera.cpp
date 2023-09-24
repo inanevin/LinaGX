@@ -43,7 +43,15 @@ namespace LinaGX::Examples
     {
         m_lgx        = lgx;
         m_mainWindow = m_lgx->GetWindowManager().GetWindow(0);
-        m_initialRot = m_rotation;
+        m_angleX = m_targetX = DEG2RAD(-65.0f);
+        m_angleY = m_targetY = 0.0f;
+        m_position           = glm::vec3(3, 7, 8);
+
+        const glm::quat qx = glm::angleAxis(m_angleX, glm::vec3(1, 0, 0));
+        const glm::quat qy = glm::angleAxis(m_angleY, glm::vec3(0, 1, 0));
+        m_rotation         =  qy * qx;
+        //m_initialRot       = m_rotation;
+        CalculateViewProj();
     }
 
     void Camera::Tick(float dt)
@@ -68,44 +76,43 @@ namespace LinaGX::Examples
         if (m_controlsEnabled)
         {
             // Calc rot.
-            {
-                auto mt = m_lgx->GetInput().GetMouseDelta();
-                m_targetX -= mt.y * dt * ROTATE_AMT;
-                m_targetY -= mt.x * dt * ROTATE_AMT;
-                m_angleX           = LinaGX::Lerp(m_angleX, m_targetX, dt * ROTATE_SPEED);
-                m_angleY           = LinaGX::Lerp(m_angleY, m_targetY, dt * ROTATE_SPEED);
-                const glm::quat qx = glm::angleAxis(m_angleX, glm::vec3(1, 0, 0));
-                const glm::quat qy = glm::angleAxis(m_angleY, glm::vec3(0, 1, 0));
-                m_rotation         = m_initialRot * qy * qx;
-            }
+            auto mt = m_lgx->GetInput().GetMouseDelta();
+            m_targetX -= mt.y * dt * ROTATE_AMT;
+            m_targetY -= mt.x * dt * ROTATE_AMT;
+            m_angleX           = LinaGX::Lerp(m_angleX, m_targetX, dt * ROTATE_SPEED);
+            m_angleY           = LinaGX::Lerp(m_angleY, m_targetY, dt * ROTATE_SPEED);
+            const glm::quat qx = glm::angleAxis(m_angleX, glm::vec3(1, 0, 0));
+            const glm::quat qy = glm::angleAxis(m_angleY, glm::vec3(0, 1, 0));
+            m_rotation         =  qy * qx;
 
             // Calc pos.
-            {
-                float moveX = 0.0f, moveY = 0.0f;
-                if (m_lgx->GetInput().GetKey(LINAGX_KEY_W))
-                    moveY = 1.0f;
-                else if (m_lgx->GetInput().GetKey(LINAGX_KEY_S))
-                    moveY = -1.0f;
+            float moveX = 0.0f, moveY = 0.0f;
+            if (m_lgx->GetInput().GetKey(LINAGX_KEY_W))
+                moveY = 1.0f;
+            else if (m_lgx->GetInput().GetKey(LINAGX_KEY_S))
+                moveY = -1.0f;
 
-                if (m_lgx->GetInput().GetKey(LINAGX_KEY_D))
-                    moveX = 1.0f;
-                else if (m_lgx->GetInput().GetKey(LINAGX_KEY_A))
-                    moveX = -1.0f;
+            if (m_lgx->GetInput().GetKey(LINAGX_KEY_D))
+                moveX = 1.0f;
+            else if (m_lgx->GetInput().GetKey(LINAGX_KEY_A))
+                moveX = -1.0f;
 
-                const glm::vec3 forwardVec = m_rotation * glm::vec3(0.0f, 0.0f, -1.0f);
-                const glm::vec3 rightVec   = m_rotation * glm::vec3(1.0f, 0.0f, 0.0f);
-                m_position += moveY * dt * glm::normalize(forwardVec) * MOVE_SPEED;
-                m_position += moveX * dt * glm::normalize(rightVec) * MOVE_SPEED;
-            }
+            const glm::vec3 forwardVec = m_rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+            const glm::vec3 rightVec   = m_rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+            m_position += moveY * dt * glm::normalize(forwardVec) * MOVE_SPEED;
+            m_position += moveX * dt * glm::normalize(rightVec) * MOVE_SPEED;
         }
 
         // Produce matrices.
-        {
-            glm::mat4 rotationMatrix    = glm::mat4_cast(glm::inverse(m_rotation));
-            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -m_position);
-            m_view                      = rotationMatrix * translationMatrix;
-            m_proj                      = glm::perspective(DEG2RAD(90.0f), static_cast<float>(m_mainWindow->GetSize().x) / static_cast<float>(m_mainWindow->GetSize().y), 0.1f, 500.0f);
-        }
+        CalculateViewProj();
+    }
+
+    void Camera::CalculateViewProj()
+    {
+        glm::mat4 rotationMatrix    = glm::mat4_cast(glm::inverse(m_rotation));
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -m_position);
+        m_view                      = rotationMatrix * translationMatrix;
+        m_proj                      = glm::perspective(DEG2RAD(90.0f), static_cast<float>(m_mainWindow->GetSize().x) / static_cast<float>(m_mainWindow->GetSize().y), 0.1f, 500.0f);
     }
 
 } // namespace LinaGX::Examples

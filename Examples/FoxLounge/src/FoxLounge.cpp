@@ -75,6 +75,7 @@ namespace LinaGX::Examples
              .gpuFeatures           = features,
              .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
         };
+
         m_lgx = new LinaGX::Instance();
         m_lgx->Initialize(initInfo);
     }
@@ -330,7 +331,6 @@ namespace LinaGX::Examples
                     std::vector<uint32>        indices;
 
                     primitive.materialIndex = p->material ? (matIndex + p->material->index) : 0;
-                    primitive.materialIndex = 0;
 
                     for (uint32 k = 0; k < p->vertexCount; k++)
                     {
@@ -542,7 +542,7 @@ namespace LinaGX::Examples
             .anisotropy = 8,
             .minLod     = 0.0f,
             .maxLod     = 15.0f,
-            .mipLodBias = 6.0f,
+            //.mipLodBias = 6.0f,
         };
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
     }

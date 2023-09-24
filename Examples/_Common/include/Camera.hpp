@@ -62,6 +62,9 @@ namespace LinaGX
             }
 
         private:
+            void CalculateViewProj();
+
+        private:
             LinaGX::Instance* m_lgx             = nullptr;
             LinaGX::Window*   m_mainWindow      = nullptr;
             glm::vec3         m_position        = {};
