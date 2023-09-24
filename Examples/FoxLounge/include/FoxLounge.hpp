@@ -60,8 +60,8 @@ namespace LinaGX
             uint32 rscObjDataGPU        = 0;
             uint8* rscObjDataCPUMapping = nullptr;
 
-            uint16 lightingPassMaterialSet            = 0;
-            uint16 finalQuadPassMaterialSet           = 0;
+            uint16 lightingPassMaterialSet  = 0;
+            uint16 finalQuadPassMaterialSet = 0;
         };
 
         struct Texture2D
@@ -149,7 +149,10 @@ namespace LinaGX
             void BindMaterialSet(uint16 materialSet);
             void DrawFullscreenQuad();
             void BindShader(uint32 target);
+            void BindCameraDescriptor(uint16 set, uint32 offset);
             void ReflectionPass();
+            void CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target);
+            void ExecPassBarriers();
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;
@@ -172,7 +175,8 @@ namespace LinaGX
             Camera m_camera;
             int32  m_boundShader = -1;
 
-            std::vector<uint16> m_pipelineLayouts;
+            std::vector<uint16>                 m_pipelineLayouts;
+            std::vector<LinaGX::TextureBarrier> m_passBarriers;
         };
 
     } // namespace Examples

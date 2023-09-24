@@ -40,6 +40,9 @@ target_link_libraries(${PROJECT_NAME}
 
 endif()
 
+add_subdirectory(Dependencies/easy_profiler)
+target_link_libraries(${PROJECT_NAME} PUBLIC easy_profiler)  # STEP 2 ##########
+
 if(APPLE)
 
 target_link_libraries(${PROJECT_NAME}

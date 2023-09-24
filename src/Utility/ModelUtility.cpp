@@ -407,7 +407,8 @@ namespace LinaGX
                 for (size_t j = 0; j < gltfSkin.joints.size(); j++)
                     skin->joints[j] = outData.allNodes[gltfSkin.joints[j]];
 
-                skin->rootJoint = outData.allNodes[gltfSkin.skeleton];
+                if (gltfSkin.skeleton != -1)
+                    skin->rootJoint = outData.allNodes[gltfSkin.skeleton];
 
                 const tinygltf::Accessor&   inverseBindMatricesAccessor = model.accessors[gltfSkin.inverseBindMatrices];
                 const tinygltf::BufferView& inverseBindMatricesView     = model.bufferViews[inverseBindMatricesAccessor.bufferView];
