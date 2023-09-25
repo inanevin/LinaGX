@@ -58,6 +58,7 @@ namespace LinaGX::Examples
         LinaGX::Config.dx12Config.enableDebugLayers           = true;
 
         BackendAPI api = BackendAPI::DX12;
+
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
@@ -1351,10 +1352,10 @@ namespace LinaGX::Examples
         CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment);
         CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ColorAttachment);
         CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment);
-        CollectPassBarrier(PS_LightingReflections, LinaGX::TextureBarrierState::ColorAttachment);
+        //CollectPassBarrier(PS_LightingReflections, LinaGX::TextureBarrierState::ColorAttachment);
         ExecPassBarriers();
 
-        ReflectionPass();
+       // ReflectionPass();
 
         BindCameraDescriptor(currentFrame.cameraSet0, 0);
 
