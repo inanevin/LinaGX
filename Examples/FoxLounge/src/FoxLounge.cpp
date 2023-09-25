@@ -55,9 +55,9 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback                          = LogError;
         LinaGX::Config.infoCallback                           = LogInfo;
         LinaGX::Config.dx12Config.serializeShaderDebugSymbols = true;
-        LinaGX::Config.dx12Config.enableDebugLayers           = false;
+        LinaGX::Config.dx12Config.enableDebugLayers           = true;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
@@ -486,11 +486,11 @@ namespace LinaGX::Examples
 
                 TextureDesc desc = {
                     .usage     = TextureUsage::ColorTexture,
+                    .format    = format,
                     .sampled   = true,
                     .width     = txt.allLevels[0].width,
                     .height    = txt.allLevels[0].height,
                     .mipLevels = static_cast<uint32>(txt.allLevels.size()),
-                    .format    = format,
                     .debugName = txt.path.c_str(),
                 };
 
@@ -779,39 +779,40 @@ namespace LinaGX::Examples
 
         LinaGX::TextureDesc defaultRTDesc = {
             .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
+            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
             .sampled = true,
             .width   = m_window->GetSize().x,
             .height  = m_window->GetSize().y,
-            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
         };
 
         LinaGX::TextureDesc reflectionRTDesc = {
             .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
+            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
             .sampled = true,
             .width   = 512,
             .height  = 512,
-            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
         };
 
         LinaGX::TextureDesc descDepth = {
             .usage              = LinaGX::TextureUsage::DepthStencilTexture,
-            .sampled            = true,
+            .format             = LinaGX::Format::D32_SFLOAT,
             .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
+            .sampled            = true,
             .width              = m_window->GetSize().x,
             .height             = m_window->GetSize().y,
-            .format             = LinaGX::Format::D32_SFLOAT,
             .debugName          = "RT Depth Texture",
         };
 
         LinaGX::TextureDesc reflectionsCube = {
             .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
             .type        = LinaGX::TextureType::Texture2D,
+            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
             .sampled     = true,
             .isCubemap   = true,
             .width       = REFLECTION_PASS_RES,
             .height      = REFLECTION_PASS_RES,
-            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
             .arrayLength = 6,
+            .viewCount   = 6,
         };
 
         LinaGX::RenderPassColorAttachment colorAttachment;

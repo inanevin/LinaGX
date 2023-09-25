@@ -677,7 +677,7 @@ namespace LinaGX
                 {
                     DX12Texture2D color      = {};
                     color.isSwapchainTexture = true;
-                    color.descriptor         = m_rtvHeap->GetNewHeapHandle();
+                    color.rtv                = m_rtvHeap->GetNewHeapHandle();
                     color.isValid            = true;
 
                     try
@@ -692,7 +692,7 @@ namespace LinaGX
                     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
                     rtvDesc.Format                        = GetDXFormat(desc.format);
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
+                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.rtv.GetCPUHandle()});
                     swp.colorTextures.push_back(m_textures.AddItem(color));
                 }
             }
@@ -762,7 +762,7 @@ namespace LinaGX
             {
                 DX12Texture2D color      = {};
                 color.isSwapchainTexture = true;
-                color.descriptor         = m_rtvHeap->GetNewHeapHandle();
+                color.rtv                = m_rtvHeap->GetNewHeapHandle();
                 color.isValid            = true;
 
                 try
@@ -777,7 +777,7 @@ namespace LinaGX
                 D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
                 rtvDesc.Format                        = GetDXFormat(swp.format);
                 rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-                m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.descriptor.GetCPUHandle()});
+                m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.rtv.GetCPUHandle()});
                 swp.colorTextures[i] = m_textures.AddItem(color);
             }
         }
@@ -1315,6 +1315,23 @@ namespace LinaGX
 
     uint32 DX12Backend::CreateTexture(const TextureDesc& txtDesc)
     {
+        if (txtDesc.type == TextureType::Texture3D && txtDesc.arrayLength != 1)
+        {
+            LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
+        }
+
+        if (txtDesc.isCubemap && txtDesc.arrayLength != 6)
+        {
+            LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
+        }
+
+        if (txtDesc.viewCount > txtDesc.arrayLength)
+        {
+            LOGA(false, "Backend -> View count can't be bigger than array length!");
+        }
+
+        LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && txtDesc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
+
         DX12Texture2D item = {};
         item.isValid       = true;
         item.desc          = txtDesc;
@@ -1332,6 +1349,11 @@ namespace LinaGX
         resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
         resourceDesc.Format              = GetDXFormat(txtDesc.format);
 
+        if (txtDesc.type == TextureType::Texture1D)
+            resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+        else if (txtDesc.type == TextureType::Texture1D)
+            resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+
         auto allocationInfo    = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
         item.requiredAlignment = allocationInfo.Alignment;
 
@@ -1341,7 +1363,7 @@ namespace LinaGX
         D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
         D3D12_CLEAR_VALUE*    clear = NULL;
         const float           cc[]{0, 0, 0, 1};
-        auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), txtDesc.depthClear, txtDesc.stencilClear);
+        auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), 1.0f, 0);
         auto                  colorClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), cc);
 
         if (txtDesc.usage == TextureUsage::DepthStencilTexture)
@@ -1383,63 +1405,116 @@ namespace LinaGX
             DX12_THROW(e, "Backend -> Exception when creating a texture resource! %s", e.what());
         }
 
-        if (txtDesc.usage == TextureUsage::ColorTexture || txtDesc.usage == TextureUsage::ColorTextureDynamic)
-        {
-            // Texture descriptor + SRV
-            item.descriptor                         = m_textureHeap->GetNewHeapHandle();
+        auto createSRV = [&](DXGI_FORMAT format, bool createForCubemap, uint32 baseArrayLayer, uint32 layerCount, const DescriptorHandle& targetDescriptor) {
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
             srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            srvDesc.Format                          = GetDXFormat(txtDesc.format);
-            if (txtDesc.arrayLength > 1)
+            srvDesc.Format                          = format;
+
+            if (createForCubemap)
             {
-                srvDesc.Texture2DArray.ArraySize       = txtDesc.arrayLength;
-                srvDesc.Texture2DArray.MipLevels       = txtDesc.mipLevels;
-                srvDesc.Texture2DArray.FirstArraySlice = 0;
-                srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+                srvDesc.ViewDimension               = D3D12_SRV_DIMENSION_TEXTURECUBE;
+                srvDesc.TextureCube.MipLevels       = txtDesc.mipLevels;
+                srvDesc.TextureCube.MostDetailedMip = 0;
             }
-            else
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
             {
-                srvDesc.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
-                srvDesc.Texture2D.MipLevels = txtDesc.mipLevels;
+                srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE1D;
+                srvDesc.Texture1D.MipLevels       = txtDesc.mipLevels;
+                srvDesc.Texture1D.MostDetailedMip = 0;
+            }
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
+            {
+                srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
+                srvDesc.Texture1DArray.MipLevels       = txtDesc.mipLevels;
+                srvDesc.Texture1DArray.MostDetailedMip = 0;
+                srvDesc.Texture1DArray.ArraySize       = layerCount;
+                srvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
+            }
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
+            {
+                srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE2D;
+                srvDesc.Texture2D.MipLevels       = txtDesc.mipLevels;
+                srvDesc.Texture2D.MostDetailedMip = 0;
+            }
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
+            {
+                srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+                srvDesc.Texture2DArray.MipLevels       = txtDesc.mipLevels;
+                srvDesc.Texture2DArray.MostDetailedMip = 0;
+                srvDesc.Texture2DArray.ArraySize       = layerCount;
+                srvDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
+            }
+            else if (txtDesc.type == TextureType::Texture3D)
+            {
+                srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE3D;
+                srvDesc.Texture3D.MipLevels       = txtDesc.mipLevels;
+                srvDesc.Texture3D.MostDetailedMip = 0;
             }
 
-            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor.GetCPUHandle()});
+            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {targetDescriptor.GetCPUHandle()});
+        };
+
+        item.srvs.resize(txtDesc.viewCount);
+
+        DXGI_FORMAT srvFormat = GetDXFormat(txtDesc.format);
+
+        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
+            srvFormat = DXGI_FORMAT_R32_FLOAT;
+
+        for (uint32 i = 0; i < txtDesc.viewCount; i++)
+        {
+            item.srvs[i] = m_textureHeap->GetNewHeapHandle();
+            createSRV(srvFormat, false, i, txtDesc.viewCount - i, item.srvs[i]);
+        }
+
+        if (txtDesc.isCubemap)
+        {
+            item.srvCube = m_textureHeap->GetNewHeapHandle();
+            createSRV(srvFormat, true, 0, 0, item.srvCube);
+        }
+
+        if (txtDesc.usage == TextureUsage::ColorTexture || txtDesc.usage == TextureUsage::ColorTextureDynamic)
+        {
+            // // Texture descriptor + SRV
+            // item.descriptor                         = m_textureHeap->GetNewHeapHandle();
+            // D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            // srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            // srvDesc.Format                          = GetDXFormat(txtDesc.format);
+            //
+            // if (txtDesc.arrayLength > 1)
+            // {
+            //     srvDesc.Texture2DArray.ArraySize       = txtDesc.arrayLength;
+            //     srvDesc.Texture2DArray.MipLevels       = txtDesc.mipLevels;
+            //     srvDesc.Texture2DArray.FirstArraySlice = 0;
+            //     srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            // }
+            // else
+            // {
+            //     srvDesc.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
+            //     srvDesc.Texture2D.MipLevels = txtDesc.mipLevels;
+            // }
+            //
+            // m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor.GetCPUHandle()});
         }
         else if (txtDesc.usage == TextureUsage::DepthStencilTexture)
         {
             // DS descriptor + DSV
-            item.descriptor                                = m_dsvHeap->GetNewHeapHandle();
+            item.dsv                                       = m_dsvHeap->GetNewHeapHandle();
             D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
             depthStencilDesc.Format                        = GetDXFormat(txtDesc.format);
             depthStencilDesc.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
             depthStencilDesc.Flags                         = D3D12_DSV_FLAG_NONE;
-            m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {item.descriptor.GetCPUHandle()});
-
-            item.descriptor2                        = m_textureHeap->GetNewHeapHandle();
-            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-            srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            srvDesc.Format                          = DXGI_FORMAT_R32_FLOAT;
-            srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
-            srvDesc.Texture2D.MipLevels             = 1;
-            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor2.GetCPUHandle()});
+            m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {item.dsv.GetCPUHandle()});
         }
         else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
         {
             // Texture descriptor + RT descriptor + SRV + RTV
-            item.descriptor                    = m_rtvHeap->GetNewHeapHandle();
+            item.rtv                           = m_rtvHeap->GetNewHeapHandle();
             D3D12_RENDER_TARGET_VIEW_DESC desc = {};
             desc.Format                        = GetDXFormat(txtDesc.format);
             desc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
             desc.Texture2D.MipSlice            = 0;
-            m_device->CreateRenderTargetView(item.allocation->GetResource(), &desc, {item.descriptor.GetCPUHandle()});
-
-            item.descriptor2                        = m_textureHeap->GetNewHeapHandle();
-            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-            srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            srvDesc.Format                          = GetDXFormat(txtDesc.format);
-            srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
-            srvDesc.Texture2D.MipLevels             = 1;
-            m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor2.GetCPUHandle()});
+            m_device->CreateRenderTargetView(item.allocation->GetResource(), &desc, {item.rtv.GetCPUHandle()});
         }
 
         return m_textures.AddItem(item);
@@ -1454,22 +1529,21 @@ namespace LinaGX
             return;
         }
 
+        if (txt.rtv.GetCPUHandle() != NULL)
+            m_rtvHeap->FreeHeapHandle(txt.rtv);
+
+        if (txt.dsv.GetCPUHandle() != NULL)
+            m_dsvHeap->FreeHeapHandle(txt.dsv);
+
+        if (txt.srvCube.GetCPUHandle() != NULL)
+            m_textureHeap->FreeHeapHandle(txt.srvCube);
+
+        for (const auto& srv : txt.srvs)
+            m_textureHeap->FreeHeapHandle(srv);
+
         if (txt.isSwapchainTexture)
         {
-            m_rtvHeap->FreeHeapHandle(txt.descriptor);
             txt.rawRes.Reset();
-        }
-        else
-        {
-            if (txt.desc.usage == TextureUsage::DepthStencilTexture)
-                m_dsvHeap->FreeHeapHandle(txt.descriptor);
-            else if (txt.desc.usage == TextureUsage::ColorTexture || txt.desc.usage == TextureUsage::ColorTextureDynamic)
-                m_textureHeap->FreeHeapHandle(txt.descriptor);
-            else if (txt.desc.usage == TextureUsage::ColorTextureRenderTarget)
-            {
-                m_rtvHeap->FreeHeapHandle(txt.descriptor);
-                m_textureHeap->FreeHeapHandle(txt.descriptor2);
-            }
         }
 
         if (txt.allocation != NULL)
@@ -1842,11 +1916,21 @@ namespace LinaGX
                 {
                     if (bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage)
                     {
-                        const auto& res                    = m_textures.GetItemR(desc.textures[i]);
-                        const auto& srcResDescriptorHandle = (res.desc.usage == TextureUsage::ColorTextureRenderTarget || res.desc.usage == TextureUsage::DepthStencilTexture) ? res.descriptor2 : res.descriptor;
+                        const auto& res = m_textures.GetItemR(desc.textures[i]);
 
                         D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt;
-                        srcHandleTxt.ptr     = srcResDescriptorHandle.GetCPUHandle();
+
+                        // If cubemap, force cube view at the moment.
+                        if (res.srvCube.GetCPUHandle() != NULL)
+                            srcHandleTxt.ptr = res.srvCube.GetCPUHandle();
+                        else
+                        {
+                            if (desc.baseArrayLevels.empty())
+                                srcHandleTxt.ptr = res.srvs[0].GetCPUHandle();
+                            else
+                                srcHandleTxt.ptr = res.srvs[desc.baseArrayLevels[i]].GetCPUHandle();
+                        }
+
                         srcDescriptorsTxt[i] = srcHandleTxt;
 
                         D3D12_CPU_DESCRIPTOR_HANDLE txtHandle;
@@ -2726,7 +2810,7 @@ namespace LinaGX
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
 
-                colorAttDescs[i] = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
+                colorAttDescs[i] = {txt.rtv.GetCPUHandle(), colorBegin, colorEnd};
             }
             else
             {
@@ -2740,7 +2824,7 @@ namespace LinaGX
                 cv.Color[3] = att.clearColor.w;
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
-                colorAttDescs[i] = {txt.descriptor.GetCPUHandle(), colorBegin, colorEnd};
+                colorAttDescs[i] = {txt.rtv.GetCPUHandle(), colorBegin, colorEnd};
             }
         }
 
@@ -2752,7 +2836,7 @@ namespace LinaGX
             D3D12_RENDER_PASS_BEGINNING_ACCESS   stencilBegin{GetDXLoadOp(begin->depthStencilAttachment.stencilLoadOp), {clearDepthStencil}};
             D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{GetDXStoreOp(begin->depthStencilAttachment.depthStoreOp), {}};
             D3D12_RENDER_PASS_ENDING_ACCESS      stencilEnd{GetDXStoreOp(begin->depthStencilAttachment.stencilStoreOp), {}};
-            D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.descriptor.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
+            D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.dsv.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
             stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
         }
         else

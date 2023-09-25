@@ -93,8 +93,11 @@ namespace LinaGX
 
     struct DX12Texture2D
     {
-        DescriptorHandle                       descriptor         = {};
-        DescriptorHandle                       descriptor2        = {};
+        LINAGX_VEC<DescriptorHandle> srvs    = {};
+        DescriptorHandle             dsv     = {};
+        DescriptorHandle             rtv     = {};
+        DescriptorHandle             srvCube = {};
+
         Microsoft::WRL::ComPtr<ID3D12Resource> rawRes             = NULL;
         uint64                                 requiredAlignment  = 0;
         D3D12MA::Allocation*                   allocation         = NULL;

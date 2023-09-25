@@ -1254,6 +1254,13 @@ namespace LinaGX
             LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
         }
 
+        if (txtDesc.viewCount > txtDesc.arrayLength)
+        {
+            LOGA(false, "Backend -> View count can't be bigger than array length!");
+        }
+
+        LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && txtDesc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
+
         VKBTexture2D item           = {};
         item.usage                  = txtDesc.usage;
         item.isValid                = true;
@@ -1279,6 +1286,8 @@ namespace LinaGX
 
         if (txtDesc.type == TextureType::Texture3D)
             imgCreateInfo.imageType = VK_IMAGE_TYPE_3D;
+        else if (txtDesc.type == TextureType::Texture1D)
+            imgCreateInfo.imageType = VK_IMAGE_TYPE_1D;
 
         if (txtDesc.isCubemap)
             imgCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
@@ -1302,7 +1311,14 @@ namespace LinaGX
 
         VK_NAME_OBJECT(item.img, VK_OBJECT_TYPE_IMAGE, txtDesc.debugName, info);
 
-        // item.imgViews.resize(txtDesc.arrayLength);
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_1D;
+
+        if (txtDesc.type == TextureType::Texture3D)
+            viewType = VK_IMAGE_VIEW_TYPE_3D;
+        else if (txtDesc.type == TextureType::Texture2D)
+            viewType = txtDesc.arrayLength == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        else if (txtDesc.type == TextureType::Texture1D)
+            viewType = txtDesc.arrayLength == 1 ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_1D_ARRAY;
 
         auto createView = [&](uint32 baseArrayLayer, uint32 layerCount, VkImageView& imgView) {
             VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
@@ -1316,26 +1332,21 @@ namespace LinaGX
             viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.pNext                 = nullptr;
             viewInfo.image                 = item.img;
-            viewInfo.viewType              = txtDesc.arrayLength > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.viewType              = viewType;
             viewInfo.format                = GetVKFormat(txtDesc.format);
             viewInfo.subresourceRange      = subResRange;
-
-            if (txtDesc.type == TextureType::Texture3D)
-                viewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
 
             res = vkCreateImageView(m_device, &viewInfo, m_allocator, &imgView);
             VK_CHECK_RESULT(res, "Failed creating image view.");
         };
 
-        // createView(0, txtDesc.arrayLength, item.imgView);
+        item.imgViews.resize(txtDesc.viewCount);
 
-        item.imgViews.resize(txtDesc.arrayLength);
+        for (uint32 i = 0; i < txtDesc.viewCount; i++)
+            createView(i, txtDesc.viewCount - i, item.imgViews[i]);
 
-        for (uint32 i = 0; i < txtDesc.arrayLength; i++)
-            createView(i, VK_REMAINING_ARRAY_LAYERS, item.imgViews[i]);
-
-        // if (txtDesc.isCubemap)
-        //     createView(0, item.cubeView);
+        if (txtDesc.isCubemap)
+            createView(0, 6, item.cubeView);
 
         return m_textures.AddItem(item);
     }
@@ -1351,8 +1362,6 @@ namespace LinaGX
 
         for (auto view : txt.imgViews)
             vkDestroyImageView(m_device, view, m_allocator);
-
-        // vkDestroyImageView(m_device, txt.imgView, m_allocator);
 
         if (txt.isCubemap)
             vkDestroyImageView(m_device, txt.cubeView, m_allocator);
@@ -1656,8 +1665,9 @@ namespace LinaGX
             if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
             {
                 auto& txt = m_textures.GetItemR(desc.textures[i]);
-                // imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgView;
 
+                // If cubemap, we currently force-bind only the cubemap view
+                // If not, user can choose array later to bind, or bind the base layer, which will have access to remaining layers.
                 if (txt.isCubemap)
                     imgInfo.imageView = txt.cubeView;
                 else
