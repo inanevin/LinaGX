@@ -677,8 +677,9 @@ namespace LinaGX
                 {
                     DX12Texture2D color      = {};
                     color.isSwapchainTexture = true;
-                    color.rtv                = m_rtvHeap->GetNewHeapHandle();
-                    color.isValid            = true;
+                    color.rtvs.resize(1);
+                    color.rtvs[0] = m_rtvHeap->GetNewHeapHandle();
+                    color.isValid = true;
 
                     try
                     {
@@ -692,7 +693,7 @@ namespace LinaGX
                     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
                     rtvDesc.Format                        = GetDXFormat(desc.format);
                     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.rtv.GetCPUHandle()});
+                    m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.rtvs[0].GetCPUHandle()});
                     swp.colorTextures.push_back(m_textures.AddItem(color));
                 }
             }
@@ -762,8 +763,9 @@ namespace LinaGX
             {
                 DX12Texture2D color      = {};
                 color.isSwapchainTexture = true;
-                color.rtv                = m_rtvHeap->GetNewHeapHandle();
-                color.isValid            = true;
+                color.rtvs.resize(1);
+                color.rtvs[0] = m_rtvHeap->GetNewHeapHandle();
+                color.isValid = true;
 
                 try
                 {
@@ -777,7 +779,7 @@ namespace LinaGX
                 D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
                 rtvDesc.Format                        = GetDXFormat(swp.format);
                 rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-                m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.rtv.GetCPUHandle()});
+                m_device->CreateRenderTargetView(color.rawRes.Get(), &rtvDesc, {color.rtvs[0].GetCPUHandle()});
                 swp.colorTextures[i] = m_textures.AddItem(color);
             }
         }
@@ -1454,6 +1456,41 @@ namespace LinaGX
             m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {targetDescriptor.GetCPUHandle()});
         };
 
+        auto createRTV = [&](DXGI_FORMAT format, uint32 baseArrayLayer, uint32 layerCount, const DescriptorHandle& targetDescriptor) {
+            D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+            rtvDesc.Format                        = format;
+
+            if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
+            {
+                rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE1D;
+                rtvDesc.Texture1D.MipSlice = 0;
+            }
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
+            {
+                rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
+                rtvDesc.Texture1DArray.ArraySize       = layerCount;
+                rtvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
+            }
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
+            {
+                rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE2D;
+                rtvDesc.Texture2D.MipSlice = 0;
+            }
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
+            {
+                rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+                rtvDesc.Texture2DArray.ArraySize       = layerCount;
+                rtvDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
+            }
+            else if (txtDesc.type == TextureType::Texture3D)
+            {
+                rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE3D;
+                rtvDesc.Texture3D.MipSlice = 0;
+            }
+
+            m_device->CreateRenderTargetView(item.allocation->GetResource(), &rtvDesc, {targetDescriptor.GetCPUHandle()});
+        };
+
         item.srvs.resize(txtDesc.viewCount);
 
         DXGI_FORMAT srvFormat = GetDXFormat(txtDesc.format);
@@ -1473,30 +1510,7 @@ namespace LinaGX
             createSRV(srvFormat, true, 0, 0, item.srvCube);
         }
 
-        if (txtDesc.usage == TextureUsage::ColorTexture || txtDesc.usage == TextureUsage::ColorTextureDynamic)
-        {
-            // // Texture descriptor + SRV
-            // item.descriptor                         = m_textureHeap->GetNewHeapHandle();
-            // D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-            // srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            // srvDesc.Format                          = GetDXFormat(txtDesc.format);
-            //
-            // if (txtDesc.arrayLength > 1)
-            // {
-            //     srvDesc.Texture2DArray.ArraySize       = txtDesc.arrayLength;
-            //     srvDesc.Texture2DArray.MipLevels       = txtDesc.mipLevels;
-            //     srvDesc.Texture2DArray.FirstArraySlice = 0;
-            //     srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-            // }
-            // else
-            // {
-            //     srvDesc.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
-            //     srvDesc.Texture2D.MipLevels = txtDesc.mipLevels;
-            // }
-            //
-            // m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {item.descriptor.GetCPUHandle()});
-        }
-        else if (txtDesc.usage == TextureUsage::DepthStencilTexture)
+        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
         {
             // DS descriptor + DSV
             item.dsv                                       = m_dsvHeap->GetNewHeapHandle();
@@ -1508,13 +1522,12 @@ namespace LinaGX
         }
         else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
         {
-            // Texture descriptor + RT descriptor + SRV + RTV
-            item.rtv                           = m_rtvHeap->GetNewHeapHandle();
-            D3D12_RENDER_TARGET_VIEW_DESC desc = {};
-            desc.Format                        = GetDXFormat(txtDesc.format);
-            desc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-            desc.Texture2D.MipSlice            = 0;
-            m_device->CreateRenderTargetView(item.allocation->GetResource(), &desc, {item.rtv.GetCPUHandle()});
+            item.rtvs.resize(txtDesc.viewCount);
+            for (uint32 i = 0; i < txtDesc.viewCount; i++)
+            {
+                item.rtvs[i] = m_rtvHeap->GetNewHeapHandle();
+                createRTV(srvFormat, i, txtDesc.viewCount - i, item.rtvs[i]);
+            }
         }
 
         return m_textures.AddItem(item);
@@ -1529,8 +1542,8 @@ namespace LinaGX
             return;
         }
 
-        if (txt.rtv.GetCPUHandle() != NULL)
-            m_rtvHeap->FreeHeapHandle(txt.rtv);
+        for (const auto& rtv : txt.rtvs)
+            m_rtvHeap->FreeHeapHandle(rtv);
 
         if (txt.dsv.GetCPUHandle() != NULL)
             m_dsvHeap->FreeHeapHandle(txt.dsv);
@@ -2810,7 +2823,7 @@ namespace LinaGX
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
 
-                colorAttDescs[i] = {txt.rtv.GetCPUHandle(), colorBegin, colorEnd};
+                colorAttDescs[i] = {txt.rtvs[0].GetCPUHandle(), colorBegin, colorEnd};
             }
             else
             {
@@ -2824,7 +2837,7 @@ namespace LinaGX
                 cv.Color[3] = att.clearColor.w;
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
-                colorAttDescs[i] = {txt.rtv.GetCPUHandle(), colorBegin, colorEnd};
+                colorAttDescs[i] = {txt.rtvs[att.layer].GetCPUHandle(), colorBegin, colorEnd};
             }
         }
 

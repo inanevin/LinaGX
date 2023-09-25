@@ -95,7 +95,7 @@ namespace LinaGX
     {
         LINAGX_VEC<DescriptorHandle> srvs    = {};
         DescriptorHandle             dsv     = {};
-        DescriptorHandle             rtv     = {};
+        LINAGX_VEC<DescriptorHandle> rtvs    = {};
         DescriptorHandle             srvCube = {};
 
         Microsoft::WRL::ComPtr<ID3D12Resource> rawRes             = NULL;
