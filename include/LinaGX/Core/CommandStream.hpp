@@ -113,6 +113,7 @@ namespace LinaGX
             LOGA(m_auxMemoryIndex < m_auxMemorySize, "Exceeded aux memory limit!");
             return reinterpret_cast<T*>(initialHead);
         }
+        void Reset();
 
     private:
         friend class Instance;
@@ -120,7 +121,6 @@ namespace LinaGX
         friend class MTLBackend;
         friend class DX12Backend;
         ~CommandStream();
-        void Reset();
 
     private:
         uint8**     m_commands     = nullptr;

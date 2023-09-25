@@ -226,7 +226,7 @@ namespace LinaGX::Examples
                 .framesInFlight        = FRAMES_IN_FLIGHT,
                 .backbufferCount       = 2,
                 .gpuLimits             = limits,
-                .checkForFormatSupport = {Format::R8G8B8A8_SRGB, Format::D32_SFLOAT, Format::R32G32B32A32_SFLOAT},
+                .checkForFormatSupport = {Format::R8G8B8A8_SRGB, Format::D32_SFLOAT, Format::R32G32B32A32_FLOAT},
             };
 
             _lgx = new LinaGX::Instance();
@@ -306,7 +306,7 @@ namespace LinaGX::Examples
 
             ShaderDesc shaderDesc = {
                 .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::R32G32B32A32_SFLOAT,
+                .colorAttachmentFormat = Format::R32G32B32A32_FLOAT,
                 .depthAttachmentFormat = Format::D32_SFLOAT,
                 .layout                = outLayout,
                 .polygonMode           = PolygonMode::Fill,
@@ -385,7 +385,7 @@ namespace LinaGX::Examples
                         .width     = _window->GetSize().x,
                         .height    = _window->GetSize().y,
                         .mipLevels = 1,
-                        .format    = Format::R32G32B32A32_SFLOAT,
+                        .format    = Format::R32G32B32A32_FLOAT,
                         .debugName = "LinaGXRTTexture",
                     };
 

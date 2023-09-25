@@ -100,7 +100,7 @@ namespace LinaGX
             glm::vec4 emissiveFac       = {};
             int32     baseColor         = 0;
             int32     metallicRoughness = 0;
-            int32     emissive          = 0;
+            int32     emissive          = -1;
             int32     normal            = 0;
             int32     specialTexture    = -1;
             float     metallic          = 0.0f;
@@ -135,11 +135,11 @@ namespace LinaGX
 
         struct VertexSkinned
         {
-            LinaGX::LGXVector3 position      = {};
-            LinaGX::LGXVector2 uv            = {};
-            LinaGX::LGXVector3 normal        = {};
-           // LinaGX::LGXVector4 inBoneIndices = {};
-           // LinaGX::LGXVector4 inBoneWeights = {};
+            LinaGX::LGXVector3 position = {};
+            LinaGX::LGXVector2 uv       = {};
+            LinaGX::LGXVector3 normal   = {};
+            // LinaGX::LGXVector4 inBoneIndices = {};
+            // LinaGX::LGXVector4 inBoneWeights = {};
         };
 
         struct GPUBuffer

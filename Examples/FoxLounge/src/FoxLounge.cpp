@@ -44,9 +44,10 @@ SOFTWARE.
 namespace LinaGX::Examples
 {
 
-#define MAX_OBJECTS 10
-#define MAX_LIGHTS  10
-#define MAX_MATS    10
+#define MAX_OBJECTS         10
+#define MAX_LIGHTS          10
+#define MAX_MATS            10
+#define REFLECTION_PASS_RES 512
 
     void Example::ConfigureInitializeLinaGX()
     {
@@ -54,26 +55,26 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback                          = LogError;
         LinaGX::Config.infoCallback                           = LogInfo;
         LinaGX::Config.dx12Config.serializeShaderDebugSymbols = true;
+        LinaGX::Config.dx12Config.enableDebugLayers           = false;
 
-        BackendAPI api = BackendAPI::DX12;
-
+        BackendAPI api = BackendAPI::Vulkan;
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
-
         LinaGX::GPUFeatures features = {
             .enableBindless = true,
         };
 
-        LinaGX::GPULimits limits   = {};
-        LinaGX::InitInfo  initInfo = InitInfo{
-             .api                   = api,
-             .gpu                   = PreferredGPUType::Discrete,
-             .framesInFlight        = FRAMES_IN_FLIGHT,
-             .backbufferCount       = BACKBUFFER_COUNT,
-             .gpuLimits             = limits,
-             .gpuFeatures           = features,
-             .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
+        LinaGX::GPULimits limits = {};
+
+        LinaGX::InitInfo initInfo = InitInfo{
+            .api                   = api,
+            .gpu                   = PreferredGPUType::Discrete,
+            .framesInFlight        = FRAMES_IN_FLIGHT,
+            .backbufferCount       = BACKBUFFER_COUNT,
+            .gpuLimits             = limits,
+            .gpuFeatures           = features,
+            .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
         };
 
         m_lgx = new LinaGX::Instance();
@@ -119,7 +120,7 @@ namespace LinaGX::Examples
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             auto& pfd                  = m_pfd[i];
-            pfd.graphicsStream         = m_lgx->CreateCommandStream(300, CommandType::Graphics, 10000);
+            pfd.graphicsStream         = m_lgx->CreateCommandStream(500, CommandType::Graphics, 10000);
             pfd.transferStream         = m_lgx->CreateCommandStream(100, CommandType::Transfer, 10000);
             pfd.transferSemaphoreValue = 0;
             pfd.transferSemaphore      = m_lgx->CreateUserSemaphore();
@@ -193,7 +194,6 @@ namespace LinaGX::Examples
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-
                 LinaGX::ResourceDesc matDataResource = {
                     .size          = sizeof(GPUMaterialData),
                     .typeHintFlags = LinaGX::TH_ConstantBuffer,
@@ -216,8 +216,7 @@ namespace LinaGX::Examples
                 copy->source                  = mat.stagingResources[i];
                 copy->destination             = mat.gpuResources[i];
 
-                mat.descriptorSets[i] = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionObjectMaterial());
-
+                mat.descriptorSets[i]                     = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionObjectMaterial());
                 LinaGX::DescriptorUpdateBufferDesc update = {
                     .setHandle = mat.descriptorSets[i],
                     .binding   = 0,
@@ -225,6 +224,26 @@ namespace LinaGX::Examples
                 };
 
                 m_lgx->DescriptorUpdateBuffer(update);
+
+                LinaGX::DescriptorUpdateImageDesc imgUpdate = {
+                    .setHandle = mat.descriptorSets[i],
+                    .binding   = 1,
+                    .textures  = {m_textures[mat.gpuMat.baseColor].gpuHandle, m_textures[mat.gpuMat.normal].gpuHandle, m_textures[mat.gpuMat.metallicRoughness].gpuHandle},
+                };
+
+                if (mat.gpuMat.emissive != -1)
+                {
+                    imgUpdate.textures.push_back(m_textures[mat.gpuMat.emissive].gpuHandle);
+                }
+                else
+                {
+                    if (mat.gpuMat.specialTexture == -1)
+                        imgUpdate.textures.push_back(m_textures[getTextureIndex("Resources/Textures/black32.png")].gpuHandle);
+                    else
+                        imgUpdate.textures.push_back(m_textures[mat.gpuMat.specialTexture].gpuHandle);
+                }
+
+                m_lgx->DescriptorUpdateImage(imgUpdate);
             }
         }
     }
@@ -238,7 +257,6 @@ namespace LinaGX::Examples
         LinaGX::LoadGLTFBinary("Resources/Models/SkyDome/SkyCube.glb", skyDomeData);
         LinaGX::LoadGLTFBinary("Resources/Models/FoxLounge/FoxLounge.glb", foxLoungeData);
         LinaGX::LoadGLTFBinary("Resources/Models/Fox/Fox.glb", foxData);
-
         /*
             We will hold skinned & non-skinned vertices seperately.
             So there will be 2 global vertex buffers in total, holding all data for all objects.
@@ -305,6 +323,7 @@ namespace LinaGX::Examples
             {
                 if (node->mesh == nullptr)
                     continue;
+
                 m_worldObjects.push_back({});
                 auto& wo        = m_worldObjects.back();
                 wo.name         = node->name;
@@ -321,7 +340,7 @@ namespace LinaGX::Examples
 
                 for (auto* p : node->mesh->primitives)
                 {
-                    // if (p->material != nullptr && p->material->name.compare("Terrain") != 0)
+                    // if (p->material != nullptr && p->material->name.compare("Terrain") == 0)
                     //     continue;
 
                     wo.primitives.push_back({});
@@ -329,7 +348,6 @@ namespace LinaGX::Examples
 
                     std::vector<VertexSkinned> vertices;
                     std::vector<uint32>        indices;
-
                     primitive.materialIndex = p->material ? (matIndex + p->material->index) : 0;
 
                     for (uint32 k = 0; k < p->vertexCount; k++)
@@ -539,11 +557,12 @@ namespace LinaGX::Examples
             .magFilter  = Filter::Linear,
             .mode       = SamplerAddressMode::Repeat,
             .mipmapMode = MipmapMode::Linear,
-            .anisotropy = 8,
+            .anisotropy = 0,
             .minLod     = 0.0f,
-            .maxLod     = 15.0f,
+            .maxLod     = 12.0f,
             //.mipLodBias = 6.0f,
         };
+
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
     }
 
@@ -573,19 +592,9 @@ namespace LinaGX::Examples
 
                 m_lgx->DescriptorUpdateBuffer(update2);
 
-                LinaGX::DescriptorUpdateImageDesc imgUpdate = {
-                    .setHandle = pfd.globalSet,
-                    .binding   = 2,
-                };
-
-                for (const auto& txt : m_textures)
-                    imgUpdate.textures.push_back(txt.gpuHandle);
-
-                m_lgx->DescriptorUpdateImage(imgUpdate);
-
                 LinaGX::DescriptorUpdateImageDesc smpUpdate = {
                     .setHandle = pfd.globalSet,
-                    .binding   = 3,
+                    .binding   = 2,
                     .samplers  = {m_samplers[0]}};
 
                 m_lgx->DescriptorUpdateImage(smpUpdate);
@@ -656,18 +665,18 @@ namespace LinaGX::Examples
             .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionQuadPass()},
             .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
         };
+
         m_pipelineLayouts[PipelineLayoutType::PL_FinalQuadPass] = m_lgx->CreatePipelineLayout(pipelineLayoutFinalQuadPass);
     }
 
     void Example::SetupShaders()
     {
         LOGT("Compiling shaders...");
-
         m_shaders.resize(Shader::SH_Max);
-        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
-        m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass], "Deferred Lighting");
+        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
+        m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass], "Deferred Lighting");
         m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass], "Final Quad");
-        // m_shaders[Shader::Skybox]         = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R32G32B32A32_SFLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false, m_pipelineLayout);
+        // m_shaders[Shader::Skybox]         = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false, m_pipelineLayout);
     }
 
     void Example::SetupPasses()
@@ -773,7 +782,7 @@ namespace LinaGX::Examples
             .sampled = true,
             .width   = m_window->GetSize().x,
             .height  = m_window->GetSize().y,
-            .format  = LinaGX::Format::R32G32B32A32_SFLOAT,
+            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
         };
 
         LinaGX::TextureDesc reflectionRTDesc = {
@@ -781,7 +790,7 @@ namespace LinaGX::Examples
             .sampled = true,
             .width   = 512,
             .height  = 512,
-            .format  = LinaGX::Format::R32G32B32A32_SFLOAT,
+            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
         };
 
         LinaGX::TextureDesc descDepth = {
@@ -799,9 +808,9 @@ namespace LinaGX::Examples
             .type        = LinaGX::TextureType::Texture2D,
             .sampled     = true,
             .isCubemap   = true,
-            .width       = m_window->GetSize().x,
-            .height      = m_window->GetSize().y,
-            .format      = LinaGX::Format::R32G32B32A32_SFLOAT,
+            .width       = REFLECTION_PASS_RES,
+            .height      = REFLECTION_PASS_RES,
+            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
             .arrayLength = 6,
         };
 
@@ -826,18 +835,18 @@ namespace LinaGX::Examples
             objsDefault.renderTargets[i].colorAttachments.clear();
 
             // GBuf Albedo Roughness
-            defaultRTDesc.debugName     = "GBuf Albedo Roughness";
+            defaultRTDesc.debugName     = "GBuf Albedo";
             colorAttachment.isSwapchain = false;
             colorAttachment.texture     = m_lgx->CreateTexture(defaultRTDesc);
             objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
 
             // GBuf NormalMetallic
-            defaultRTDesc.debugName = "GBuf Normal Metallic";
+            defaultRTDesc.debugName = "GBuf Normal";
             colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
             objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
 
             // GBuf PositionAO
-            defaultRTDesc.debugName = "GBuf PositionAO";
+            defaultRTDesc.debugName = "GBuf Position";
             colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
             objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
 
@@ -853,7 +862,6 @@ namespace LinaGX::Examples
                 .binding   = 0,
                 .textures  = {objsDefault.renderTargets[i].colorAttachments[0].texture, objsDefault.renderTargets[i].colorAttachments[1].texture, objsDefault.renderTargets[i].colorAttachments[2].texture},
             };
-
             m_lgx->DescriptorUpdateImage(imgUpdateLightingPass);
 
             auto& lightingDefault = m_passes[PassType::PS_Lighting];
@@ -919,12 +927,18 @@ namespace LinaGX::Examples
         }
     }
 
-    void Example::BeginPass(PassType pass, uint32 layer)
+    void Example::BeginPass(PassType pass, uint32 width, uint32 height, uint32 layer)
     {
+        if (width == 0)
+            width = m_window->GetSize().x;
+
+        if (height == 0)
+            height = m_window->GetSize().y;
+
         const uint32       currentFrameIndex = m_lgx->GetCurrentFrameIndex();
         const auto&        currentFrame      = m_pfd[currentFrameIndex];
-        const Viewport     viewport          = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-        const ScissorsRect sc                = {.x = 0, .y = 0, .width = m_window->GetSize().x, .height = m_window->GetSize().y};
+        const Viewport     viewport          = {.x = 0, .y = 0, .width = width, .height = height, .minDepth = 0.0f, .maxDepth = 1.0f};
+        const ScissorsRect sc                = {.x = 0, .y = 0, .width = width, .height = height};
         auto&              passData          = m_passes[pass];
 
         // Pass Begin
@@ -1268,53 +1282,25 @@ namespace LinaGX::Examples
         {
             BindCameraDescriptor(pfd.cameraSetCubemap, sizeof(GPUCameraData) * i);
 
-            // Transition to attachment optimal.
-            {
-                LinaGX::CMDBarrier* barrier   = pfd.graphicsStream->AddCommand<LinaGX::CMDBarrier>();
-                barrier->extension            = nullptr;
-                barrier->resourceBarrierCount = 0;
-                barrier->textureBarrierCount  = 3;
-                barrier->textureBarriers      = pfd.graphicsStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * barrier->textureBarrierCount);
-
-                barrier->textureBarriers[0].texture = m_passes[PS_ObjectsReflection].renderTargets[currentFrameIndex].colorAttachments[0].texture;
-                barrier->textureBarriers[1].texture = m_passes[PS_ObjectsReflection].renderTargets[currentFrameIndex].colorAttachments[1].texture;
-                barrier->textureBarriers[2].texture = m_passes[PS_ObjectsReflection].renderTargets[currentFrameIndex].colorAttachments[2].texture;
-
-                for (uint32 i = 0; i < barrier->textureBarrierCount; i++)
-                {
-                    barrier->textureBarriers[i].isSwapchain = false;
-                    barrier->textureBarriers[i].toState     = LinaGX::TextureBarrierState::ColorAttachment;
-                }
-            }
-
             BeginPass(PassType::PS_ObjectsDefault);
             DrawObjects(Shader::SH_Default);
             EndPass();
 
-            // Transition to shader read.
-            {
-                LinaGX::CMDBarrier* barrier         = pfd.graphicsStream->AddCommand<LinaGX::CMDBarrier>();
-                barrier->extension                  = nullptr;
-                barrier->resourceBarrierCount       = 0;
-                barrier->textureBarrierCount        = 3;
-                barrier->textureBarriers            = pfd.graphicsStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * barrier->textureBarrierCount);
-                barrier->textureBarriers[0].texture = m_passes[PS_ObjectsReflection].renderTargets[currentFrameIndex].colorAttachments[0].texture;
-                barrier->textureBarriers[1].texture = m_passes[PS_ObjectsReflection].renderTargets[currentFrameIndex].colorAttachments[1].texture;
-                barrier->textureBarriers[2].texture = m_passes[PS_ObjectsReflection].renderTargets[currentFrameIndex].colorAttachments[2].texture;
+            CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ShaderRead);
+            ExecPassBarriers();
 
-                for (uint32 i = 0; i < barrier->textureBarrierCount; i++)
-                {
-                    barrier->textureBarriers[i].isSwapchain = false;
-                    barrier->textureBarriers[i].toState     = LinaGX::TextureBarrierState::ShaderRead;
-                }
-            }
-
-            BeginPass(PassType::PS_LightingReflections, i);
+            BeginPass(PassType::PS_LightingReflections, REFLECTION_PASS_RES, REFLECTION_PASS_RES, i);
             BindShader(Shader::SH_LightingPass);
             BindMaterialSet(pfd.lightingPassMaterialSet);
             DrawFullscreenQuad();
             EndPass();
+
+            CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ColorAttachment);
+            ExecPassBarriers();
         }
+
+        CollectPassBarrier(PS_LightingReflections, LinaGX::TextureBarrierState::ShaderRead);
+        ExecPassBarriers();
     }
 
     void Example::CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target)
@@ -1342,6 +1328,66 @@ namespace LinaGX::Examples
         barrier->textureBarrierCount          = static_cast<uint32>(m_passBarriers.size());
         barrier->textureBarriers              = pfd.graphicsStream->EmplaceAuxMemory<LinaGX::TextureBarrier>(m_passBarriers.data(), sizeof(LinaGX::TextureBarrier) * m_passBarriers.size());
         m_passBarriers.clear();
+    }
+
+    void Example::BuildCommands(uint32 frameIndex)
+    {
+        auto& currentFrame = m_pfd[frameIndex];
+
+        // Global descriptor binding.
+        {
+            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
+            bind->extension                     = nullptr;
+            bind->isCompute                     = false;
+            bind->firstSet                      = 0;
+            bind->setCount                      = 1;
+            bind->dynamicOffsetCount            = 0;
+            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.globalSet);
+            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
+            bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalSet];
+        }
+
+        CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment);
+        CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ColorAttachment);
+        CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment);
+        CollectPassBarrier(PS_LightingReflections, LinaGX::TextureBarrierState::ColorAttachment);
+        ExecPassBarriers();
+
+        ReflectionPass();
+
+        BindCameraDescriptor(currentFrame.cameraSet0, 0);
+
+        BeginPass(PassType::PS_ObjectsDefault);
+        DrawObjects(Shader::SH_Default);
+        EndPass();
+
+        CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ShaderRead);
+        ExecPassBarriers();
+
+        BeginPass(PassType::PS_Lighting);
+        BindShader(Shader::SH_LightingPass);
+        BindMaterialSet(currentFrame.lightingPassMaterialSet);
+        DrawFullscreenQuad();
+        EndPass();
+
+        CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ShaderRead);
+        ExecPassBarriers();
+
+        BeginPass(PassType::PS_FinalQuad);
+        BindShader(Shader::SH_Quad);
+        BindMaterialSet(currentFrame.finalQuadPassMaterialSet);
+        DrawFullscreenQuad();
+        EndPass();
+
+        CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::Present);
+        ExecPassBarriers();
+
+        EASY_END_BLOCK;
+
+        EASY_BLOCK("LinaGX Submit Graphics");
+
+        // This does the actual *recording* of every single command stream alive.
+        m_lgx->CloseCommandStreams(&currentFrame.graphicsStream, 1);
     }
 
     void Example::OnTick()
@@ -1386,6 +1432,13 @@ namespace LinaGX::Examples
             dbgUpdate       = true;
         }
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
+        {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_ObjectsDefault].renderTargets[0].colorAttachments[3].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_ObjectsDefault].renderTargets[1].colorAttachments[3].texture;
+            dbgUpdate       = true;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_6))
         {
             dbgUpdateTxt[0] = m_passes[PassType::PS_ObjectsDefault].renderTargets[0].depthStencilAttachment.texture;
             dbgUpdateTxt[1] = m_passes[PassType::PS_ObjectsDefault].renderTargets[1].depthStencilAttachment.texture;
@@ -1456,11 +1509,11 @@ namespace LinaGX::Examples
                 GPUObjectData data = {};
                 glm::mat4     mat  = glm::mat4(1.0f);
                 glm::quat     q    = glm::quat(glm::vec3(0.0f, DEG2RAD(0.0f), 0.0f));
-                mat                = Utility::TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {0.2f, 0.2f, 0.2f});
-                // data.modelMatrix   = mat;
-                data.modelMatrix  = obj.globalMatrix;
-                data.normalMatrix = glm::transpose(glm::inverse(glm::mat3(data.modelMatrix)));
-                data.hasSkin      = obj.isSkinned;
+                mat                = Utility::TranslateRotateScale({0.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {10.0f, 10.0f, 10.0f});
+                data.modelMatrix   = mat;
+                data.modelMatrix   = obj.globalMatrix;
+                data.normalMatrix  = glm::transpose(glm::inverse(glm::mat3(data.modelMatrix)));
+                data.hasSkin       = obj.isSkinned;
                 objData.push_back(data);
             }
 
@@ -1492,59 +1545,7 @@ namespace LinaGX::Examples
             EASY_END_BLOCK;
         }
 
-        // Global descriptor binding.
-        {
-            LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
-            bind->extension                     = nullptr;
-            bind->isCompute                     = false;
-            bind->firstSet                      = 0;
-            bind->setCount                      = 1;
-            bind->dynamicOffsetCount            = 0;
-            bind->descriptorSetHandles          = currentFrame.graphicsStream->EmplaceAuxMemory<uint16>(currentFrame.globalSet);
-            bind->layoutSource                  = DescriptorSetsLayoutSource::CustomLayout;
-            bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalSet];
-        }
-
-        // ReflectionPass();
-
-        CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment);
-        CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ColorAttachment);
-        CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment);
-        ExecPassBarriers();
-
-        BindCameraDescriptor(currentFrame.cameraSet0, 0);
-
-        BeginPass(PassType::PS_ObjectsDefault);
-        DrawObjects(Shader::SH_Default);
-        EndPass();
-
-        CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ShaderRead);
-        ExecPassBarriers();
-
-        BeginPass(PassType::PS_Lighting);
-        BindShader(Shader::SH_LightingPass);
-        BindMaterialSet(currentFrame.lightingPassMaterialSet);
-        DrawFullscreenQuad();
-        EndPass();
-
-        CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ShaderRead);
-        ExecPassBarriers();
-
-        BeginPass(PassType::PS_FinalQuad);
-        BindShader(Shader::SH_Quad);
-        BindMaterialSet(currentFrame.finalQuadPassMaterialSet);
-        DrawFullscreenQuad();
-        EndPass();
-
-        CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::Present);
-        ExecPassBarriers();
-
-        EASY_END_BLOCK;
-
-        EASY_BLOCK("LinaGX Submit Graphics");
-
-        // This does the actual *recording* of every single command stream alive.
-        m_lgx->CloseCommandStreams(&currentFrame.graphicsStream, 1);
+        BuildCommands(currentFrameIndex);
 
         // Submit work on gpu.
         m_lgx->SubmitCommandStreams({.targetQueue = m_lgx->GetPrimaryQueue(CommandType::Graphics), .streams = &currentFrame.graphicsStream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.transferSemaphore, .waitValues = &currentFrame.transferSemaphoreValue});

@@ -61,6 +61,8 @@ FEATURES TO IMPLEMENT
 - Metal texture 3d shaibas
 - metal debug layers config.
 - Carry everything to config.
+- support for variety of vertex formats.
+- metal missing formats.
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.

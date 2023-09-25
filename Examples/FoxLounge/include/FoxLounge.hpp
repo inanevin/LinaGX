@@ -135,7 +135,7 @@ namespace LinaGX
             void CreateDynamicTextures();
             void DestroyDynamicTextures();
 
-            void BeginPass(PassType pass, uint32 layer = 0);
+            void BeginPass(PassType pass, uint32 width = 0, uint32 height = 0, uint32 layer = 0);
             void EndPass();
             void CaptureCubemap();
             void DrawObjects(Shader shader);
@@ -147,6 +147,7 @@ namespace LinaGX
             void ReflectionPass();
             void CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target);
             void ExecPassBarriers();
+            void BuildCommands(uint32 frameIndex);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;
@@ -155,8 +156,8 @@ namespace LinaGX
             PerFrameData           m_pfd[FRAMES_IN_FLIGHT];
             std::vector<Texture2D> m_textures;
 
-           // GPUBuffer m_indxBuffer;
-           // GPUBuffer m_vtxBuffer;
+            // GPUBuffer m_indxBuffer;
+            // GPUBuffer m_vtxBuffer;
 
             std::vector<uint32>      m_samplers;
             std::vector<uint16>      m_shaders;

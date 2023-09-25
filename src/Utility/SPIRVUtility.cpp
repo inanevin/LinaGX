@@ -557,13 +557,13 @@ namespace LinaGX
                     input.name               = compiler.get_name(resource.id);
 
                     if (type.vecsize == 1)
-                        input.format = isFloat ? Format::R32_SFLOAT : Format::R32_SINT;
+                        input.format = isFloat ? Format::R32_FLOAT : Format::R32_INT;
                     else if (type.vecsize == 2)
-                        input.format = isFloat ? Format::R32G32_SFLOAT : Format::R32G32_SINT;
+                        input.format = isFloat ? Format::R32G32_FLOAT : Format::R32G32_INT;
                     else if (type.vecsize == 3)
-                        input.format = isFloat ? Format::R32G32B32_SFLOAT : Format::R32G32B32_SINT;
+                        input.format = isFloat ? Format::R32G32B32_FLOAT : Format::R32G32B32_INT;
                     else
-                        input.format = isFloat ? Format::R32G32B32A32_SFLOAT : Format::R32G32B32A32_SINT;
+                        input.format = isFloat ? Format::R32G32B32A32_FLOAT : Format::R32G32B32A32_INT;
 
                     outLayout.vertexInputs.push_back(input);
                 }

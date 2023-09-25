@@ -143,20 +143,13 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding2 = {
-            .descriptorCount = 32, // max amt.
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .unbounded       = true,
-            .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorBinding binding3 = {
             .descriptorCount = 1, // max amt.
             .type            = LinaGX::DescriptorType::SeparateSampler,
             .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
 
         LinaGX::DescriptorSetDesc desc = {
-            .bindings = {binding0, binding1, binding2, binding3},
+            .bindings = {binding0, binding1, binding2},
         };
 
         return desc;
@@ -209,8 +202,13 @@ namespace LinaGX::Examples
             .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
 
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
+        LinaGX::DescriptorBinding binding1 = {
+            .descriptorCount = 4,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
 
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
         return desc;
     }
 
@@ -224,7 +222,6 @@ namespace LinaGX::Examples
         ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
         std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
         lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
-
         // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
         ColorBlendAttachment blendAtt = {
             .blendEnabled        = false,
