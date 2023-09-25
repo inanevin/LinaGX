@@ -1937,12 +1937,7 @@ namespace LinaGX
                         if (res.srvCube.GetCPUHandle() != NULL)
                             srcHandleTxt.ptr = res.srvCube.GetCPUHandle();
                         else
-                        {
-                            if (desc.baseArrayLevels.empty())
-                                srcHandleTxt.ptr = res.srvs[0].GetCPUHandle();
-                            else
-                                srcHandleTxt.ptr = res.srvs[desc.baseArrayLevels[i]].GetCPUHandle();
-                        }
+                            srcHandleTxt.ptr = res.srvs[0].GetCPUHandle();
 
                         srcDescriptorsTxt[i] = srcHandleTxt;
 

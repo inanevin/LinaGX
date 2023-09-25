@@ -621,7 +621,6 @@ namespace LinaGX
         uint32             binding         = 0;
         LINAGX_VEC<uint32> textures        = {};
         LINAGX_VEC<uint32> samplers        = {};
-        LINAGX_VEC<uint32> baseArrayLevels = {};
     };
 
     struct DescriptorUpdateBufferDesc

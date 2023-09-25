@@ -1671,12 +1671,7 @@ namespace LinaGX
                 if (txt.isCubemap)
                     imgInfo.imageView = txt.cubeView;
                 else
-                {
-                    if (desc.baseArrayLevels.empty())
-                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
-                    else
-                        imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[desc.baseArrayLevels[i]];
-                }
+                    imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
 
                 imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
