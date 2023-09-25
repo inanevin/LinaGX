@@ -61,6 +61,7 @@ namespace LinaGX
             uint8* rscObjDataCPUMapping = nullptr;
 
             uint16 lightingPassMaterialSet  = 0;
+            uint16 lightingReflectionPassMaterialSet  = 0;
             uint16 finalQuadPassMaterialSet = 0;
         };
 

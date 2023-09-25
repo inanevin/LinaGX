@@ -56,6 +56,7 @@ namespace LinaGX
         LoadOp  stencilLoadOp;
         StoreOp stencilStoreOp;
         uint32  clearStencil;
+        uint32  layer;
     };
 
     struct CMDBeginRenderPass

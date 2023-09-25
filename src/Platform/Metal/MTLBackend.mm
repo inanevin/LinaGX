@@ -64,21 +64,27 @@ MTLPixelFormat GetMTLFormat(Format format)
         return MTLPixelFormatBGRA8Unorm_sRGB;
     case Format::B8G8R8A8_UNORM:
         return MTLPixelFormatBGRA8Unorm;
-    case Format::R32G32B32_SFLOAT:
+    case Format::R32G32B32_FLOAT:
+        LOGA(false, "Not supported on Metal!");
         return MTLPixelFormatInvalid;
-    case Format::R32G32B32_SINT:
+    case Format::R32G32B32_INT:
+        LOGA(false, "Not supported on Metal!");
         return MTLPixelFormatInvalid;
-    case Format::R32G32B32A32_SFLOAT:
+    case Format::R11G11B10_FLOAT:
+        return MTLPixelFormatRG11B10Float;
+    case Format::R10G0B10A2_INT:
+        return MTLPixelFormatRGB10A2Uint;
+    case Format::R32G32B32A32_FLOAT:
         return MTLPixelFormatRGBA32Float;
-    case Format::R32G32B32A32_SINT:
+    case Format::R32G32B32A32_INT:
         return MTLPixelFormatRGBA32Sint;
-    case Format::R16G16B16A16_SFLOAT:
+    case Format::R16G16B16A16_FLOAT:
         return MTLPixelFormatRGBA16Float;
     case Format::R16G16B16A16_UNORM:
         return MTLPixelFormatRGBA16Unorm;
-    case Format::R32G32_SFLOAT:
+    case Format::R32G32_FLOAT:
         return MTLPixelFormatRG32Float;
-    case Format::R32G32_SINT:
+    case Format::R32G32_INT:
         return MTLPixelFormatRG32Sint;
     case Format::D32_SFLOAT:
         return MTLPixelFormatDepth32Float;
@@ -92,17 +98,22 @@ MTLPixelFormat GetMTLFormat(Format format)
         return MTLPixelFormatR8Unorm;
     case Format::R8_UINT:
         return MTLPixelFormatR8Uint;
-    case Format::R16_SFLOAT:
+    case Format::R16_FLOAT:
         return MTLPixelFormatR16Float;
-    case Format::R16_SINT:
+    case Format::R16_INT:
         return MTLPixelFormatR16Sint;
-    case Format::R32_SFLOAT:
+    case Format::R32_FLOAT:
         return MTLPixelFormatR32Float;
-    case Format::R32_SINT:
+    case Format::R32_INT:
         return MTLPixelFormatR32Sint;
     case Format::R32_UINT:
         return MTLPixelFormatR32Uint;
+    case Format::BC3_BLOCK_SRGB:
+        return MTLPixelFormatBC3_RGBA_sRGB;
+    case Format::BC3_BLOCK_UNORM:
+        return MTLPixelFormatBC3_RGBA;
     default:
+        LOGA(false, "Not supported yet!");
         return MTLPixelFormatInvalid;
     }
 
@@ -182,21 +193,21 @@ MTLVertexFormat GetMTLVertexFormat(Format format)
 {
     switch(format)
     {
-        case Format::R32G32B32A32_SFLOAT:
+        case Format::R32G32B32A32_FLOAT:
             return MTLVertexFormatFloat4;
-        case Format::R32G32B32A32_SINT:
+        case Format::R32G32B32A32_INT:
             return MTLVertexFormatInt4;
-        case Format::R32G32B32_SFLOAT:
+        case Format::R32G32B32_FLOAT:
             return MTLVertexFormatFloat3;
-        case Format::R32G32B32_SINT:
+        case Format::R32G32B32_INT:
             return MTLVertexFormatInt3;
-        case Format::R32G32_SFLOAT:
+        case Format::R32G32_FLOAT:
             return MTLVertexFormatFloat2;
-        case Format::R32G32_SINT:
+        case Format::R32G32_INT:
             return MTLVertexFormatInt2;
-        case Format::R32_SINT:
+        case Format::R32_INT:
             return MTLVertexFormatInt;
-        case Format::R32_SFLOAT:
+        case Format::R32_FLOAT:
             return MTLVertexFormatFloat;
         default:
             LOGA(false, "Not supported yet!");
@@ -733,6 +744,25 @@ void MTLBackend::DestroyShader(uint16 handle) {
 }
 
 uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
+    
+    if (desc.type == TextureType::Texture3D && desc.arrayLength != 1)
+    {
+        LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
+    }
+
+    if (desc.isCubemap && desc.arrayLength != 6)
+    {
+        LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
+    }
+
+    if (desc.viewCount > desc.arrayLength)
+    {
+        LOGA(false, "Backend -> View count can't be bigger than array length!");
+    }
+
+    LOGA(desc.mipLevels != 0 && desc.arrayLength != 0 && desc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
+
+    
     MTLTexture2D item = {};
     item.isValid = true;
     
@@ -740,10 +770,25 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
     
     MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:GetMTLFormat(desc.format) width:desc.width height:desc.height mipmapped:desc.mipLevels > 1];
     textureDescriptor.mipmapLevelCount = desc.mipLevels;
-    textureDescriptor.textureType = desc.arrayLength > 1 ? MTLTextureType2DArray : MTLTextureType2D;
     textureDescriptor.storageMode =  MTLStorageModePrivate;
-    textureDescriptor.arrayLength = desc.arrayLength > 1 ? desc.arrayLength : 1;
+    textureDescriptor.arrayLength = desc.arrayLength;
     
+    if(desc.isCubemap)
+    {
+        textureDescriptor.arrayLength = 1;
+        textureDescriptor.textureType = MTLTextureTypeCube;
+    }
+    else
+    {
+        if(desc.type == TextureType::Texture1D)
+            textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType1D : MTLTextureType1DArray;
+        else if(desc.type == TextureType::Texture2D)
+            textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType2D : MTLTextureType2DArray;
+        else if(desc.type == TextureType::Texture3D)
+            textureDescriptor.textureType = MTLTextureType3D;
+    }
+    
+
     if(desc.usage == TextureUsage::ColorTexture || desc.usage == TextureUsage::ColorTextureDynamic)
         textureDescriptor.usage = MTLTextureUsageShaderRead;
     else if(desc.usage == TextureUsage::ColorTextureRenderTarget)
@@ -751,13 +796,14 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
     else if(desc.usage == TextureUsage::DepthStencilTexture)
         textureDescriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
     
-    
         
+    
     id<MTLTexture> texture = [device newTextureWithDescriptor:textureDescriptor];
     [texture retain];
     item.ptr = AS_VOID(texture);
     NAME_OBJ_CSTR(texture, desc.debugName);
     
+
     return m_textures.AddItem(item);
 }
 
@@ -1623,6 +1669,7 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
     // Block.
     while(pfd.reachedSubmits < pfd.submits)
     {
+        LOGT("blocking");
     }
     
     for(auto& swp : m_swapchains)
@@ -1740,19 +1787,42 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
         setData.isDirty = false;
         
         auto& set = m_descriptorSets.GetItemR(setData.handle);
+        
+        // This set index does not exist in pipeline layout
+        // Check the next bound descriptor set.
+        if(setIndex >= reflection.descriptorSetLayouts.size())
+            continue;
+        
         const auto& reflectionBindings = reflection.descriptorSetLayouts.at(setIndex).bindings;
         uint32 dynamicOffsetCounter = 0;
         uint32 bindingIndex = 0;
         
         for(const auto& mtlBinding : set.bindings)
         {
+            // This binding of the currently iterated descriptor does not exists in shader's pipeline layout.
+            // Break and proceed to next set (we will skip all successive bindings as well).
+            if(bindingIndex >= reflectionBindings.size())
+                break;
+            
+            const auto& reflectionBindingData = reflectionBindings.at(bindingIndex);
+            
             for(auto stg : mtlBinding.lgxBinding.stages)
             {
-                const auto& reflectionBindingData = reflectionBindings.at(bindingIndex);
-                
                 auto it = reflectionBindingData.isActive.find(stg);
                 
                 if(it == reflectionBindingData.isActive.end() || it->second == false)
+                    continue;
+                
+                // So far this bound descriptor set has a binding with the current index matching the pipeline's layout.
+                // But it might be the case that the binding is not the same as the pipeline, so make sure to skip.
+                // The next 3 ifs are checking this in a super nasty way.
+                if(mtlBinding.lgxBinding.type != reflectionBindingData.type|| mtlBinding.lgxBinding.isWritable != reflectionBindingData.isWritable)
+                    continue;
+                
+                if(mtlBinding.lgxBinding.unbounded && reflectionBindingData.descriptorCount != 0)
+                    continue;
+                
+                if(!mtlBinding.lgxBinding.unbounded && reflectionBindingData.descriptorCount != mtlBinding.lgxBinding.descriptorCount)
                     continue;
                 
                 const uint32 bufferID = reflectionBindingData.mslBufferID.at(stg);
@@ -1915,7 +1985,8 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.depthAttachment.loadAction = GetMTLLoadOp(begin->depthStencilAttachment.depthLoadOp);
         passDescriptor.depthAttachment.storeAction = GetMTLStoreOp(begin->depthStencilAttachment.depthStoreOp);
         passDescriptor.depthAttachment.clearDepth = begin->depthStencilAttachment.clearDepth;
-        
+        passDescriptor.depthAttachment.slice = begin->depthStencilAttachment.layer;
+     
         id<MTLTexture> depth = AS_MTL(m_textures.GetItemR(begin->depthStencilAttachment.texture).ptr, id<MTLTexture>);
         passDescriptor.depthAttachment.texture = depth;
     }
@@ -1925,7 +1996,8 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.stencilAttachment.clearStencil = begin->depthStencilAttachment.clearStencil;
         passDescriptor.stencilAttachment.loadAction = GetMTLLoadOp(begin->depthStencilAttachment.stencilLoadOp);
         passDescriptor.stencilAttachment.storeAction = GetMTLStoreOp(begin->depthStencilAttachment.stencilStoreOp);
-        
+        passDescriptor.depthAttachment.slice = begin->depthStencilAttachment.layer;
+
         id<MTLTexture> stencil = AS_MTL(m_textures.GetItemR(begin->depthStencilAttachment.texture).ptr, id<MTLTexture>);
         passDescriptor.stencilAttachment.texture = stencil;
     }
@@ -1936,6 +2008,7 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.colorAttachments[i].loadAction = GetMTLLoadOp(att.loadOp);
         passDescriptor.colorAttachments[i].storeAction = GetMTLStoreOp(att.storeOp);
         passDescriptor.colorAttachments[i].clearColor = MTLClearColorMake(att.clearColor.x, att.clearColor.y, att.clearColor.z, att.clearColor.w);
+        passDescriptor.colorAttachments[i].slice = att.layer;
         
         if(att.isSwapchain)
         {
@@ -1989,6 +2062,7 @@ void MTLBackend::CMD_EndRenderPass(uint8 *data, MTLCommandStream &stream) {
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     [encoder endEncoding];
     [encoder release];
+    stream.currentEncoder = nullptr;
 }
 
 void MTLBackend::CMD_SetViewport(uint8 *data, MTLCommandStream &stream) {
@@ -2034,6 +2108,8 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
            [encoder setDepthStencilState:AS_MTL(shader.dsso, id<MTLDepthStencilState>)];
            stream.currentEncoderDepthStencil = shader.dsso;
        }
+        else
+            stream.currentEncoderDepthStencil = nullptr;
         
         [encoder setCullMode:GetMTLCullMode(shader.cullMode)];
         [encoder setFrontFacingWinding:shader.frontFace == FrontFace::CW ? MTLWindingClockwise : MTLWindingCounterClockwise];
