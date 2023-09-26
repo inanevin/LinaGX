@@ -31,7 +31,6 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 
 layout (set = 0, binding = 2) uniform sampler defaultSampler;
 
-
 layout (set = 1, binding = 0) uniform CameraData
 {
     mat4 view;
@@ -40,7 +39,7 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 padding[7];
 } cameraData;
 
-layout (set = 2, binding = 0) uniform texture2D inputTextures[3];
+layout (set = 1, binding = 0) uniform texture2D inputTextures[3];
 
 const float PI = 3.14159265359;
 

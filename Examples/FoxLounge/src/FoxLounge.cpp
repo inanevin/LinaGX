@@ -57,7 +57,7 @@ namespace LinaGX::Examples
         LinaGX::Config.dx12Config.serializeShaderDebugSymbols = true;
         LinaGX::Config.dx12Config.enableDebugLayers           = true;
 
-        BackendAPI api = BackendAPI::DX12;
+        BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
@@ -99,8 +99,8 @@ namespace LinaGX::Examples
 
             m_lgx->RecreateSwapchain(resizeDesc);
 
-            DestroyDynamicTextures();
-            CreateDynamicTextures();
+            DestroyDynamicPasses();
+            CreateDynamicPasses();
         });
 
         m_swapchain = m_lgx->CreateSwapchain({
@@ -624,13 +624,6 @@ namespace LinaGX::Examples
 
                 m_lgx->DescriptorUpdateBuffer(update2);
             }
-
-            // Lighting pass set.
-            {
-                pfd.lightingPassMaterialSet           = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionLightingPass());
-                pfd.lightingReflectionPassMaterialSet = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionLightingPass());
-                pfd.finalQuadPassMaterialSet          = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionQuadPass());
-            }
         }
     }
 
@@ -657,11 +650,17 @@ namespace LinaGX::Examples
         };
         m_pipelineLayouts[PipelineLayoutType::PL_DefaultObjects] = m_lgx->CreatePipelineLayout(pipelineLayoutDefaultObjects);
 
-        LinaGX::PipelineLayoutDesc pipelineLayoutLightingPass = {
-            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionLightingPass()},
+        LinaGX::PipelineLayoutDesc pipelineLayoutLightingPassSmp = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionLightingPassSimple()},
             .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
         };
-        m_pipelineLayouts[PipelineLayoutType::PL_LightingPass] = m_lgx->CreatePipelineLayout(pipelineLayoutLightingPass);
+        m_pipelineLayouts[PipelineLayoutType::PL_LightingPassSimple] = m_lgx->CreatePipelineLayout(pipelineLayoutLightingPassSmp);
+
+        LinaGX::PipelineLayoutDesc pipelineLayoutLightingPassAdv = {
+            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionLightingPassAdvanced()},
+            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
+        };
+        m_pipelineLayouts[PipelineLayoutType::PL_LightingPassAdvanced] = m_lgx->CreatePipelineLayout(pipelineLayoutLightingPassAdv);
 
         LinaGX::PipelineLayoutDesc pipelineLayoutFinalQuadPass = {
             .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionCameraData(), Utility::GetSetDescriptionQuadPass()},
@@ -675,22 +674,11 @@ namespace LinaGX::Examples
     {
         LOGT("Compiling shaders...");
         m_shaders.resize(Shader::SH_Max);
-        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
-        m_shaders[Shader::SH_LightingPass] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPass], "Deferred Lighting");
-        m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass], "Final Quad");
+        m_shaders[Shader::SH_Default]          = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
+        m_shaders[Shader::SH_LightingSimple]   = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_simple_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPassSimple], "Deferred Lighting");
+        m_shaders[Shader::SH_LightingAdvanced] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_advanced_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPassAdvanced], "Deferred Lighting");
+        m_shaders[Shader::SH_Quad]             = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass], "Final Quad");
         // m_shaders[Shader::Skybox]         = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false, m_pipelineLayout);
-    }
-
-    void Example::SetupPasses()
-    {
-        m_passes.resize(PassType::PS_Max, {});
-
-        for (auto& pass : m_passes)
-        {
-            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-            {
-            }
-        }
     }
 
     void Example::SetupGlobalResources()
@@ -775,205 +763,165 @@ namespace LinaGX::Examples
         }
     }
 
-    void Example::CreateDynamicTextures()
+    void Example::SetupPass(PassType passType, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, bool isSwapchain)
     {
-        LOGT("Setting up passes...");
+        auto& pass = m_passes[passType];
 
-        LinaGX::TextureDesc defaultRTDesc = {
-            .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
-            .sampled = true,
-            .width   = m_window->GetSize().x,
-            .height  = m_window->GetSize().y,
-        };
-
-        LinaGX::TextureDesc defaultReflectionsRTDesc = {
-            .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
-            .sampled = true,
-            .width   = REFLECTION_PASS_RES,
-            .height  = REFLECTION_PASS_RES,
-        };
-
-        LinaGX::TextureDesc reflectionRTDesc = {
-            .usage   = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .format  = LinaGX::Format::R16G16B16A16_FLOAT,
-            .sampled = true,
-            .width   = 512,
-            .height  = 512,
-        };
-
-        LinaGX::TextureDesc descDepth = {
-            .usage              = LinaGX::TextureUsage::DepthStencilTexture,
-            .format             = LinaGX::Format::D32_SFLOAT,
-            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
-            .width              = m_window->GetSize().x,
-            .height             = m_window->GetSize().y,
-            .debugName          = "RT Depth Texture",
-        };
-
-        LinaGX::TextureDesc descDepthReflections = {
-            .usage              = LinaGX::TextureUsage::DepthStencilTexture,
-            .format             = LinaGX::Format::D32_SFLOAT,
-            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
-            .width              = REFLECTION_PASS_RES,
-            .height             = REFLECTION_PASS_RES,
-            .debugName          = "RT Depth Texture",
-        };
-
-        LinaGX::TextureDesc reflectionsCube = {
-            .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
-            .type        = LinaGX::TextureType::Texture2D,
-            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
-            .sampled     = true,
-            .isCubemap   = true,
-            .width       = REFLECTION_PASS_RES,
-            .height      = REFLECTION_PASS_RES,
-            .arrayLength = 6,
-            .viewCount   = 6,
-        };
-
-        LinaGX::RenderPassColorAttachment colorAttachment;
-        colorAttachment.clearColor = {0.3f, 0.1f, 0.1f, 1.0f};
-
-        LinaGX::RenderPassDepthStencilAttachment depthStencilAttachment;
-        depthStencilAttachment.depthLoadOp  = LinaGX::LoadOp::Clear;
-        depthStencilAttachment.depthStoreOp = LinaGX::StoreOp::Store;
-        depthStencilAttachment.clearDepth   = 1.0f;
-        depthStencilAttachment.useStencil   = false;
-
-        LinaGX::DescriptorUpdateImageDesc updateImage = {};
-        updateImage.binding                           = 1;
+        RenderPassColorAttachment att = {};
+        att.clearColor                = {0.3f, 0.1f, 0.1f, 1.0f};
+        att.loadOp                    = LinaGX::LoadOp::Clear;
+        att.storeOp                   = LinaGX::StoreOp::Store;
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
-            colorAttachment.loadOp      = LinaGX::LoadOp::Clear;
-            colorAttachment.storeOp     = LinaGX::StoreOp::Store;
-            colorAttachment.isSwapchain = false;
-
-            // Objs default
+            if (isSwapchain)
             {
-                auto& objsDefault = m_passes[PassType::PS_ObjectsDefault];
-                objsDefault.renderTargets[i].colorAttachments.clear();
-
-                // GBuf Albedo Roughness
-                defaultRTDesc.debugName = "GBuf Albedo";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
-                objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                // GBuf NormalMetallic
-                defaultRTDesc.debugName = "GBuf Normal";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
-                objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                // GBuf PositionAO
-                defaultRTDesc.debugName = "GBuf Position";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
-                objsDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                // GBuf depth stencil.
-                defaultRTDesc.debugName                             = "Depth";
-                depthStencilAttachment.useDepth                     = true;
-                depthStencilAttachment.texture                      = m_lgx->CreateTexture(descDepth);
-                objsDefault.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
-
-                // Lighting pass descriptor set will use above 3 images.
-                LinaGX::DescriptorUpdateImageDesc imgUpdateLightingPass = {
-                    .setHandle = m_pfd[i].lightingPassMaterialSet,
-                    .binding   = 0,
-                    .textures  = {objsDefault.renderTargets[i].colorAttachments[0].texture, objsDefault.renderTargets[i].colorAttachments[1].texture, objsDefault.renderTargets[i].colorAttachments[2].texture},
-                };
-
-                m_lgx->DescriptorUpdateImage(imgUpdateLightingPass);
+                att.isSwapchain = true;
+                att.texture     = static_cast<uint32>(m_swapchain);
+                pass.renderTargets[i].colorAttachments.push_back(att);
+                continue;
             }
 
-            // Objs reflection
+            for (const auto& desc : renderTargetDescriptions)
             {
-                auto& objsReflection = m_passes[PassType::PS_ObjectsReflection];
-                objsReflection.renderTargets[i].colorAttachments.clear();
 
-                // GBuf Albedo Roughness
-                defaultRTDesc.debugName = "GBuf Albedo";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultReflectionsRTDesc);
-                objsReflection.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                // GBuf NormalMetallic
-                defaultRTDesc.debugName = "GBuf Normal";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultReflectionsRTDesc);
-                objsReflection.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                // GBuf PositionAO
-                defaultRTDesc.debugName = "GBuf Position";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultReflectionsRTDesc);
-                objsReflection.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                // GBuf depth stencil.
-                defaultRTDesc.debugName                                = "Depth";
-                depthStencilAttachment.useDepth                        = true;
-                depthStencilAttachment.texture                         = m_lgx->CreateTexture(descDepthReflections);
-                objsReflection.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
-
-                // Lighting pass descriptor set will use above 3 images.
-                LinaGX::DescriptorUpdateImageDesc imgUpdateLightingPass = {
-                    .setHandle = m_pfd[i].lightingReflectionPassMaterialSet,
-                    .binding   = 0,
-                    .textures  = {objsReflection.renderTargets[i].colorAttachments[0].texture, objsReflection.renderTargets[i].colorAttachments[1].texture, objsReflection.renderTargets[i].colorAttachments[2].texture},
-                };
-
-                m_lgx->DescriptorUpdateImage(imgUpdateLightingPass);
+                att.texture = m_lgx->CreateTexture(desc);
+                pass.renderTargets[i].colorAttachments.push_back(att);
             }
 
-            // Lighting pass
+            if (hasDepth)
             {
-                auto& lightingDefault = m_passes[PassType::PS_Lighting];
-                lightingDefault.renderTargets[i].colorAttachments.clear();
-
-                defaultRTDesc.debugName = "Lighting Pass Output";
-                colorAttachment.texture = m_lgx->CreateTexture(defaultRTDesc);
-                lightingDefault.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-                depthStencilAttachment.useDepth                         = false;
-                lightingDefault.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
-
-                LinaGX::DescriptorUpdateImageDesc imgUpdateFinalQuadPass = {
-                    .setHandle = m_pfd[i].finalQuadPassMaterialSet,
-                    .binding   = 0,
-                    .textures  = {lightingDefault.renderTargets[i].colorAttachments[0].texture},
-                };
-
-                m_lgx->DescriptorUpdateImage(imgUpdateFinalQuadPass);
+                pass.renderTargets[i].depthStencilAttachment.useDepth     = true;
+                pass.renderTargets[i].depthStencilAttachment.depthLoadOp  = LinaGX::LoadOp::Clear;
+                pass.renderTargets[i].depthStencilAttachment.depthStoreOp = LinaGX::StoreOp::Store;
+                pass.renderTargets[i].depthStencilAttachment.texture      = m_lgx->CreateTexture(depthDescription);
             }
-
-            // Lighting reflections pass
-            {
-                auto& reflections = m_passes[PassType::PS_LightingReflections];
-                reflections.renderTargets[i].colorAttachments.clear();
-
-                reflectionsCube.debugName = "Reflection Cube";
-                colorAttachment.texture   = m_lgx->CreateTexture(reflectionsCube);
-                // colorAttachment.loadOp      = LoadOp::Load;
-                reflections.renderTargets[i].colorAttachments.push_back(colorAttachment);
-                depthStencilAttachment.useDepth                     = false;
-                reflections.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
-            }
-
-            auto& finalQuad = m_passes[PassType::PS_FinalQuad];
-            finalQuad.renderTargets[i].colorAttachments.clear();
-
-            colorAttachment.isSwapchain = true;
-            colorAttachment.texture     = static_cast<uint32>(m_swapchain);
-            finalQuad.renderTargets[i].colorAttachments.push_back(colorAttachment);
-
-            depthStencilAttachment.useDepth                   = false;
-            finalQuad.renderTargets[i].depthStencilAttachment = depthStencilAttachment;
+            else
+                pass.renderTargets[i].depthStencilAttachment.useDepth = false;
         }
     }
 
-    void Example::DestroyDynamicTextures()
+    void Example::CreatePassDescriptor(PassType passType, const LinaGX::DescriptorSetDesc& desc)
     {
+        auto& pass = m_passes[passType];
+
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
-            for (auto& pass : m_passes)
+            pass.descriptorSets[i] = m_lgx->CreateDescriptorSet(desc);
+        }
+    }
+
+    void Example::DestroyPassDescriptor(PassType passType)
+    {
+        auto& pass = m_passes[passType];
+
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+            m_lgx->DestroyDescriptorSet(pass.descriptorSets[i]);
+    }
+
+    void Example::CreateStaticPasses()
+    {
+        m_passes.resize(PassType::PS_Max, {});
+
+        LOGT("Setting up static passes...");
+
+        // Object reflections & lighting reflections passes.
+        {
+            const auto& rtDescObjects1 = Utility::GetRTDesc("GBuf AlbedoRoughness", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            const auto& rtDescObjects2 = Utility::GetRTDesc("GBuf NormalMetallic", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            const auto& rtDescObjects3 = Utility::GetRTDesc("GBuf PositionAO", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            const auto& depthDesc      = Utility::GetDepthDesc("GBuf Depth", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            SetupPass(PassType::PS_ObjectsReflections, {rtDescObjects1, rtDescObjects2, rtDescObjects3}, true, depthDesc);
+
+            const auto& rtDescLighting = Utility::GetRTDescCube("Lighting Cubemap", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            SetupPass(PassType::PS_LightingReflections, {rtDescLighting}, false, {});
+
+            CreatePassDescriptor(PassType::PS_LightingReflections, Utility::GetSetDescriptionLightingPassSimple());
+        }
+
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        {
+            // Lighting reflections reference 3 gbuf textures from objects reflections pass.
+            {
+                LinaGX::DescriptorUpdateImageDesc update = {
+                    .setHandle = m_passes[PS_LightingReflections].descriptorSets[i],
+                    .binding   = 0,
+                    .textures  = {m_passes[PassType::PS_ObjectsReflections].renderTargets[i].colorAttachments[0].texture, m_passes[PassType::PS_ObjectsReflections].renderTargets[i].colorAttachments[1].texture, m_passes[PassType::PS_ObjectsReflections].renderTargets[i].colorAttachments[2].texture},
+                };
+
+                m_lgx->DescriptorUpdateImage(update);
+            }
+        }
+    }
+
+    void Example::CreateDynamicPasses()
+    {
+        LOGT("Setting up dynamic passes...");
+        m_passes.resize(PassType::PS_Max, {});
+
+        // Object default & lighting default passes.
+        {
+            const auto& rtDescObjects1 = Utility::GetRTDesc("GBuf AlbedoRoughness", m_window->GetSize().x, m_window->GetSize().y);
+            const auto& rtDescObjects2 = Utility::GetRTDesc("GBuf NormalMetallic", m_window->GetSize().x, m_window->GetSize().y);
+            const auto& rtDescObjects3 = Utility::GetRTDesc("GBuf PositionAO", m_window->GetSize().x, m_window->GetSize().y);
+            const auto& depthDesc      = Utility::GetDepthDesc("GBuf Depth", m_window->GetSize().x, m_window->GetSize().y);
+            SetupPass(PassType::PS_ObjectsDefault, {rtDescObjects1, rtDescObjects2, rtDescObjects3}, true, depthDesc);
+
+            const auto& rtDescLighting = Utility::GetRTDesc("Lighting", m_window->GetSize().x, m_window->GetSize().y);
+            SetupPass(PassType::PS_LightingDefault, {rtDescLighting}, false, {});
+
+            CreatePassDescriptor(PassType::PS_LightingDefault, Utility::GetSetDescriptionLightingPassAdvanced());
+        }
+
+        // Final Quad
+        {
+            SetupPass(PassType::PS_FinalQuad, {}, false, {}, true);
+            CreatePassDescriptor(PassType::PS_FinalQuad, Utility::GetSetDescriptionQuadPass());
+        }
+
+        for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
+        {
+            // Lighting default pass reference 3 gbuf textures from objects default pass
+            {
+                LinaGX::DescriptorUpdateImageDesc update = {
+                    .setHandle = m_passes[PS_LightingDefault].descriptorSets[i],
+                    .binding   = 0,
+                    .textures  = {m_passes[PassType::PS_ObjectsDefault].renderTargets[i].colorAttachments[0].texture, m_passes[PassType::PS_ObjectsDefault].renderTargets[i].colorAttachments[1].texture, m_passes[PassType::PS_ObjectsDefault].renderTargets[i].colorAttachments[2].texture},
+                };
+
+                m_lgx->DescriptorUpdateImage(update);
+            }
+
+            // Lighting default pass reference 1 cubemap from lighting reflections pass
+            {
+                LinaGX::DescriptorUpdateImageDesc update = {
+                    .setHandle = m_passes[PS_LightingDefault].descriptorSets[i],
+                    .binding   = 1,
+                    .textures  = {m_passes[PassType::PS_LightingReflections].renderTargets[i].colorAttachments[0].texture},
+                };
+
+                m_lgx->DescriptorUpdateImage(update);
+            }
+
+            // Final quad pass uses the result of lighting r pass.
+            {
+                LinaGX::DescriptorUpdateImageDesc update = {
+                    .setHandle = m_passes[PS_FinalQuad].descriptorSets[i],
+                    .binding   = 0,
+                    .textures  = {m_passes[PassType::PS_LightingDefault].renderTargets[i].colorAttachments[0].texture},
+                };
+
+                m_lgx->DescriptorUpdateImage(update);
+            }
+        }
+    }
+
+    void Example::DestroyDynamicPasses()
+    {
+        auto destroyPass = [&](PassType pt) {
+            auto& pass = m_passes[pt];
+
+            for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
                 const auto& rt = pass.renderTargets[i];
 
@@ -986,7 +934,13 @@ namespace LinaGX::Examples
                 if (rt.depthStencilAttachment.useDepth)
                     m_lgx->DestroyTexture(rt.depthStencilAttachment.texture);
             }
-        }
+        };
+
+        destroyPass(PassType::PS_ObjectsDefault);
+        destroyPass(PassType::PS_LightingDefault);
+        destroyPass(PassType::PS_FinalQuad);
+        DestroyPassDescriptor(PassType::PS_LightingDefault);
+        DestroyPassDescriptor(PassType::PS_FinalQuad);
     }
 
     void Example::BeginPass(PassType pass, uint32 width, uint32 height, uint32 layer)
@@ -1053,8 +1007,8 @@ namespace LinaGX::Examples
             SetupGlobalDescriptorSet();
             SetupPipelineLayouts();
             SetupShaders();
-            SetupPasses();
-            CreateDynamicTextures();
+            CreateStaticPasses();
+            CreateDynamicPasses();
         }
 
         // Above operations will record bunch of transfer commands.
@@ -1131,7 +1085,8 @@ namespace LinaGX::Examples
         for (const auto& t2d : m_textures)
             m_lgx->DestroyTexture(t2d.gpuHandle);
 
-        DestroyDynamicTextures();
+        DestroyDynamicPasses();
+        DestroyPassDescriptor(PassType::PS_LightingReflections);
 
         for (auto lyt : m_pipelineLayouts)
             m_lgx->DestroyPipelineLayout(lyt);
@@ -1146,9 +1101,7 @@ namespace LinaGX::Examples
             m_lgx->DestroyDescriptorSet(pfd.globalSet);
             m_lgx->DestroyDescriptorSet(pfd.cameraSet0);
             m_lgx->DestroyDescriptorSet(pfd.cameraSetCubemap);
-            m_lgx->DestroyDescriptorSet(pfd.lightingPassMaterialSet);
-            m_lgx->DestroyDescriptorSet(pfd.lightingReflectionPassMaterialSet);
-            m_lgx->DestroyDescriptorSet(pfd.finalQuadPassMaterialSet);
+
             m_lgx->DestroyResource(pfd.rscObjDataCPU);
             m_lgx->DestroyResource(pfd.rscObjDataGPU);
             m_lgx->DestroyResource(pfd.rscCameraData0);
@@ -1348,25 +1301,25 @@ namespace LinaGX::Examples
         {
             BindCameraDescriptor(pfd.cameraSetCubemap, sizeof(GPUCameraData) * i);
 
-            BeginPass(PassType::PS_ObjectsReflection, REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            BeginPass(PassType::PS_ObjectsReflections, REFLECTION_PASS_RES, REFLECTION_PASS_RES);
             DrawObjects(Shader::SH_Default);
             EndPass();
 
-            CollectPassBarrier(PS_ObjectsReflection, LinaGX::TextureBarrierState::ShaderRead);
+            CollectPassBarrier(PS_ObjectsReflections, LinaGX::TextureBarrierState::ShaderRead);
             ExecPassBarriers();
 
             BeginPass(PassType::PS_LightingReflections, REFLECTION_PASS_RES, REFLECTION_PASS_RES, i);
-            BindShader(Shader::SH_LightingPass);
-            BindMaterialSet(pfd.lightingReflectionPassMaterialSet);
+            BindShader(Shader::SH_LightingSimple);
+            BindMaterialSet(m_passes[PS_LightingReflections].descriptorSets[currentFrameIndex]);
             DrawFullscreenQuad();
             EndPass();
 
-            CollectPassBarrier(PS_ObjectsReflection, LinaGX::TextureBarrierState::ColorAttachment);
+            CollectPassBarrier(PS_ObjectsReflections, LinaGX::TextureBarrierState::ColorAttachment);
             ExecPassBarriers();
         }
 
         CollectPassBarrier(PS_LightingReflections, LinaGX::TextureBarrierState::ShaderRead);
-        CollectPassBarrier(PS_ObjectsReflection, LinaGX::TextureBarrierState::ShaderRead);
+        CollectPassBarrier(PS_ObjectsReflections, LinaGX::TextureBarrierState::ShaderRead);
         ExecPassBarriers();
     }
 
@@ -1414,13 +1367,12 @@ namespace LinaGX::Examples
             bind->customLayout                  = m_pipelineLayouts[PipelineLayoutType::PL_GlobalSet];
         }
 
-        CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment);
+        CollectPassBarrier(PS_LightingDefault, LinaGX::TextureBarrierState::ColorAttachment);
         CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ColorAttachment);
         CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment);
-        CollectPassBarrier(PS_ObjectsReflection, LinaGX::TextureBarrierState::ColorAttachment);
+        CollectPassBarrier(PS_ObjectsReflections, LinaGX::TextureBarrierState::ColorAttachment);
         CollectPassBarrier(PS_LightingReflections, LinaGX::TextureBarrierState::ColorAttachment);
         ExecPassBarriers();
-
         ReflectionPass();
 
         BindCameraDescriptor(currentFrame.cameraSet0, 0);
@@ -1432,18 +1384,18 @@ namespace LinaGX::Examples
         CollectPassBarrier(PS_ObjectsDefault, LinaGX::TextureBarrierState::ShaderRead);
         ExecPassBarriers();
 
-        BeginPass(PassType::PS_Lighting);
-        BindShader(Shader::SH_LightingPass);
-        BindMaterialSet(currentFrame.lightingPassMaterialSet);
+        BeginPass(PassType::PS_LightingDefault);
+        BindShader(Shader::SH_LightingAdvanced);
+        BindMaterialSet(m_passes[PS_LightingDefault].descriptorSets[frameIndex]);
         DrawFullscreenQuad();
         EndPass();
 
-        CollectPassBarrier(PS_Lighting, LinaGX::TextureBarrierState::ShaderRead);
+        CollectPassBarrier(PS_LightingDefault, LinaGX::TextureBarrierState::ShaderRead);
         ExecPassBarriers();
 
         BeginPass(PassType::PS_FinalQuad);
         BindShader(Shader::SH_Quad);
-        BindMaterialSet(currentFrame.finalQuadPassMaterialSet);
+        BindMaterialSet(m_passes[PS_FinalQuad].descriptorSets[frameIndex]);
         DrawFullscreenQuad();
         EndPass();
 
@@ -1475,8 +1427,8 @@ namespace LinaGX::Examples
         uint32 dbgUpdateTxt[2] = {0};
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_1))
         {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_Lighting].renderTargets[0].colorAttachments[0].texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_Lighting].renderTargets[1].colorAttachments[0].texture;
+            dbgUpdateTxt[0] = m_passes[PassType::PS_LightingDefault].renderTargets[0].colorAttachments[0].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_LightingDefault].renderTargets[1].colorAttachments[0].texture;
             dbgUpdate       = true;
         }
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_2))
@@ -1519,13 +1471,13 @@ namespace LinaGX::Examples
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-                LinaGX::DescriptorUpdateImageDesc imgUpdate = {
-                    .setHandle = m_pfd[i].finalQuadPassMaterialSet,
-                    .binding   = 0,
-                    .textures  = {dbgUpdateTxt[i]},
-                };
-
-                m_lgx->DescriptorUpdateImage(imgUpdate);
+                // LinaGX::DescriptorUpdateImageDesc imgUpdate = {
+                //     .setHandle = m_pfd[i].finalQuadPassMaterialSet,
+                //     .binding   = 0,
+                //     .textures  = {dbgUpdateTxt[i]},
+                // };
+                //
+                // m_lgx->DescriptorUpdateImage(imgUpdate);
             }
         }
 

@@ -59,10 +59,6 @@ namespace LinaGX
             uint32 rscObjDataCPU        = 0;
             uint32 rscObjDataGPU        = 0;
             uint8* rscObjDataCPUMapping = nullptr;
-
-            uint16 lightingPassMaterialSet  = 0;
-            uint16 lightingReflectionPassMaterialSet  = 0;
-            uint16 finalQuadPassMaterialSet = 0;
         };
 
         struct Texture2D
@@ -91,6 +87,7 @@ namespace LinaGX
         struct Pass
         {
             RenderTarget renderTargets[FRAMES_IN_FLIGHT];
+            uint16       descriptorSets[FRAMES_IN_FLIGHT];
         };
 
         struct MeshPrimitive
@@ -129,12 +126,16 @@ namespace LinaGX
             void SetupMaterials();
             void LoadAndParseModels();
             void SetupShaders();
-            void SetupPasses();
             void SetupGlobalResources();
             void SetupPipelineLayouts();
             void SetupGlobalDescriptorSet();
-            void CreateDynamicTextures();
-            void DestroyDynamicTextures();
+            void CreateStaticPasses();
+            void CreateDynamicPasses();
+            void DestroyDynamicPasses();
+
+            void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, bool isSwapchain = false);
+            void CreatePassDescriptor(PassType pass, const LinaGX::DescriptorSetDesc& desc);
+            void DestroyPassDescriptor(PassType pass);
 
             void BeginPass(PassType pass, uint32 width = 0, uint32 height = 0, uint32 layer = 0);
             void EndPass();

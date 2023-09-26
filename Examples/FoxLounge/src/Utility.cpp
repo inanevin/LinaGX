@@ -168,7 +168,7 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPass()
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassSimple()
     {
         LinaGX::DescriptorBinding binding0 = {
             .descriptorCount = 3,
@@ -177,6 +177,25 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
+
+        return desc;
+    }
+
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassAdvanced()
+    {
+        LinaGX::DescriptorBinding binding0 = {
+            .descriptorCount = 3,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding1 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
 
         return desc;
     }
@@ -209,6 +228,52 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
+        return desc;
+    }
+
+    LinaGX::TextureDesc Utility::GetRTDesc(const char* debugName, uint32 width, uint32 height)
+    {
+        LinaGX::TextureDesc desc = {
+            .usage     = LinaGX::TextureUsage::ColorTextureRenderTarget,
+            .format    = LinaGX::Format::R16G16B16A16_FLOAT,
+            .sampled   = true,
+            .width     = width,
+            .height    = height,
+            .debugName = debugName,
+        };
+
+        return desc;
+    }
+
+    LinaGX::TextureDesc Utility::GetRTDescCube(const char* debugName, uint32 width, uint32 height)
+    {
+        LinaGX::TextureDesc desc{
+            .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
+            .type        = LinaGX::TextureType::Texture2D,
+            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .sampled     = true,
+            .isCubemap   = true,
+            .width       = width,
+            .height      = height,
+            .arrayLength = 6,
+            .viewCount   = 6,
+        };
+
+        return desc;
+    }
+
+    LinaGX::TextureDesc Utility::GetDepthDesc(const char* debugName, uint32 width, uint32 height)
+    {
+        LinaGX::TextureDesc desc = {
+            .usage              = LinaGX::TextureUsage::DepthStencilTexture,
+            .format             = LinaGX::Format::D32_SFLOAT,
+            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly, 
+            .sampled            = true,
+            .width              = width,
+            .height             = height,
+            .debugName          = debugName,
+        };
+
         return desc;
     }
 

@@ -1320,7 +1320,7 @@ namespace LinaGX
         else if (txtDesc.type == TextureType::Texture1D)
             viewType = txtDesc.arrayLength == 1 ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_1D_ARRAY;
 
-        auto createView = [&](uint32 baseArrayLayer, uint32 layerCount, VkImageView& imgView) {
+        auto createView = [&](bool useCubeView, uint32 baseArrayLayer, uint32 layerCount, VkImageView& imgView) {
             VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
             subResRange.aspectMask              = txtDesc.usage == TextureUsage::DepthStencilTexture ? (GetVKAspectFlags(txtDesc.depthStencilAspect)) : VK_IMAGE_ASPECT_COLOR_BIT;
             subResRange.baseMipLevel            = 0;
@@ -1332,7 +1332,7 @@ namespace LinaGX
             viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.pNext                 = nullptr;
             viewInfo.image                 = item.img;
-            viewInfo.viewType              = viewType;
+            viewInfo.viewType              = useCubeView ? VK_IMAGE_VIEW_TYPE_CUBE : viewType;
             viewInfo.format                = GetVKFormat(txtDesc.format);
             viewInfo.subresourceRange      = subResRange;
 
@@ -1343,10 +1343,10 @@ namespace LinaGX
         item.imgViews.resize(txtDesc.viewCount);
 
         for (uint32 i = 0; i < txtDesc.viewCount; i++)
-            createView(i, txtDesc.viewCount - i, item.imgViews[i]);
+            createView(false, i, txtDesc.viewCount - i, item.imgViews[i]);
 
         if (txtDesc.isCubemap)
-            createView(0, 6, item.cubeView);
+            createView(true, 0, 6, item.cubeView);
 
         return m_textures.AddItem(item);
     }

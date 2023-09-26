@@ -52,7 +52,8 @@ namespace LinaGX
         enum Shader
         {
             SH_Quad = 0,
-            SH_LightingPass,
+            SH_LightingSimple,
+            SH_LightingAdvanced,
             SH_Default,
             SH_Max,
         };
@@ -71,9 +72,9 @@ namespace LinaGX
         enum PassType
         {
             PS_ObjectsDefault = 0,
-            PS_ObjectsReflection,
+            PS_ObjectsReflections,
+            PS_LightingDefault,
             PS_LightingReflections,
-            PS_Lighting,
             PS_FinalQuad,
             PS_Max,
         };
@@ -83,7 +84,8 @@ namespace LinaGX
             PL_GlobalSet = 0,
             PL_GlobalAndCameraSet,
             PL_DefaultObjects,
-            PL_LightingPass,
+            PL_LightingPassSimple,
+            PL_LightingPassAdvanced,
             PL_FinalQuadPass,
             PL_Max,
         };
@@ -161,9 +163,14 @@ namespace LinaGX
 
             static LinaGX::DescriptorSetDesc GetSetDescriptionGlobal();
             static LinaGX::DescriptorSetDesc GetSetDescriptionCameraData();
-            static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPass();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPassSimple();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPassAdvanced();
             static LinaGX::DescriptorSetDesc GetSetDescriptionQuadPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();
+
+            static LinaGX::TextureDesc GetRTDesc(const char* debugName, uint32 width, uint32 height);
+            static LinaGX::TextureDesc GetRTDescCube(const char* debugName, uint32 width, uint32 height);
+            static LinaGX::TextureDesc GetDepthDesc(const char* debugName, uint32 width, uint32 height);
 
             static uint32 CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout, const char* debugName);
         };
