@@ -39,8 +39,8 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 padding[7];
 } cameraData;
 
-layout (set = 1, binding = 0) uniform texture2D inputTextures[3];
-layout (set = 1, binding = 1) uniform textureCube environmentTexture;
+layout (set = 1, binding = 1) uniform texture2D inputTextures[3];
+layout (set = 1, binding = 2) uniform textureCube environmentTexture;
 
 const float PI = 3.14159265359;
 
@@ -94,21 +94,25 @@ void main()
     vec4 normalMetallic = texture(sampler2D(inputTextures[1], defaultSampler), uv);
     vec4 positionAO = texture(sampler2D(inputTextures[2], defaultSampler), uv);
 
+    FragColor = albedoRoughness;
+    return;
+
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
     float roughness = albedoRoughness.a;
     vec3 N = normalMetallic.rgb;
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - positionAO.rgb);
-	vec3 I = -V;
-	vec3 R = reflect(I, normalize(normalMetallic.rgb));
-	vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
+	//vec3 I = -V;
+	//vec3 R = reflect(I, normalize(normalMetallic.rgb));
+	//vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
-    vec3 Lo = environment.rgb;
-
+    //vec3 Lo = environment.rgb;
+    vec3 Lo = vec3(0.0);
+    
     // calculate per-light radiance
     vec3 lightPos = vec3(sceneData.lightPosition.x, sceneData.lightPosition.y, sceneData.lightPosition.z);
     vec3 lightCol = vec3(sceneData.lightColor.x, sceneData.lightColor.y, sceneData.lightColor.z);

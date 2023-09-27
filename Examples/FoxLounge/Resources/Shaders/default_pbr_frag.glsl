@@ -44,7 +44,6 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 padding[7];
 } cameraData;
 
-
 layout (set = 2, binding = 0) uniform MaterialData
 {
     vec4 baseColorFac;

@@ -39,7 +39,7 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 padding[7];
 } cameraData;
 
-layout (set = 1, binding = 0) uniform texture2D inputTextures[3];
+layout (set = 1, binding = 1) uniform texture2D inputTextures[3];
 
 const float PI = 3.14159265359;
 

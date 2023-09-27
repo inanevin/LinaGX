@@ -531,8 +531,8 @@ namespace LinaGX
         glslang_shader_delete(shader);
 
         spirv_cross::CompilerGLSL    compiler(std::move(spirvBinary));
-        spirv_cross::ShaderResources resources = compiler.get_shader_resources();
-        auto activeResources = compiler.get_active_interface_variables();
+        spirv_cross::ShaderResources resources       = compiler.get_shader_resources();
+        auto                         activeResources = compiler.get_active_interface_variables();
 
         // Stage Inputs
         {
@@ -608,8 +608,8 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size = size;
-                targetBinding.type = DescriptorType::UBO;
+                targetBinding.size          = size;
+                targetBinding.type          = DescriptorType::UBO;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array.size() > 0)
@@ -639,7 +639,7 @@ namespace LinaGX
                 targetBinding.size            = size;
                 targetBinding.descriptorCount = 1;
                 targetBinding.type            = DescriptorType::SSBO;
-                targetBinding.isActive[stg] = activeResources.count(id) > 0;
+                targetBinding.isActive[stg]   = activeResources.count(id) > 0;
 
                 spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
                 targetBinding.isWritable         = !buffer_flags.get(spv::DecorationNonWritable);
@@ -664,8 +664,8 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size = size;
-                targetBinding.type = DescriptorType::SeparateSampler;
+                targetBinding.size          = size;
+                targetBinding.type          = DescriptorType::SeparateSampler;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array_size_literal[0])
@@ -698,8 +698,8 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size = size;
-                targetBinding.type = DescriptorType::SeparateImage;
+                targetBinding.size          = size;
+                targetBinding.type          = DescriptorType::SeparateImage;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array_size_literal[0])
@@ -738,8 +738,8 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size = size;
-                targetBinding.type = DescriptorType::CombinedImageSampler;
+                targetBinding.size          = size;
+                targetBinding.type          = DescriptorType::CombinedImageSampler;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
                 if (type.array_size_literal[0])
@@ -771,7 +771,7 @@ namespace LinaGX
                 const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
                 block.size                        = compiler.get_declared_struct_size(type);
                 block.name                        = compiler.get_name(resource.id);
-                block.isActive[stg] = activeResources.count(id) > 0;
+                block.isActive[stg]               = activeResources.count(id) > 0;
 
                 bool found = false;
                 for (auto& b : outLayout.constants)
@@ -797,12 +797,28 @@ namespace LinaGX
         return true;
     }
 
+    spv::ExecutionModel GetExecStage(ShaderStage stg)
+    {
+        if (stg == ShaderStage::Fragment)
+            return spv::ExecutionModelFragment;
+        else if (stg == ShaderStage::Tesellation)
+            return spv::ExecutionModelTessellationControl;
+        else if (stg == ShaderStage::Geometry)
+        {
+            LOGA(false, "Geometry shaders are not supported yet!");
+        }
+        else if (stg == ShaderStage::Compute)
+            return spv::ExecutionModelGLCompute;
+
+        return spv::ExecutionModelVertex;
+    };
+
     bool SPIRVUtility::SPV2HLSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, const ShaderLayout& layoutReflection)
     {
-
         try
         {
             spirv_cross::CompilerHLSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
+            spv::ExecutionModel       exec = GetExecStage(stg);
 
             auto resources = compiler.get_shader_resources();
 
@@ -813,6 +829,102 @@ namespace LinaGX
 
             compiler.set_hlsl_options(options);
             compiler.add_vertex_attribute_remap(attribs);
+
+            uint32 setIndex = 0;
+
+            auto hasStage = [stg](const ShaderDescriptorSetBinding& binding) -> bool {
+                for (auto bstg : binding.stages)
+                {
+                    if (bstg == stg)
+                        return true;
+                }
+
+                return false;
+            };
+
+            for (auto& layout : layoutReflection.descriptorSetLayouts)
+            {
+                uint32 bindingIndex = 0;
+                uint32 sampler = 0, cbv = 0, srv = 0, uav = 0;
+
+                for (auto& bindingData : layout.bindings)
+                {
+                    // If not exists for this stage, or not active skip entirely.
+                    if (!hasStage(bindingData))
+                    {
+                        bindingIndex++;
+                        continue;
+                    }
+
+                    spirv_cross::HLSLResourceBinding hlslb;
+                    hlslb.stage    = exec;
+                    hlslb.desc_set = setIndex;
+                    hlslb.binding  = bindingIndex;
+
+                    if (bindingData.type == DescriptorType::UBO)
+                    {
+                        hlslb.cbv.register_space   = setIndex;
+                        hlslb.cbv.register_binding = cbv;
+                        cbv += bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
+                        compiler.add_hlsl_resource_binding(hlslb);
+                    }
+                    else if (bindingData.type == DescriptorType::SSBO)
+                    {
+                        hlslb.srv.register_space   = setIndex;
+                        hlslb.srv.register_binding = srv;
+                        srv += bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
+                        compiler.add_hlsl_resource_binding(hlslb);
+                    }
+                    else if (bindingData.type == DescriptorType::SeparateImage)
+                    {
+                        hlslb.srv.register_space   = setIndex;
+                        hlslb.srv.register_binding = srv;
+
+                        if (bindingData.descriptorCount == 0)
+                            srv++;
+                        else
+                            srv += bindingData.descriptorCount;
+
+                        compiler.add_hlsl_resource_binding(hlslb);
+                    }
+                    else if (bindingData.type == DescriptorType::SeparateSampler)
+                    {
+                        hlslb.sampler.register_space   = setIndex;
+                        hlslb.sampler.register_binding = sampler;
+
+                        if (bindingData.descriptorCount == 0)
+                            sampler++;
+                        else
+                            sampler += bindingData.descriptorCount;
+
+                        compiler.add_hlsl_resource_binding(hlslb);
+                    }
+                    else if (bindingData.type == DescriptorType::CombinedImageSampler)
+                    {
+                        hlslb.sampler.register_space   = setIndex;
+                        hlslb.sampler.register_binding = sampler;
+                        hlslb.srv.register_space       = setIndex;
+                        hlslb.srv.register_binding     = srv;
+
+                        if (bindingData.descriptorCount == 0)
+                        {
+                            srv++;
+                            sampler++;
+                        }
+                        else
+                        {
+                            srv += bindingData.descriptorCount;
+                            sampler += bindingData.descriptorCount;
+                        }
+
+                        compiler.add_hlsl_resource_binding(hlslb);
+                    }
+
+                    bindingIndex++;
+                }
+
+                setIndex++;
+            }
 
             if (!layoutReflection.constants.empty())
             {
@@ -854,26 +966,11 @@ namespace LinaGX
     bool SPIRVUtility::SPV2MSL(ShaderStage stg, const DataBlob& spv, LINAGX_STRING& out, ShaderLayout& layoutReflection)
     {
 
-        auto getExecStage = [](ShaderStage stg) {
-            if (stg == ShaderStage::Fragment)
-                return spv::ExecutionModelFragment;
-            else if (stg == ShaderStage::Tesellation)
-                return spv::ExecutionModelTessellationControl;
-            else if (stg == ShaderStage::Geometry)
-            {
-                LOGA(false, "Geometry shaders are not supported on Metal!");
-            }
-            else if (stg == ShaderStage::Compute)
-                return spv::ExecutionModelGLCompute;
-
-            return spv::ExecutionModelVertex;
-        };
-
         try
         {
             spirv_cross::CompilerMSL compiler(reinterpret_cast<uint32*>(spv.ptr), spv.size / sizeof(uint32));
 
-            spv::ExecutionModel exec = getExecStage(stg);
+            spv::ExecutionModel exec = GetExecStage(stg);
 
             spirv_cross::CompilerMSL::Options options;
             options.set_msl_version(3);
@@ -898,12 +995,12 @@ namespace LinaGX
                 {
                     // If not exists for this stage, or not active skip entirely.
                     auto it = bindingData.isActive.find(stg);
-                    if(it == bindingData.isActive.end() || it->second == false)
+                    if (it == bindingData.isActive.end() || it->second == false)
                     {
                         bindingIndex++;
                         continue;
                     }
-                
+
                     spirv_cross::MSLResourceBinding mslb;
                     mslb.stage    = exec;
                     mslb.desc_set = setIndex;
@@ -911,17 +1008,17 @@ namespace LinaGX
 
                     if (bindingData.type == DescriptorType::UBO)
                     {
-                        mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
-                        mslb.count      = bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
-                        mslb.msl_buffer = bufferID;
+                        mslb.basetype                = spirv_cross::SPIRType::BaseType::Struct;
+                        mslb.count                   = bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
+                        mslb.msl_buffer              = bufferID;
                         bindingData.mslBufferID[stg] = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
                     else if (bindingData.type == DescriptorType::SSBO)
                     {
-                        mslb.count      = 1;
-                        mslb.msl_buffer = bufferID;
+                        mslb.count                   = 1;
+                        mslb.msl_buffer              = bufferID;
                         bindingData.mslBufferID[stg] = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
@@ -930,15 +1027,15 @@ namespace LinaGX
                     {
                         if (bindingData.descriptorCount == 0)
                         {
-                            mslb.count       = 0;
-                            mslb.msl_texture = bufferID;
+                            mslb.count                   = 0;
+                            mslb.msl_texture             = bufferID;
                             bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                         }
                         else
                         {
-                            mslb.count       = bindingData.descriptorCount;
-                            mslb.msl_texture = textureID;
+                            mslb.count                   = bindingData.descriptorCount;
+                            mslb.msl_texture             = textureID;
                             bindingData.mslBufferID[stg] = textureID;
                             textureID += mslb.count;
                         }
@@ -949,15 +1046,15 @@ namespace LinaGX
                     {
                         if (bindingData.descriptorCount == 0)
                         {
-                            mslb.count       = 0;
-                            mslb.msl_texture = bufferID;
+                            mslb.count                   = 0;
+                            mslb.msl_texture             = bufferID;
                             bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                         }
                         else
                         {
-                            mslb.count       = bindingData.descriptorCount;
-                            mslb.msl_sampler = samplerID;
+                            mslb.count                   = bindingData.descriptorCount;
+                            mslb.msl_sampler             = samplerID;
                             bindingData.mslBufferID[stg] = samplerID;
                             samplerID += mslb.count;
                         }
@@ -968,8 +1065,8 @@ namespace LinaGX
                     {
                         if (bindingData.descriptorCount == 0)
                         {
-                            mslb.count       = 0;
-                            mslb.msl_texture = bufferID;
+                            mslb.count                   = 0;
+                            mslb.msl_texture             = bufferID;
                             bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                             compiler.add_msl_resource_binding(mslb);
@@ -980,8 +1077,8 @@ namespace LinaGX
                         }
                         else
                         {
-                            mslb.count       = bindingData.descriptorCount;
-                            mslb.msl_texture = textureID;
+                            mslb.count                   = bindingData.descriptorCount;
+                            mslb.msl_texture             = textureID;
                             bindingData.mslBufferID[stg] = textureID;
                             textureID += mslb.count;
                             compiler.add_msl_resource_binding(mslb);
@@ -1004,8 +1101,8 @@ namespace LinaGX
                 for (auto& ct : layoutReflection.constants)
                 {
                     auto it = ct.isActive.find(stg);
-                    
-                    if(it != ct.isActive.end() && it->second == true)
+
+                    if (it != ct.isActive.end() && it->second == true)
                     {
                         spirv_cross::MSLResourceBinding mslb;
                         mslb.stage      = exec;

@@ -155,7 +155,7 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionCameraData()
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassSimple()
     {
         LinaGX::DescriptorBinding binding0 = {
             .descriptorCount  = 1,
@@ -164,33 +164,8 @@ namespace LinaGX::Examples
             .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
 
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
-        return desc;
-    }
-
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassSimple()
-    {
-        LinaGX::DescriptorBinding binding0 = {
-            .descriptorCount = 3,
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
-
-        return desc;
-    }
-
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassAdvanced()
-    {
-        LinaGX::DescriptorBinding binding0 = {
-            .descriptorCount = 3,
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
         LinaGX::DescriptorBinding binding1 = {
-            .descriptorCount = 1,
+            .descriptorCount = 3,
             .type            = LinaGX::DescriptorType::SeparateImage,
             .stages          = {LinaGX::ShaderStage::Fragment},
         };
@@ -200,12 +175,52 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionQuadPass()
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassAdvanced()
+    {
+        LinaGX::DescriptorBinding binding0 = {
+            .descriptorCount  = 1,
+            .type             = LinaGX::DescriptorType::UBO,
+            .useDynamicOffset = true,
+            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding1 = {
+            .descriptorCount = 3,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding2 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2}};
+
+        return desc;
+    }
+
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionFinalPass()
     {
         LinaGX::DescriptorBinding binding0 = {
             .descriptorCount = 1,
             .type            = LinaGX::DescriptorType::SeparateImage,
             .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
+
+        return desc;
+    }
+
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionObjectPass()
+    {
+        LinaGX::DescriptorBinding binding0 = {
+            .descriptorCount  = 1,
+            .type             = LinaGX::DescriptorType::UBO,
+            .useDynamicOffset = true,
+            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
@@ -267,7 +282,7 @@ namespace LinaGX::Examples
         LinaGX::TextureDesc desc = {
             .usage              = LinaGX::TextureUsage::DepthStencilTexture,
             .format             = LinaGX::Format::D32_SFLOAT,
-            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly, 
+            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
             .sampled            = true,
             .width              = width,
             .height             = height,

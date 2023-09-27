@@ -82,7 +82,6 @@ namespace LinaGX
         enum PipelineLayoutType
         {
             PL_GlobalSet = 0,
-            PL_GlobalAndCameraSet,
             PL_DefaultObjects,
             PL_LightingPassSimple,
             PL_LightingPassAdvanced,
@@ -162,10 +161,10 @@ namespace LinaGX
             static glm::mat4 CalculateGlobalMatrix(LinaGX::ModelNode* node);
 
             static LinaGX::DescriptorSetDesc GetSetDescriptionGlobal();
-            static LinaGX::DescriptorSetDesc GetSetDescriptionCameraData();
             static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPassSimple();
             static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPassAdvanced();
-            static LinaGX::DescriptorSetDesc GetSetDescriptionQuadPass();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionFinalPass();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionObjectPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();
 
             static LinaGX::TextureDesc GetRTDesc(const char* debugName, uint32 width, uint32 height);

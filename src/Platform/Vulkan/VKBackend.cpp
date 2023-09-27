@@ -3147,9 +3147,7 @@ namespace LinaGX
 
         UnmapResource(stagingHandle);
 
-        // TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd->mipLevels, dstTexture.arrayLength);
         vkCmdCopyBufferToImage(buffer, srcResource.buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32>(regions.size()), regions.data());
-        // TransitionImageLayout(buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd->mipLevels, dstTexture.arrayLength);
     }
 
     void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)

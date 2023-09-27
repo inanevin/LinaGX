@@ -921,6 +921,8 @@ namespace LinaGX
     {
         uint32 bindingIndex = 0;
 
+        LINAGX_MAP<D3D12_DESCRIPTOR_RANGE_TYPE, uint32> descriptorTableRegisters;
+
         for (const auto& binding : desc.bindings)
         {
             CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
@@ -942,51 +944,70 @@ namespace LinaGX
 
             if (binding.type == DescriptorType::UBO)
             {
+                auto& reg = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_CBV];
+
                 if (binding.descriptorCount > 1)
                 {
-                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, binding.descriptorCount, bindingIndex, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                    ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, binding.descriptorCount, reg, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                     param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
+                    reg += binding.descriptorCount;
                     rangeCounter++;
                 }
                 else
-                    param.InitAsConstantBufferView(bindingIndex, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+                {
+                    param.InitAsConstantBufferView(reg, setIndex, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility);
+                    reg++;
+                }
 
                 rootParameters.push_back(param);
             }
             else if (binding.type == DescriptorType::CombinedImageSampler)
             {
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                auto& reg1 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SRV];
+                auto& reg2 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER];
+
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg1, setIndex, flags);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
+                reg1 += binding.unbounded ? 1 : binding.descriptorCount;
 
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg2, setIndex, flags);
                 param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
+                reg2 += binding.unbounded ? 1 : binding.descriptorCount;
 
                 rootParameters.push_back(param);
                 rootParameters.push_back(param2);
             }
             else if (binding.type == DescriptorType::SeparateImage)
             {
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                auto& reg1 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SRV];
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg1, setIndex, flags);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
+                reg1 += binding.unbounded ? 1 : binding.descriptorCount;
 
                 rootParameters.push_back(param);
             }
             else if (binding.type == DescriptorType::SeparateSampler)
             {
-                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, bindingIndex, setIndex, flags);
+                auto& reg1 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER];
+
+                ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg1, setIndex, flags);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
+                reg1 += binding.unbounded ? 1 : binding.descriptorCount;
 
                 rootParameters.push_back(param);
             }
             else
             {
-                ranges[rangeCounter].Init(!binding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, bindingIndex, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+                auto& reg1 = !binding.isWritable ? descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SRV] : descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_UAV];
+
+                ranges[rangeCounter].Init(!binding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, reg1, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
+                reg1 += binding.unbounded ? 1 : binding.descriptorCount;
 
                 rootParameters.push_back(param);
             }

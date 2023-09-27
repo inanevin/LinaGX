@@ -45,14 +45,9 @@ namespace LinaGX
             uint64                 transferSemaphoreValue = 0;
             uint16                 transferSemaphore      = 0;
             uint16                 globalSet              = 0;
-            uint16                 cameraSet0             = 0;
-            uint16                 cameraSetCubemap       = 0;
 
             uint32 rscCameraData0        = 0;
             uint8* rscCameraDataMapping0 = nullptr;
-
-            uint32 rscCameraDataCubemap        = 0;
-            uint8* rscCameraDataMappingCubemap = nullptr;
 
             uint32 rscSceneData         = 0;
             uint8* rscSceneDataMapping  = nullptr;
@@ -129,13 +124,10 @@ namespace LinaGX
             void SetupGlobalResources();
             void SetupPipelineLayouts();
             void SetupGlobalDescriptorSet();
-            void CreateStaticPasses();
-            void CreateDynamicPasses();
-            void DestroyDynamicPasses();
+            void CreatePasses(bool onlyDynamics);
+            void DestroyPasses(bool onlyDynamics);
 
-            void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, bool isSwapchain = false);
-            void CreatePassDescriptor(PassType pass, const LinaGX::DescriptorSetDesc& desc);
-            void DestroyPassDescriptor(PassType pass);
+            void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, const LinaGX::DescriptorSetDesc& descriptorDesc, bool isSwapchain = false);
 
             void BeginPass(PassType pass, uint32 width = 0, uint32 height = 0, uint32 layer = 0);
             void EndPass();
@@ -145,7 +137,7 @@ namespace LinaGX
             void BindMaterialSet(uint16 materialSet);
             void DrawFullscreenQuad();
             void BindShader(uint32 target);
-            void BindCameraDescriptor(uint16 set, uint32 offset);
+            void BindPassSet(PipelineLayoutType layout, uint16 set, uint32 offset, bool useDynamicOffset);
             void ReflectionPass();
             void CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target);
             void ExecPassBarriers();
