@@ -94,9 +94,6 @@ void main()
     vec4 normalMetallic = texture(sampler2D(inputTextures[1], defaultSampler), uv);
     vec4 positionAO = texture(sampler2D(inputTextures[2], defaultSampler), uv);
 
-    FragColor = albedoRoughness;
-    return;
-
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
     float roughness = albedoRoughness.a;

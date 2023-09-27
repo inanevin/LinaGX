@@ -43,15 +43,7 @@ namespace LinaGX::Examples
     {
         m_lgx        = lgx;
         m_mainWindow = m_lgx->GetWindowManager().GetWindow(0);
-        m_angleX = m_targetX = DEG2RAD(-65.0f);
-        m_angleY = m_targetY = 0.0f;
-        m_position           = glm::vec3(3, 7, 8);
-
-        const glm::quat qx = glm::angleAxis(m_angleX, glm::vec3(1, 0, 0));
-        const glm::quat qy = glm::angleAxis(m_angleY, glm::vec3(0, 1, 0));
-        m_rotation         =  qy * qx;
-        //m_initialRot       = m_rotation;
-        CalculateViewProj();
+        m_initialRot = m_rotation;
     }
 
     void Camera::Tick(float dt)
@@ -83,7 +75,7 @@ namespace LinaGX::Examples
             m_angleY           = LinaGX::Lerp(m_angleY, m_targetY, dt * ROTATE_SPEED);
             const glm::quat qx = glm::angleAxis(m_angleX, glm::vec3(1, 0, 0));
             const glm::quat qy = glm::angleAxis(m_angleY, glm::vec3(0, 1, 0));
-            m_rotation         =  qy * qx;
+            m_rotation         = qy * qx;
 
             // Calc pos.
             float moveX = 0.0f, moveY = 0.0f;
