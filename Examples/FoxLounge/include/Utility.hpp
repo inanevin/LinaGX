@@ -114,7 +114,6 @@ namespace LinaGX
             glm::mat4 view;
             glm::mat4 proj;
             glm::vec4 camPosition;
-            glm::vec4 padding[7];
         };
 
         struct GPUSceneData
@@ -155,6 +154,8 @@ namespace LinaGX
             // Texture.
             static std::unordered_map<LINAGX_STRINGID, TextureMapping> GetMaterialTextureMapping();
             static std::vector<LINAGX_STRINGID>                        GetLinearTextures();
+
+            static uint32 GetPaddedItemSize(uint32 itemSize, uint32 alignment);
 
             // Matrix.
             static glm::mat4 TranslateRotateScale(const LinaGX::LGXVector3& pos, const LinaGX::LGXVector4& rot, const LinaGX::LGXVector3& scale);

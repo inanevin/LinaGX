@@ -63,6 +63,7 @@ FEATURES TO IMPLEMENT
 - Carry everything to config.
 - support for variety of vertex formats.
 - metal missing formats.
+- metal minAlignments.
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.

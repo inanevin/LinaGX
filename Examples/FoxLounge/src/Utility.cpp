@@ -108,6 +108,13 @@ namespace LinaGX::Examples
         return linearTextures;
     }
 
+    uint32 Utility::GetPaddedItemSize(uint32 itemSize, uint32 alignment)
+    {
+        if (alignment == 0)
+            return itemSize;
+        return itemSize + (alignment - itemSize % alignment) % alignment;
+    }
+
     glm::mat4 Utility::TranslateRotateScale(const LinaGX::LGXVector3& pos, const LinaGX::LGXVector4& rot, const LinaGX::LGXVector3& scale)
     {
         glm::vec3 p     = glm::vec3(pos.x, pos.y, pos.z);

@@ -268,6 +268,7 @@ namespace LinaGX
         VmaAllocator_T*          m_vmaAllocator   = nullptr;
 
         uint64 m_minUniformBufferOffsetAlignment = 0;
+        uint64 m_minStorageBufferOffsetAlignment = 0;
         bool   m_supportsMultiDrawIndirect       = false;
         bool   m_supportsAnisotropy              = false;
         bool   m_supportsDedicatedTransferQueue  = false;

@@ -36,7 +36,6 @@ layout (set = 1, binding = 0) uniform CameraData
     mat4 view;
     mat4 projection;
     vec4 camPos;
-    vec4 padding[7];
 } cameraData;
 
 layout (set = 1, binding = 1) uniform texture2D inputTextures[3];
@@ -100,15 +99,15 @@ void main()
     vec3 N = normalMetallic.rgb;
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - positionAO.rgb);
-	//vec3 I = -V;
-	//vec3 R = reflect(I, normalize(normalMetallic.rgb));
-	//vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
+	vec3 I = -V;
+	vec3 R = reflect(I, normalize(normalMetallic.rgb));
+	vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
-    //vec3 Lo = environment.rgb;
-    vec3 Lo = vec3(0.0);
+    vec3 Lo = environment.rgb;
+    //vec3 Lo = vec3(0.0);
     
     // calculate per-light radiance
     vec3 lightPos = vec3(sceneData.lightPosition.x, sceneData.lightPosition.y, sceneData.lightPosition.z);

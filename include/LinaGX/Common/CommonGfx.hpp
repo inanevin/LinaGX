@@ -617,10 +617,10 @@ namespace LinaGX
 
     struct DescriptorUpdateImageDesc
     {
-        uint16             setHandle       = 0;
-        uint32             binding         = 0;
-        LINAGX_VEC<uint32> textures        = {};
-        LINAGX_VEC<uint32> samplers        = {};
+        uint16             setHandle = 0;
+        uint32             binding   = 0;
+        LINAGX_VEC<uint32> textures  = {};
+        LINAGX_VEC<uint32> samplers  = {};
     };
 
     struct DescriptorUpdateBufferDesc
@@ -702,6 +702,7 @@ namespace LinaGX
         uint64             totalCPUVisibleGPUMemorySize     = 0;
         uint64             dedicatedVideoMemory             = 0;
         uint32             minConstantBufferOffsetAlignment = 0;
+        uint32             minStorageBufferOffsetAlignment  = 0;
     };
 
     struct PerformanceStatistics

@@ -2397,7 +2397,8 @@ namespace LinaGX
                 }
             }
 
-            GPUInfo.minConstantBufferOffsetAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+            GPUInfo.minConstantBufferOffsetAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+            GPUInfo.minStorageBufferOffsetAlignment  = 0;
         }
         catch (HrException e)
         {
