@@ -101,7 +101,7 @@ namespace LinaGX
             bool                       isSkinned = false;
             bool                       hasMesh   = false;
             std::vector<MeshPrimitive> primitives;
-            bool                       manualDraw = false;
+            bool                       isSky = false;
         };
 
         class Example : public App

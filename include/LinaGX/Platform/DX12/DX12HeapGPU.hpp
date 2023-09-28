@@ -38,6 +38,11 @@ namespace LinaGX
 {
     class DX12Backend;
 
+    struct DX12AvailableHeapBlock
+    {
+        uint32 start = 0;
+        uint32 count = 0;
+    };
     class DX12HeapGPU
     {
     public:
@@ -48,6 +53,7 @@ namespace LinaGX
         void             Reset(uint32 newStart);
         DescriptorHandle GetHeapHandleBlock(uint32 count);
         DescriptorHandle GetOffsetedHandle(uint32 count);
+        void             RemoveDescriptorHandle(const DescriptorHandle& handle);
 
         ID3D12DescriptorHeap* GetHeap()
         {
@@ -85,13 +91,14 @@ namespace LinaGX
         };
 
     private:
-        ID3D12DescriptorHeap*       m_dx12Heap             = nullptr;
-        D3D12_DESCRIPTOR_HEAP_TYPE  m_heapType             = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        D3D12_CPU_DESCRIPTOR_HANDLE m_cpuStart             = {};
-        D3D12_GPU_DESCRIPTOR_HANDLE m_gpuStart             = {};
-        uint32                      m_maxDescriptors       = 0;
-        uint32                      m_descriptorSize       = 0;
-        bool                        m_isReferencedByShader = false;
+        ID3D12DescriptorHeap*              m_dx12Heap             = nullptr;
+        D3D12_DESCRIPTOR_HEAP_TYPE         m_heapType             = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        D3D12_CPU_DESCRIPTOR_HANDLE        m_cpuStart             = {};
+        D3D12_GPU_DESCRIPTOR_HANDLE        m_gpuStart             = {};
+        uint32                             m_maxDescriptors       = 0;
+        uint32                             m_descriptorSize       = 0;
+        bool                               m_isReferencedByShader = false;
+        LINAGX_VEC<DX12AvailableHeapBlock> m_availableBlocks;
 
         uint32 m_currentDescriptorIndex = 0;
     };

@@ -78,22 +78,30 @@ namespace LinaGX
     public:
         DescriptorHandle()
         {
-            m_cpuHandle = NULL;
-            m_gpuHandle = NULL;
-            m_heapIndex = 0;
+            m_cpuHandle       = NULL;
+            m_gpuHandle       = NULL;
+            m_heapIndex       = 0;
+            m_descriptorCount = 0;
         }
 
-        size_t GetCPUHandle() const
+        inline size_t GetCPUHandle() const
         {
             return m_cpuHandle;
         }
-        uint64 GetGPUHandle() const
+
+        inline uint64 GetGPUHandle() const
         {
             return m_gpuHandle;
         }
-        uint32 GetHeapIndex() const
+
+        inline uint32 GetHeapIndex() const
         {
             return m_heapIndex;
+        }
+
+        inline uint32 GetDescriptorCount() const
+        {
+            return m_descriptorCount;
         }
 
         void SetCPUHandle(size_t cpuHandle)
@@ -111,6 +119,11 @@ namespace LinaGX
             m_heapIndex = heapIndex;
         }
 
+        void SetDescriptorCount(uint32 count)
+        {
+            m_descriptorCount = count;
+        }
+
         bool IsValid() const
         {
             return m_cpuHandle != NULL;
@@ -122,9 +135,10 @@ namespace LinaGX
         }
 
     private:
-        size_t m_cpuHandle = NULL;
-        uint64 m_gpuHandle = NULL;
-        uint32 m_heapIndex = 0;
+        size_t m_cpuHandle       = NULL;
+        uint64 m_gpuHandle       = NULL;
+        uint32 m_heapIndex       = 0;
+        uint32 m_descriptorCount = 0;
     };
 } // namespace LinaGX
 

@@ -3,6 +3,7 @@
 
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 IrradianceColor;
 
 #define MAX_BONES 30
 
@@ -143,6 +144,9 @@ void main()
     vec3 mapped = vec3(1.0) - exp(-ambient * 1.0f);
     // FragColor = texture(sampler2D(allTextures[Constants.textureID + 1], allSamplers[Constants.samplerID]), uv);
     FragColor = vec4(mapped, 1.0f);
+
+
+    IrradianceColor = vec4(1.0f, 1.0f, 1.0f, 1.0);
 }
 
 

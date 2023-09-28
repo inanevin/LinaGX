@@ -8,14 +8,6 @@ layout (location = 0) out vec3 outWorldPos;
 
 #define MAX_BONES 30
 
-layout(set = 0, binding = 0) uniform SceneData
-{
-	vec4 skyColor1;
-	vec4 skyColor2;
-	vec4 lightPosition;
-    vec4 lightColor;
-} sceneData;
-
 struct Object
 {
     mat4 modelMatrix;
@@ -24,6 +16,15 @@ struct Object
     int hasSkin;
     int padding[15];
 };
+
+layout(set = 0, binding = 0) uniform SceneData
+{
+	vec4 skyColor1;
+	vec4 skyColor2;
+	vec4 lightPosition;
+    vec4 lightColor;
+} sceneData;
+
 
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {
@@ -37,31 +38,19 @@ layout (set = 1, binding = 0) uniform CameraData
     mat4 view;
     mat4 projection;
     vec4 camPos;
-    vec4 padding[7];
 } cameraData;
 
-layout (set = 1, binding = 1) uniform texture2D inputTexture;
-
-layout (set = 2, binding = 0) uniform MaterialData
+layout( push_constant ) uniform constants
 {
-    vec4 baseColorFac;
-    vec4 emissiveFac;
-    uint baseColor;
-    uint metallicRoughness;
-    uint emissive;
-    uint normal;
-    uint specialTexture;
-    float metallic;
-    float roughness;
-    float alphaCutoff;
-} materialData;
-
+	int objectID;
+    int applyTerrainEffects;
+} Constants;
 
 void main()
 {
     outWorldPos = inPosition;
-	mat4 rotView = mat4(mat3(passData.view));
-	vec4 clipPos = passData.projection * rotView * vec4(outWorldPos, 1.0);
+	mat4 rotView = mat4(mat3(cameraData.view));
+	vec4 clipPos = cameraData.projection * rotView * vec4(outWorldPos, 1.0);
 	gl_Position = clipPos.xyww;
 }
 

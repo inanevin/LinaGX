@@ -38,6 +38,7 @@ namespace LinaGX
         m_heapType             = heapType;
         m_maxDescriptors       = numDescriptors;
         m_isReferencedByShader = isReferencedByShader;
+        m_availableBlocks.reserve(numDescriptors / 2);
 
         try
         {
@@ -81,6 +82,27 @@ namespace LinaGX
 
     DescriptorHandle DX12HeapGPU::GetHeapHandleBlock(uint32 count)
     {
+        for (auto it = m_availableBlocks.begin(); it != m_availableBlocks.end(); ++it)
+        {
+            auto& block = *it;
+
+            if (block.count >= count)
+            {
+                DescriptorHandle handle;
+                handle.SetCPUHandle(m_cpuStart.ptr + block.start * m_descriptorSize);
+                handle.SetGPUHandle(m_gpuStart.ptr + block.start * m_descriptorSize);
+                handle.SetDescriptorCount(count);
+                handle.SetHeapIndex(block.start);
+                block.start += count;
+                block.count -= count;
+
+                if (block.count == 0)
+                    m_availableBlocks.erase(it);
+
+                return handle;
+            }
+        }
+
         uint32 newHandleID = 0;
         uint32 blockEnd    = m_currentDescriptorIndex + count;
 
@@ -91,7 +113,7 @@ namespace LinaGX
         }
         else
         {
-            LOGA(false, "DX12Backend -> Ran out of render pass descriptor heap handles, need to increase heap size.");
+            LOGA(false, "DX12Backend -> Ran out of descriptor heap handles, need to increase heap size.");
         }
 
         DescriptorHandle newHandle;
@@ -103,6 +125,8 @@ namespace LinaGX
         gpuHandle += newHandleID * m_descriptorSize;
         newHandle.SetGPUHandle(gpuHandle);
         newHandle.SetHeapIndex(newHandleID);
+        newHandle.SetDescriptorCount(count);
+
         return newHandle;
     }
 
@@ -112,5 +136,12 @@ namespace LinaGX
         handle.SetGPUHandle({GetHeapGPUStart().ptr + count * GetDescriptorSize()});
         handle.SetCPUHandle({GetHeapCPUStart().ptr + count * GetDescriptorSize()});
         return handle;
+    }
+
+    void DX12HeapGPU::RemoveDescriptorHandle(const DescriptorHandle& handle)
+    {
+        const auto             start = handle.GetHeapIndex();
+        DX12AvailableHeapBlock block = {handle.GetHeapIndex(), handle.GetDescriptorCount()};
+        m_availableBlocks.push_back(block);
     }
 } // namespace LinaGX

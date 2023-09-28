@@ -299,7 +299,7 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    uint32 Utility::CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout, const char* debugName)
+    uint32 Utility::CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, uint32 attachmentCount, bool useCustomLayout, uint16 layout, const char* debugName)
     {
         // Compile shaders.
         const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString(vertex);
@@ -326,14 +326,7 @@ namespace LinaGX::Examples
         };
 
         std::vector<ShaderColorAttachment> colorAttachments;
-
-        colorAttachments.push_back(att);
-
-        if (gBuffer)
-        {
-            colorAttachments.push_back(att);
-            colorAttachments.push_back(att);
-        }
+        colorAttachments.resize(attachmentCount, att);
 
         ShaderDepthStencilDesc depthStencilDesc = {
             .depthStencilAttachmentFormat = Format::D32_SFLOAT,

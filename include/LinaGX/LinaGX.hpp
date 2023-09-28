@@ -64,6 +64,7 @@ FEATURES TO IMPLEMENT
 - support for variety of vertex formats.
 - metal missing formats.
 - metal minAlignments.
+- data formats, vectors, maps,
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.

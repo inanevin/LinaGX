@@ -54,14 +54,13 @@ namespace LinaGX::Examples
         LinaGX::Config.errorCallback                          = LogError;
         LinaGX::Config.infoCallback                           = LogInfo;
         LinaGX::Config.dx12Config.serializeShaderDebugSymbols = true;
-        LinaGX::Config.dx12Config.enableDebugLayers           = true;
+        LinaGX::Config.dx12Config.enableDebugLayers = true;
 
         BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
-
         LinaGX::GPUFeatures features = {
             .enableBindless = true,
         };
@@ -307,7 +306,7 @@ namespace LinaGX::Examples
         };
 
         uint32 matIndex     = 0;
-        auto   parseObjects = [&](const LinaGX::ModelData& modelData, bool manualDraw) {
+        auto   parseObjects = [&](const LinaGX::ModelData& modelData, bool isSky) {
             for (auto* modMat : modelData.allMaterials)
             {
                 m_materials.push_back({});
@@ -331,7 +330,7 @@ namespace LinaGX::Examples
                 wo.globalMatrix = Utility::CalculateGlobalMatrix(node);
                 wo.isSkinned    = node->skin != nullptr;
                 wo.hasMesh      = node->mesh != nullptr;
-                wo.manualDraw   = manualDraw;
+                wo.isSky        = isSky;
 
                 if (wo.name.compare("fox") == 0)
                     wo.globalMatrix = glm::scale(wo.globalMatrix, glm::vec3(50.0f));
@@ -417,7 +416,6 @@ namespace LinaGX::Examples
         };
 
         parseObjects(skyDomeData, true);
-        // m_skyboxIndexCount = static_cast<uint32>(indices.size());
         parseObjects(foxLoungeData, false);
         parseObjects(foxData, false);
     }
@@ -644,11 +642,11 @@ namespace LinaGX::Examples
     {
         LOGT("Compiling shaders...");
         m_shaders.resize(Shader::SH_Max);
-        m_shaders[Shader::SH_LightingAdvanced] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_advanced_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPassAdvanced], "Deferred Lighting Advanced");
-        m_shaders[Shader::SH_Default]          = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, true, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
-        m_shaders[Shader::SH_LightingSimple]   = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_simple_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_LightingPassSimple], "Deferred Lighting Simple");
-        m_shaders[Shader::SH_Quad]             = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, false, true, m_pipelineLayouts[PL_FinalQuadPass], "Final Quad");
-        // m_shaders[Shader::Skybox]              = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, false, m_pipelineLayout);
+        m_shaders[Shader::SH_LightingAdvanced] = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_advanced_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_LightingPassAdvanced], "Deferred Lighting Advanced");
+        m_shaders[Shader::SH_Default]          = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 3, true, m_pipelineLayouts[PL_DefaultObjects], "PBR Default");
+        m_shaders[Shader::SH_LightingSimple]   = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_simple_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 2, true, m_pipelineLayouts[PL_LightingPassSimple], "Deferred Lighting Simple");
+        m_shaders[Shader::SH_Quad]             = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuadPass], "Final Quad");
+        m_shaders[Shader::SH_Skybox]           = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, 3, true, m_pipelineLayouts[PL_DefaultObjects], "Skybox");
     }
 
     void Example::SetupGlobalResources()
@@ -781,8 +779,9 @@ namespace LinaGX::Examples
             const auto& depthDesc      = Utility::GetDepthDesc("GBuf Depth", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
             SetupPass(PassType::PS_ObjectsReflections, {rtDescObjects1, rtDescObjects2, rtDescObjects3}, true, depthDesc, Utility::GetSetDescriptionObjectPass());
 
-            const auto& rtDescLighting = Utility::GetRTDescCube("Lighting Cubemap", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
-            SetupPass(PassType::PS_LightingReflections, {rtDescLighting}, false, {}, Utility::GetSetDescriptionLightingPassSimple());
+            const auto& rtDescLighting           = Utility::GetRTDescCube("Lighting Cubemap", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            const auto& rtDescLightingIrradiance = Utility::GetRTDescCube("Lighting Irradiance", REFLECTION_PASS_RES, REFLECTION_PASS_RES);
+            SetupPass(PassType::PS_LightingReflections, {rtDescLighting, rtDescLightingIrradiance}, false, {}, Utility::GetSetDescriptionLightingPassSimple());
         }
 
         // Object default & lighting default passes.
@@ -1115,7 +1114,7 @@ namespace LinaGX::Examples
             uint32 objIndex = 0;
             for (auto& obj : m_worldObjects)
             {
-                if (obj.manualDraw)
+                if (obj.isSky)
                     continue;
 
                 for (auto& prim : obj.primitives)
@@ -1188,22 +1187,51 @@ namespace LinaGX::Examples
 
         draw();
 
-        // DrawSkybox();
+        DrawSkybox();
     }
 
     void Example::DrawSkybox()
     {
-        // auto& pfd = m_pfd[m_lgx->GetCurrentFrameIndex()];
-        //
-        // BindShader(Shader::SH_Skybox);
-        //
-        // LinaGX::CMDDrawIndexedInstanced* draw = pfd.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
-        // draw->extension                       = nullptr;
-        // draw->baseVertexLocation              = 0;
-        // draw->startIndexLocation              = 0;
-        // draw->startInstanceLocation           = 0;
-        // draw->instanceCount                   = 1;
-        // draw->indexCountPerInstance           = m_skyboxIndexCount;
+        const uint32 currentFrameIndex = m_lgx->GetCurrentFrameIndex();
+        auto&        currentFrame      = m_pfd[currentFrameIndex];
+
+        BindShader(Shader::SH_Skybox);
+
+        for (auto& obj : m_worldObjects)
+        {
+            if (!obj.isSky)
+                continue;
+
+            for (auto& prim : obj.primitives)
+            {
+                // index buffer.
+                {
+                    LinaGX::CMDBindIndexBuffers* index = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindIndexBuffers>();
+                    index->extension                   = nullptr;
+                    index->indexType                   = LinaGX::IndexType::Uint32;
+                    index->offset                      = 0;
+                    index->resource                    = prim.indexBuffer.gpu;
+                }
+
+                // Global vertex buffer.
+                {
+                    LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
+                    vtx->extension                    = nullptr;
+                    vtx->offset                       = 0;
+                    vtx->slot                         = 0;
+                    vtx->vertexSize                   = sizeof(VertexSkinned);
+                    vtx->resource                     = prim.vtxBuffer.gpu;
+                }
+
+                LinaGX::CMDDrawIndexedInstanced* draw = currentFrame.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
+                draw->extension                       = nullptr;
+                draw->baseVertexLocation              = 0;
+                draw->startIndexLocation              = 0;
+                draw->startInstanceLocation           = 0;
+                draw->instanceCount                   = 1;
+                draw->indexCountPerInstance           = prim.indexCount;
+            }
+        }
     }
 
     void Example::BindMaterialSet(uint16 materialSet)
@@ -1320,7 +1348,6 @@ namespace LinaGX::Examples
     void Example::BuildCommands(uint32 frameIndex)
     {
         auto& currentFrame = m_pfd[frameIndex];
-
         // Global descriptor binding.
         {
             LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
@@ -1365,6 +1392,7 @@ namespace LinaGX::Examples
         BindShader(Shader::SH_Quad);
         DrawFullscreenQuad();
         EndPass();
+
 
         CollectPassBarrier(PS_FinalQuad, LinaGX::TextureBarrierState::Present);
         ExecPassBarriers();
@@ -1478,7 +1506,7 @@ namespace LinaGX::Examples
             std::vector<GPUObjectData> objData;
             for (const auto& obj : m_worldObjects)
             {
-                if (obj.manualDraw)
+                if (obj.isSky)
                     continue;
 
                 GPUObjectData data = {};

@@ -1852,7 +1852,7 @@ namespace LinaGX
                 dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
             else
                 dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
-
+     
             item.bindings.push_back(dx12Binding);
         }
 
@@ -1868,6 +1868,18 @@ namespace LinaGX
             return;
         }
 
+        for (const auto& b : item.bindings)
+        {
+            if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
+            {
+                m_gpuHeapBuffer->RemoveDescriptorHandle(b.gpuPointer);
+                m_gpuHeapSampler->RemoveDescriptorHandle(b.additionalGpuPointer);
+            }
+            else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
+                m_gpuHeapSampler->RemoveDescriptorHandle(b.gpuPointer);
+            else
+                m_gpuHeapBuffer->RemoveDescriptorHandle(b.gpuPointer);
+        }
         m_descriptorSets.RemoveItem(handle);
     }
 
@@ -1896,7 +1908,8 @@ namespace LinaGX
                     {
                         DescriptorHandle handle = {};
                         handle.SetGPUHandle(res.allocation->GetResource()->GetGPUVirtualAddress());
-                        binding.gpuPointer = handle;
+                        binding.gpuPointer.SetCPUHandle(handle.GetCPUHandle());
+                        binding.gpuPointer.SetGPUHandle(handle.GetGPUHandle());
                         return;
                     }
                     else

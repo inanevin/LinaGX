@@ -99,14 +99,13 @@ void main()
     vec3 N = normalMetallic.rgb;
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - positionAO.rgb);
-	vec3 I = -V;
-	vec3 R = reflect(I, normalize(normalMetallic.rgb));
+	vec3 R = reflect(-V, N);
 	vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
-    vec3 Lo = environment.rgb;
+    vec3 Lo = vec3(0.0);
     //vec3 Lo = vec3(0.0);
     
     // calculate per-light radiance
@@ -144,9 +143,8 @@ void main()
     // add to outgoing radiance Lo
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
     
-    vec3 ambient = vec3(0.05) * albedo + Lo;
+    vec3 ambient = vec3(0.05) * albedo  + Lo;
     vec3 mapped = vec3(1.0) - exp(-ambient * 1.0f);
-    // FragColor = texture(sampler2D(allTextures[Constants.textureID + 1], allSamplers[Constants.samplerID]), uv);
     FragColor = vec4(mapped, 1.0f);
 }
 

@@ -55,6 +55,7 @@ namespace LinaGX
             SH_LightingSimple,
             SH_LightingAdvanced,
             SH_Default,
+            SH_Skybox,
             SH_Max,
         };
 
@@ -172,7 +173,7 @@ namespace LinaGX
             static LinaGX::TextureDesc GetRTDescCube(const char* debugName, uint32 width, uint32 height);
             static LinaGX::TextureDesc GetDepthDesc(const char* debugName, uint32 width, uint32 height);
 
-            static uint32 CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, bool gBuffer, bool useCustomLayout, uint16 layout, const char* debugName);
+            static uint32 CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, uint32 attachmentCount, bool useCustomLayout, uint16 layout, const char* debugName);
         };
     } // namespace Examples
 } // namespace LinaGX
