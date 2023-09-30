@@ -569,21 +569,33 @@ namespace LinaGX
         uint32 bytesPerPixel;
     };
 
+    enum TextureFlags
+    {
+        TF_ColorAttachment       = 1 << 0,
+        TF_DepthTexture          = 1 << 1,
+        TF_StencilTexture        = 1 << 2,
+        TF_LinearTiling          = 1 << 3,
+        TF_Sampled               = 1 << 4,
+        TF_SampleOutsideFragment = 1 << 5,
+        TF_CopySource            = 1 << 6,
+        TF_CopyDest              = 1 << 7,
+        TF_Cubemap               = 1 << 8,
+    };
+
     struct TextureDesc
     {
-        TextureUsage       usage                  = TextureUsage::ColorTexture;
-        TextureType        type                   = TextureType::Texture2D;
-        Format             format                 = Format::R8G8B8A8_SRGB;
-        DepthStencilAspect depthStencilAspect     = DepthStencilAspect::DepthStencil;
-        bool               sampled                = true;
-        bool               sampledOutsideFragment = false;
-        bool               isCubemap              = false;
-        uint32             width                  = 0;
-        uint32             height                 = 0;
-        uint32             mipLevels              = 1;
-        uint32             arrayLength            = 1;
-        uint32             viewCount              = 1;
-        const char*        debugName              = "LinaGXTexture";
+        // TextureUsage       usage              = TextureUsage::ColorTexture;
+        TextureType type                     = TextureType::Texture2D;
+        Format      format                   = Format::R8G8B8A8_SRGB;
+        Format      depthStencilSampleFormat = Format::R32_FLOAT;
+        // DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
+        uint16      flags       = 0;
+        uint32      width       = 0;
+        uint32      height      = 0;
+        uint32      mipLevels   = 1;
+        uint32      arrayLength = 1;
+        uint32      viewCount   = 1;
+        const char* debugName   = "LinaGXTexture";
     };
 
     struct SamplerDesc
@@ -701,8 +713,8 @@ namespace LinaGX
         LINAGX_VEC<Format> supportedImageFormats;
         uint64             totalCPUVisibleGPUMemorySize     = 0;
         uint64             dedicatedVideoMemory             = 0;
-        uint32             minConstantBufferOffsetAlignment = 0;
-        uint32             minStorageBufferOffsetAlignment  = 0;
+        uint64             minConstantBufferOffsetAlignment = 0;
+        uint64             minStorageBufferOffsetAlignment  = 0;
     };
 
     struct PerformanceStatistics

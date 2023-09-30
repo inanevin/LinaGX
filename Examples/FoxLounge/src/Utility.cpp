@@ -162,7 +162,7 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassSimple()
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPass()
     {
         LinaGX::DescriptorBinding binding0 = {
             .descriptorCount  = 1,
@@ -178,32 +178,6 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
-
-        return desc;
-    }
-
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionLightingPassAdvanced()
-    {
-        LinaGX::DescriptorBinding binding0 = {
-            .descriptorCount  = 1,
-            .type             = LinaGX::DescriptorType::UBO,
-            .useDynamicOffset = true,
-            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorBinding binding1 = {
-            .descriptorCount = 3,
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorBinding binding2 = {
-            .descriptorCount = 1,
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2}};
 
         return desc;
     }
@@ -256,9 +230,8 @@ namespace LinaGX::Examples
     LinaGX::TextureDesc Utility::GetRTDesc(const char* debugName, uint32 width, uint32 height)
     {
         LinaGX::TextureDesc desc = {
-            .usage     = LinaGX::TextureUsage::ColorTextureRenderTarget,
             .format    = LinaGX::Format::R16G16B16A16_FLOAT,
-            .sampled   = true,
+            .flags     = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopySource,
             .width     = width,
             .height    = height,
             .debugName = debugName,
@@ -270,11 +243,9 @@ namespace LinaGX::Examples
     LinaGX::TextureDesc Utility::GetRTDescCube(const char* debugName, uint32 width, uint32 height)
     {
         LinaGX::TextureDesc desc{
-            .usage       = LinaGX::TextureUsage::ColorTextureRenderTarget,
             .type        = LinaGX::TextureType::Texture2D,
             .format      = LinaGX::Format::R16G16B16A16_FLOAT,
-            .sampled     = true,
-            .isCubemap   = true,
+            .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
             .width       = width,
             .height      = height,
             .arrayLength = 6,
@@ -287,13 +258,11 @@ namespace LinaGX::Examples
     LinaGX::TextureDesc Utility::GetDepthDesc(const char* debugName, uint32 width, uint32 height)
     {
         LinaGX::TextureDesc desc = {
-            .usage              = LinaGX::TextureUsage::DepthStencilTexture,
-            .format             = LinaGX::Format::D32_SFLOAT,
-            .depthStencilAspect = LinaGX::DepthStencilAspect::DepthOnly,
-            .sampled            = true,
-            .width              = width,
-            .height             = height,
-            .debugName          = debugName,
+            .format    = LinaGX::Format::D32_SFLOAT,
+            .flags     = TextureFlags::TF_Sampled | TextureFlags::TF_DepthTexture,
+            .width     = width,
+            .height    = height,
+            .debugName = debugName,
         };
 
         return desc;

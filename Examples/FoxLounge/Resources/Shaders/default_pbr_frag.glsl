@@ -122,8 +122,8 @@ void main()
       roughnessFactor = clamp(roughnessFactor * 34, 0.0, 1.0);
   
       // fin normal
-      vec3 finalNormal = mix(vec3(0.0), getNormalFromMap(txtNormal.rgb), roughnessFactor);
-      finalNormal = getNormalFromMap(txtNormal.rgb);
+      vec3 finalNormal = mix(getNormalFromMap(txtNormal.rgb), vec3(0.0), roughnessFactor);
+      // finalNormal = getNormalFromMap(txtNormal.rgb);
 
       // fin roughness
       float finalRoughness = clamp(txtMetallicRoughness.g - roughnessFactor, 0.0, 1.0);

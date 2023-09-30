@@ -35,7 +35,8 @@ layout (set = 1, binding = 0) uniform texture2D inputTexture;
 
 void main()
 {
-    FragColor = texture(sampler2D(inputTexture, defaultSampler), uv);
+    vec4 txt = texture(sampler2D(inputTexture, defaultSampler), uv);
+    FragColor = txt;
 }
 
 

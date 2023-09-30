@@ -267,6 +267,7 @@ namespace LinaGX
         void CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream);
         void CMD_CopyResource(uint8* data, DX12CommandStream& stream);
         void CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream);
+        void CMD_CopyTexture(uint8* data, DX12CommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream);
         void CMD_BindConstants(uint8* data, DX12CommandStream& stream);
         void CMD_Dispatch(uint8* data, DX12CommandStream& stream);

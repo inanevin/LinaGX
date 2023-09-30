@@ -52,8 +52,7 @@ namespace LinaGX
         enum Shader
         {
             SH_Quad = 0,
-            SH_LightingSimple,
-            SH_LightingAdvanced,
+            SH_Lighting,
             SH_Default,
             SH_Skybox,
             SH_Max,
@@ -72,10 +71,8 @@ namespace LinaGX
 
         enum PassType
         {
-            PS_ObjectsDefault = 0,
-            PS_ObjectsReflections,
-            PS_LightingDefault,
-            PS_LightingReflections,
+            PS_Objects = 0,
+            PS_Lighting,
             PS_FinalQuad,
             PS_Max,
         };
@@ -83,10 +80,9 @@ namespace LinaGX
         enum PipelineLayoutType
         {
             PL_GlobalSet = 0,
-            PL_DefaultObjects,
-            PL_LightingPassSimple,
-            PL_LightingPassAdvanced,
-            PL_FinalQuadPass,
+            PL_Objects,
+            PL_Lighting,
+            PL_FinalQuad,
             PL_Max,
         };
 
@@ -163,8 +159,7 @@ namespace LinaGX
             static glm::mat4 CalculateGlobalMatrix(LinaGX::ModelNode* node);
 
             static LinaGX::DescriptorSetDesc GetSetDescriptionGlobal();
-            static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPassSimple();
-            static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPassAdvanced();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionFinalPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();

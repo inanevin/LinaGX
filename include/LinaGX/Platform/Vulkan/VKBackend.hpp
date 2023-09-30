@@ -59,18 +59,17 @@ namespace LinaGX
 
     struct VKBTexture2D
     {
-        bool                    isValid                = false;
-        bool                    isCubemap              = false;
-        bool                    sampledOutsideFragment = false;
-        TextureUsage            usage                  = TextureUsage::ColorTexture;
-        DepthStencilAspect      depthStencilAspect     = DepthStencilAspect::DepthOnly;
-        uint32                  arrayLength            = 0;
-        uint32                  mipLevels              = 0;
-        VkImageLayout           imgLayout              = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
-        LINAGX_VEC<VkImageView> imgViews               = {};
-        VkImageView             cubeView               = nullptr;
-        VkImage                 img                    = nullptr;
-        VmaAllocation_T*        allocation             = nullptr;
+        bool                    isValid     = false;
+        uint16                  flags       = 0;
+        uint32                  arrayLength = 0;
+        uint32                  mipLevels   = 0;
+        VkImageLayout           imgLayout   = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
+        LINAGX_VEC<VkImageView> imgViews    = {};
+        VkImageView             cubeView    = nullptr;
+        VkImage                 img         = nullptr;
+        VmaAllocation_T*        allocation  = nullptr;
+        VkExtent3D              extent      = {};
+        VkImageAspectFlags      aspectFlags = 0;
     };
 
     struct VKBSampler
@@ -130,7 +129,6 @@ namespace LinaGX
         ResourceHeap     heapType    = ResourceHeap::StagingHeap;
         VkBuffer         buffer      = nullptr;
         VmaAllocation_T* allocation  = nullptr;
-        VkAccessFlags    accessFlags = 0;
     };
 
     struct VKBUserSemaphore
@@ -170,7 +168,8 @@ namespace LinaGX
         uint32              createRequestCount = 0;
         uint32              totalQueueCount    = 0;
         LINAGX_VEC<VkQueue> queues;
-        uint32              familyIndex = 0;
+        uint32              familyIndex     = 0;
+        CommandType         actualQueueType = CommandType::Graphics;
     };
 
     struct VKBPipelineLayout
@@ -249,6 +248,7 @@ namespace LinaGX
         void CMD_BindIndexBuffers(uint8* data, VKBCommandStream& stream);
         void CMD_CopyResource(uint8* data, VKBCommandStream& stream);
         void CMD_CopyBufferToTexture2D(uint8* data, VKBCommandStream& stream);
+        void CMD_CopyTexture(uint8* data, VKBCommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream);
         void CMD_BindConstants(uint8* data, VKBCommandStream& stream);
         void CMD_Dispatch(uint8* data, VKBCommandStream& stream);

@@ -451,20 +451,24 @@ namespace LinaGX
         }
     }
 
-    D3D12_RESOURCE_STATES GetDXTextureBarrierState(TextureBarrierState state, bool usedOutsideFragment)
+    D3D12_RESOURCE_STATES GetDXTextureBarrierState(TextureBarrierState state, uint32 txtFlags)
     {
         switch (state)
         {
         case LinaGX::TextureBarrierState::ColorAttachment:
-        case LinaGX::TextureBarrierState::DepthStencilAttachment:
-        case LinaGX::TextureBarrierState::DepthAttachment:
-        case LinaGX::TextureBarrierState::StencilAttachment:
             return D3D12_RESOURCE_STATE_RENDER_TARGET;
+        case LinaGX::TextureBarrierState::DepthStencilAttachment:
+            return D3D12_RESOURCE_STATE_DEPTH_WRITE;
         case LinaGX::TextureBarrierState::ShaderRead: {
-            if (usedOutsideFragment)
-                return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-            else
-                return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+            if (txtFlags & TextureFlags::TF_SampleOutsideFragment)
+                state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+            if ((txtFlags & TextureFlags::TF_DepthTexture) || (txtFlags & TextureFlags::TF_StencilTexture))
+                state |= D3D12_RESOURCE_STATE_DEPTH_READ;
+
+            return state;
         }
         case LinaGX::TextureBarrierState::Present:
             return D3D12_RESOURCE_STATE_PRESENT;
@@ -1343,7 +1347,7 @@ namespace LinaGX
             LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
         }
 
-        if (txtDesc.isCubemap && txtDesc.arrayLength != 6)
+        if ((txtDesc.flags & TextureFlags::TF_Cubemap) && txtDesc.arrayLength != 6)
         {
             LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
         }
@@ -1351,6 +1355,11 @@ namespace LinaGX
         if (txtDesc.viewCount > txtDesc.arrayLength)
         {
             LOGA(false, "Backend -> View count can't be bigger than array length!");
+        }
+
+        if ((txtDesc.flags & TextureFlags::TF_ColorAttachment) && ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture)))
+        {
+            LOGA(false, "Backend -> A texture can not have both color attachment and depth or stencil texture flags!");
         }
 
         LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && txtDesc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
@@ -1388,35 +1397,43 @@ namespace LinaGX
         const float           cc[]{0, 0, 0, 1};
         auto                  depthClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), 1.0f, 0);
         auto                  colorClear = CD3DX12_CLEAR_VALUE(GetDXFormat(txtDesc.format), cc);
+        item.state                       = state;
 
-        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
-        {
-            resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-            state              = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-            clear              = &depthClear;
+        if ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture))
+            resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-            if (!txtDesc.sampled)
-                resourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-        }
-        else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
-        {
-            resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-            state              = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        if ((txtDesc.flags & TextureFlags::TF_ColorAttachment))
+            resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-            if (txtDesc.sampledOutsideFragment)
-                state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        if (!(txtDesc.flags & TextureFlags::TF_Sampled) && !(txtDesc.flags & TextureFlags::TF_SampleOutsideFragment))
+            resourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
-            clear = &colorClear;
-        }
-        else if (txtDesc.usage == TextureUsage::ColorTexture)
-        {
-            state = D3D12_RESOURCE_STATE_COMMON;
-
-            if (txtDesc.sampledOutsideFragment)
-                state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        }
-
-        item.state = state;
+        // if (txtDesc.usage == TextureUsage::DepthStencilTexture)
+        // {
+        //     resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        //     //state              = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        //     clear              = &depthClear;
+        //
+        //     if (!txtDesc.sampled)
+        //         resourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+        // }
+        // else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
+        // {
+        //     resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        //     //state              = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        //
+        //    // if (txtDesc.sampledOutsideFragment)
+        //    //     state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        //
+        //     clear = &colorClear;
+        // }
+        // else if (txtDesc.usage == TextureUsage::ColorTexture)
+        // {
+        //     state = D3D12_RESOURCE_STATE_COMMON;
+        //
+        //     // if (txtDesc.sampledOutsideFragment)
+        //     //     state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        // }
 
         try
         {
@@ -1514,26 +1531,29 @@ namespace LinaGX
 
         item.srvs.resize(txtDesc.viewCount);
 
-        DXGI_FORMAT srvFormat = GetDXFormat(txtDesc.format);
-
-        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
-            srvFormat = DXGI_FORMAT_R32_FLOAT;
-
-        for (uint32 i = 0; i < txtDesc.viewCount; i++)
+        if ((txtDesc.flags & TextureFlags::TF_Sampled) || (txtDesc.flags & TextureFlags::TF_SampleOutsideFragment))
         {
-            item.srvs[i] = m_textureHeap->GetNewHeapHandle();
-            createSRV(srvFormat, false, i, txtDesc.viewCount - i, item.srvs[i]);
+            DXGI_FORMAT srvFormat = GetDXFormat(txtDesc.format);
+
+            if ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture))
+                srvFormat = GetDXFormat(txtDesc.depthStencilSampleFormat);
+
+            for (uint32 i = 0; i < txtDesc.viewCount; i++)
+            {
+                item.srvs[i] = m_textureHeap->GetNewHeapHandle();
+                createSRV(srvFormat, false, i, txtDesc.viewCount - i, item.srvs[i]);
+            }
+
+            if (txtDesc.flags & TextureFlags::TF_Cubemap)
+            {
+                item.srvCube = m_textureHeap->GetNewHeapHandle();
+                createSRV(srvFormat, true, 0, 0, item.srvCube);
+            }
         }
 
-        if (txtDesc.isCubemap)
+        if ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture))
         {
-            item.srvCube = m_textureHeap->GetNewHeapHandle();
-            createSRV(srvFormat, true, 0, 0, item.srvCube);
-        }
-
-        if (txtDesc.usage == TextureUsage::DepthStencilTexture)
-        {
-            // DS descriptor + DSV
+            // DSV
             item.dsv                                       = m_dsvHeap->GetNewHeapHandle();
             D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
             depthStencilDesc.Format                        = GetDXFormat(txtDesc.format);
@@ -1541,13 +1561,15 @@ namespace LinaGX
             depthStencilDesc.Flags                         = D3D12_DSV_FLAG_NONE;
             m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {item.dsv.GetCPUHandle()});
         }
-        else if (txtDesc.usage == TextureUsage::ColorTextureRenderTarget)
+
+        if (txtDesc.flags & TextureFlags::TF_ColorAttachment)
         {
+            // RTV
             item.rtvs.resize(txtDesc.viewCount);
             for (uint32 i = 0; i < txtDesc.viewCount; i++)
             {
                 item.rtvs[i] = m_rtvHeap->GetNewHeapHandle();
-                createRTV(srvFormat, i, txtDesc.viewCount - i, item.rtvs[i]);
+                createRTV(GetDXFormat(txtDesc.format), i, txtDesc.viewCount - i, item.rtvs[i]);
             }
         }
 
@@ -1852,7 +1874,7 @@ namespace LinaGX
                 dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
             else
                 dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
-     
+
             item.bindings.push_back(dx12Binding);
         }
 
@@ -3155,6 +3177,10 @@ namespace LinaGX
         UpdateSubresources(stream.list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, static_cast<uint32>(allData.size()) * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
     }
 
+    void DX12Backend::CMD_CopyTexture(uint8* data, DX12CommandStream& stream)
+    {
+    }
+
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)
     {
         CMDBindDescriptorSets* cmd = reinterpret_cast<CMDBindDescriptorSets*>(data);
@@ -3227,7 +3253,7 @@ namespace LinaGX
             }
 
             auto& txt      = m_textures.GetItemR(txtIndex);
-            auto  newState = GetDXTextureBarrierState(barrier.toState, txt.desc.sampledOutsideFragment);
+            auto  newState = GetDXTextureBarrierState(barrier.toState, txt.desc.flags);
 
             // Will decay to common & promoted on first usage.
             if (stream.type == CommandType::Transfer && newState != D3D12_RESOURCE_STATE_COPY_DEST && newState != D3D12_RESOURCE_STATE_COPY_SOURCE)

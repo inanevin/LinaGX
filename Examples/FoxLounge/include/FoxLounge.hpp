@@ -124,8 +124,8 @@ namespace LinaGX
             void SetupGlobalResources();
             void SetupPipelineLayouts();
             void SetupGlobalDescriptorSet();
-            void CreatePasses(bool onlyDynamics);
-            void DestroyPasses(bool onlyDynamics);
+            void CreatePasses(uint32 customWidth, uint32 customHeight);
+            void DestroyPasses();
 
             void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, const LinaGX::DescriptorSetDesc& descriptorDesc, bool isSwapchain = false);
 
@@ -139,9 +139,11 @@ namespace LinaGX
             void BindShader(uint32 target);
             void BindPassSet(PipelineLayoutType layout, uint16 set, uint32 offset, bool useDynamicOffset);
             void ReflectionPass();
-            void CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target);
-            void ExecPassBarriers();
-            void BuildCommands(uint32 frameIndex);
+            void CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth = false);
+            void ExecPassBarriers(LinaGX::CommandStream* stream, uint32 srcStage, uint32 dstStage);
+            void TransferGlobalData(uint32 frameIndex);
+            void BindGlobalSet(uint32 frameIndex);
+            void DeferredRenderScene(uint32 frameIndex, uint32 cameraDataIndex);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;
@@ -165,6 +167,8 @@ namespace LinaGX
 
             std::vector<uint16>                 m_pipelineLayouts;
             std::vector<LinaGX::TextureBarrier> m_passBarriers;
+
+            uint32 m_sceneCubemap = 0;
         };
 
     } // namespace Examples

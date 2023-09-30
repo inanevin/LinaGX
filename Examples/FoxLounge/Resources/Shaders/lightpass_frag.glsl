@@ -3,7 +3,6 @@
 
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 FragColor;
-layout(location = 1) out vec4 IrradianceColor;
 
 #define MAX_BONES 30
 
@@ -99,12 +98,14 @@ void main()
     vec3 N = normalMetallic.rgb;
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - positionAO.rgb);
+	vec3 R = reflect(-V, normalize(vec3(0, 1, 0)));
+	// vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
     vec3 Lo = vec3(0.0);
-
+    
     // calculate per-light radiance
     vec3 lightPos = vec3(sceneData.lightPosition.x, sceneData.lightPosition.y, sceneData.lightPosition.z);
     vec3 lightCol = vec3(sceneData.lightColor.x, sceneData.lightColor.y, sceneData.lightColor.z);
@@ -121,10 +122,13 @@ void main()
        
     vec3 numerator    = NDF * G * F; 
     float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
-    vec3 specular = numerator / denominator;
+    vec3 specular = (numerator / denominator);
     
     // kS is equal to Fresnel
     vec3 kS = F;
+    // vec3 reflectionContribution =  environment.rgb * clamp(0.3 - roughness, 0.0, 1.0);
+    //Lo += reflectionContribution;
+
     // for energy conservation, the diffuse and specular light can't
     // be above 1.0 (unless the surface emits light); to preserve this
     // relationship the diffuse component (kD) should equal 1.0 - kS.
@@ -139,14 +143,10 @@ void main()
 
     // add to outgoing radiance Lo
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
-    
-    vec3 ambient = vec3(0.05) * albedo + Lo;
-    vec3 mapped = vec3(1.0) - exp(-ambient * 1.0f);
-    // FragColor = texture(sampler2D(allTextures[Constants.textureID + 1], allSamplers[Constants.samplerID]), uv);
+
+    vec3 ambient = vec3(0.05) * albedo  + Lo;
+    vec3 mapped = vec3(1.0) - exp(-ambient * 4.2f);
     FragColor = vec4(mapped, 1.0f);
-
-
-    IrradianceColor = vec4(1.0f, 1.0f, 1.0f, 1.0);
 }
 
 
