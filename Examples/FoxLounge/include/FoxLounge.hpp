@@ -131,8 +131,8 @@ namespace LinaGX
             void SetupGlobalResources();
             void SetupPipelineLayouts();
             void SetupGlobalDescriptorSet();
-            void CreatePasses(uint32 customWidth, uint32 customHeight);
-            void DestroyPasses();
+            void CreatePasses(bool isFirst, uint32 customWidth, uint32 customHeight);
+            void DestroyPasses(bool isShutdown);
 
             void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, const LinaGX::DescriptorSetDesc& descriptorDesc, bool isSwapchain = false);
 

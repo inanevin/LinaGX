@@ -1324,32 +1324,38 @@ namespace LinaGX
 
         VK_NAME_OBJECT(item.img, VK_OBJECT_TYPE_IMAGE, txtDesc.debugName, info);
 
-        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_1D;
-
-        if (txtDesc.type == TextureType::Texture3D)
-            viewType = VK_IMAGE_VIEW_TYPE_3D;
-        else if (txtDesc.type == TextureType::Texture2D)
-            viewType = txtDesc.arrayLength == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-        else if (txtDesc.type == TextureType::Texture1D)
-            viewType = txtDesc.arrayLength == 1 ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_1D_ARRAY;
-
-        auto createView = [&](bool useCubeView, uint32 baseArrayLayer, uint32 baseMipLevel, VkImageView& imgView) {
+        auto createView = [&](bool useCubeView, uint32 baseArrayLayer, uint32 layerCount, uint32 baseMipLevel, uint32 mipCount, VkImageView& imgView) {
             VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
             subResRange.aspectMask              = item.aspectFlags;
             subResRange.baseMipLevel            = baseMipLevel;
-            subResRange.levelCount              = VK_REMAINING_MIP_LEVELS;
+            subResRange.levelCount              = mipCount;
             subResRange.baseArrayLayer          = baseArrayLayer;
-            subResRange.layerCount              = VK_REMAINING_ARRAY_LAYERS;
+            subResRange.layerCount              = layerCount;
+
+            VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_1D;
+
+            if (useCubeView)
+                viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+            else
+            {
+                if (txtDesc.type == TextureType::Texture1D)
+                    viewType = subResRange.layerCount > 1 ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
+                if (txtDesc.type == TextureType::Texture2D)
+                    viewType = subResRange.layerCount > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+                if (txtDesc.type == TextureType::Texture3D)
+                    viewType = VK_IMAGE_VIEW_TYPE_3D;
+            }
 
             VkImageViewCreateInfo viewInfo = VkImageViewCreateInfo{};
             viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.pNext                 = nullptr;
             viewInfo.image                 = item.img;
-            viewInfo.viewType              = useCubeView ? VK_IMAGE_VIEW_TYPE_CUBE : viewType;
+            viewInfo.viewType              = viewType;
             viewInfo.format                = GetVKFormat(txtDesc.format);
             viewInfo.subresourceRange      = subResRange;
 
             res = vkCreateImageView(m_device, &viewInfo, m_allocator, &imgView);
+            VK_NAME_OBJECT(imgView, VK_OBJECT_TYPE_IMAGE_VIEW, txtDesc.debugName, name);
             VK_CHECK_RESULT(res, "Failed creating image view.");
         };
 
@@ -1357,8 +1363,12 @@ namespace LinaGX
 
         for (size_t i = 0; i < txtDesc.views.size(); i++)
         {
-            const auto& view = txtDesc.views[i];
-            createView(view.isCubemap, view.baseArrayLevel, view.baseMipLevel, item.imgViews[i]);
+            const auto&  view           = txtDesc.views[i];
+            const uint32 baseLevel      = view.baseArrayLevel;
+            const uint32 remainingLevel = view.levelCount == 0 ? (txtDesc.arrayLength - baseLevel) : view.levelCount;
+            const uint32 baseMip        = view.baseMipLevel;
+            const uint32 remainingMip   = view.mipCount == 0 ? (txtDesc.mipLevels - baseMip) : view.mipCount;
+            createView(view.isCubemap, baseLevel, remainingLevel, baseMip, remainingMip, item.imgViews[i]);
         }
 
         return m_textures.AddItem(item);

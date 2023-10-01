@@ -590,10 +590,15 @@ namespace LinaGX
         TF_Cubemap               = 1 << 8,
     };
 
+    /// <summary>
+    /// mipCount && levelCount -> leave at 0 for REMAINING_MIPS && REMAINING_LAYERS
+    /// </summary>
     struct ViewDesc
     {
         uint32 baseArrayLevel = 0;
         uint32 baseMipLevel   = 0;
+        uint32 mipCount       = 0;
+        uint32 levelCount     = 0;
         bool   isCubemap      = false;
     };
 

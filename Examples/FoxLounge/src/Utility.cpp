@@ -251,7 +251,7 @@ namespace LinaGX::Examples
     {
         LinaGX::TextureDesc desc = {
             .format    = LinaGX::Format::R16G16B16A16_FLOAT,
-            .views     = {{0, 0, false}},
+            .views     = {{0, 0, 0, 0, false}},
             .flags     = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopySource,
             .width     = width,
             .height    = height,
@@ -264,7 +264,7 @@ namespace LinaGX::Examples
     LinaGX::TextureDesc Utility::GetTxtDescCube(const char* debugName, uint32 width, uint32 height)
     {
         std::vector<LinaGX::ViewDesc> views;
-        views.push_back({0, 0, true});
+        views.push_back({0, 0, 0, 0, true});
 
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,
@@ -285,9 +285,9 @@ namespace LinaGX::Examples
         std::vector<LinaGX::ViewDesc> views;
 
         for (uint32 i = 0; i < 6; i++)
-            views.push_back({i, 0, false});
+            views.push_back({i, 0, 0, 0, false});
 
-        views.push_back({0, 0, true});
+        views.push_back({0, 0, 0, 0, true});
 
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,

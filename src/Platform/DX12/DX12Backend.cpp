@@ -1452,13 +1452,13 @@ namespace LinaGX
                 srvDesc.TextureCube.MostDetailedMip = baseMipLevel;
                 srvDesc.TextureCube.MipLevels       = mipLevels;
             }
-            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
+            else if (txtDesc.type == TextureType::Texture1D && layerCount == 1)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE1D;
                 srvDesc.Texture1D.MipLevels       = mipLevels;
                 srvDesc.Texture1D.MostDetailedMip = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
+            else if (txtDesc.type == TextureType::Texture1D && layerCount > 1)
             {
                 srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
                 srvDesc.Texture1DArray.MipLevels       = mipLevels;
@@ -1466,13 +1466,13 @@ namespace LinaGX
                 srvDesc.Texture1DArray.ArraySize       = layerCount;
                 srvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
             }
-            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
+            else if (txtDesc.type == TextureType::Texture2D && layerCount == 1)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE2D;
                 srvDesc.Texture2D.MipLevels       = mipLevels;
                 srvDesc.Texture2D.MostDetailedMip = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
+            else if (txtDesc.type == TextureType::Texture2D && layerCount > 1)
             {
                 srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
                 srvDesc.Texture2DArray.MipLevels       = mipLevels;
@@ -1494,24 +1494,24 @@ namespace LinaGX
             D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
             rtvDesc.Format                        = format;
 
-            if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
+            if (txtDesc.type == TextureType::Texture1D && layerCount == 1)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE1D;
                 rtvDesc.Texture1D.MipSlice = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
+            else if (txtDesc.type == TextureType::Texture1D && layerCount > 1)
             {
                 rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
                 rtvDesc.Texture1DArray.ArraySize       = layerCount;
                 rtvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
                 rtvDesc.Texture1DArray.MipSlice        = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
+            else if (txtDesc.type == TextureType::Texture2D && layerCount == 1)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE2D;
                 rtvDesc.Texture2D.MipSlice = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
+            else if (txtDesc.type == TextureType::Texture2D && layerCount > 1)
             {
                 rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
                 rtvDesc.Texture2DArray.ArraySize       = layerCount;
@@ -1542,9 +1542,9 @@ namespace LinaGX
                 item.srvs[i]     = m_textureHeap->GetNewHeapHandle();
 
                 const uint32 baseLevel      = view.baseArrayLevel;
-                const uint32 remainingLevel = txtDesc.arrayLength - baseLevel;
+                const uint32 remainingLevel = view.levelCount == 0 ? (txtDesc.arrayLength - baseLevel) : view.levelCount;
                 const uint32 baseMip        = view.baseMipLevel;
-                const uint32 remainingMip   = txtDesc.mipLevels - baseMip;
+                const uint32 remainingMip   = view.mipCount == 0 ? (txtDesc.mipLevels - baseMip) : view.mipCount;
                 createSRV(srvFormat, view.isCubemap, baseLevel, remainingLevel, baseMip, remainingMip, item.srvs[i]);
             }
         }
@@ -1563,19 +1563,20 @@ namespace LinaGX
         if (txtDesc.flags & TextureFlags::TF_ColorAttachment)
         {
             // RTV
-            item.rtvs.resize(txtDesc.views.size());
+            item.rtvs.reserve(txtDesc.views.size());
             for (size_t i = 0; i < txtDesc.views.size(); i++)
             {
                 const auto& view = txtDesc.views[i];
                 if (view.isCubemap)
                     continue;
 
-                item.rtvs[i]                = m_rtvHeap->GetNewHeapHandle();
+                auto         rtv            = m_rtvHeap->GetNewHeapHandle();
                 const uint32 baseLevel      = view.baseArrayLevel;
-                const uint32 remainingLevel = txtDesc.arrayLength - baseLevel;
+                const uint32 remainingLevel = view.levelCount == 0 ? (txtDesc.arrayLength - baseLevel) : view.levelCount;
                 const uint32 baseMip        = view.baseMipLevel;
-                const uint32 remainingMip   = txtDesc.mipLevels - baseMip;
-                createRTV(GetDXFormat(txtDesc.format), baseLevel, remainingLevel, baseMip, remainingMip, item.rtvs[i]);
+                const uint32 remainingMip   = view.mipCount == 0 ? (txtDesc.mipLevels - baseMip) : view.mipCount;
+                createRTV(GetDXFormat(txtDesc.format), baseLevel, remainingLevel, baseMip, remainingMip, rtv);
+                item.rtvs.push_back(rtv);
             }
         }
 

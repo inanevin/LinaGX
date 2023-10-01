@@ -65,6 +65,7 @@ FEATURES TO IMPLEMENT
 - metal missing formats.
 - metal minAlignments.
 - data formats, vectors, maps,
+- metal mip map binding and stuff.
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.
