@@ -116,7 +116,7 @@ void main()
   
       // fin normal
       vec3 finalNormal = mix(getNormalFromMap(txtNormal.rgb), vec3(0.0), roughnessFactor);
-      // finalNormal = getNormalFromMap(txtNormal.rgb);
+      finalNormal = getNormalFromMap(txtNormal.rgb);
 
       // fin roughness
       float finalRoughness = clamp(txtMetallicRoughness.g - roughnessFactor, 0.0, 1.0);
@@ -134,7 +134,7 @@ void main()
      vec3 finalNormal = getNormalFromMap(txtNormal.rgb);
 
      outAlbedoRoughness = vec4(txtBaseColor.rgb, txtMetallicRoughness.g * materialData.roughness);
-     outNormalMetallic = vec4(getNormalFromMap(txtNormal.rgb),  txtMetallicRoughness.b * materialData.metallic);
+     outNormalMetallic = vec4(finalNormal,  txtMetallicRoughness.b * materialData.metallic);
      outPositionAO = vec4(inWorldPos, 0.0f);
   }
 	

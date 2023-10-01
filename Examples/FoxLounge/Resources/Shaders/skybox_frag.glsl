@@ -51,7 +51,8 @@ void main()
 	float factor = clamp(normalizedDir.y * 1.67f + 0.940, 0.0f, 1.0f);
 	vec4 color = mix(sceneData.skyColor1, sceneData.skyColor2, factor);
 	float dither = rand(gl_FragCoord.xy) * 0.005; // 0.005 is the dither intensity
-    outAlbedoRoughness = color + vec4(dither, dither, dither, 0.0);
+    outAlbedoRoughness = color + vec4(dither, dither, dither, 0.0f);
+    outAlbedoRoughness.a = -1.0f;
 	outNormalMetallic = vec4(0.0);
 	outPositionAO = vec4(0.0);
 	// outFragColor = mix(sceneData.skyColor1, sceneData.skyColor2, factor);

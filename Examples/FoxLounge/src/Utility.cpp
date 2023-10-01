@@ -177,7 +177,25 @@ namespace LinaGX::Examples
             .stages          = {LinaGX::ShaderStage::Fragment},
         };
 
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
+        LinaGX::DescriptorBinding binding2 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding3 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding4 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3, binding4}};
 
         return desc;
     }
@@ -310,10 +328,10 @@ namespace LinaGX::Examples
         for (uint32 arrLevel = 0; arrLevel < 6; arrLevel++)
         {
             for (uint32 mip = 0; mip < mipLevels; mip++)
-                views.push_back({arrLevel, mip, false});
+                views.push_back({arrLevel, mip, 0, 0, false});
         }
 
-        views.push_back({0, 0, true});
+        views.push_back({0, 0, 0, 0, true});
 
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,

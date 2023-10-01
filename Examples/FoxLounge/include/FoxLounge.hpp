@@ -148,7 +148,7 @@ namespace LinaGX
             void ExecPassBarriers(LinaGX::CommandStream* stream, uint32 srcStage, uint32 dstStage);
             void TransferGlobalData(uint32 frameIndex);
             void BindGlobalSet(uint32 frameIndex);
-            void DeferredRenderScene(uint32 frameIndex, uint16 drawObjFlags, uint32 cameraDataIndex, uint32 width, uint32 height);
+            void DeferredRenderScene(uint32 frameIndex, uint16 drawObjFlags, uint32 cameraDataIndex, uint32 width, uint32 height, bool applyConvulution);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;

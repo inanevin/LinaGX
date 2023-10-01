@@ -66,6 +66,7 @@ FEATURES TO IMPLEMENT
 - metal minAlignments.
 - data formats, vectors, maps,
 - metal mip map binding and stuff.
+- get the format signed unsigned shit back :)
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.
