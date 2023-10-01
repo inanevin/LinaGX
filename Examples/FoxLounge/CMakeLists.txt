@@ -50,6 +50,7 @@ Resources/Shaders/screenquad_frag.glsl
 Resources/Shaders/screenquad_vert.glsl
 Resources/Shaders/lightpass_frag.glsl
 Resources/Shaders/lightpass_vert.glsl
+Resources/Shaders/unlit_frag.glsl
 )
 
 #--------------------------------------------------------------------

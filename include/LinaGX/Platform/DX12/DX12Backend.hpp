@@ -93,9 +93,9 @@ namespace LinaGX
 
     struct DX12Texture2D
     {
-        LINAGX_VEC<DescriptorHandle> srvs    = {};
-        DescriptorHandle             dsv     = {};
-        LINAGX_VEC<DescriptorHandle> rtvs    = {};
+        LINAGX_VEC<DescriptorHandle> srvs = {};
+        DescriptorHandle             dsv  = {};
+        LINAGX_VEC<DescriptorHandle> rtvs = {};
 
         Microsoft::WRL::ComPtr<ID3D12Resource> rawRes             = NULL;
         uint64                                 requiredAlignment  = 0;
@@ -125,6 +125,13 @@ namespace LinaGX
         LINAGX_VEC<uint32> boundDynamicOffsets;
     };
 
+    struct DX12BoundConstant
+    {
+        void*  data   = nullptr;
+        uint32 offset = 0;
+        uint32 size   = 0;
+    };
+
     struct DX12CommandStream
     {
         bool                                               isValid            = false;
@@ -136,6 +143,7 @@ namespace LinaGX
         LINAGX_MAP<uint32, uint64>                         intermediateResources;
         LINAGX_MAP<void*, uint64>                          adjustedBuffers;
         LINAGX_MAP<uint32, DX12BoundDescriptorSet>         boundDescriptorSets;
+        DX12BoundConstant                                  boundConstants;
     };
 
     struct DX12PerFrameData
@@ -243,6 +251,7 @@ namespace LinaGX
         void   DestroyFence(uint16 handle);
         void   WaitForFences(ID3D12Fence* fence, uint64 frameFenceValue);
         void   BindDescriptorSets(DX12CommandStream& stream, DX12Shader& shader);
+        void   BindConstants(DX12CommandStream& stream, DX12Shader& shader);
         void   IncreaseGraphicsFences();
 
     public:
@@ -312,8 +321,8 @@ namespace LinaGX
         LINAGX_VEC<DX12PerFrameData>   m_perFrameData;
         LINAGX_MAP<CommandType, uint8> m_primaryQueues;
 
-        InitInfo            m_initInfo                       = {};
-        std::atomic<uint32> m_submissionPerFrame             = 0;
+        InitInfo            m_initInfo            = {};
+        std::atomic<uint32> m_submissionPerFrame  = 0;
         std::atomic<bool>   m_graphicsFencesDirty = false;
     };
 

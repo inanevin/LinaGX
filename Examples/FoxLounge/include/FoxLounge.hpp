@@ -39,12 +39,6 @@ namespace LinaGX
     namespace Examples
     {
 
-        enum DrawObjectFlags
-        {
-            DrawDefault = 1 << 0,
-            DrawSkybox  = 1 << 1,
-        };
-
         struct PerFrameData
         {
             LinaGX::CommandStream* graphicsStream         = nullptr;
@@ -138,7 +132,7 @@ namespace LinaGX
 
             void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0);
             void EndPass(uint32 frameIndex);
-            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader);
+            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true);
             void DrawCube(uint32 frameIndex);
             void DrawFullscreenQuad(uint32 frameIndex);
             void BindShader(uint32 frameIndex, uint32 target);
@@ -148,8 +142,9 @@ namespace LinaGX
             void ExecPassBarriers(LinaGX::CommandStream* stream, uint32 srcStage, uint32 dstStage);
             void TransferGlobalData(uint32 frameIndex);
             void BindGlobalSet(uint32 frameIndex);
-            void DeferredRenderScene(uint32 frameIndex, uint16 drawObjFlags, uint32 cameraDataIndex, uint32 width, uint32 height, bool applyConvulution);
+            void DeferredRenderScene(uint32 frameIndex, uint16 drawObjFlags, uint32 cameraDataIndex, uint32 width, uint32 height);
             void IrradiancePrefilterBRDF();
+            void DrawShadowmap(uint32 frameIndex);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;

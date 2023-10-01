@@ -58,6 +58,7 @@ namespace LinaGX
             SH_Irradiance,
             SH_Prefilter,
             SH_BRDF,
+            SH_Unlit,
             SH_Max,
         };
 
@@ -69,6 +70,7 @@ namespace LinaGX
             PS_Irradiance,
             PS_Prefilter,
             PS_BRDF,
+            PS_Shadows,
             PS_Max,
         };
 
@@ -76,6 +78,7 @@ namespace LinaGX
         {
             PL_GlobalSet = 0,
             PL_Objects,
+            PL_Simple,
             PL_Lighting,
             PL_FinalQuad,
             PL_Irradiance,
@@ -133,6 +136,12 @@ namespace LinaGX
             LinaGX::LGXVector3 normal   = {};
             // LinaGX::LGXVector4 inBoneIndices = {};
             // LinaGX::LGXVector4 inBoneWeights = {};
+        };
+
+        enum DrawObjectFlags
+        {
+            DrawDefault = 1 << 0,
+            DrawSkybox  = 1 << 1,
         };
 
         struct GPUBuffer

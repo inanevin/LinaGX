@@ -67,6 +67,9 @@ FEATURES TO IMPLEMENT
 - data formats, vectors, maps,
 - metal mip map binding and stuff.
 - get the format signed unsigned shit back :)
+- metal, bind constants similar to descriptor sets.
+- metal, clear the bound descriptor sets in CloseCommandStreams
+- DX12 bound constants ---> use linear allocator instead of constantly memcpying.
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.

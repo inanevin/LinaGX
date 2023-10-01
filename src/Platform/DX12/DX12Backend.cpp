@@ -2660,6 +2660,11 @@ namespace LinaGX
                 ThrowIfFailed(list->Reset(allocator.Get(), nullptr));
                 sr.boundShader        = 0;
                 sr.boundRootSignature = nullptr;
+                sr.boundDescriptorSets.clear();
+                if (sr.boundConstants.data != nullptr)
+                    LINAGX_FREE(sr.boundConstants.data);
+
+                sr.boundConstants = {};
 
                 if (sr.type == CommandType::Graphics || sr.type == CommandType::Compute)
                 {
@@ -3039,6 +3044,15 @@ namespace LinaGX
         }
     }
 
+    void DX12Backend::BindConstants(DX12CommandStream& stream, DX12Shader& shader)
+    {
+        DX12RootParamInfo* param = FindRootParam(&shader.layout.rootParams, DescriptorType::ConstantBlock, shader.layout.constantsBinding, shader.layout.constantsSpace);
+        if (param == nullptr)
+            return;
+
+        stream.list->SetGraphicsRoot32BitConstants(param->rootParameter, stream.boundConstants.size / sizeof(uint32), stream.boundConstants.data, stream.boundConstants.offset / sizeof(uint32));
+    }
+
     void DX12Backend::IncreaseGraphicsFences()
     {
         // Increase & signal, we'll wait for this value next time we are starting this frame index.
@@ -3076,8 +3090,12 @@ namespace LinaGX
             stream.list->SetPipelineState(shader.pso.Get());
         }
 
+        const bool rootSigChanged = stream.boundRootSignature != shader.layout.rootSig.Get();
         stream.boundRootSignature = shader.layout.rootSig.Get();
         stream.boundShader        = cmd->shader;
+
+        if (rootSigChanged)
+            BindConstants(stream, shader);
 
         for (auto& set : stream.boundDescriptorSets)
             set.second.isDirty = true;
@@ -3264,11 +3282,25 @@ namespace LinaGX
 
     void DX12Backend::CMD_BindConstants(uint8* data, DX12CommandStream& stream)
     {
-        CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
-        auto&             shader = m_shaders.GetItemR(stream.boundShader);
+        CMDBindConstants* cmd = reinterpret_cast<CMDBindConstants*>(data);
+        // auto&              shader = m_shaders.GetItemR(stream.boundShader);
+        // DX12RootParamInfo* param  = FindRootParam(&shader.layout.rootParams, DescriptorType::ConstantBlock, shader.layout.constantsBinding, shader.layout.constantsSpace);
+        // stream.list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
 
-        DX12RootParamInfo* param = FindRootParam(&shader.layout.rootParams, DescriptorType::ConstantBlock, shader.layout.constantsBinding, shader.layout.constantsSpace);
-        stream.list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
+        if (stream.boundConstants.data != nullptr)
+            LINAGX_FREE(stream.boundConstants.data);
+
+        stream.boundConstants.data = LINAGX_MALLOC(cmd->size);
+        LINAGX_MEMCPY(stream.boundConstants.data, cmd->data, cmd->size);
+
+        stream.boundConstants.offset = cmd->offset;
+        stream.boundConstants.size   = cmd->size;
+
+        if (stream.boundRootSignature == nullptr)
+            return;
+
+        auto& shader = m_shaders.GetItemR(stream.boundShader);
+        BindConstants(stream, shader);
     }
 
     void DX12Backend::CMD_Dispatch(uint8* data, DX12CommandStream& stream)
