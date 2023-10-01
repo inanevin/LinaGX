@@ -1094,119 +1094,14 @@ namespace LinaGX::Examples
         m_camera.Initialize(m_lgx);
         m_camera.Tick(0.016f);
 
-        for (uint32 frame = 0; frame < FRAMES_IN_FLIGHT; frame++)
-        {
-            auto& pfd = m_pfd[frame];
-
-            TransferGlobalData(frame);
-            BindGlobalSet(frame);
-
-            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
-
-            for (uint32 i = 0; i < 6; i++)
-            {
-                DeferredRenderScene(frame, DrawObjectFlags::DrawSkybox, i + 1, ENVIRONMENT_MAP_RES, ENVIRONMENT_MAP_RES, false);
-
-                {
-                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::TransferSource, LinaGX::AF_MemoryRead, LinaGX::AF_TransferRead);
-
-                    LinaGX::TextureBarrier barrier = {};
-                    barrier.toState                = LinaGX::TextureBarrierState::TransferDestination;
-                    barrier.texture                = m_sceneCubemap;
-                    barrier.isSwapchain            = false;
-                    barrier.srcAccessFlags         = AF_MemoryRead | AF_MemoryWrite;
-                    barrier.dstAccessFlags         = AF_TransferWrite;
-                    m_passBarriers.push_back(barrier);
-                    ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_Transfer);
-                }
-
-                LinaGX::CMDCopyTexture* copyTexture = pfd.graphicsStream->AddCommand<LinaGX::CMDCopyTexture>();
-                copyTexture->extension              = nullptr;
-                copyTexture->srcTexture             = m_passes[PassType::PS_Lighting].renderTargets[frame].colorAttachments[0].texture;
-                copyTexture->dstTexture             = m_sceneCubemap;
-                copyTexture->dstLayer               = i;
-                copyTexture->srcLayer               = 0;
-                copyTexture->dstMip                 = 0;
-                copyTexture->srcMip                 = 0;
-
-                {
-                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_TransferRead, LinaGX::AF_MemoryRead);
-                    LinaGX::TextureBarrier barrier = {};
-                    barrier.toState                = LinaGX::TextureBarrierState::ShaderRead;
-                    barrier.texture                = m_sceneCubemap;
-                    barrier.isSwapchain            = false;
-                    barrier.srcAccessFlags         = LinaGX::AF_TransferWrite;
-                    barrier.dstAccessFlags         = 0;
-                    m_passBarriers.push_back(barrier);
-                    ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_Transfer, LinaGX::PSF_TopOfPipe);
-                }
-            }
-
-            CollectPassBarrier(frame, PassType::PS_Irradiance, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-            CollectPassBarrier(frame, PassType::PS_Prefilter, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-            CollectPassBarrier(frame, PassType::PS_BRDF, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment);
-
-            for (uint32 i = 0; i < 6; i++)
-            {
-                const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), GPUInfo.minConstantBufferOffsetAlignment);
-
-                BindPassSet(frame, PipelineLayoutType::PL_Irradiance, m_passes[PS_Irradiance].descriptorSets[frame], camDataPadded + camDataPadded * i, true);
-                BeginPass(frame, PassType::PS_Irradiance, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES, i);
-                BindShader(frame, Shader::SH_Irradiance);
-                DrawCube(frame);
-                EndPass(frame);
-            }
-
-            for (uint32 mip = 0; mip < PREFILTER_MIP_LEVELS; mip++)
-            {
-                unsigned int mipWidth  = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
-                unsigned int mipHeight = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
-
-                GPUConstants constants       = {};
-                constants.int1               = static_cast<int>(static_cast<float>(mip) / static_cast<float>(PREFILTER_MIP_LEVELS - 1) * 100.0f);
-                constants.int2               = 0;
-                LinaGX::CMDBindConstants* ct = pfd.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-                ct->extension                = nullptr;
-                ct->offset                   = 0;
-                ct->size                     = sizeof(GPUConstants);
-                ct->stages                   = pfd.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
-                ct->stagesSize               = 2;
-                ct->data                     = pfd.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
-                for (uint32 i = 0; i < 6; i++)
-                {
-                    const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), GPUInfo.minConstantBufferOffsetAlignment);
-                    BindPassSet(frame, PipelineLayoutType::PL_Irradiance, m_passes[PS_Prefilter].descriptorSets[frame], camDataPadded + camDataPadded * i, true);
-                    BeginPass(frame, PassType::PS_Prefilter, mipWidth, mipHeight, i * PREFILTER_MIP_LEVELS + mip);
-                    BindShader(frame, Shader::SH_Prefilter);
-                    DrawCube(frame);
-                    EndPass(frame);
-                }
-            }
-
-            BeginPass(frame, PassType::PS_BRDF, BRDF_MAP_RES, BRDF_MAP_RES);
-            BindShader(frame, Shader::SH_BRDF);
-            DrawFullscreenQuad(frame);
-            EndPass(frame);
-
-            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
-
-            m_lgx->CloseCommandStreams(&pfd.graphicsStream, 1);
-            m_lgx->SubmitCommandStreams({.targetQueue = m_lgx->GetPrimaryQueue(CommandType::Graphics), .streams = &pfd.graphicsStream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &pfd.transferSemaphore, .waitValues = &pfd.transferSemaphoreValue});
-        }
-
+        // Generate environment cubemap, irradiance map, convolution prefilter map and BRDF LUT texture.
+        IrradiancePrefilterBRDF();
         m_lgx->Join();
 
-        // Create def resolution passes (window res)
-
+        // Re-create passes with window resolution.
         DestroyPasses(false);
         CreatePasses(false, 0, 0);
+
         LOGT("All init OK! Starting frames...");
     }
 
@@ -1653,6 +1548,116 @@ namespace LinaGX::Examples
 
         CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
+    }
+
+    void Example::IrradiancePrefilterBRDF()
+    {
+        for (uint32 frame = 0; frame < FRAMES_IN_FLIGHT; frame++)
+        {
+            auto& pfd = m_pfd[frame];
+
+            TransferGlobalData(frame);
+            BindGlobalSet(frame);
+
+            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
+
+            for (uint32 i = 0; i < 6; i++)
+            {
+                DeferredRenderScene(frame, DrawObjectFlags::DrawSkybox, i + 1, ENVIRONMENT_MAP_RES, ENVIRONMENT_MAP_RES, false);
+
+                {
+                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::TransferSource, LinaGX::AF_MemoryRead, LinaGX::AF_TransferRead);
+
+                    LinaGX::TextureBarrier barrier = {};
+                    barrier.toState                = LinaGX::TextureBarrierState::TransferDestination;
+                    barrier.texture                = m_sceneCubemap;
+                    barrier.isSwapchain            = false;
+                    barrier.srcAccessFlags         = AF_MemoryRead | AF_MemoryWrite;
+                    barrier.dstAccessFlags         = AF_TransferWrite;
+                    m_passBarriers.push_back(barrier);
+                    ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_Transfer);
+                }
+
+                LinaGX::CMDCopyTexture* copyTexture = pfd.graphicsStream->AddCommand<LinaGX::CMDCopyTexture>();
+                copyTexture->extension              = nullptr;
+                copyTexture->srcTexture             = m_passes[PassType::PS_Lighting].renderTargets[frame].colorAttachments[0].texture;
+                copyTexture->dstTexture             = m_sceneCubemap;
+                copyTexture->dstLayer               = i;
+                copyTexture->srcLayer               = 0;
+                copyTexture->dstMip                 = 0;
+                copyTexture->srcMip                 = 0;
+
+                {
+                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_TransferRead, LinaGX::AF_MemoryRead);
+                    LinaGX::TextureBarrier barrier = {};
+                    barrier.toState                = LinaGX::TextureBarrierState::ShaderRead;
+                    barrier.texture                = m_sceneCubemap;
+                    barrier.isSwapchain            = false;
+                    barrier.srcAccessFlags         = LinaGX::AF_TransferWrite;
+                    barrier.dstAccessFlags         = 0;
+                    m_passBarriers.push_back(barrier);
+                    ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_Transfer, LinaGX::PSF_TopOfPipe);
+                }
+            }
+
+            CollectPassBarrier(frame, PassType::PS_Irradiance, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+            CollectPassBarrier(frame, PassType::PS_Prefilter, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+            CollectPassBarrier(frame, PassType::PS_BRDF, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment);
+
+            for (uint32 i = 0; i < 6; i++)
+            {
+                const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), GPUInfo.minConstantBufferOffsetAlignment);
+
+                BindPassSet(frame, PipelineLayoutType::PL_Irradiance, m_passes[PS_Irradiance].descriptorSets[frame], camDataPadded + camDataPadded * i, true);
+                BeginPass(frame, PassType::PS_Irradiance, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES, i);
+                BindShader(frame, Shader::SH_Irradiance);
+                DrawCube(frame);
+                EndPass(frame);
+            }
+
+            for (uint32 mip = 0; mip < PREFILTER_MIP_LEVELS; mip++)
+            {
+                unsigned int mipWidth  = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
+                unsigned int mipHeight = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
+
+                GPUConstants constants       = {};
+                constants.int1               = static_cast<int>(static_cast<float>(mip) / static_cast<float>(PREFILTER_MIP_LEVELS - 1) * 100.0f);
+                constants.int2               = 0;
+                LinaGX::CMDBindConstants* ct = pfd.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
+                ct->extension                = nullptr;
+                ct->offset                   = 0;
+                ct->size                     = sizeof(GPUConstants);
+                ct->stages                   = pfd.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
+                ct->stagesSize               = 2;
+                ct->data                     = pfd.graphicsStream->EmplaceAuxMemory<GPUConstants>(constants);
+                for (uint32 i = 0; i < 6; i++)
+                {
+                    const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), GPUInfo.minConstantBufferOffsetAlignment);
+                    BindPassSet(frame, PipelineLayoutType::PL_Irradiance, m_passes[PS_Prefilter].descriptorSets[frame], camDataPadded + camDataPadded * i, true);
+                    BeginPass(frame, PassType::PS_Prefilter, mipWidth, mipHeight, i * PREFILTER_MIP_LEVELS + mip);
+                    BindShader(frame, Shader::SH_Prefilter);
+                    DrawCube(frame);
+                    EndPass(frame);
+                }
+            }
+
+            BeginPass(frame, PassType::PS_BRDF, BRDF_MAP_RES, BRDF_MAP_RES);
+            BindShader(frame, Shader::SH_BRDF);
+            DrawFullscreenQuad(frame);
+            EndPass(frame);
+
+            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
+
+            m_lgx->CloseCommandStreams(&pfd.graphicsStream, 1);
+            m_lgx->SubmitCommandStreams({.targetQueue = m_lgx->GetPrimaryQueue(CommandType::Graphics), .streams = &pfd.graphicsStream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &pfd.transferSemaphore, .waitValues = &pfd.transferSemaphoreValue});
+        }
     }
 
     void Example::OnTick()
