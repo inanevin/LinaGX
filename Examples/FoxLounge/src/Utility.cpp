@@ -172,7 +172,7 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding1 = {
-            .descriptorCount = 3,
+            .descriptorCount = 4,
             .type            = LinaGX::DescriptorType::SeparateImage,
             .stages          = {LinaGX::ShaderStage::Fragment},
         };

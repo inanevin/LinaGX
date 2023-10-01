@@ -2,7 +2,8 @@
 layout (location = 0) in vec3 inWorldPos;
 layout(location = 0) out vec4 outAlbedoRoughness;
 layout(location = 1) out vec4 outNormalMetallic;
-layout(location = 2) out vec4 outPositionAO;
+layout(location = 2) out vec4 outPosition;
+layout(location = 3) out vec4 outEmission;
 
 #define MAX_BONES 30
 
@@ -54,7 +55,8 @@ void main()
     outAlbedoRoughness = color + vec4(dither, dither, dither, 0.0f);
     outAlbedoRoughness.a = -1.0f;
 	outNormalMetallic = vec4(0.0);
-	outPositionAO = vec4(0.0);
+	outPosition = vec4(0.0);
+    outEmission = vec4(0.0);
 	// outFragColor = mix(sceneData.skyColor1, sceneData.skyColor2, factor);
 	// outFragColor = vec4(inWorldPos, 1.0f);
 }

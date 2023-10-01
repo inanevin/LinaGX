@@ -7,7 +7,8 @@ layout(location = 1) in vec3 inWorldPos;
 layout(location = 2) in vec3 inNormal;
 layout(location = 0) out vec4 outAlbedoRoughness;
 layout(location = 1) out vec4 outNormalMetallic;
-layout(location = 2) out vec4 outPositionAO;
+layout(location = 2) out vec4 outPosition;
+layout(location = 3) out vec4 outEmission;
 
 #define MAX_BONES 30
 
@@ -123,19 +124,21 @@ void main()
   
 	  outAlbedoRoughness = vec4(finalBaseColor.rgb, finalRoughness);
       outNormalMetallic = vec4(finalNormal, 0.0f);
-      outPositionAO = vec4(inWorldPos, 0.0f);
+      outPosition = vec4(inWorldPos, 0.0f);
+      outEmission = vec4(0.0f);
   }
   else
   {
      vec4 txtEmissive = texture(sampler2D(textures[3], defaultSampler), inUV) * materialData.emissiveFac;
-	 vec4 txtBaseColor = texture(sampler2D(textures[0], defaultSampler), inUV) * materialData.baseColorFac + txtEmissive;
+	 vec4 txtBaseColor = texture(sampler2D(textures[0], defaultSampler), inUV) * materialData.baseColorFac;
 	 vec4 txtNormal = texture(sampler2D(textures[1], defaultSampler), inUV);
 	 vec4 txtMetallicRoughness = texture(sampler2D(textures[2], defaultSampler), inUV);
      vec3 finalNormal = getNormalFromMap(txtNormal.rgb);
 
      outAlbedoRoughness = vec4(txtBaseColor.rgb, txtMetallicRoughness.g * materialData.roughness);
      outNormalMetallic = vec4(finalNormal,  txtMetallicRoughness.b * materialData.metallic);
-     outPositionAO = vec4(inWorldPos, 0.0f);
+     outPosition = vec4(inWorldPos, 0.0f);
+     outEmission = txtEmissive;
   }
 	
 }

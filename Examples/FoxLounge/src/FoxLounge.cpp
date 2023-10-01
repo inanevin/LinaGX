@@ -192,7 +192,7 @@ namespace LinaGX::Examples
             if (it != mat.textureIndices.end())
             {
                 mat.gpuMat.emissive    = it->second;
-                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 0.0f;
+                mat.gpuMat.emissiveFac = glm::vec4(1, 1, 1, 1) * 34.0f;
             }
             else
             {
@@ -659,9 +659,9 @@ namespace LinaGX::Examples
         LOGT("Compiling shaders...");
         m_shaders.resize(Shader::SH_Max);
         m_shaders[Shader::SH_Lighting]   = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Lighting], "Deferred Lighpass Shader");
-        m_shaders[Shader::SH_Default]    = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 3, true, m_pipelineLayouts[PL_Objects], "PBR Default Shader");
+        m_shaders[Shader::SH_Default]    = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "PBR Default Shader");
         m_shaders[Shader::SH_Quad]       = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuad], "Final Quad Shader");
-        m_shaders[Shader::SH_Skybox]     = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, 3, true, m_pipelineLayouts[PL_Objects], "Skybox Shader");
+        m_shaders[Shader::SH_Skybox]     = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "Skybox Shader");
         m_shaders[Shader::SH_Irradiance] = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/irradiance_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Irradiance Shader");
         m_shaders[Shader::SH_Prefilter]  = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/prefilter_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Prefilter Shader");
         m_shaders[Shader::SH_BRDF]       = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/brdf_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuad], "BRDF Shader");
@@ -797,9 +797,10 @@ namespace LinaGX::Examples
         {
             const auto& rtDescObjects1 = Utility::GetRTDesc("GBuf AlbedoRoughness", customWidth, customHeight);
             const auto& rtDescObjects2 = Utility::GetRTDesc("GBuf NormalMetallic", customWidth, customHeight);
-            const auto& rtDescObjects3 = Utility::GetRTDesc("GBuf PositionAO", customWidth, customHeight);
+            const auto& rtDescObjects3 = Utility::GetRTDesc("GBuf Position", customWidth, customHeight);
+            const auto& rtDescObjects4 = Utility::GetRTDesc("GBuf Emission", customWidth, customHeight);
             const auto& depthDesc      = Utility::GetDepthDesc("GBuf Depth", customWidth, customHeight);
-            SetupPass(PassType::PS_Objects, {rtDescObjects1, rtDescObjects2, rtDescObjects3}, true, depthDesc, Utility::GetSetDescriptionObjectPass());
+            SetupPass(PassType::PS_Objects, {rtDescObjects1, rtDescObjects2, rtDescObjects3, rtDescObjects4}, true, depthDesc, Utility::GetSetDescriptionObjectPass());
 
             const auto& rtDescLighting = Utility::GetRTDesc("Lighting", customWidth, customHeight);
             SetupPass(PassType::PS_Lighting, {rtDescLighting}, false, {}, Utility::GetSetDescriptionLightingPass());
@@ -853,13 +854,17 @@ namespace LinaGX::Examples
                     .buffers   = {m_pfd[i].rscCameraData0},
                     .ranges    = {sizeof(GPUCameraData)},
                 };
-
                 m_lgx->DescriptorUpdateBuffer(bufferUpdate);
 
                 LinaGX::DescriptorUpdateImageDesc updateGBuf = {
                     .setHandle = m_passes[PS_Lighting].descriptorSets[i],
                     .binding   = 1,
-                    .textures  = {m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[0].texture, m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[1].texture, m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[2].texture},
+                    .textures  = {
+                        m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[0].texture,
+                        m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[1].texture,
+                        m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[2].texture,
+                        m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[3].texture,
+                    },
                 };
 
                 m_lgx->DescriptorUpdateImage(updateGBuf);
@@ -1691,12 +1696,19 @@ namespace LinaGX::Examples
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
         {
+            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[3].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[3].texture;
+            dbgUpdate       = true;
+        }
+
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_6))
+        {
             dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].depthStencilAttachment.texture;
             dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].depthStencilAttachment.texture;
             dbgUpdate       = true;
         }
 
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_6))
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_7))
         {
             dbgUpdateTxt[0] = m_passes[PassType::PS_BRDF].renderTargets[0].colorAttachments[0].texture;
             dbgUpdateTxt[1] = m_passes[PassType::PS_BRDF].renderTargets[1].colorAttachments[0].texture;

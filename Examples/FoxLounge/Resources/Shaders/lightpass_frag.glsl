@@ -38,7 +38,7 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 camPos;
 } cameraData;
 
-layout (set = 1, binding = 1) uniform texture2D inputTextures[3];
+layout (set = 1, binding = 1) uniform texture2D inputTextures[4];
 layout (set = 1, binding = 2) uniform textureCube irradianceMap;
 layout (set = 1, binding = 3) uniform textureCube prefilterMap;
 layout (set = 1, binding = 4) uniform texture2D brdfLUT;
@@ -112,14 +112,15 @@ void main()
     }
 
     vec4 normalMetallic = texture(sampler2D(inputTextures[1], defaultSampler), uv);
-    vec4 positionAO = texture(sampler2D(inputTextures[2], defaultSampler), uv);
+    vec4 position = texture(sampler2D(inputTextures[2], defaultSampler), uv);
+    vec4 emission = texture(sampler2D(inputTextures[3], defaultSampler), uv);
 
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
     float roughness = albedoRoughness.a;
     vec3 N = normalMetallic.rgb;
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
-    vec3 V = normalize(camPos - positionAO.rgb);
+    vec3 V = normalize(camPos - position.rgb);
 	vec3 R = reflect(-V, N);
 	// vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
 
@@ -133,9 +134,9 @@ void main()
     vec3 lightCol = vec3(sceneData.lightColor.x, sceneData.lightColor.y, sceneData.lightColor.z);
 
     {
-        vec3 L = normalize(lightPos - positionAO.rgb);
+        vec3 L = normalize(lightPos - position.rgb);
         vec3 H = normalize(V + L);
-        float distance = length(lightPos - positionAO.rgb);
+        float distance = length(lightPos - position.rgb);
         float attenuation = 1.0 / (distance * distance);
         vec3 radiance = lightCol * attenuation;
 
@@ -191,6 +192,8 @@ void main()
         vec3 ambient = (kD * diffuse + specular * ao);
         color = ambient + Lo;
     }
+
+    color += emission.rgb;
 
     vec3 mapped = vec3(1.0) - exp(-color * 0.2f);
     FragColor = vec4(mapped, 1.0f);
