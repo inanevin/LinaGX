@@ -543,6 +543,14 @@ namespace LinaGX
         const char*                       debugName               = "LinaGXShader";
     };
 
+    struct CommandStreamDesc
+    {
+        uint32      commandCount  = 0;
+        CommandType type          = CommandType::Graphics;
+        uint32      auxMemorySize = 4096;
+        const char* debugName     = "LinaGXCommandStream";
+    };
+
     struct Viewport
     {
         uint32 x;
@@ -582,20 +590,25 @@ namespace LinaGX
         TF_Cubemap               = 1 << 8,
     };
 
+    struct ViewDesc
+    {
+        uint32 baseArrayLevel = 0;
+        uint32 baseMipLevel   = 0;
+        bool   isCubemap      = false;
+    };
+
     struct TextureDesc
     {
-        // TextureUsage       usage              = TextureUsage::ColorTexture;
-        TextureType type                     = TextureType::Texture2D;
-        Format      format                   = Format::R8G8B8A8_SRGB;
-        Format      depthStencilSampleFormat = Format::R32_FLOAT;
-        // DepthStencilAspect depthStencilAspect = DepthStencilAspect::DepthStencil;
-        uint16      flags       = 0;
-        uint32      width       = 0;
-        uint32      height      = 0;
-        uint32      mipLevels   = 1;
-        uint32      arrayLength = 1;
-        uint32      viewCount   = 1;
-        const char* debugName   = "LinaGXTexture";
+        TextureType          type                     = TextureType::Texture2D;
+        Format               format                   = Format::R8G8B8A8_SRGB;
+        Format               depthStencilSampleFormat = Format::R32_FLOAT;
+        LINAGX_VEC<ViewDesc> views                    = {{0, 0, false}};
+        uint16               flags                    = 0;
+        uint32               width                    = 0;
+        uint32               height                   = 0;
+        uint32               mipLevels                = 1;
+        uint32               arrayLength              = 1;
+        const char*          debugName                = "LinaGXTexture";
     };
 
     struct SamplerDesc
@@ -629,10 +642,11 @@ namespace LinaGX
 
     struct DescriptorUpdateImageDesc
     {
-        uint16             setHandle = 0;
-        uint32             binding   = 0;
-        LINAGX_VEC<uint32> textures  = {};
-        LINAGX_VEC<uint32> samplers  = {};
+        uint16             setHandle          = 0;
+        uint32             binding            = 0;
+        LINAGX_VEC<uint32> textures           = {};
+        LINAGX_VEC<uint32> samplers           = {};
+        LINAGX_VEC<uint32> textureViewIndices = {};
     };
 
     struct DescriptorUpdateBufferDesc

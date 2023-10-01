@@ -150,7 +150,7 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding2 = {
-            .descriptorCount = 1, // max amt.
+            .descriptorCount = 1,
             .type            = LinaGX::DescriptorType::SeparateSampler,
             .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
@@ -227,10 +227,31 @@ namespace LinaGX::Examples
         return desc;
     }
 
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionIrradiancePass()
+    {
+        LinaGX::DescriptorBinding binding0 = {
+            .descriptorCount  = 1,
+            .type             = LinaGX::DescriptorType::UBO,
+            .useDynamicOffset = true,
+            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding1 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
+
+        return desc;
+    }
+
     LinaGX::TextureDesc Utility::GetRTDesc(const char* debugName, uint32 width, uint32 height)
     {
         LinaGX::TextureDesc desc = {
             .format    = LinaGX::Format::R16G16B16A16_FLOAT,
+            .views     = {{0, 0, false}},
             .flags     = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopySource,
             .width     = width,
             .height    = height,
@@ -240,16 +261,70 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    LinaGX::TextureDesc Utility::GetRTDescCube(const char* debugName, uint32 width, uint32 height)
+    LinaGX::TextureDesc Utility::GetTxtDescCube(const char* debugName, uint32 width, uint32 height)
     {
+        std::vector<LinaGX::ViewDesc> views;
+        views.push_back({0, 0, true});
+
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,
             .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .views       = views,
             .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
             .width       = width,
             .height      = height,
             .arrayLength = 6,
-            .viewCount   = 6,
+            .debugName   = debugName,
+        };
+
+        return desc;
+    }
+
+    LinaGX::TextureDesc Utility::GetRTDescCube(const char* debugName, uint32 width, uint32 height)
+    {
+        std::vector<LinaGX::ViewDesc> views;
+
+        for (uint32 i = 0; i < 6; i++)
+            views.push_back({i, 0, false});
+
+        views.push_back({0, 0, true});
+
+        LinaGX::TextureDesc desc{
+            .type        = LinaGX::TextureType::Texture2D,
+            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .views       = views,
+            .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
+            .width       = width,
+            .height      = height,
+            .arrayLength = 6,
+            .debugName   = debugName,
+        };
+
+        return desc;
+    }
+
+    LinaGX::TextureDesc Utility::GetRTDescPrefilter(const char* debugName, uint32 width, uint32 height, uint32 mipLevels)
+    {
+        std::vector<LinaGX::ViewDesc> views;
+
+        for (uint32 arrLevel = 0; arrLevel < 6; arrLevel++)
+        {
+            for (uint32 mip = 0; mip < mipLevels; mip++)
+                views.push_back({arrLevel, mip, false});
+        }
+
+        views.push_back({0, 0, true});
+
+        LinaGX::TextureDesc desc{
+            .type        = LinaGX::TextureType::Texture2D,
+            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .views       = views,
+            .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
+            .width       = width,
+            .height      = height,
+            .mipLevels   = mipLevels,
+            .arrayLength = 6,
+            .debugName   = debugName,
         };
 
         return desc;
@@ -259,6 +334,7 @@ namespace LinaGX::Examples
     {
         LinaGX::TextureDesc desc = {
             .format    = LinaGX::Format::D32_SFLOAT,
+            .views     = {{0, 0, false}},
             .flags     = TextureFlags::TF_Sampled | TextureFlags::TF_DepthTexture,
             .width     = width,
             .height    = height,

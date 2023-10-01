@@ -41,7 +41,7 @@ namespace LinaGX
         StoreOp    storeOp;
         LGXVector4 clearColor;
         uint32     texture;
-        uint32     layer;
+        uint32     viewIndex;
         bool       isSwapchain = false;
     };
 
@@ -56,7 +56,7 @@ namespace LinaGX
         LoadOp  stencilLoadOp;
         StoreOp stencilStoreOp;
         uint32  clearStencil;
-        uint32  layer;
+        uint32  viewIndex;
     };
 
     struct CMDBeginRenderPass
@@ -158,6 +158,8 @@ namespace LinaGX
         uint32 dstTexture;
         uint32 srcLayer;
         uint32 dstLayer;
+        uint32 srcMip;
+        uint32 dstMip;
     };
 
     struct CMDBindVertexBuffers

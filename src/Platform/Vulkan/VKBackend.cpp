@@ -1255,17 +1255,12 @@ namespace LinaGX
             LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
         }
 
-        if (txtDesc.viewCount > txtDesc.arrayLength)
-        {
-            LOGA(false, "Backend -> View count can't be bigger than array length!");
-        }
-
         if ((txtDesc.flags & TextureFlags::TF_ColorAttachment) && ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture)))
         {
             LOGA(false, "Backend -> A texture can not have both color attachment and depth or stencil texture flags!");
         }
 
-        LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && txtDesc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
+        LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && static_cast<uint32>(txtDesc.views.size()) != 0, "Backend -> Mip levels, array length or view count can't be zero!");
 
         VKBTexture2D item = {};
         item.flags        = txtDesc.flags;
@@ -1338,13 +1333,13 @@ namespace LinaGX
         else if (txtDesc.type == TextureType::Texture1D)
             viewType = txtDesc.arrayLength == 1 ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_1D_ARRAY;
 
-        auto createView = [&](bool useCubeView, uint32 baseArrayLayer, uint32 layerCount, VkImageView& imgView) {
+        auto createView = [&](bool useCubeView, uint32 baseArrayLayer, uint32 baseMipLevel, VkImageView& imgView) {
             VkImageSubresourceRange subResRange = VkImageSubresourceRange{};
             subResRange.aspectMask              = item.aspectFlags;
-            subResRange.baseMipLevel            = 0;
-            subResRange.levelCount              = txtDesc.mipLevels;
+            subResRange.baseMipLevel            = baseMipLevel;
+            subResRange.levelCount              = VK_REMAINING_MIP_LEVELS;
             subResRange.baseArrayLayer          = baseArrayLayer;
-            subResRange.layerCount              = layerCount;
+            subResRange.layerCount              = VK_REMAINING_ARRAY_LAYERS;
 
             VkImageViewCreateInfo viewInfo = VkImageViewCreateInfo{};
             viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1358,13 +1353,13 @@ namespace LinaGX
             VK_CHECK_RESULT(res, "Failed creating image view.");
         };
 
-        item.imgViews.resize(txtDesc.viewCount);
+        item.imgViews.resize(txtDesc.views.size());
 
-        for (uint32 i = 0; i < txtDesc.viewCount; i++)
-            createView(false, i, txtDesc.viewCount - i, item.imgViews[i]);
-
-        if (txtDesc.flags & TextureFlags::TF_Cubemap)
-            createView(true, 0, 6, item.cubeView);
+        for (size_t i = 0; i < txtDesc.views.size(); i++)
+        {
+            const auto& view = txtDesc.views[i];
+            createView(view.isCubemap, view.baseArrayLevel, view.baseMipLevel, item.imgViews[i]);
+        }
 
         return m_textures.AddItem(item);
     }
@@ -1380,9 +1375,6 @@ namespace LinaGX
 
         for (auto view : txt.imgViews)
             vkDestroyImageView(m_device, view, m_allocator);
-
-        if (txt.flags & TextureFlags::TF_Cubemap)
-            vkDestroyImageView(m_device, txt.cubeView, m_allocator);
 
         vmaDestroyImage(m_vmaAllocator, txt.img, txt.allocation);
 
@@ -1684,12 +1676,10 @@ namespace LinaGX
             {
                 auto& txt = m_textures.GetItemR(desc.textures[i]);
 
-                // If cubemap, we currently force-bind only the cubemap view
-                // If not, user can choose array later to bind, or bind the base layer, which will have access to remaining layers.
-                if (txt.flags & TextureFlags::TF_Cubemap)
-                    imgInfo.imageView = txt.cubeView;
+                if (desc.textureViewIndices.empty())
+                    imgInfo.imageView = txt.imgViews[0];
                 else
-                    imgInfo.imageView = m_textures.GetItemR(desc.textures[i]).imgViews[0];
+                    imgInfo.imageView = txt.imgViews[desc.textureViewIndices[i]];
 
                 imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
@@ -1764,13 +1754,13 @@ namespace LinaGX
         m_pipelineLayouts.RemoveItem(layout);
     }
 
-    uint32 VKBackend::CreateCommandStream(CommandType cmdType)
+    uint32 VKBackend::CreateCommandStream(const CommandStreamDesc& desc)
     {
         VKBCommandStream item = {};
         item.isValid          = true;
-        item.type             = cmdType;
+        item.type             = desc.type;
 
-        const uint32 familyIndex = m_queueData[cmdType == CommandType::Secondary ? CommandType::Graphics : cmdType].familyIndex;
+        const uint32 familyIndex = m_queueData[desc.type == CommandType::Secondary ? CommandType::Graphics : desc.type].familyIndex;
 
         VkCommandPoolCreateInfo commandPoolInfo = VkCommandPoolCreateInfo{};
         commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1785,13 +1775,14 @@ namespace LinaGX
         cmdAllocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cmdAllocInfo.pNext                       = nullptr;
         cmdAllocInfo.commandPool                 = item.pool;
-        cmdAllocInfo.level                       = cmdType == CommandType::Secondary ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdAllocInfo.level                       = desc.type == CommandType::Secondary ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         cmdAllocInfo.commandBufferCount          = 1;
 
         VkCommandBuffer b = nullptr;
         result            = vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &item.buffer);
         VK_CHECK_RESULT(result, "Failed allocating command buffers");
 
+        VK_NAME_OBJECT(item.buffer, VK_OBJECT_TYPE_COMMAND_BUFFER, desc.debugName, nameInfo);
         return m_cmdStreams.AddItem(item);
     }
 
@@ -2898,7 +2889,7 @@ namespace LinaGX
             else
             {
                 const auto& txt = m_textures.GetItemR(att.texture);
-                imageViews[i]   = txt.imgViews[att.layer];
+                imageViews[i]   = txt.imgViews[att.viewIndex];
                 images[i]       = txt.img;
             }
 
@@ -3174,15 +3165,15 @@ namespace LinaGX
         const auto&     srcTxt = m_textures.GetItemR(cmd->srcTexture);
         const auto&     dstTxt = m_textures.GetItemR(cmd->dstTexture);
 
-        if (cmd->srcLayer >= srcTxt.imgViews.size())
+        if (cmd->srcLayer >= srcTxt.arrayLength)
         {
             LOGE("Backend -> CMDCopyTexture source texture layer is bigger than total layers in the texture, aborting!");
             return;
         }
 
-        if (cmd->dstLayer >= dstTxt.imgViews.size())
+        if (cmd->dstLayer >= dstTxt.arrayLength)
         {
-            LOGE("Backend -> CMDCopyTexture source texture layer is bigger than total layers in the texture, aborting!");
+            LOGE("Backend -> CMDCopyTexture dest texture layer is bigger than total layers in the texture, aborting!");
             return;
         }
 
@@ -3191,13 +3182,13 @@ namespace LinaGX
 
         VkImageSubresourceLayers srcSubresLayers = {};
         srcSubresLayers.aspectMask               = srcTxt.aspectFlags;
-        srcSubresLayers.mipLevel                 = 0;
+        srcSubresLayers.mipLevel                 = cmd->srcMip;
         srcSubresLayers.baseArrayLayer           = cmd->srcLayer;
         srcSubresLayers.layerCount               = 1;
 
         VkImageSubresourceLayers dstSubresLayers = {};
         dstSubresLayers.aspectMask               = dstTxt.aspectFlags;
-        dstSubresLayers.mipLevel                 = 0;
+        dstSubresLayers.mipLevel                 = cmd->dstMip;
         dstSubresLayers.baseArrayLayer           = cmd->dstLayer;
         dstSubresLayers.layerCount               = 1;
 
@@ -3208,7 +3199,6 @@ namespace LinaGX
         region.srcSubresource = srcSubresLayers;
         region.extent         = srcTxt.extent;
         vkCmdCopyImage(buffer, srcTxt.img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTxt.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-        int a = 5;
     }
 
     void VKBackend::CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream)

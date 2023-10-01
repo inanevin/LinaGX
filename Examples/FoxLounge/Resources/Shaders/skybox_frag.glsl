@@ -38,28 +38,6 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 camPos;
 } cameraData;
 
-layout (set = 2, binding = 0) uniform MaterialData
-{
-    vec4 baseColorFac;
-    vec4 emissiveFac;
-    int baseColor;
-    int metallicRoughness;
-    int emissive;
-    int normal;
-    int specialTexture;
-    float metallic;
-    float roughness;
-    float alphaCutoff;
-} materialData;
-
-layout (set = 2, binding = 1) uniform texture2D textures[4];
-
-layout( push_constant ) uniform constants
-{
-	int objectID;
-    int dummy;
-} Constants;
-
 
 float rand(vec2 co)
 {

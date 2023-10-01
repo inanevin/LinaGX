@@ -32,17 +32,17 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    CommandStream::CommandStream(Backend* backend, CommandType type, uint32 commandCount, uint32 gpuHandle, uint32 auxMemorySize)
+    CommandStream::CommandStream(Backend* backend, const CommandStreamDesc& desc, uint32 gpuHandle)
     {
         m_backend           = backend;
-        m_commandBufferSize = commandCount * 40;
+        m_commandBufferSize = desc.commandCount * 40;
         m_commandBuffer     = (uint8*)LINAGX_MALLOC(m_commandBufferSize);
-        m_commands          = static_cast<uint8**>(malloc(sizeof(uint8*) * commandCount));
-        m_type              = type;
-        m_maxCommands       = commandCount;
+        m_commands          = static_cast<uint8**>(malloc(sizeof(uint8*) * desc.commandCount));
+        m_type              = desc.type;
+        m_maxCommands       = desc.commandCount;
         m_gpuHandle         = gpuHandle;
         m_auxMemoryIndex    = 0;
-        m_auxMemorySize     = auxMemorySize;
+        m_auxMemorySize     = desc.auxMemorySize;
         m_auxMemory         = (uint8*)LINAGX_MALLOC(m_auxMemorySize);
     }
 

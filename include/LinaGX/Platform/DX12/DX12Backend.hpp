@@ -96,7 +96,6 @@ namespace LinaGX
         LINAGX_VEC<DescriptorHandle> srvs    = {};
         DescriptorHandle             dsv     = {};
         LINAGX_VEC<DescriptorHandle> rtvs    = {};
-        DescriptorHandle             srvCube = {};
 
         Microsoft::WRL::ComPtr<ID3D12Resource> rawRes             = NULL;
         uint64                                 requiredAlignment  = 0;
@@ -223,7 +222,7 @@ namespace LinaGX
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
         virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
         virtual void   DestroyPipelineLayout(uint16 layout) override;
-        virtual uint32 CreateCommandStream(CommandType cmdType) override;
+        virtual uint32 CreateCommandStream(const CommandStreamDesc& desc) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
@@ -244,6 +243,7 @@ namespace LinaGX
         void   DestroyFence(uint16 handle);
         void   WaitForFences(ID3D12Fence* fence, uint64 frameFenceValue);
         void   BindDescriptorSets(DX12CommandStream& stream, DX12Shader& shader);
+        void   IncreaseGraphicsFences();
 
     public:
         virtual bool Initialize(const InitInfo& initInfo) override;
@@ -312,8 +312,9 @@ namespace LinaGX
         LINAGX_VEC<DX12PerFrameData>   m_perFrameData;
         LINAGX_MAP<CommandType, uint8> m_primaryQueues;
 
-        InitInfo            m_initInfo           = {};
-        std::atomic<uint32> m_submissionPerFrame = 0;
+        InitInfo            m_initInfo                       = {};
+        std::atomic<uint32> m_submissionPerFrame             = 0;
+        std::atomic<bool>   m_graphicsFencesDirty = false;
     };
 
 } // namespace LinaGX

@@ -33,6 +33,7 @@ SOFTWARE.
 
 #include "LinaGX/Core/Backend.hpp"
 #include <atomic>
+
 #ifdef LINAGX_PLATFORM_WINDOWS
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
@@ -65,7 +66,6 @@ namespace LinaGX
         uint32                  mipLevels   = 0;
         VkImageLayout           imgLayout   = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
         LINAGX_VEC<VkImageView> imgViews    = {};
-        VkImageView             cubeView    = nullptr;
         VkImage                 img         = nullptr;
         VmaAllocation_T*        allocation  = nullptr;
         VkExtent3D              extent      = {};
@@ -123,12 +123,12 @@ namespace LinaGX
 
     struct VKBResource
     {
-        bool             isValid     = false;
-        bool             isMapped    = false;
-        uint64           size        = 0;
-        ResourceHeap     heapType    = ResourceHeap::StagingHeap;
-        VkBuffer         buffer      = nullptr;
-        VmaAllocation_T* allocation  = nullptr;
+        bool             isValid    = false;
+        bool             isMapped   = false;
+        uint64           size       = 0;
+        ResourceHeap     heapType   = ResourceHeap::StagingHeap;
+        VkBuffer         buffer     = nullptr;
+        VmaAllocation_T* allocation = nullptr;
     };
 
     struct VKBUserSemaphore
@@ -213,7 +213,7 @@ namespace LinaGX
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
         virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
         virtual void   DestroyPipelineLayout(uint16 layout) override;
-        virtual uint32 CreateCommandStream(CommandType cmdType) override;
+        virtual uint32 CreateCommandStream(const CommandStreamDesc& desc) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;

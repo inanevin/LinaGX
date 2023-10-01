@@ -248,9 +248,9 @@ namespace LinaGX
         m_backend->DestroyShader(handle);
     }
 
-    CommandStream* Instance::CreateCommandStream(uint32 commandCount, CommandType type, uint32 auxMemorySize)
+    CommandStream* Instance::CreateCommandStream(const CommandStreamDesc& desc)
     {
-        CommandStream* stream = new CommandStream(m_backend, type, commandCount, m_backend->CreateCommandStream(type), auxMemorySize);
+        CommandStream* stream = new CommandStream(m_backend, desc, m_backend->CreateCommandStream(desc));
         m_commandStreams.push_back(stream);
         return stream;
     }

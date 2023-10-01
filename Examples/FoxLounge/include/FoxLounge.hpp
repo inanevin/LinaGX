@@ -38,6 +38,13 @@ namespace LinaGX
 {
     namespace Examples
     {
+
+        enum DrawObjectFlags
+        {
+            DrawDefault = 1 << 0,
+            DrawSkybox  = 1 << 1,
+        };
+
         struct PerFrameData
         {
             LinaGX::CommandStream* graphicsStream         = nullptr;
@@ -101,7 +108,7 @@ namespace LinaGX
             bool                       isSkinned = false;
             bool                       hasMesh   = false;
             std::vector<MeshPrimitive> primitives;
-            bool                       isSky = false;
+            bool                       isSkyCube = false;
         };
 
         class Example : public App
@@ -129,21 +136,19 @@ namespace LinaGX
 
             void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, const LinaGX::DescriptorSetDesc& descriptorDesc, bool isSwapchain = false);
 
-            void BeginPass(PassType pass, uint32 width = 0, uint32 height = 0, uint32 layer = 0);
-            void EndPass();
-            void CaptureCubemap();
-            void DrawObjects(Shader shader);
-            void DrawSkybox();
-            void BindMaterialSet(uint16 materialSet);
-            void DrawFullscreenQuad();
-            void BindShader(uint32 target);
-            void BindPassSet(PipelineLayoutType layout, uint16 set, uint32 offset, bool useDynamicOffset);
-            void ReflectionPass();
-            void CollectPassBarrier(PassType pass, LinaGX::TextureBarrierState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth = false);
+            void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0);
+            void EndPass(uint32 frameIndex);
+            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader);
+            void DrawCube(uint32 frameIndex);
+            void DrawFullscreenQuad(uint32 frameIndex);
+            void BindShader(uint32 frameIndex, uint32 target);
+            void BindPassSet(uint32 frameIndex, PipelineLayoutType layout, uint16 set, uint32 offset, bool useDynamicOffset);
+            void ReflectionPass(uint32 frameIndex);
+            void CollectPassBarrier(uint32 frameIndex, PassType pass, LinaGX::TextureBarrierState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth = false);
             void ExecPassBarriers(LinaGX::CommandStream* stream, uint32 srcStage, uint32 dstStage);
             void TransferGlobalData(uint32 frameIndex);
             void BindGlobalSet(uint32 frameIndex);
-            void DeferredRenderScene(uint32 frameIndex, uint32 cameraDataIndex);
+            void DeferredRenderScene(uint32 frameIndex, uint16 drawObjFlags, uint32 cameraDataIndex, uint32 width, uint32 height);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;

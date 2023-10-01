@@ -36,13 +36,6 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 
 layout (set = 0, binding = 2) uniform sampler defaultSampler;
 
-layout (set = 1, binding = 0) uniform CameraData
-{
-    mat4 view;
-    mat4 projection;
-    vec4 camPos;
-} cameraData;
-
 layout (set = 2, binding = 0) uniform MaterialData
 {
     vec4 baseColorFac;

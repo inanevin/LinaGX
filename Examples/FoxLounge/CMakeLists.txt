@@ -41,6 +41,9 @@ include/FoxLounge.hpp
 include/Utility.hpp
 Resources/Shaders/default_pbr_frag.glsl
 Resources/Shaders/default_pbr_vert.glsl
+Resources/Shaders/irradiance_frag.glsl
+Resources/Shaders/brdf_frag.glsl
+Resources/Shaders/prefilter_frag.glsl
 Resources/Shaders/skybox_frag.glsl
 Resources/Shaders/skybox_vert.glsl
 Resources/Shaders/screenquad_frag.glsl

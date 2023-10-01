@@ -25,7 +25,6 @@ layout(set = 0, binding = 0) uniform SceneData
     vec4 lightColor;
 } sceneData;
 
-
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {
     Object objects[];
@@ -39,12 +38,6 @@ layout (set = 1, binding = 0) uniform CameraData
     mat4 projection;
     vec4 camPos;
 } cameraData;
-
-layout( push_constant ) uniform constants
-{
-	int objectID;
-    int applyTerrainEffects;
-} Constants;
 
 void main()
 {

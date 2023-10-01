@@ -1352,17 +1352,12 @@ namespace LinaGX
             LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
         }
 
-        if (txtDesc.viewCount > txtDesc.arrayLength)
-        {
-            LOGA(false, "Backend -> View count can't be bigger than array length!");
-        }
-
         if ((txtDesc.flags & TextureFlags::TF_ColorAttachment) && ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture)))
         {
             LOGA(false, "Backend -> A texture can not have both color attachment and depth or stencil texture flags!");
         }
 
-        LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && txtDesc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
+        LOGA(txtDesc.mipLevels != 0 && txtDesc.arrayLength != 0 && static_cast<uint32>(txtDesc.views.size()) != 0, "Backend -> Mip levels, array length or view count can't be zero!");
 
         DX12Texture2D item = {};
         item.isValid       = true;
@@ -1445,7 +1440,7 @@ namespace LinaGX
             DX12_THROW(e, "Backend -> Exception when creating a texture resource! %s", e.what());
         }
 
-        auto createSRV = [&](DXGI_FORMAT format, bool createForCubemap, uint32 baseArrayLayer, uint32 layerCount, const DescriptorHandle& targetDescriptor) {
+        auto createSRV = [&](DXGI_FORMAT format, bool createForCubemap, uint32 baseArrayLayer, uint32 layerCount, uint32 baseMipLevel, uint32 mipLevels, const DescriptorHandle& targetDescriptor) {
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
             srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Format                          = format;
@@ -1454,82 +1449,85 @@ namespace LinaGX
             {
                 srvDesc.ViewDimension               = D3D12_SRV_DIMENSION_TEXTURECUBE;
                 srvDesc.TextureCube.MipLevels       = txtDesc.mipLevels;
-                srvDesc.TextureCube.MostDetailedMip = 0;
+                srvDesc.TextureCube.MostDetailedMip = baseMipLevel;
+                srvDesc.TextureCube.MipLevels       = mipLevels;
             }
             else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE1D;
-                srvDesc.Texture1D.MipLevels       = txtDesc.mipLevels;
-                srvDesc.Texture1D.MostDetailedMip = 0;
+                srvDesc.Texture1D.MipLevels       = mipLevels;
+                srvDesc.Texture1D.MostDetailedMip = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
             {
                 srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
-                srvDesc.Texture1DArray.MipLevels       = txtDesc.mipLevels;
-                srvDesc.Texture1DArray.MostDetailedMip = 0;
+                srvDesc.Texture1DArray.MipLevels       = mipLevels;
+                srvDesc.Texture1DArray.MostDetailedMip = baseMipLevel;
                 srvDesc.Texture1DArray.ArraySize       = layerCount;
                 srvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE2D;
-                srvDesc.Texture2D.MipLevels       = txtDesc.mipLevels;
-                srvDesc.Texture2D.MostDetailedMip = 0;
+                srvDesc.Texture2D.MipLevels       = mipLevels;
+                srvDesc.Texture2D.MostDetailedMip = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
                 srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-                srvDesc.Texture2DArray.MipLevels       = txtDesc.mipLevels;
-                srvDesc.Texture2DArray.MostDetailedMip = 0;
+                srvDesc.Texture2DArray.MipLevels       = mipLevels;
+                srvDesc.Texture2DArray.MostDetailedMip = baseMipLevel;
                 srvDesc.Texture2DArray.ArraySize       = layerCount;
                 srvDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
             }
             else if (txtDesc.type == TextureType::Texture3D)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE3D;
-                srvDesc.Texture3D.MipLevels       = txtDesc.mipLevels;
-                srvDesc.Texture3D.MostDetailedMip = 0;
+                srvDesc.Texture3D.MipLevels       = mipLevels;
+                srvDesc.Texture3D.MostDetailedMip = baseMipLevel;
             }
 
             m_device->CreateShaderResourceView(item.allocation->GetResource(), &srvDesc, {targetDescriptor.GetCPUHandle()});
         };
 
-        auto createRTV = [&](DXGI_FORMAT format, uint32 baseArrayLayer, uint32 layerCount, const DescriptorHandle& targetDescriptor) {
+        auto createRTV = [&](DXGI_FORMAT format, uint32 baseArrayLayer, uint32 layerCount, uint32 baseMipLevel, uint32 mipLevels, const DescriptorHandle& targetDescriptor) {
             D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
             rtvDesc.Format                        = format;
 
             if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE1D;
-                rtvDesc.Texture1D.MipSlice = 0;
+                rtvDesc.Texture1D.MipSlice = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
             {
                 rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
                 rtvDesc.Texture1DArray.ArraySize       = layerCount;
                 rtvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
+                rtvDesc.Texture1DArray.MipSlice        = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE2D;
-                rtvDesc.Texture2D.MipSlice = 0;
+                rtvDesc.Texture2D.MipSlice = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
                 rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
                 rtvDesc.Texture2DArray.ArraySize       = layerCount;
                 rtvDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
+                rtvDesc.Texture2DArray.MipSlice        = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture3D)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE3D;
-                rtvDesc.Texture3D.MipSlice = 0;
+                rtvDesc.Texture3D.MipSlice = baseMipLevel;
             }
 
             m_device->CreateRenderTargetView(item.allocation->GetResource(), &rtvDesc, {targetDescriptor.GetCPUHandle()});
         };
 
-        item.srvs.resize(txtDesc.viewCount);
+        item.srvs.resize(txtDesc.views.size());
 
         if ((txtDesc.flags & TextureFlags::TF_Sampled) || (txtDesc.flags & TextureFlags::TF_SampleOutsideFragment))
         {
@@ -1538,16 +1536,16 @@ namespace LinaGX
             if ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture))
                 srvFormat = GetDXFormat(txtDesc.depthStencilSampleFormat);
 
-            for (uint32 i = 0; i < txtDesc.viewCount; i++)
+            for (size_t i = 0; i < txtDesc.views.size(); i++)
             {
-                item.srvs[i] = m_textureHeap->GetNewHeapHandle();
-                createSRV(srvFormat, false, i, txtDesc.viewCount - i, item.srvs[i]);
-            }
+                const auto& view = txtDesc.views[i];
+                item.srvs[i]     = m_textureHeap->GetNewHeapHandle();
 
-            if (txtDesc.flags & TextureFlags::TF_Cubemap)
-            {
-                item.srvCube = m_textureHeap->GetNewHeapHandle();
-                createSRV(srvFormat, true, 0, 0, item.srvCube);
+                const uint32 baseLevel      = view.baseArrayLevel;
+                const uint32 remainingLevel = txtDesc.arrayLength - baseLevel;
+                const uint32 baseMip        = view.baseMipLevel;
+                const uint32 remainingMip   = txtDesc.mipLevels - baseMip;
+                createSRV(srvFormat, view.isCubemap, baseLevel, remainingLevel, baseMip, remainingMip, item.srvs[i]);
             }
         }
 
@@ -1565,11 +1563,19 @@ namespace LinaGX
         if (txtDesc.flags & TextureFlags::TF_ColorAttachment)
         {
             // RTV
-            item.rtvs.resize(txtDesc.viewCount);
-            for (uint32 i = 0; i < txtDesc.viewCount; i++)
+            item.rtvs.resize(txtDesc.views.size());
+            for (size_t i = 0; i < txtDesc.views.size(); i++)
             {
-                item.rtvs[i] = m_rtvHeap->GetNewHeapHandle();
-                createRTV(GetDXFormat(txtDesc.format), i, txtDesc.viewCount - i, item.rtvs[i]);
+                const auto& view = txtDesc.views[i];
+                if (view.isCubemap)
+                    continue;
+
+                item.rtvs[i]                = m_rtvHeap->GetNewHeapHandle();
+                const uint32 baseLevel      = view.baseArrayLevel;
+                const uint32 remainingLevel = txtDesc.arrayLength - baseLevel;
+                const uint32 baseMip        = view.baseMipLevel;
+                const uint32 remainingMip   = txtDesc.mipLevels - baseMip;
+                createRTV(GetDXFormat(txtDesc.format), baseLevel, remainingLevel, baseMip, remainingMip, item.rtvs[i]);
             }
         }
 
@@ -1590,9 +1596,6 @@ namespace LinaGX
 
         if (txt.dsv.GetCPUHandle() != NULL)
             m_dsvHeap->FreeHeapHandle(txt.dsv);
-
-        if (txt.srvCube.GetCPUHandle() != NULL)
-            m_textureHeap->FreeHeapHandle(txt.srvCube);
 
         for (const auto& srv : txt.srvs)
             m_textureHeap->FreeHeapHandle(srv);
@@ -1990,10 +1993,10 @@ namespace LinaGX
                         D3D12_CPU_DESCRIPTOR_HANDLE srcHandleTxt;
 
                         // If cubemap, force cube view at the moment.
-                        if (res.srvCube.GetCPUHandle() != NULL)
-                            srcHandleTxt.ptr = res.srvCube.GetCPUHandle();
-                        else
+                        if (desc.textureViewIndices.empty())
                             srcHandleTxt.ptr = res.srvs[0].GetCPUHandle();
+                        else
+                            srcHandleTxt.ptr = res.srvs[desc.textureViewIndices[i]].GetCPUHandle();
 
                         srcDescriptorsTxt[i] = srcHandleTxt;
 
@@ -2529,6 +2532,11 @@ namespace LinaGX
 
     void DX12Backend::Join()
     {
+        if (m_graphicsFencesDirty.load())
+        {
+            IncreaseGraphicsFences();
+        }
+
         for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
         {
             const auto& frame = m_perFrameData[i];
@@ -2542,17 +2550,24 @@ namespace LinaGX
         }
     }
 
-    uint32 DX12Backend::CreateCommandStream(CommandType cmdType)
+    uint32 DX12Backend::CreateCommandStream(const CommandStreamDesc& desc)
     {
         DX12CommandStream item = {};
         item.isValid           = true;
-        item.type              = cmdType;
+        item.type              = desc.type;
 
         try
         {
-            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(cmdType), IID_PPV_ARGS(item.allocator.GetAddressOf())));
-            ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(cmdType), item.allocator.Get(), nullptr, IID_PPV_ARGS(item.list.GetAddressOf())));
+            ThrowIfFailed(m_device->CreateCommandAllocator(GetDXCommandType(desc.type), IID_PPV_ARGS(item.allocator.GetAddressOf())));
+            ThrowIfFailed(m_device->CreateCommandList(0, GetDXCommandType(desc.type), item.allocator.Get(), nullptr, IID_PPV_ARGS(item.list.GetAddressOf())));
             ThrowIfFailed(item.list->Close());
+
+            {
+                NAME_DX12_OBJECT_CSTR(item.list, desc.debugName);
+            }
+            {
+                NAME_DX12_OBJECT_CSTR(item.allocator, desc.debugName);
+            }
         }
         catch (HrException e)
         {
@@ -2709,6 +2724,10 @@ namespace LinaGX
             ID3D12CommandList* const* data = _lists.data();
             queue.queue->ExecuteCommandLists(desc.streamCount, data);
 
+            // If "Join" is called without an EndFrame(), we need to make sure the graphics fence are bumped...
+            if (queue.type == CommandType::Graphics)
+                m_graphicsFencesDirty.store(true);
+
             if (desc.useSignal)
             {
                 for (uint32 i = 0; i < desc.signalCount; i++)
@@ -2836,17 +2855,7 @@ namespace LinaGX
     void DX12Backend::EndFrame()
     {
         LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
-
-        // Increase & signal, we'll wait for this value next time we are starting this frame index.
-        for (auto& q : m_queues)
-        {
-            if (!q.isValid || q.type != CommandType::Graphics)
-                continue;
-
-            q.frameFenceValue++;
-            q.storedFenceValues[m_currentFrameIndex] = q.frameFenceValue;
-            q.queue->Signal(q.frameFences[m_currentFrameIndex].Get(), q.frameFenceValue);
-        }
+        IncreaseGraphicsFences();
     }
 
     void DX12Backend::CMD_BeginRenderPass(uint8* data, DX12CommandStream& stream)
@@ -2889,7 +2898,7 @@ namespace LinaGX
                 cv.Color[3] = att.clearColor.w;
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
-                colorAttDescs[i] = {txt.rtvs[att.layer].GetCPUHandle(), colorBegin, colorEnd};
+                colorAttDescs[i] = {txt.rtvs[att.viewIndex].GetCPUHandle(), colorBegin, colorEnd};
             }
         }
 
@@ -3027,6 +3036,22 @@ namespace LinaGX
                 }
             }
         }
+    }
+
+    void DX12Backend::IncreaseGraphicsFences()
+    {
+        // Increase & signal, we'll wait for this value next time we are starting this frame index.
+        for (auto& q : m_queues)
+        {
+            if (!q.isValid || q.type != CommandType::Graphics)
+                continue;
+
+            q.frameFenceValue++;
+            q.storedFenceValues[m_currentFrameIndex] = q.frameFenceValue;
+            q.queue->Signal(q.frameFences[m_currentFrameIndex].Get(), q.frameFenceValue);
+        }
+
+        m_graphicsFencesDirty.store(false);
     }
 
     void DX12Backend::CMD_BindPipeline(uint8* data, DX12CommandStream& stream)
@@ -3179,6 +3204,36 @@ namespace LinaGX
 
     void DX12Backend::CMD_CopyTexture(uint8* data, DX12CommandStream& stream)
     {
+        CMDCopyTexture* cmd    = reinterpret_cast<CMDCopyTexture*>(data);
+        const auto&     srcTxt = m_textures.GetItemR(cmd->srcTexture);
+        const auto&     dstTxt = m_textures.GetItemR(cmd->dstTexture);
+
+        if (cmd->srcLayer >= srcTxt.desc.arrayLength)
+        {
+            LOGE("Backend -> CMDCopyTexture source texture layer is bigger than total layers in the texture, aborting!");
+            return;
+        }
+
+        if (cmd->dstLayer >= dstTxt.desc.arrayLength)
+        {
+            LOGE("Backend -> CMDCopyTexture dest texture layer is bigger than total layers in the texture, aborting!");
+            return;
+        }
+
+        auto srcRes = srcTxt.allocation->GetResource();
+        auto dstRes = dstTxt.allocation->GetResource();
+
+        D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+        srcLocation.pResource                   = srcRes;
+        srcLocation.Type                        = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLocation.SubresourceIndex            = cmd->srcLayer * srcTxt.desc.mipLevels + cmd->srcMip;
+
+        D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
+        dstLocation.pResource                   = dstRes;
+        dstLocation.Type                        = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dstLocation.SubresourceIndex            = cmd->dstLayer * dstTxt.desc.mipLevels + cmd->dstMip;
+
+        stream.list->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
     }
 
     void DX12Backend::CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream)

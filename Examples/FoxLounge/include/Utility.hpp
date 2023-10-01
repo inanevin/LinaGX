@@ -55,18 +55,10 @@ namespace LinaGX
             SH_Lighting,
             SH_Default,
             SH_Skybox,
+            SH_Irradiance,
+            SH_Prefilter,
+            SH_BRDF,
             SH_Max,
-        };
-
-        enum RTType
-        {
-            RT_WorldDepth = 0,
-            RT_GBufPositionAO,
-            RT_GBufAlbedoRoughness,
-            RT_GBufNormalMetallic,
-            RT_LightingPass,
-            RT_Reflections,
-            RT_Max,
         };
 
         enum PassType
@@ -74,6 +66,9 @@ namespace LinaGX
             PS_Objects = 0,
             PS_Lighting,
             PS_FinalQuad,
+            PS_Irradiance,
+            PS_Prefilter,
+            PS_BRDF,
             PS_Max,
         };
 
@@ -83,6 +78,7 @@ namespace LinaGX
             PL_Objects,
             PL_Lighting,
             PL_FinalQuad,
+            PL_Irradiance,
             PL_Max,
         };
 
@@ -163,9 +159,12 @@ namespace LinaGX
             static LinaGX::DescriptorSetDesc GetSetDescriptionFinalPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionIrradiancePass();
 
             static LinaGX::TextureDesc GetRTDesc(const char* debugName, uint32 width, uint32 height);
+            static LinaGX::TextureDesc GetTxtDescCube(const char* debugName, uint32 width, uint32 height);
             static LinaGX::TextureDesc GetRTDescCube(const char* debugName, uint32 width, uint32 height);
+            static LinaGX::TextureDesc GetRTDescPrefilter(const char* debugName, uint32 width, uint32 height, uint32 mipLevels = 0);
             static LinaGX::TextureDesc GetDepthDesc(const char* debugName, uint32 width, uint32 height);
 
             static uint32 CreateShader(LinaGX::Instance* lgx, const char* vertex, const char* fragment, LinaGX::CullMode cullMode, LinaGX::Format passFormat, LinaGX::CompareOp depthCompare, LinaGX::FrontFace front, bool depthWrite, uint32 attachmentCount, bool useCustomLayout, uint16 layout, const char* debugName);

@@ -62,8 +62,8 @@ namespace LinaGX
         virtual void   SetSwapchainActive(uint8 swp, bool isActive)                                     = 0;
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc)                                       = 0;
         virtual void   DestroyShader(uint16 handle)                                                     = 0;
-        virtual uint32 CreateTexture(const TextureDesc& desc)                                       = 0;
-        virtual void   DestroyTexture(uint32 handle)                                                  = 0;
+        virtual uint32 CreateTexture(const TextureDesc& desc)                                           = 0;
+        virtual void   DestroyTexture(uint32 handle)                                                    = 0;
         virtual uint32 CreateSampler(const SamplerDesc& desc)                                           = 0;
         virtual void   DestroySampler(uint32 handle)                                                    = 0;
         virtual uint32 CreateResource(const ResourceDesc& desc)                                         = 0;
@@ -76,7 +76,7 @@ namespace LinaGX
         virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)                     = 0;
         virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc)                             = 0;
         virtual void   DestroyPipelineLayout(uint16 layout)                                             = 0;
-        virtual uint32 CreateCommandStream(CommandType type)                                            = 0;
+        virtual uint32 CreateCommandStream(const CommandStreamDesc& desc)                               = 0;
         virtual void   DestroyCommandStream(uint32 handle)                                              = 0;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc)                                     = 0;
