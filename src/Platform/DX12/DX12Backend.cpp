@@ -1452,13 +1452,13 @@ namespace LinaGX
                 srvDesc.TextureCube.MostDetailedMip = baseMipLevel;
                 srvDesc.TextureCube.MipLevels       = mipLevels;
             }
-            else if (txtDesc.type == TextureType::Texture1D && layerCount == 1)
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE1D;
                 srvDesc.Texture1D.MipLevels       = mipLevels;
                 srvDesc.Texture1D.MostDetailedMip = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture1D && layerCount > 1)
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
             {
                 srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
                 srvDesc.Texture1DArray.MipLevels       = mipLevels;
@@ -1466,13 +1466,13 @@ namespace LinaGX
                 srvDesc.Texture1DArray.ArraySize       = layerCount;
                 srvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
             }
-            else if (txtDesc.type == TextureType::Texture2D && layerCount == 1)
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
                 srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE2D;
                 srvDesc.Texture2D.MipLevels       = mipLevels;
                 srvDesc.Texture2D.MostDetailedMip = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture2D && layerCount > 1)
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
                 srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
                 srvDesc.Texture2DArray.MipLevels       = mipLevels;
@@ -1494,24 +1494,24 @@ namespace LinaGX
             D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
             rtvDesc.Format                        = format;
 
-            if (txtDesc.type == TextureType::Texture1D && layerCount == 1)
+            if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE1D;
                 rtvDesc.Texture1D.MipSlice = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture1D && layerCount > 1)
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
             {
                 rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
                 rtvDesc.Texture1DArray.ArraySize       = layerCount;
                 rtvDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
                 rtvDesc.Texture1DArray.MipSlice        = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture2D && layerCount == 1)
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
                 rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE2D;
                 rtvDesc.Texture2D.MipSlice = baseMipLevel;
             }
-            else if (txtDesc.type == TextureType::Texture2D && layerCount > 1)
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
                 rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
                 rtvDesc.Texture2DArray.ArraySize       = layerCount;
@@ -1525,6 +1525,42 @@ namespace LinaGX
             }
 
             m_device->CreateRenderTargetView(item.allocation->GetResource(), &rtvDesc, {targetDescriptor.GetCPUHandle()});
+        };
+
+        auto createDSV = [&](DXGI_FORMAT format, uint32 baseArrayLayer, uint32 layerCount, uint32 baseMipLevel, uint32 mipLevels, const DescriptorHandle& targetDescriptor) {
+            D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+            depthStencilDesc.Format                        = format;
+
+            if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength == 1)
+            {
+                depthStencilDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE1D;
+                depthStencilDesc.Texture1D.MipSlice = baseMipLevel;
+            }
+            else if (txtDesc.type == TextureType::Texture1D && txtDesc.arrayLength > 1)
+            {
+                depthStencilDesc.ViewDimension                  = D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
+                depthStencilDesc.Texture1DArray.ArraySize       = layerCount;
+                depthStencilDesc.Texture1DArray.FirstArraySlice = baseArrayLayer;
+                depthStencilDesc.Texture1DArray.MipSlice        = baseMipLevel;
+            }
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
+            {
+                depthStencilDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
+                depthStencilDesc.Texture2D.MipSlice = baseMipLevel;
+            }
+            else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
+            {
+                depthStencilDesc.ViewDimension                  = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+                depthStencilDesc.Texture2DArray.ArraySize       = layerCount;
+                depthStencilDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
+                depthStencilDesc.Texture2DArray.MipSlice        = baseMipLevel;
+            }
+            else if (txtDesc.type == TextureType::Texture3D)
+            {
+                LOGA(false, "Can't create a depth Texture 3D!");
+            }
+
+            m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {targetDescriptor.GetCPUHandle()});
         };
 
         item.srvs.resize(txtDesc.views.size());
@@ -1552,12 +1588,21 @@ namespace LinaGX
         if ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture))
         {
             // DSV
-            item.dsv                                       = m_dsvHeap->GetNewHeapHandle();
-            D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
-            depthStencilDesc.Format                        = GetDXFormat(txtDesc.format);
-            depthStencilDesc.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
-            depthStencilDesc.Flags                         = D3D12_DSV_FLAG_NONE;
-            m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {item.dsv.GetCPUHandle()});
+            item.dsvs.reserve(txtDesc.views.size());
+            for (size_t i = 0; i < txtDesc.views.size(); i++)
+            {
+                const auto& view = txtDesc.views[i];
+                if (view.isCubemap)
+                    continue;
+
+                auto         dsv            = m_dsvHeap->GetNewHeapHandle();
+                const uint32 baseLevel      = view.baseArrayLevel;
+                const uint32 remainingLevel = view.levelCount == 0 ? (txtDesc.arrayLength - baseLevel) : view.levelCount;
+                const uint32 baseMip        = view.baseMipLevel;
+                const uint32 remainingMip   = view.mipCount == 0 ? (txtDesc.mipLevels - baseMip) : view.mipCount;
+                createDSV(GetDXFormat(txtDesc.format), baseLevel, remainingLevel, baseMip, remainingMip, dsv);
+                item.dsvs.push_back(dsv);
+            }
         }
 
         if (txtDesc.flags & TextureFlags::TF_ColorAttachment)
@@ -1595,8 +1640,8 @@ namespace LinaGX
         for (const auto& rtv : txt.rtvs)
             m_rtvHeap->FreeHeapHandle(rtv);
 
-        if (txt.dsv.GetCPUHandle() != NULL)
-            m_dsvHeap->FreeHeapHandle(txt.dsv);
+        for (const auto& dsv : txt.dsvs)
+            m_dsvHeap->FreeHeapHandle(dsv);
 
         for (const auto& srv : txt.srvs)
             m_textureHeap->FreeHeapHandle(srv);
@@ -2152,6 +2197,8 @@ namespace LinaGX
         }
 
         hr = m_device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&item.rootSig));
+
+        NAME_DX12_OBJECT_CSTR(item.rootSig, desc.debugName);
 
         if (FAILED(hr))
         {
@@ -2916,7 +2963,7 @@ namespace LinaGX
             D3D12_RENDER_PASS_BEGINNING_ACCESS   stencilBegin{GetDXLoadOp(begin->depthStencilAttachment.stencilLoadOp), {clearDepthStencil}};
             D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{GetDXStoreOp(begin->depthStencilAttachment.depthStoreOp), {}};
             D3D12_RENDER_PASS_ENDING_ACCESS      stencilEnd{GetDXStoreOp(begin->depthStencilAttachment.stencilStoreOp), {}};
-            D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.dsv.GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
+            D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.dsvs[begin->depthStencilAttachment.viewIndex].GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
             stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
         }
         else
@@ -2942,8 +2989,6 @@ namespace LinaGX
     {
         CMDEndRenderPass* end = reinterpret_cast<CMDEndRenderPass*>(data);
         stream.list->EndRenderPass();
-        stream.boundShader        = 0;
-        stream.boundRootSignature = nullptr;
     }
 
     void DX12Backend::CMD_SetViewport(uint8* data, DX12CommandStream& stream)
@@ -3003,12 +3048,32 @@ namespace LinaGX
                 if (param == nullptr)
                     continue;
 
+                // Absolutely verify that this binding is valid for the currently bound shader.
+                // E.g. Render Pass 1 ends with Shader0 bound.
+                // Render Pass 2, before binding anyshaders, wants to bind descriptor sets.
+                // In such cases, param might not be null, so we still need to make sure the layout matches.
+                bool layoutMatches = true;
+                if (binding.lgxBinding.unbounded && param->elementSize != 0)
+                    layoutMatches = false;
+
+                if (param->elementSize != binding.lgxBinding.descriptorCount)
+                    layoutMatches = false;
+
+                if (param->isWritable != binding.lgxBinding.isWritable)
+                    layoutMatches = false;
+
+                if (!layoutMatches)
+                {
+                    setData.isDirty = true;
+                    break;
+                }
+
                 uint64 handle  = binding.gpuPointer.GetGPUHandle();
                 uint64 handle2 = binding.additionalGpuPointer.GetGPUHandle();
 
                 if (binding.lgxBinding.useDynamicOffset && (binding.lgxBinding.type == DescriptorType::UBO || binding.lgxBinding.type == DescriptorType::SSBO))
                 {
-                    const uint64 offset = static_cast<uint64>(setData.boundDynamicOffsets[dynamicOffsetIndexCounter++]);
+                    const uint64 offset = static_cast<uint64>(setData.boundDynamicOffsets[dynamicOffsetIndexCounter]);
                     dynamicOffsetIndexCounter++;
                     handle += offset;
                 }
@@ -3074,33 +3139,33 @@ namespace LinaGX
         CMDBindPipeline* cmd    = reinterpret_cast<CMDBindPipeline*>(data);
         auto&            shader = m_shaders.GetItemR(cmd->shader);
 
+        const bool rootSigChanged = stream.boundRootSignature != shader.layout.rootSig.Get();
+
         if (!shader.isCompute)
         {
-            if (stream.boundRootSignature != shader.layout.rootSig.Get())
+            if (rootSigChanged)
                 stream.list->SetGraphicsRootSignature(shader.layout.rootSig.Get());
-
             stream.list->IASetPrimitiveTopology(GetDXTopology(shader.topology));
-            stream.list->SetPipelineState(shader.pso.Get());
         }
         else
         {
-            if (stream.boundRootSignature != shader.layout.rootSig.Get())
+            if (rootSigChanged)
                 stream.list->SetComputeRootSignature(shader.layout.rootSig.Get());
-
-            stream.list->SetPipelineState(shader.pso.Get());
         }
 
-        const bool rootSigChanged = stream.boundRootSignature != shader.layout.rootSig.Get();
+        stream.list->SetPipelineState(shader.pso.Get());
         stream.boundRootSignature = shader.layout.rootSig.Get();
         stream.boundShader        = cmd->shader;
 
         if (rootSigChanged)
+        {
             BindConstants(stream, shader);
 
-        for (auto& set : stream.boundDescriptorSets)
-            set.second.isDirty = true;
+            for (auto& set : stream.boundDescriptorSets)
+                set.second.isDirty = true;
 
-        BindDescriptorSets(stream, shader);
+            BindDescriptorSets(stream, shader);
+        }
     }
 
     void DX12Backend::CMD_DrawInstanced(uint8* data, DX12CommandStream& stream)
@@ -3371,6 +3436,12 @@ namespace LinaGX
 
         if (!barriers.empty())
             stream.list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+    }
+
+    void DX12Backend::CMD_Debug(uint8* data, DX12CommandStream& stream)
+    {
+        CMDDebug* cmd = reinterpret_cast<CMDDebug*>(data);
+        int       a   = 5;
     }
 
 } // namespace LinaGX

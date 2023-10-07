@@ -130,7 +130,7 @@ namespace LinaGX
 
             void SetupPass(PassType pass, const std::vector<LinaGX::TextureDesc>& renderTargetDescriptions, bool hasDepth, const LinaGX::TextureDesc& depthDescription, const LinaGX::DescriptorSetDesc& descriptorDesc, bool isSwapchain = false);
 
-            void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0);
+            void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0, uint32 depthViewIndex = 0);
             void EndPass(uint32 frameIndex);
             void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true);
             void DrawCube(uint32 frameIndex);

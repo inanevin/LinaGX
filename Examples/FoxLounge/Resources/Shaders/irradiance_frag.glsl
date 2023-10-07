@@ -26,7 +26,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler defaultSampler;
+layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 layout (set = 1, binding = 0) uniform CameraData
 {
@@ -68,7 +68,7 @@ void main()
             // tangent space to world
             vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * N; 
 
-            irradiance += texture(samplerCube(environmentMap, defaultSampler), sampleVec).rgb * cos(theta) * sin(theta);
+            irradiance += texture(samplerCube(environmentMap, samplers[0]), sampleVec).rgb * cos(theta) * sin(theta);
             nrSamples++;
         }
     }

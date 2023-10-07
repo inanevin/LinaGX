@@ -26,7 +26,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler defaultSampler;
+layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 layout (set = 1, binding = 0) uniform CameraData
 {
@@ -135,7 +135,7 @@ void main()
 
             float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
             
-            prefilteredColor += textureLod(samplerCube(environmentMap, defaultSampler), L, mipLevel).rgb * NdotL;
+            prefilteredColor += textureLod(samplerCube(environmentMap, samplers[0]), L, mipLevel).rgb * NdotL;
             totalWeight      += NdotL;
         }
     }

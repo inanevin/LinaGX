@@ -1743,7 +1743,7 @@ namespace LinaGX
         pipelineLayoutInfo.pushConstantRangeCount     = static_cast<uint32>(constants.size());
         pipelineLayoutInfo.pPushConstantRanges        = constants.data();
         VkResult res                                  = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, m_allocator, &item.ptr);
-
+        VK_NAME_OBJECT(item.ptr, VK_OBJECT_TYPE_PIPELINE_LAYOUT, desc.debugName, name);
         return m_pipelineLayouts.AddItem(item);
     }
 
@@ -2873,7 +2873,7 @@ namespace LinaGX
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
             const auto& depthStencilTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
-            depthStencilView            = depthStencilTxt.imgViews[0];
+            depthStencilView            = depthStencilTxt.imgViews[begin->depthStencilAttachment.viewIndex];
         }
 
         LINAGX_VEC<VkRenderingAttachmentInfo> colorAttachments;
@@ -3375,6 +3375,12 @@ namespace LinaGX
         }
 
         vkCmdPipelineBarrier(buffer, cmd->srcStageFlags, cmd->dstStageFlags, 0, 0, nullptr, cmd->resourceBarrierCount, rscBarriers.data(), cmd->textureBarrierCount, imgBarriers.data());
+    }
+
+    void VKBackend::CMD_Debug(uint8* data, VKBCommandStream& stream)
+    {
+        CMDDebug* cmd = reinterpret_cast<CMDDebug*>(data);
+        int a = 5;
     }
 
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize)

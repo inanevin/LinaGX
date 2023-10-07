@@ -150,7 +150,7 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding2 = {
-            .descriptorCount = 1,
+            .descriptorCount = 2,
             .type            = LinaGX::DescriptorType::SeparateSampler,
             .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };
@@ -321,6 +321,29 @@ namespace LinaGX::Examples
         return desc;
     }
 
+    LinaGX::TextureDesc Utility::GetRTDescCubeDepth(const char* debugName, uint32 width, uint32 height)
+    {
+        std::vector<LinaGX::ViewDesc> views;
+
+        for (uint32 i = 0; i < 6; i++)
+            views.push_back({i, 0, 0, 0, false});
+
+        views.push_back({0, 0, 0, 0, true});
+
+        LinaGX::TextureDesc desc{
+            .type        = LinaGX::TextureType::Texture2D,
+            .format      = LinaGX::Format::D32_SFLOAT,
+            .views       = views,
+            .flags       = TextureFlags::TF_DepthTexture | TextureFlags::TF_Sampled | TextureFlags::TF_Cubemap,
+            .width       = width,
+            .height      = height,
+            .arrayLength = 6,
+            .debugName   = debugName,
+        };
+
+        return desc;
+    }
+
     LinaGX::TextureDesc Utility::GetRTDescPrefilter(const char* debugName, uint32 width, uint32 height, uint32 mipLevels)
     {
         std::vector<LinaGX::ViewDesc> views;
@@ -328,7 +351,7 @@ namespace LinaGX::Examples
         for (uint32 arrLevel = 0; arrLevel < 6; arrLevel++)
         {
             for (uint32 mip = 0; mip < mipLevels; mip++)
-                views.push_back({arrLevel, mip, 0, 0, false});
+                views.push_back({arrLevel, 0, mip, 0, false});
         }
 
         views.push_back({0, 0, 0, 0, true});
@@ -352,7 +375,7 @@ namespace LinaGX::Examples
     {
         LinaGX::TextureDesc desc = {
             .format    = LinaGX::Format::D32_SFLOAT,
-            .views     = {{0, 0, false}},
+            .views     = {{0, 0, 0, 0, false}},
             .flags     = TextureFlags::TF_Sampled | TextureFlags::TF_DepthTexture,
             .width     = width,
             .height    = height,

@@ -58,7 +58,7 @@ namespace LinaGX
             SH_Irradiance,
             SH_Prefilter,
             SH_BRDF,
-            SH_Unlit,
+            SH_Shadows,
             SH_Max,
         };
 
@@ -173,6 +173,7 @@ namespace LinaGX
             static LinaGX::TextureDesc GetRTDesc(const char* debugName, uint32 width, uint32 height);
             static LinaGX::TextureDesc GetTxtDescCube(const char* debugName, uint32 width, uint32 height);
             static LinaGX::TextureDesc GetRTDescCube(const char* debugName, uint32 width, uint32 height);
+            static LinaGX::TextureDesc GetRTDescCubeDepth(const char* debugName, uint32 width, uint32 height);
             static LinaGX::TextureDesc GetRTDescPrefilter(const char* debugName, uint32 width, uint32 height, uint32 mipLevels = 0);
             static LinaGX::TextureDesc GetDepthDesc(const char* debugName, uint32 width, uint32 height);
 

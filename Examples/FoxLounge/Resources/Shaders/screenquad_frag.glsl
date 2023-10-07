@@ -29,13 +29,13 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler defaultSampler;
+layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 layout (set = 1, binding = 0) uniform texture2D inputTexture;
 
 void main()
 {
-    vec4 txt = texture(sampler2D(inputTexture, defaultSampler), uv);
+    vec4 txt = texture(sampler2D(inputTexture, samplers[0]), uv);
     FragColor = txt;
 }
 

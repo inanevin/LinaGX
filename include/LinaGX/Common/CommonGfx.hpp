@@ -596,9 +596,9 @@ namespace LinaGX
     struct ViewDesc
     {
         uint32 baseArrayLevel = 0;
+        uint32 levelCount     = 0;
         uint32 baseMipLevel   = 0;
         uint32 mipCount       = 0;
-        uint32 levelCount     = 0;
         bool   isCubemap      = false;
     };
 
@@ -676,6 +676,7 @@ namespace LinaGX
         LINAGX_VEC<PipelineLayoutPushConstantRange> constantRanges;
         bool                                        isCompute           = false;
         bool                                        indirectDrawEnabled = false;
+        const char*                                 debugName           = "LinaGX PipelineLayout";
     };
 
     struct ResourceDesc
@@ -715,6 +716,61 @@ namespace LinaGX
         uint16*         signalSemaphores = 0;
         uint64*         signalValues     = 0;
         bool            isMultithreaded  = false;
+    };
+
+    enum PipelineStageFlags
+    {
+        PSF_TopOfPipe       = 0x00000001,
+        PSF_DrawIndirect    = 0x00000002,
+        PSF_VertexInput     = 0x00000004,
+        PSF_VertexShader    = 0x00000008,
+        PSF_FragmentShader  = 0x00000080,
+        PSF_EarlyFragment   = 0x00000100,
+        PSF_LateFragment    = 0x00000200,
+        PSF_ColorAttachment = 0x00000400,
+        PSF_Compute         = 0x00000800,
+        PSF_Transfer        = 0x00001000,
+        PSF_BottomOfPipe    = 0x00002000,
+        PSF_Host            = 0x00004000,
+        PSF_AllGraphics     = 0x00008000,
+        PSF_AllCommands     = 0x00010000,
+    };
+
+    enum AccessFlags
+    {
+        AF_IndirectCommand             = 0x00000001,
+        AF_IndexRead                   = 0x00000002,
+        AF_VertexAttributeRead         = 0x00000004,
+        AF_UniformRead                 = 0x00000008,
+        AF_InputAttachmentRead         = 0x00000010,
+        AF_ShaderRead                  = 0x00000020,
+        AF_ShaderWrite                 = 0x00000040,
+        AF_ColorAttachmentRead         = 0x00000080,
+        AF_ColorAttachmentWrite        = 0x00000100,
+        AF_DepthStencilAttachmentRead  = 0x00000200,
+        AF_DepthStencilAttachmentWrite = 0x00000400,
+        AF_TransferRead                = 0x00000800,
+        AF_TransferWrite               = 0x00001000,
+        AF_HostRead                    = 0x00002000,
+        AF_HostWrite                   = 0x00004000,
+        AF_MemoryRead                  = 0x00008000,
+        AF_MemoryWrite                 = 0x00010000,
+    };
+
+    enum class TextureBarrierState
+    {
+        ColorAttachment,
+        DepthStencilAttachment,
+        ShaderRead,
+        Present,
+        TransferSource,
+        TransferDestination,
+    };
+
+    enum class ResourceBarrierState
+    {
+        TransferRead,
+        TransferWrite,
     };
 
     struct GPULimits

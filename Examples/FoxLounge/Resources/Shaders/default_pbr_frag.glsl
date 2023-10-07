@@ -35,7 +35,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler defaultSampler;
+layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 layout (set = 2, binding = 0) uniform MaterialData
 {
@@ -94,9 +94,9 @@ void main()
   {
       vec2 usedUV = vec2(inUV.x, inUV.y);
       vec2 tiledUV = usedUV * vec2(16,16);
-      vec4 txtBaseColor = texture(sampler2D(textures[0], defaultSampler), tiledUV);
-      vec4 txtNormal = texture(sampler2D(textures[1], defaultSampler), tiledUV);
-      vec4 txtMetallicRoughness = texture(sampler2D(textures[2], defaultSampler), tiledUV);
+      vec4 txtBaseColor = texture(sampler2D(textures[0], samplers[0]), tiledUV);
+      vec4 txtNormal = texture(sampler2D(textures[1], samplers[0]), tiledUV);
+      vec4 txtMetallicRoughness = texture(sampler2D(textures[2], samplers[0]), tiledUV);
   
       float alphaFactor1 = length(inUV - vec2(0.5, 0.5));
       float alphaFactor2 = clamp((0.5 - alphaFactor1) * 2.190, 0.0, 1.0);
@@ -104,9 +104,9 @@ void main()
       float alphaFactorExp = clamp(pow(alphaFactor, 6), 0.0, 1.0);
   
       vec2 uvSample1 = usedUV * vec2(17.1, 16);
-      vec4 noiseSampled1 = texture(sampler2D(textures[3], defaultSampler), uvSample1) * 0.02f;
+      vec4 noiseSampled1 = texture(sampler2D(textures[3], samplers[0]), uvSample1) * 0.02f;
       vec2 uvSample2 = vec2(usedUV.x, usedUV.y - 1.0f) * vec2(2.1, 2.1) + noiseSampled1.xy;
-      vec4 noiseSampled2 = texture(sampler2D(textures[3], defaultSampler), uvSample2);
+      vec4 noiseSampled2 = texture(sampler2D(textures[3], samplers[0]), uvSample2);
       vec4 noiseClamped = clamp(noiseSampled2, vec4(0.0), vec4(1.0));
   
       // fin base color
@@ -129,10 +129,10 @@ void main()
   }
   else
   {
-     vec4 txtEmissive = texture(sampler2D(textures[3], defaultSampler), inUV) * materialData.emissiveFac;
-	 vec4 txtBaseColor = texture(sampler2D(textures[0], defaultSampler), inUV) * materialData.baseColorFac;
-	 vec4 txtNormal = texture(sampler2D(textures[1], defaultSampler), inUV);
-	 vec4 txtMetallicRoughness = texture(sampler2D(textures[2], defaultSampler), inUV);
+     vec4 txtEmissive = texture(sampler2D(textures[3], samplers[0]), inUV) * materialData.emissiveFac;
+	 vec4 txtBaseColor = texture(sampler2D(textures[0], samplers[0]), inUV) * materialData.baseColorFac;
+	 vec4 txtNormal = texture(sampler2D(textures[1], samplers[0]), inUV);
+	 vec4 txtMetallicRoughness = texture(sampler2D(textures[2], samplers[0]), inUV);
      vec3 finalNormal = getNormalFromMap(txtNormal.rgb);
 
      outAlbedoRoughness = vec4(txtBaseColor.rgb, txtMetallicRoughness.g * materialData.roughness);

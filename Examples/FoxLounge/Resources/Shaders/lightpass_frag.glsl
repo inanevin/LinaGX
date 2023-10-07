@@ -29,7 +29,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler defaultSampler;
+layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 layout (set = 1, binding = 0) uniform CameraData
 {
@@ -96,7 +96,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 
 void main()
 {
-    vec4 albedoRoughness = texture(sampler2D(inputTextures[0], defaultSampler), uv);
+    vec4 albedoRoughness = texture(sampler2D(inputTextures[0], samplers[0]), uv);
 
     if(albedoRoughness.a < 0.0f)
     {
@@ -104,9 +104,9 @@ void main()
         return;
     }
 
-    vec4 normalMetallic = texture(sampler2D(inputTextures[1], defaultSampler), uv);
-    vec4 position = texture(sampler2D(inputTextures[2], defaultSampler), uv);
-    vec4 emission = texture(sampler2D(inputTextures[3], defaultSampler), uv);
+    vec4 normalMetallic = texture(sampler2D(inputTextures[1], samplers[0]), uv);
+    vec4 position = texture(sampler2D(inputTextures[2], samplers[0]), uv);
+    vec4 emission = texture(sampler2D(inputTextures[3], samplers[0]), uv);
 
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
@@ -115,7 +115,7 @@ void main()
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - position.rgb);
 	vec3 R = reflect(-V, N);
-	// vec4 environment = texture(samplerCube(environmentTexture, defaultSampler), R);
+	// vec4 environment = texture(samplerCube(environmentTexture, samplers[0]), R);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
@@ -170,13 +170,13 @@ void main()
     vec3 kD = 1.0 - kS;
     kD *= 1.0 - metallic;
     
-    vec3 irradiance = texture(samplerCube(irradianceMap, defaultSampler), N).rgb;
+    vec3 irradiance = texture(samplerCube(irradianceMap, samplers[0]), N).rgb;
     vec3 diffuse      = irradiance * albedo;
     
     // sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
     const float MAX_REFLECTION_LOD = 4.0;
-    vec3 prefilteredColor = textureLod(samplerCube(prefilterMap, defaultSampler), R,  roughness * MAX_REFLECTION_LOD).rgb;    
-    vec2 brdf  = texture(sampler2D(brdfLUT, defaultSampler), vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 prefilteredColor = textureLod(samplerCube(prefilterMap, samplers[0]), R,  roughness * MAX_REFLECTION_LOD).rgb;    
+    vec2 brdf  = texture(sampler2D(brdfLUT, samplers[0]), vec2(max(dot(N, V), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
     
     vec3 ao = vec3(0.2);

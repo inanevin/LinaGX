@@ -1,8 +1,9 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(location = 0) in vec2 uv;
-layout(location = 0) out vec4 FragColor;
+layout(location = 0) in vec2 inUV;
+layout(location = 1) in vec3 inWorldPos;
+layout(location = 2) in vec3 inNormal;
 
 #define MAX_BONES 30
 
@@ -29,11 +30,11 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler defaultSampler;
+layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 void main()
 {
-    FragColor = vec4(0.2,0.2,0.2,1.0);
+    
 }
 
 
