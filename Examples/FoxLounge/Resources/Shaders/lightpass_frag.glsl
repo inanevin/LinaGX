@@ -96,13 +96,15 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }  
 
-float ShadowCalculation(vec3 fragPos, vec3 lightPos)
+float ShadowCalculation(vec3 fragPos, vec3 lightPos, vec3 normal)
 {
     vec3 fragToLight = fragPos - lightPos; 
+    fragToLight = vec3(fragToLight.r, fragToLight.g, -fragToLight.b);
     float closestDepth = texture(samplerCube(shadowsDepth, samplers[1]), fragToLight).r;
     closestDepth *= sceneData.farPlane;
     float currentDepth = length(fragToLight);
-    float bias = 0.05;
+   // float bias = max(0.05 * (1.0 - dot(normal, fragToLight)), 0.005);
+    float bias =0.05;
     float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
     return shadow;
 }  
@@ -177,10 +179,8 @@ void main()
     }
 
        
-    float shadow = ShadowCalculation(position.rgb, lightPos);
-    FragColor = vec4(albedo, 1.0f) * (1.0 - shadow);
-    return;
-
+    float shadow = ShadowCalculation(position.rgb, lightPos, N);
+    Lo *= (1.0 - shadow);
     vec3 color = vec3(0.05) * albedo + Lo;
  
     vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);

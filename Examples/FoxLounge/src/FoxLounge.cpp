@@ -583,13 +583,12 @@ namespace LinaGX::Examples
             .minFilter  = Filter::Linear,
             .magFilter  = Filter::Linear,
             .mode       = SamplerAddressMode::ClampToEdge,
-            .mipmapMode = MipmapMode::Linear,
+            .mipmapMode = MipmapMode::Nearest,
             .anisotropy = 0,
             .minLod     = 0.0f,
             .maxLod     = 1.0f,
             //.mipLodBias = 6.0f,
         };
-
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
         m_samplers.push_back(m_lgx->CreateSampler(depthSampler));
     }
@@ -759,7 +758,7 @@ namespace LinaGX::Examples
 
                 GPUCameraData cd = {
                     .view        = rotationMatrix * translationMatrix,
-                    .proj        = glm::perspective(DEG2RAD(90.0f), 1.0f, 0.01f, FAR_PLANE),
+                    .proj        = glm::perspective(DEG2RAD(FOV), 1.0f, NEAR_PLANE, FAR_PLANE),
                     .camPosition = glm::vec4(pos.x, pos.y, pos.z, 0),
                 };
                 std::memcpy(pfd.rscCameraDataMapping0 + camDataPadded + (camDataPadded * i), &cd, sizeof(GPUCameraData));
@@ -1217,7 +1216,7 @@ namespace LinaGX::Examples
         App::Shutdown();
     }
 
-    void Example::DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials, bool excludeLantern)
+    void Example::DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials, bool excludeLantern, uint32 additionalConstant)
     {
 
         auto& currentFrame = m_pfd[frameIndex];
@@ -1253,8 +1252,7 @@ namespace LinaGX::Examples
                 if (excludeLantern && mat.isLantern)
                     continue;
 
-                if (mat.name.compare("Terrain") != 0 && mat.name.compare("Cat") != 0)
-                    continue;
+             
                 // Bind material descriptor.
                 if (bindMaterials)
                 {
@@ -1272,7 +1270,7 @@ namespace LinaGX::Examples
                 {
                     GPUConstants constants       = {};
                     constants.int1               = primData.objIndex;
-                    constants.int2               = 0;
+                    constants.int2               = additionalConstant;
                     LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
                     ct->extension                = nullptr;
                     ct->offset                   = 0;
@@ -1528,13 +1526,12 @@ namespace LinaGX::Examples
                     euler = glm::vec3(DEG2RAD(90.0f), 0.0f, 0.0f);
                 else if (i == 3)
                     euler = glm::vec3(DEG2RAD(-90.0f), 0.0f, 0.0f);
-
                 glm::mat4 rotationMatrix    = glm::mat4_cast(glm::inverse(glm::quat(euler)));
                 glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -pos);
 
                 GPUCameraData cd = {
                     .view        = rotationMatrix * translationMatrix,
-                    .proj        = glm::perspective(DEG2RAD(90.0f), 1.0f, 0.01f, FAR_PLANE),
+                    .proj        = glm::perspective(DEG2RAD(FOV), 1.0f, NEAR_PLANE, FAR_PLANE),
                     .camPosition = glm::vec4(pos.x, pos.y, pos.z, 0),
                 };
 
@@ -1756,18 +1753,16 @@ namespace LinaGX::Examples
             const uint32 camDataPadded   = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
             BindPassSet(frame, PipelineLayoutType::PL_Simple, m_passes[PS_Shadows].descriptorSets[frame], cameraDataIndex * camDataPadded, true);
             BeginPass(frame, PassType::PS_Shadows, SHADOW_MAP_RES, SHADOW_MAP_RES, i, i);
-            DrawObjects(frame, DrawObjectFlags::DrawDefault, Shader::SH_Shadows, false, true);
+            DrawObjects(frame, DrawObjectFlags::DrawDefault, Shader::SH_Shadows, false, true, i);
             EndPass(frame);
         }
-
         CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
         ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
     }
 
     void Example::OnTick()
     {
-        auto now = std::chrono::high_resolution_clock::now();
-
+        auto now      = std::chrono::high_resolution_clock::now();
         m_boundShader = -1;
 
         // Check for window inputs.

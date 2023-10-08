@@ -133,7 +133,7 @@ namespace LinaGX
 
             void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0, uint32 depthViewIndex = 0);
             void EndPass(uint32 frameIndex);
-            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true, bool excludeLantern = false);
+            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true, bool excludeLantern = false, uint32 additionalConstants = 0);
             void DrawCube(uint32 frameIndex);
             void DrawFullscreenQuad(uint32 frameIndex);
             void BindShader(uint32 frameIndex, uint32 target);
