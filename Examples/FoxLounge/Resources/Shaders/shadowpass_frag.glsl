@@ -22,6 +22,7 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    float farPlane;
 } sceneData;
 
 
@@ -34,7 +35,9 @@ layout (set = 0, binding = 2) uniform sampler samplers[2];
 
 void main()
 {
-    
+    float lightDistance = length(inWorldPos - sceneData.lightPosition.rgb);
+    lightDistance = lightDistance / sceneData.farPlane;
+    gl_FragDepth = lightDistance;
 }
 
 

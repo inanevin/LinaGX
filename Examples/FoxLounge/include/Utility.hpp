@@ -118,6 +118,7 @@ namespace LinaGX
             glm::vec4 skyColor2;
             glm::vec4 lightPos;
             glm::vec4 lightColor;
+            float     farPlane;
         };
 
         struct GPUObjectData

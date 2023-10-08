@@ -37,6 +37,8 @@ namespace LinaGX
 {
     namespace Examples
     {
+#define FAR_PLANE 1000.0f
+
         class Camera
         {
         public:

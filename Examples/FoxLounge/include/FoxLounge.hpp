@@ -66,7 +66,8 @@ namespace LinaGX
 
         struct Material
         {
-            std::string                                         name = "";
+            std::string                                         name      = "";
+            bool                                                isLantern = false;
             GPUMaterialData                                     gpuMat;
             std::unordered_map<LinaGX::GLTFTextureType, uint32> textureIndices;
             uint16                                              descriptorSets[FRAMES_IN_FLIGHT];
@@ -132,7 +133,7 @@ namespace LinaGX
 
             void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0, uint32 depthViewIndex = 0);
             void EndPass(uint32 frameIndex);
-            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true);
+            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true, bool excludeLantern = false);
             void DrawCube(uint32 frameIndex);
             void DrawFullscreenQuad(uint32 frameIndex);
             void BindShader(uint32 frameIndex, uint32 target);
@@ -169,7 +170,9 @@ namespace LinaGX
             std::vector<uint16>                 m_pipelineLayouts;
             std::vector<LinaGX::TextureBarrier> m_passBarriers;
 
-            uint32 m_sceneCubemap = 0;
+            glm::vec4 m_lightPos        = {};
+            uint32    m_sceneCubemap    = 0;
+            uint32    m_dbgCamDataIndex = 0;
         };
 
     } // namespace Examples

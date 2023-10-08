@@ -195,7 +195,13 @@ namespace LinaGX::Examples
             .stages          = {LinaGX::ShaderStage::Fragment},
         };
 
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3, binding4}};
+        LinaGX::DescriptorBinding binding5 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3, binding4, binding5}};
 
         return desc;
     }

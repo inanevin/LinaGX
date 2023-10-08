@@ -21,6 +21,7 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    float farPlane;
 } sceneData;
 
 
@@ -42,6 +43,7 @@ layout (set = 1, binding = 1) uniform texture2D inputTextures[4];
 layout (set = 1, binding = 2) uniform textureCube irradianceMap;
 layout (set = 1, binding = 3) uniform textureCube prefilterMap;
 layout (set = 1, binding = 4) uniform texture2D brdfLUT;
+layout (set = 1, binding = 5) uniform textureCube shadowsDepth;
 
 const float PI = 3.14159265359;
 
@@ -92,6 +94,17 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}  
+
+float ShadowCalculation(vec3 fragPos, vec3 lightPos)
+{
+    vec3 fragToLight = fragPos - lightPos; 
+    float closestDepth = texture(samplerCube(shadowsDepth, samplers[1]), fragToLight).r;
+    closestDepth *= sceneData.farPlane;
+    float currentDepth = length(fragToLight);
+    float bias = 0.05;
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    return shadow;
 }  
 
 void main()
@@ -162,9 +175,14 @@ void main()
         // add to outgoing radiance Lo
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
     }
-    
-    vec3 color = vec3(0.05) * albedo + Lo;
 
+       
+    float shadow = ShadowCalculation(position.rgb, lightPos);
+    FragColor = vec4(albedo, 1.0f) * (1.0 - shadow);
+    return;
+
+    vec3 color = vec3(0.05) * albedo + Lo;
+ 
     vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     vec3 kS = F;
     vec3 kD = 1.0 - kS;
@@ -181,8 +199,8 @@ void main()
     
     vec3 ao = vec3(0.2);
     vec3 ambient = (kD * diffuse + specular * ao);
-    color = ambient + Lo;
 
+    color = ambient + Lo;
     color += emission.rgb;
 
     vec3 mapped = vec3(1.0) - exp(-color * 0.2f);

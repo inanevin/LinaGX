@@ -63,7 +63,6 @@ namespace LinaGX::Examples
         LinaGX::Config.dx12Config.enableDebugLayers           = true;
 
         BackendAPI api = BackendAPI::Vulkan;
-
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
@@ -183,6 +182,9 @@ namespace LinaGX::Examples
                 mat.gpuMat.specialTexture = getTextureIndex("Resources/Textures/noiseTexture.png");
                 mat.gpuMat.baseColorFac   = glm::vec4(1);
             }
+
+            if (sid == "Lantern"_hs)
+                mat.isLantern = true;
 
             mat.gpuMat.baseColor         = mat.textureIndices.at(LinaGX::GLTFTextureType::BaseColor);
             mat.gpuMat.normal            = mat.textureIndices.at(LinaGX::GLTFTextureType::Normal);
@@ -578,10 +580,10 @@ namespace LinaGX::Examples
         };
 
         LinaGX::SamplerDesc depthSampler = {
-            .minFilter  = Filter::Nearest,
-            .magFilter  = Filter::Nearest,
-            .mode       = SamplerAddressMode::Repeat,
-            .mipmapMode = MipmapMode::Nearest,
+            .minFilter  = Filter::Linear,
+            .magFilter  = Filter::Linear,
+            .mode       = SamplerAddressMode::ClampToEdge,
+            .mipmapMode = MipmapMode::Linear,
             .anisotropy = 0,
             .minLod     = 0.0f,
             .maxLod     = 1.0f,
@@ -732,11 +734,12 @@ namespace LinaGX::Examples
             pfd.rscCameraData0 = m_lgx->CreateResource(cameraDataResource);
             m_lgx->MapResource(pfd.rscCameraData0, pfd.rscCameraDataMapping0);
 
+            // For environment mapping.
             for (uint32 i = 0; i < 6; i++)
             {
-                const glm::vec3 pos = glm::vec3(-3.0f, -2.2f, -0.33f);
-                // const glm::vec3 pos   = glm::vec3(0.0f, 0.0f, 0.0f);
-                glm::vec3 euler = glm::vec3(0, 0, 0);
+                // const glm::vec3 pos   = glm::vec3(-3.0f, -2.2f, -0.33f);
+                const glm::vec3 pos   = glm::vec3(0.0f, 0.0f, 0.0f);
+                glm::vec3       euler = glm::vec3(0, 0, 0);
 
                 if (i == 0)
                     euler.y = DEG2RAD(-90.0f);
@@ -756,10 +759,9 @@ namespace LinaGX::Examples
 
                 GPUCameraData cd = {
                     .view        = rotationMatrix * translationMatrix,
-                    .proj        = glm::perspective(DEG2RAD(90.0f), static_cast<float>(m_window->GetSize().x) / static_cast<float>(m_window->GetSize().y), 0.01f, 1000.0f),
+                    .proj        = glm::perspective(DEG2RAD(90.0f), 1.0f, 0.01f, FAR_PLANE),
                     .camPosition = glm::vec4(pos.x, pos.y, pos.z, 0),
                 };
-
                 std::memcpy(pfd.rscCameraDataMapping0 + camDataPadded + (camDataPadded * i), &cd, sizeof(GPUCameraData));
             }
         }
@@ -923,6 +925,15 @@ namespace LinaGX::Examples
                 };
 
                 m_lgx->DescriptorUpdateImage(updateBRDF);
+
+                LinaGX::DescriptorUpdateImageDesc updateShadows = {
+                    .setHandle          = m_passes[PS_Lighting].descriptorSets[i],
+                    .binding            = 5,
+                    .textures           = {m_passes[PassType::PS_Shadows].renderTargets[i].depthStencilAttachment.texture},
+                    .textureViewIndices = {6}, // last is cubeview
+                };
+
+                m_lgx->DescriptorUpdateImage(updateShadows);
             }
 
             if (isFirst)
@@ -1206,7 +1217,7 @@ namespace LinaGX::Examples
         App::Shutdown();
     }
 
-    void Example::DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials)
+    void Example::DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials, bool excludeLantern)
     {
 
         auto& currentFrame = m_pfd[frameIndex];
@@ -1239,6 +1250,11 @@ namespace LinaGX::Examples
             {
                 const auto& mat = m_materials[matIndex];
 
+                if (excludeLantern && mat.isLantern)
+                    continue;
+
+                if (mat.name.compare("Terrain") != 0 && mat.name.compare("Cat") != 0)
+                    continue;
                 // Bind material descriptor.
                 if (bindMaterials)
                 {
@@ -1466,20 +1482,38 @@ namespace LinaGX::Examples
     {
         auto& currentFrame = m_pfd[frameIndex];
 
+        m_lightPos = glm::vec4(1.5f, 2.5f, 0.0f, 0.0f);
+
         // Scene data.
         {
             GPUSceneData sceneData = {
                 .skyColor1  = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
                 .skyColor2  = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
-                .lightPos   = glm::vec4(1.5f, 2.0f, 0.0f, 0.0f),
+                .lightPos   = m_lightPos,
                 .lightColor = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
+                .farPlane   = FAR_PLANE,
             };
 
             std::memcpy(currentFrame.rscSceneDataMapping, &sceneData, sizeof(GPUSceneData));
+        }
 
+        // Camera data.
+        {
+            const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
+
+            // Scene camera.
+            GPUCameraData camData = {
+                .view        = m_camera.GetView(),
+                .proj        = m_camera.GetProj(),
+                .camPosition = m_camera.GetPosition(),
+            };
+
+            std::memcpy(currentFrame.rscCameraDataMapping0, &camData, sizeof(GPUCameraData));
+
+            // Light cameras.
             for (uint32 i = 0; i < 6; i++)
             {
-                const glm::vec3 pos   = sceneData.lightPos;
+                const glm::vec3 pos   = m_lightPos;
                 glm::vec3       euler = glm::vec3(0, 0, 0);
 
                 if (i == 0)
@@ -1496,30 +1530,16 @@ namespace LinaGX::Examples
                     euler = glm::vec3(DEG2RAD(-90.0f), 0.0f, 0.0f);
 
                 glm::mat4 rotationMatrix    = glm::mat4_cast(glm::inverse(glm::quat(euler)));
-                glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), pos);
+                glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -pos);
 
                 GPUCameraData cd = {
                     .view        = rotationMatrix * translationMatrix,
-                    .proj        = glm::perspective(DEG2RAD(90.0f), static_cast<float>(m_window->GetSize().x) / static_cast<float>(m_window->GetSize().y), 0.01f, 1000.0f),
+                    .proj        = glm::perspective(DEG2RAD(90.0f), 1.0f, 0.01f, FAR_PLANE),
                     .camPosition = glm::vec4(pos.x, pos.y, pos.z, 0),
                 };
 
-                const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
                 std::memcpy(currentFrame.rscCameraDataMapping0 + camDataPadded * 7 + (camDataPadded * i), &cd, sizeof(GPUCameraData));
             }
-        }
-
-        // Camera data.
-        {
-            const auto& camPos = m_camera.GetPosition();
-
-            GPUCameraData camData = {
-                .view        = m_camera.GetView(),
-                .proj        = m_camera.GetProj(),
-                .camPosition = m_camera.GetPosition(),
-            };
-
-            std::memcpy(currentFrame.rscCameraDataMapping0, &camData, sizeof(GPUCameraData));
         }
 
         // Obj data.
@@ -1619,11 +1639,11 @@ namespace LinaGX::Examples
 
             TransferGlobalData(frame);
             BindGlobalSet(frame);
-
             CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
             CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
             CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
+            CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
+            ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
 
             for (uint32 i = 0; i < 6; i++)
             {
@@ -1732,11 +1752,11 @@ namespace LinaGX::Examples
 
         for (uint32 i = 0; i < 6; i++)
         {
-            const uint32 cameraDataIndex = i + 1;
+            const uint32 cameraDataIndex = i + 7;
             const uint32 camDataPadded   = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
             BindPassSet(frame, PipelineLayoutType::PL_Simple, m_passes[PS_Shadows].descriptorSets[frame], cameraDataIndex * camDataPadded, true);
             BeginPass(frame, PassType::PS_Shadows, SHADOW_MAP_RES, SHADOW_MAP_RES, i, i);
-            DrawObjects(frame, DrawObjectFlags::DrawDefault, Shader::SH_Shadows, false);
+            DrawObjects(frame, DrawObjectFlags::DrawDefault, Shader::SH_Shadows, false, true);
             EndPass(frame);
         }
 
@@ -1804,6 +1824,11 @@ namespace LinaGX::Examples
             dbgUpdate       = true;
         }
 
+        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_8))
+        {
+            m_dbgCamDataIndex = (m_dbgCamDataIndex + 1) % 13;
+        }
+
         if (dbgUpdate)
         {
             m_lgx->Join();
@@ -1843,7 +1868,7 @@ namespace LinaGX::Examples
         dbg2->id               = 0;
 
         CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-        DeferredRenderScene(currentFrameIndex, DrawObjectFlags::DrawDefault | DrawObjectFlags::DrawSkybox, 0, 0, 0);
+        DeferredRenderScene(currentFrameIndex, DrawObjectFlags::DrawDefault | DrawObjectFlags::DrawSkybox, m_dbgCamDataIndex, 0, 0);
 
         BindPassSet(currentFrameIndex, PipelineLayoutType::PL_FinalQuad, m_passes[PS_FinalQuad].descriptorSets[currentFrameIndex], 0, false);
         BeginPass(currentFrameIndex, PassType::PS_FinalQuad);

@@ -21,8 +21,8 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    float farPlane;
 } sceneData;
-
 
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 {

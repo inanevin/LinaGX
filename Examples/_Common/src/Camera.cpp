@@ -104,7 +104,7 @@ namespace LinaGX::Examples
         glm::mat4 rotationMatrix    = glm::mat4_cast(glm::inverse(m_rotation));
         glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -m_position);
         m_view                      = rotationMatrix * translationMatrix;
-        m_proj                      = glm::perspective(DEG2RAD(90.0f), static_cast<float>(m_mainWindow->GetSize().x) / static_cast<float>(m_mainWindow->GetSize().y), 0.1f, 500.0f);
+        m_proj                      = glm::perspective(DEG2RAD(90.0f), static_cast<float>(m_mainWindow->GetSize().x) / static_cast<float>(m_mainWindow->GetSize().y), 0.1f, FAR_PLANE);
     }
 
 } // namespace LinaGX::Examples
