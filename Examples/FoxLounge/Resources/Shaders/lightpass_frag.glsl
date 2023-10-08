@@ -96,17 +96,45 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }  
 
-float ShadowCalculation(vec3 fragPos, vec3 lightPos, vec3 normal)
+
+// array of offset direction for sampling
+vec3 gridSamplingDisk[20] = vec3[]
+(
+   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
+   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+);
+
+float ShadowCalculation(vec3 fragPos, vec3 lightPos, vec3 viewPos)
 {
     vec3 fragToLight = fragPos - lightPos; 
     fragToLight = vec3(fragToLight.r, fragToLight.g, -fragToLight.b);
-    float closestDepth = texture(samplerCube(shadowsDepth, samplers[1]), fragToLight).r;
-    closestDepth *= sceneData.farPlane;
     float currentDepth = length(fragToLight);
-   // float bias = max(0.05 * (1.0 - dot(normal, fragToLight)), 0.005);
-    float bias =0.05;
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-    return shadow;
+
+
+    float shadow = 0.0;
+    float bias = 0.15;
+    int samples = 20;
+    float viewDistance = length(viewPos - fragPos);
+    float diskRadius = (1.0 + (viewDistance / sceneData.farPlane)) / 25.0;
+    for(int i = 0; i < samples; ++i)
+    {
+        float closestDepth = texture(samplerCube(shadowsDepth, samplers[1]), fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        closestDepth *=  sceneData.farPlane;   // undo mapping [0;1]
+        if(currentDepth - bias > closestDepth)
+            shadow += 1.0;
+    }
+    shadow /= float(samples);
+     return shadow;
+
+    //float closestDepth = texture(samplerCube(shadowsDepth, samplers[1]), fragToLight).r;
+    //closestDepth *= sceneData.farPlane;
+    /// float bias = max(0.05 * (1.0 - dot(normal, fragToLight)), 0.005);
+    //float bias =0.05;
+    //float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    //return shadow;
 }  
 
 void main()
@@ -179,7 +207,7 @@ void main()
     }
 
        
-    float shadow = ShadowCalculation(position.rgb, lightPos, N);
+    float shadow = ShadowCalculation(position.rgb, lightPos, camPos);
     Lo *= (1.0 - shadow);
     vec3 color = vec3(0.05) * albedo + Lo;
  

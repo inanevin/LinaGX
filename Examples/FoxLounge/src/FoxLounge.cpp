@@ -1491,7 +1491,6 @@ namespace LinaGX::Examples
                 .lightColor = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
                 .farPlane   = FAR_PLANE,
             };
-
             std::memcpy(currentFrame.rscSceneDataMapping, &sceneData, sizeof(GPUSceneData));
         }
 
@@ -1507,7 +1506,6 @@ namespace LinaGX::Examples
             };
 
             std::memcpy(currentFrame.rscCameraDataMapping0, &camData, sizeof(GPUCameraData));
-
             // Light cameras.
             for (uint32 i = 0; i < 6; i++)
             {
