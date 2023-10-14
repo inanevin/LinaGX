@@ -51,6 +51,10 @@ Resources/Shaders/screenquad_vert.glsl
 Resources/Shaders/lightpass_frag.glsl
 Resources/Shaders/lightpass_vert.glsl
 Resources/Shaders/shadowpass_frag.glsl
+Resources/Shaders/bloom_frag.glsl
+Resources/Shaders/ssao_frag.glsl
+Resources/Shaders/ssao_geometry_vert.glsl
+Resources/Shaders/ssao_geometry_frag.glsl
 )
 
 #--------------------------------------------------------------------

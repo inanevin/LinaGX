@@ -117,7 +117,7 @@ namespace LinaGX::Examples
                 .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
             };
             _shaderProgram = _lgx->CreateShader(shaderDesc);
-
+          
             // Compiled binaries are not needed anymore.
             for (auto& [stg, blob] : outCompiledBlobs)
                 free(blob.ptr);

@@ -41,7 +41,12 @@ namespace LinaGX
 {
 
     PFN_vkSetDebugUtilsObjectNameEXT g_vkSetDebugUtilsObjectNameEXT;
+    PFN_vkCmdBeginDebugUtilsLabelEXT g_vkCmdBeginDebugUtilsLabelEXT;
+    PFN_vkCmdEndDebugUtilsLabelEXT   g_vkCmdEndDebugUtilsLabelEXT;
+
 #define pfn_vkSetDebugUtilsObjectNameEXT g_vkSetDebugUtilsObjectNameEXT
+#define pfn_vkBeginDebugUtilLabelEXT     g_vkCmdBeginDebugUtilsLabelEXT
+#define pfn_vkEndDebugUtilLabelEXT       g_vkCmdEndDebugUtilsLabelEXT
 
 #ifndef NDEBUG
 #define VK_NAME_OBJECT(namedObject, objType, name, structName)                                     \
@@ -52,8 +57,19 @@ namespace LinaGX
     structName.pObjectName                   = name;                                               \
     pfn_vkSetDebugUtilsObjectNameEXT(m_device, &structName);
 
+#define VK_CMD_BEGIN_LABEL(cmd, label)                                         \
+    VkDebugUtilsLabelEXT startLabel = {};                                      \
+    startLabel.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT; \
+    startLabel.pLabelName           = label;                                   \
+    pfn_vkBeginDebugUtilLabelEXT(cmd, &startLabel);
+
+#define VK_CMD_END_LABEL(cmd) \
+    pfn_vkEndDebugUtilLabelEXT(cmd);
+
 #else
 #define VK_NAME_OBJECT(namedObject, name, structName)
+#define VK_CMD_BEGIN_LABEL(cmd, label)
+#define VK_CMD_END_LABEL(cmd, label)
 #endif
 
 #define LGX_VK_MAJOR 1
@@ -2465,6 +2481,8 @@ namespace LinaGX
         }
 
         g_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
+        g_vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(vkGetDeviceProcAddr(m_device, "vkCmdBeginDebugUtilsLabelEXT"));
+        g_vkCmdEndDebugUtilsLabelEXT   = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(vkGetDeviceProcAddr(m_device, "vkCmdEndDebugUtilsLabelEXT"));
 
         // Queue support
         {
@@ -3380,7 +3398,17 @@ namespace LinaGX
     void VKBackend::CMD_Debug(uint8* data, VKBCommandStream& stream)
     {
         CMDDebug* cmd = reinterpret_cast<CMDDebug*>(data);
-        int a = 5;
+    }
+
+    void VKBackend::CMD_DebugBeginLabel(uint8* data, VKBCommandStream& stream)
+    {
+        CMDDebugBeginLabel* cmd = reinterpret_cast<CMDDebugBeginLabel*>(data);
+        VK_CMD_BEGIN_LABEL(stream.buffer, cmd->label);
+    }
+
+    void VKBackend::CMD_DebugEndLabel(uint8* data, VKBCommandStream& stream)
+    {
+        VK_CMD_END_LABEL(stream.buffer);
     }
 
     void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize)

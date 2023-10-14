@@ -24,8 +24,11 @@ target_link_libraries(${PROJECT_NAME}
 
 include(Dependencies/dxc/link.cmake)
 include(Dependencies/nvapi/link.cmake)
+include(Dependencies/pix/link.cmake)
 link_dxc()
 link_nvapi()
+link_pix()
+
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 

@@ -71,6 +71,7 @@ FEATURES TO IMPLEMENT
 - metal, clear the bound descriptor sets in CloseCommandStreams
 - DX12 bound constants ---> use linear allocator instead of constantly memcpying.
 - We did parameter checking & ensuring in DX12 descriptor bindings, did we already do the same in metal, if not, do it.
+- commandlist4, this5, that2, feature support?
 
 - Support for different vertex buffer slots.
 - Custom barriers & compute barrier.

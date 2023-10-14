@@ -37,6 +37,7 @@ SOFTWARE.
 #include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
 #include <fstream>
+#include "WinPixEventRuntime/pix3.h"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "nvapi/nvapi.h"
@@ -2987,6 +2988,7 @@ namespace LinaGX
 
     void DX12Backend::CMD_EndRenderPass(uint8* data, DX12CommandStream& stream)
     {
+        stream.list->EndEvent();
         CMDEndRenderPass* end = reinterpret_cast<CMDEndRenderPass*>(data);
         stream.list->EndRenderPass();
     }
@@ -3441,7 +3443,17 @@ namespace LinaGX
     void DX12Backend::CMD_Debug(uint8* data, DX12CommandStream& stream)
     {
         CMDDebug* cmd = reinterpret_cast<CMDDebug*>(data);
-        int       a   = 5;
+    }
+
+    void DX12Backend::CMD_DebugBeginLabel(uint8* data, DX12CommandStream& stream)
+    {
+        CMDDebugBeginLabel* cmd = reinterpret_cast<CMDDebugBeginLabel*>(data);
+        PIXBeginEvent(stream.list.Get(), PIX_COLOR_DEFAULT, cmd->label);
+    }
+
+    void DX12Backend::CMD_DebugEndLabel(uint8* data, DX12CommandStream& stream)
+    {
+        PIXEndEvent();
     }
 
 } // namespace LinaGX

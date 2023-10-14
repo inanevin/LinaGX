@@ -256,6 +256,8 @@ namespace LinaGX
         void CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream);
         void CMD_Barrier(uint8* data, VKBCommandStream& stream);
         void CMD_Debug(uint8* data, VKBCommandStream& stream);
+        void CMD_DebugBeginLabel(uint8* data, VKBCommandStream& stream);
+        void CMD_DebugEndLabel(uint8* data, VKBCommandStream& stream);
 
     private:
         void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize);

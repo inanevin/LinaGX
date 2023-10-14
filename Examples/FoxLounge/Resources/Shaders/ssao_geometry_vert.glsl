@@ -6,9 +6,8 @@ layout(location = 1) in vec2 uv;
 layout(location = 2) in vec3 normal;
 // layout(location = 3) in vec4 inBoneIndices;
 // layout(location = 4) in vec4 inBoneWeights;
-layout(location = 0) out vec2 outUV;
-layout(location = 1) out vec3 outWorldPos;
-layout(location = 2) out vec3 outNormal;
+layout(location = 0) out vec3 outFragPos;
+layout(location = 1) out vec3 outNormal;
 
 #define MAX_BONES 30
 #define MAX_BONE_INFLUENCES 4
@@ -38,7 +37,6 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 
 layout (set = 0, binding = 2) uniform sampler samplers[2];
 
-
 layout (set = 1, binding = 0) uniform CameraData
 {
     mat4 view;
@@ -66,8 +64,9 @@ void main() {
     //}
 
     skinnedPosition = vec4(inPosition, 1.0);
-    outWorldPos = vec3(object.modelMatrix * skinnedPosition);
-    outUV = vec2(uv.x, uv.y);
+
+    vec4 viewPos = cameraData.view * object.modelMatrix * skinnedPosition;
+    outFragPos = viewPos.xyz;
     outNormal = mat3(object.normalMatrix) * normal;
-    gl_Position = cameraData.projection * cameraData.view *  vec4(outWorldPos, 1.0);
+    gl_Position = cameraData.projection * viewPos;
 }

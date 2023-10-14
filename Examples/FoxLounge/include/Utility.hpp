@@ -59,6 +59,9 @@ namespace LinaGX
             SH_Prefilter,
             SH_BRDF,
             SH_Shadows,
+            SH_Bloom,
+            SH_SSAO,
+            SH_SSAOGeometry,
             SH_Max,
         };
 
@@ -71,6 +74,10 @@ namespace LinaGX
             PS_Prefilter,
             PS_BRDF,
             PS_Shadows,
+            PS_BloomHori,
+            PS_BloomVert,
+            PS_SSAO,
+            PS_SSAOGeometry,
             PS_Max,
         };
 
@@ -78,10 +85,13 @@ namespace LinaGX
         {
             PL_GlobalSet = 0,
             PL_Objects,
+            PL_SSAOGeometry,
             PL_Simple,
             PL_Lighting,
+            PL_SimpleQuad,
             PL_FinalQuad,
             PL_Irradiance,
+            PL_SSAO,
             PL_Max,
         };
 
@@ -130,6 +140,11 @@ namespace LinaGX
             int       padding[15] = {0};
         };
 
+        struct GPUSSAOData
+        {
+            glm::vec4 samples[64];
+        };
+
         struct VertexSkinned
         {
             LinaGX::LGXVector3 position = {};
@@ -160,12 +175,16 @@ namespace LinaGX
 
             static uint32 GetPaddedItemSize(uint32 itemSize, uint32 alignment);
 
+            static std::string PassToString(PassType pt);
+
             // Matrix.
             static glm::mat4 TranslateRotateScale(const LinaGX::LGXVector3& pos, const LinaGX::LGXVector4& rot, const LinaGX::LGXVector3& scale);
             static glm::mat4 CalculateGlobalMatrix(LinaGX::ModelNode* node);
 
             static LinaGX::DescriptorSetDesc GetSetDescriptionGlobal();
             static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPass();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionSimpleQuadPass();
+            static LinaGX::DescriptorSetDesc GetSetDescriptionSSAO();
             static LinaGX::DescriptorSetDesc GetSetDescriptionFinalPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();

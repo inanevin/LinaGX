@@ -30,82 +30,98 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
+
+    std::unordered_map<PassType, std::string> g_passToString = {
+        {PS_Objects, "Object Pass"},
+        {PS_Lighting, "Lighting Pass"},
+        {PS_FinalQuad, "Final Quad Pass"},
+        {PS_Irradiance, "Irradiance Pass"},
+        {PS_Prefilter, "Prefilter Pass"},
+        {PS_BRDF, "BRDF Pass"},
+        {PS_Shadows, "Shadow Pass"},
+        {PS_BloomHori, "BloomHorizontal Pass"},
+        {PS_BloomVert, "BloomVertical Pass"},
+        {PS_SSAO, "SSAOPass"},
+        {PS_SSAOGeometry, "SSAOPass Geometry"},
+    };
+
+    /*
+        Import normals and roughness maps as linear formats.
+    */
+    std::vector<LINAGX_STRINGID> g_linearTextures = {
+        "Resources/Textures/Image-3.png"_hs,
+        "Resources/Textures/Image-1.png"_hs,
+        "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"_hs,
+        "Resources/Textures/concrete_cat_statue_nor_gl.png"_hs,
+        "Resources/Textures/rock_surface_rough_2k.png"_hs,
+        "Resources/Textures/rock_surface_nor_dx_2k.png"_hs,
+        "Resources/Textures/coast_rocks_05_rough_png.png"_hs,
+        "Resources/Textures/coast_rocks_05_nor_gl_png.png"
+        "Resources/Textures/rock_moss_set_01_rough_2k.png"_hs,
+        "Resources/Textures/rock_moss_set_01_nor_gl.png"_hs,
+        "Resources/Textures/park_dirt_rough_2k.png"_hs,
+        "Resources/Textures/park_dirt_nor_gl_2k.png"_hs,
+        "Resources/Textures/island_tree_02_nor_gl.png"_hs,
+        "Resources/Textures/island_tree_02_rough.png"_hs,
+        "Resources/Textures/noiseTexture.png"_hs,
+    };
+
     /*
            Normally you'd do this in an editor.
            But hey this is a sample app :)
            And we want to have custom shaders/materials controlled from code setup.
            So we are not gonna be using GLTF texture mappings.
     */
+    std::unordered_map<LINAGX_STRINGID, TextureMapping> g_materialTextureMapping =
+        {
+            {"Lantern"_hs, {
+                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/Image-2.png"},
+                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/Image-3.png"},
+                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/Image-1.png"},
+                               {LinaGX::GLTFTextureType::Emissive, "Resources/Textures/Image.png"},
+                           }},
+
+            {"Cat"_hs, {
+                           {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/concrete_cat_statue_diff_2k.jpg"},
+                           {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"},
+                           {LinaGX::GLTFTextureType::Normal, "Resources/Textures/concrete_cat_statue_nor_gl.png"},
+                       }},
+            {"Fox"_hs, {
+                           {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/rock_surface_diff_2k.png"},
+                           {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/rock_surface_rough_2k.png"},
+                           {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_surface_nor_gl_2k.png"},
+                       }},
+            {"RockBig"_hs, {
+                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/coast_rocks_05_diff_2k.jpg"},
+                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/coast_rocks_05_rough_png.png"},
+                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/coast_rocks_05_nor_gl_png.png"},
+                           }},
+            {"RockSmall"_hs, {
+                                 {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/rock_moss_set_01_diff_2k.jpg"},
+                                 {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/rock_moss_set_01_rough_2k.png"},
+                                 {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_moss_set_01_nor_gl.png"},
+                             }},
+            {"Terrain"_hs, {
+                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/park_dirt_diff_2k.jpg"},
+                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/park_dirt_rough_2k.png"},
+                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/park_dirt_nor_gl_2k.png"},
+                           }},
+            {"Tree"_hs, {
+                            {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/island_tree_02_diff_2k.jpg"},
+                            {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/island_tree_02_rough.png"},
+                            {LinaGX::GLTFTextureType::Normal, "Resources/Textures/island_tree_02_nor_gl.png"},
+                        }},
+
+    };
+
     std::unordered_map<LINAGX_STRINGID, TextureMapping> Utility::GetMaterialTextureMapping()
     {
-        std::unordered_map<LINAGX_STRINGID, TextureMapping> materialTextureMapping =
-            {
-                {"Lantern"_hs, {
-                                   {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/Image-2.png"},
-                                   {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/Image-3.png"},
-                                   {LinaGX::GLTFTextureType::Normal, "Resources/Textures/Image-1.png"},
-                                   {LinaGX::GLTFTextureType::Emissive, "Resources/Textures/Image.png"},
-                               }},
-
-                {"Cat"_hs, {
-                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/concrete_cat_statue_diff_2k.jpg"},
-                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"},
-                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/concrete_cat_statue_nor_gl.png"},
-                           }},
-                {"Fox"_hs, {
-                               {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/rock_surface_diff_2k.png"},
-                               {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/rock_surface_rough_2k.png"},
-                               {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_surface_nor_gl_2k.png"},
-                           }},
-                {"RockBig"_hs, {
-                                   {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/coast_rocks_05_diff_2k.jpg"},
-                                   {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/coast_rocks_05_rough_png.png"},
-                                   {LinaGX::GLTFTextureType::Normal, "Resources/Textures/coast_rocks_05_nor_gl_png.png"},
-                               }},
-                {"RockSmall"_hs, {
-                                     {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/rock_moss_set_01_diff_2k.jpg"},
-                                     {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/rock_moss_set_01_rough_2k.png"},
-                                     {LinaGX::GLTFTextureType::Normal, "Resources/Textures/rock_moss_set_01_nor_gl.png"},
-                                 }},
-                {"Terrain"_hs, {
-                                   {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/park_dirt_diff_2k.jpg"},
-                                   {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/park_dirt_rough_2k.png"},
-                                   {LinaGX::GLTFTextureType::Normal, "Resources/Textures/park_dirt_nor_gl_2k.png"},
-                               }},
-                {"Tree"_hs, {
-                                {LinaGX::GLTFTextureType::BaseColor, "Resources/Textures/island_tree_02_diff_2k.jpg"},
-                                {LinaGX::GLTFTextureType::MetallicRoughness, "Resources/Textures/island_tree_02_rough.png"},
-                                {LinaGX::GLTFTextureType::Normal, "Resources/Textures/island_tree_02_nor_gl.png"},
-                            }},
-
-            };
-
-        return materialTextureMapping;
+        return g_materialTextureMapping;
     }
 
-    /*
-        Import normals and roughness maps as linear formats.
-    */
     std::vector<LINAGX_STRINGID> Utility::GetLinearTextures()
     {
-        std::vector<LINAGX_STRINGID> linearTextures = {
-            "Resources/Textures/Image-3.png"_hs,
-            "Resources/Textures/Image-1.png"_hs,
-            "Resources/Textures/concrete_cat_statue_metal-concrete_cat_statue_rough.png"_hs,
-            "Resources/Textures/concrete_cat_statue_nor_gl.png"_hs,
-            "Resources/Textures/rock_surface_rough_2k.png"_hs,
-            "Resources/Textures/rock_surface_nor_dx_2k.png"_hs,
-            "Resources/Textures/coast_rocks_05_rough_png.png"_hs,
-            "Resources/Textures/coast_rocks_05_nor_gl_png.png"
-            "Resources/Textures/rock_moss_set_01_rough_2k.png"_hs,
-            "Resources/Textures/rock_moss_set_01_nor_gl.png"_hs,
-            "Resources/Textures/park_dirt_rough_2k.png"_hs,
-            "Resources/Textures/park_dirt_nor_gl_2k.png"_hs,
-            "Resources/Textures/island_tree_02_nor_gl.png"_hs,
-            "Resources/Textures/island_tree_02_rough.png"_hs,
-            "Resources/Textures/noiseTexture.png"_hs,
-        };
-        return linearTextures;
+        return g_linearTextures;
     }
 
     uint32 Utility::GetPaddedItemSize(uint32 itemSize, uint32 alignment)
@@ -113,6 +129,11 @@ namespace LinaGX::Examples
         if (alignment == 0)
             return itemSize;
         return itemSize + (alignment - itemSize % alignment) % alignment;
+    }
+
+    std::string Utility::PassToString(PassType pt)
+    {
+        return g_passToString[pt];
     }
 
     glm::mat4 Utility::TranslateRotateScale(const LinaGX::LGXVector3& pos, const LinaGX::LGXVector4& rot, const LinaGX::LGXVector3& scale)
@@ -206,7 +227,7 @@ namespace LinaGX::Examples
         return desc;
     }
 
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionFinalPass()
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionSimpleQuadPass()
     {
         LinaGX::DescriptorBinding binding0 = {
             .descriptorCount = 1,
@@ -215,6 +236,57 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
+
+        return desc;
+    }
+
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionSSAO()
+    {
+        LinaGX::DescriptorBinding binding0 = {
+            .descriptorCount  = 1,
+            .type             = LinaGX::DescriptorType::UBO,
+            .useDynamicOffset = true,
+            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding1 = {
+            .descriptorCount = 2,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding2 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding3 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::UBO,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3}};
+
+        return desc;
+    }
+
+    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionFinalPass()
+    {
+        LinaGX::DescriptorBinding binding0 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding1 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+
+        };
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1}};
 
         return desc;
     }

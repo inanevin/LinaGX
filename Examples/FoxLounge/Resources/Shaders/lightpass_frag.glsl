@@ -1,8 +1,10 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_samplerless_texture_functions : enable
 
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 outBloom;
 
 #define MAX_BONES 30
 
@@ -39,7 +41,7 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 camPos;
 } cameraData;
 
-layout (set = 1, binding = 1) uniform texture2D inputTextures[4];
+layout (set = 1, binding = 1) uniform texture2D gBuffer[4];
 layout (set = 1, binding = 2) uniform textureCube irradianceMap;
 layout (set = 1, binding = 3) uniform textureCube prefilterMap;
 layout (set = 1, binding = 4) uniform texture2D brdfLUT;
@@ -126,8 +128,9 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, vec3 viewPos)
         if(currentDepth - bias > closestDepth)
             shadow += 1.0;
     }
+
     shadow /= float(samples);
-     return shadow;
+    return shadow;
 
     //float closestDepth = texture(samplerCube(shadowsDepth, samplers[1]), fragToLight).r;
     //closestDepth *= sceneData.farPlane;
@@ -137,19 +140,21 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, vec3 viewPos)
     //return shadow;
 }  
 
+
 void main()
 {
-    vec4 albedoRoughness = texture(sampler2D(inputTextures[0], samplers[0]), uv);
+    vec4 albedoRoughness = texture(sampler2D(gBuffer[0], samplers[0]), uv);
 
     if(albedoRoughness.a < 0.0f)
     {
         FragColor = vec4(albedoRoughness.rgb, 1.0f);
+        outBloom = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
 
-    vec4 normalMetallic = texture(sampler2D(inputTextures[1], samplers[0]), uv);
-    vec4 position = texture(sampler2D(inputTextures[2], samplers[0]), uv);
-    vec4 emission = texture(sampler2D(inputTextures[3], samplers[0]), uv);
+    vec4 normalMetallic = texture(sampler2D(gBuffer[1], samplers[0]), uv);
+    vec4 position = texture(sampler2D(gBuffer[2], samplers[0]), uv);
+    vec4 emission = texture(sampler2D(gBuffer[3], samplers[0]), uv);
 
     vec3 albedo = albedoRoughness.rgb;
     float metallic = normalMetallic.a;
@@ -158,13 +163,12 @@ void main()
     vec3 camPos = vec3(cameraData.camPos.x, cameraData.camPos.y, cameraData.camPos.z);
     vec3 V = normalize(camPos - position.rgb);
 	vec3 R = reflect(-V, N);
-	// vec4 environment = texture(samplerCube(environmentTexture, samplers[0]), R);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
     vec3 Lo = vec3(0.0);
-    
+
     // calculate per-light radiance
     vec3 lightPos = vec3(sceneData.lightPosition.x, sceneData.lightPosition.y, sceneData.lightPosition.z);
     vec3 lightCol = vec3(sceneData.lightColor.x, sceneData.lightColor.y, sceneData.lightColor.z);
@@ -231,8 +235,15 @@ void main()
     color = ambient + Lo;
     color += emission.rgb;
 
-    vec3 mapped = vec3(1.0) - exp(-color * 0.2f);
-    FragColor = vec4(mapped, 1.0f);
+    float brightness = dot(emission.rgb, vec3(0.2126, 0.7152, 0.0722));
+
+    if(brightness > 1.0)
+        outBloom = vec4(emission.rgb, 1.0);
+    else
+        outBloom = vec4(0.0, 0.0, 0.0, 1.0);
+
+    FragColor = vec4(color, 1.0f);
+
 }
 
 

@@ -67,6 +67,7 @@ namespace LinaGX
         RenderPassDepthStencilAttachment depthStencilAttachment;
         Viewport                         viewport;
         ScissorsRect                     scissors;
+        LINAGX_STRING                    debugName;
     };
 
     struct CMDEndRenderPass
@@ -232,25 +233,19 @@ namespace LinaGX
 
     struct CMDDebug
     {
-        void* extension;
+        void*  extension;
         uint32 id;
     };
 
-    struct TextureBarrier
+    struct CMDDebugBeginLabel
     {
-        uint32              texture;
-        bool                isSwapchain;
-        TextureBarrierState toState;
-        uint32              srcAccessFlags;
-        uint32              dstAccessFlags;
+        void*       extension;
+        const char* label;
     };
 
-    struct ResourceBarrier
+    struct CMDDebugEndLabel
     {
-        uint32               resource;
-        ResourceBarrierState toState;
-        uint32               srcAccessFlags;
-        uint32               dstAccessFlags;
+        void* extension;
     };
 
     struct CMDBarrier
@@ -285,7 +280,9 @@ namespace LinaGX
     m_cmdFunctions[LGX_GetTypeID<CMDBindConstants>()]          = &BACKEND::CMD_BindConstants;          \
     m_cmdFunctions[LGX_GetTypeID<CMDExecuteSecondaryStream>()] = &BACKEND::CMD_ExecuteSecondaryStream; \
     m_cmdFunctions[LGX_GetTypeID<CMDBarrier>()]                = &BACKEND::CMD_Barrier;                \
-    m_cmdFunctions[LGX_GetTypeID<CMDDebug>()]                  = &BACKEND::CMD_Debug;
+    m_cmdFunctions[LGX_GetTypeID<CMDDebug>()]                  = &BACKEND::CMD_Debug;                  \
+    m_cmdFunctions[LGX_GetTypeID<CMDDebugBeginLabel>()]        = &BACKEND::CMD_DebugBeginLabel;        \
+    m_cmdFunctions[LGX_GetTypeID<CMDDebugEndLabel>()]          = &BACKEND::CMD_DebugEndLabel;
 } // namespace LinaGX
 
 #endif
