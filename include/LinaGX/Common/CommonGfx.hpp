@@ -832,6 +832,7 @@ namespace LinaGX
 
     struct MetalConfiguration
     {
+       
     };
 
     struct Configuration

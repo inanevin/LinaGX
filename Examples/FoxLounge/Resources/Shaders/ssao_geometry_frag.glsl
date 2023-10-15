@@ -25,6 +25,7 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 lightPosition;
     vec4 lightColor;
     vec2 resolution;
+    float nearPlane;
     float farPlane;
 } sceneData;
 

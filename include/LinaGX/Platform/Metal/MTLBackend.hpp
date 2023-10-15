@@ -38,10 +38,13 @@
 namespace LinaGX
 {
 
-struct MTLTexture2D
+struct MTLTexture
 {
     bool isValid = false;
     void* ptr = nullptr;
+    uint32 arrayLength = 1;
+    LINAGX_VEC<void*> views;
+    Format format;
 };
 
 struct MTLBoundDescriptorSet
@@ -49,6 +52,15 @@ struct MTLBoundDescriptorSet
     uint16 handle = 0;
     bool isDirty = false;
     LINAGX_VEC<uint32> dynamicOffsets;
+};
+
+struct MTLBoundConstant
+{
+    void*  data   = nullptr;
+    uint32 offset = 0;
+    uint32 size   = 0;
+    uint32 stagesSize = 0;
+    ShaderStage* stages = nullptr;
 };
 
 struct MTLCommandStream
@@ -77,6 +89,8 @@ struct MTLCommandStream
     LINAGX_MAP<uint32, MTLBoundDescriptorSet> boundSets;
     bool containsDelayedVtxBind = false;
     CMDBindVertexBuffers delayedVtxBind;
+    MTLBoundConstant boundConstants;
+    LINAGX_STRING lastDebugLabel = "";
 };
 
 struct MTLSwapchain
@@ -89,6 +103,7 @@ struct MTLSwapchain
     uint32 width = 0;
     uint32 height = 0;
     uint32 _currentDrawableIndex = 0;
+    Format format;
 };
 
 struct MTLArgEncoder
@@ -109,6 +124,9 @@ struct MTLShader
     void* dsso = nullptr;
     void* cso = nullptr;
     ShaderLayout layout = {};
+    LINAGX_VEC<Format> colorAttachmentFormats;
+    Format depthFormat;
+    Format stencilFormat;
 };
 
 struct MTLFence
@@ -150,6 +168,7 @@ struct MTLBinding
     DescriptorBinding lgxBinding;
     LINAGX_VEC<uint32> resources;
     LINAGX_VEC<uint32> additionalResources;
+    LINAGX_VEC<uint32> viewIndices;
     void* argBuffer = nullptr;
     void* argBufferSecondary = nullptr;
     void* argEncoder = nullptr;
@@ -217,7 +236,7 @@ public:
     virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc) override;
     virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
     virtual void   DestroyPipelineLayout(uint16 handle) override;
-    virtual uint32 CreateCommandStream(CommandType cmdType) override;
+    virtual uint32 CreateCommandStream(const CommandStreamDesc& desc) override;
     virtual void   DestroyCommandStream(uint32 handle) override;
     virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
     virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
@@ -251,19 +270,22 @@ private:
     void CMD_BindIndexBuffers(uint8* data, MTLCommandStream& stream);
     void CMD_CopyResource(uint8* data, MTLCommandStream& stream);
     void CMD_CopyBufferToTexture2D(uint8* data, MTLCommandStream& stream);
+    void CMD_CopyTexture(uint8* data, MTLCommandStream& stream);
     void CMD_BindDescriptorSets(uint8* data, MTLCommandStream& stream);
     void CMD_BindConstants(uint8* data, MTLCommandStream& stream);
     void CMD_Dispatch(uint8* data, MTLCommandStream& stream);
     void CMD_ComputeBarrier(uint8* data, MTLCommandStream& stream);
     void CMD_ExecuteSecondaryStream(uint8* data, MTLCommandStream& stream);
     void CMD_Barrier(uint8* data, MTLCommandStream& stream);
+    void CMD_Debug(uint8* data, MTLCommandStream& stream);
+    void CMD_DebugBeginLabel(uint8* data, MTLCommandStream& stream);
+    void CMD_DebugEndLabel(uint8* data, MTLCommandStream& stream);
     
 private:
     
-    
     IDList<uint8,  MTLSwapchain>                       m_swapchains     = {10};
     IDList<uint16, MTLShader>                          m_shaders        = {20};
-    IDList<uint32, MTLTexture2D>                       m_textures     = {50};
+    IDList<uint32, MTLTexture>                       m_textures     = {50};
     IDList<uint32, MTLCommandStream>                   m_cmdStreams     = {50};
     IDList<uint16, MTLFence> m_fences                                   = {20};
     IDList<uint32, MTLResource>                        m_resources      = {100};

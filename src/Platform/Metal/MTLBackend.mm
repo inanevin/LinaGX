@@ -450,6 +450,7 @@ uint8 MTLBackend::CreateSwapchain(const SwapchainDesc &desc) {
     item.layer = AS_VOID(layer);
     item.width = desc.width;
     item.height = desc.height;
+    item.format = desc.format;
     
     NSWindow* wnd = AS_MTL(desc.window, NSWindow*);
     item.window = AS_VOID(wnd);
@@ -601,6 +602,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     frontStencil.writeMask = depthStencilDesc.stencilWriteMask;
     
     pipelineDescriptor.stencilAttachmentPixelFormat = depthStencilDesc.stencilEnabled ? GetMTLFormat(depthStencilDesc.depthStencilAttachmentFormat) : MTLPixelFormatInvalid;
+    item.stencilFormat = depthStencilDesc.stencilEnabled ? depthStencilDesc.depthStencilAttachmentFormat : Format::UNDEFINED;
     
     // Depth
     MTLDepthStencilDescriptor * depthStencilDescriptor = [[MTLDepthStencilDescriptor alloc] init];
@@ -609,6 +611,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     depthStencilDescriptor.frontFaceStencil = frontStencil;
     depthStencilDescriptor.backFaceStencil = backStencil;
     pipelineDescriptor.depthAttachmentPixelFormat = depthStencilDesc.depthWrite ? GetMTLFormat(depthStencilDesc.depthStencilAttachmentFormat) : MTLPixelFormatInvalid;
+    item.depthFormat = depthStencilDesc.depthWrite ? depthStencilDesc.depthStencilAttachmentFormat : Format::UNDEFINED;
 
     const uint32 colorAttachments = static_cast<uint32>(shaderDesc.colorAttachments.size());
     for(uint32 i = 0; i < colorAttachments; i++)
@@ -626,6 +629,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         pipelineDescriptor.colorAttachments[i].destinationRGBBlendFactor = GetMTLBlendFactor(blend.dstColorBlendFactor);
         pipelineDescriptor.colorAttachments[i].sourceAlphaBlendFactor = GetMTLBlendFactor(blend.srcAlphaBlendFactor);
         pipelineDescriptor.colorAttachments[i].destinationAlphaBlendFactor= GetMTLBlendFactor(blend.dstAlphaBlendFactor);
+        item.colorAttachmentFormats.push_back(att.format);
     }
         
     
@@ -750,59 +754,63 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
         LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
     }
 
-    if (desc.isCubemap && desc.arrayLength != 6)
+    if ((desc.flags & TextureFlags::TF_Cubemap) && desc.arrayLength != 6)
     {
         LOGA(false, "Backend -> Array length needs to be 6 for Cubemap textures!");
     }
 
-    if (desc.viewCount > desc.arrayLength)
+    if ((desc.flags & TextureFlags::TF_ColorAttachment) && ((desc.flags & TextureFlags::TF_DepthTexture) || (desc.flags & TextureFlags::TF_StencilTexture)))
     {
-        LOGA(false, "Backend -> View count can't be bigger than array length!");
+        LOGA(false, "Backend -> A texture can not have both color attachment and depth or stencil texture flags!");
     }
 
-    LOGA(desc.mipLevels != 0 && desc.arrayLength != 0 && desc.viewCount != 0, "Backend -> Mip levels, array length or view count can't be zero!");
+    LOGA(desc.mipLevels != 0 && desc.arrayLength != 0 && static_cast<uint32>(desc.views.size()) != 0, "Backend -> Mip levels, array length or view count can't be zero!");
 
     
-    MTLTexture2D item = {};
+    const auto mtlFormat = GetMTLFormat(desc.format);
+
+    MTLTexture item = {};
     item.isValid = true;
+    item.arrayLength = desc.arrayLength;
+    item.format = desc.format;
     
     auto device = AS_MTL(m_device, id<MTLDevice>);
     
-    MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:GetMTLFormat(desc.format) width:desc.width height:desc.height mipmapped:desc.mipLevels > 1];
+    MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:mtlFormat width:desc.width height:desc.height mipmapped:desc.mipLevels > 1];
     textureDescriptor.mipmapLevelCount = desc.mipLevels;
     textureDescriptor.storageMode =  MTLStorageModePrivate;
     textureDescriptor.arrayLength = desc.arrayLength;
     
-    if(desc.isCubemap)
-    {
-        textureDescriptor.arrayLength = 1;
-        textureDescriptor.textureType = MTLTextureTypeCube;
-    }
-    else
-    {
-        if(desc.type == TextureType::Texture1D)
-            textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType1D : MTLTextureType1DArray;
-        else if(desc.type == TextureType::Texture2D)
-            textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType2D : MTLTextureType2DArray;
-        else if(desc.type == TextureType::Texture3D)
-            textureDescriptor.textureType = MTLTextureType3D;
-    }
-    
+    if(desc.type == TextureType::Texture1D)
+        textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType1D : MTLTextureType1DArray;
+    else if(desc.type == TextureType::Texture2D)
+        textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType2D : MTLTextureType2DArray;
+    else if(desc.type == TextureType::Texture3D)
+        textureDescriptor.textureType = MTLTextureType3D;
 
-    if(desc.usage == TextureUsage::ColorTexture || desc.usage == TextureUsage::ColorTextureDynamic)
-        textureDescriptor.usage = MTLTextureUsageShaderRead;
-    else if(desc.usage == TextureUsage::ColorTextureRenderTarget)
-        textureDescriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
-    else if(desc.usage == TextureUsage::DepthStencilTexture)
-        textureDescriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
+    MTLTextureUsage usage;
     
-        
+    if(desc.flags & TextureFlags::TF_Sampled)
+        textureDescriptor.usage |= MTLTextureUsageShaderRead;
+    if((desc.flags & TextureFlags::TF_ColorAttachment) || (desc.flags & TextureFlags::TF_DepthTexture) || (desc.flags & TextureFlags::TF_StencilTexture))
+        textureDescriptor.usage |= MTLTextureUsageRenderTarget;
     
     id<MTLTexture> texture = [device newTextureWithDescriptor:textureDescriptor];
     [texture retain];
+    
+    for(const auto& vw : desc.views)
+    {
+        NSRange mipRng = NSMakeRange(vw.baseMipLevel, vw.mipCount == 0 ? desc.mipLevels - vw.baseMipLevel : vw.mipCount);
+        NSRange layerRng = NSMakeRange(vw.baseArrayLevel, vw.levelCount == 0 ? desc.arrayLength - vw.baseArrayLevel : vw.levelCount);
+
+        MTLTextureType type = vw.isCubemap ? MTLTextureTypeCube : textureDescriptor.textureType;
+        id<MTLTexture> view = [texture newTextureViewWithPixelFormat:mtlFormat textureType:type levels:mipRng slices:layerRng];
+        [view retain];
+        item.views.push_back(AS_VOID(view));
+    }
+    
     item.ptr = AS_VOID(texture);
     NAME_OBJ_CSTR(texture, desc.debugName);
-    
 
     return m_textures.AddItem(item);
 }
@@ -814,6 +822,13 @@ void MTLBackend::DestroyTexture(uint32 handle) {
         LOGE("Backend -> Texture to be destroyed is not valid!");
         return;
     }
+    
+    for(const auto& view : txt.views)
+    {
+        id<MTLTexture> v = AS_MTL(view, id<MTLTexture>);
+        [v release];
+    }
+    txt.views.clear();
     
     id<MTLTexture> texture = AS_MTL(txt.ptr, id<MTLTexture>);
     [texture release];
@@ -1065,6 +1080,8 @@ void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
     
     bindingData.resources.clear();
     bindingData.additionalResources.clear();
+    bindingData.viewIndices = desc.textureViewIndices;
+    
     uint32 usedDescriptorCount = 0;
     if(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler)
     {
@@ -1102,7 +1119,8 @@ void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
             auto hm = encoder.encodedLength;
             for(uint32 i = 0; i < usedDescriptorCount; i++)
             {
-                id<MTLTexture> txt = AS_MTL(m_textures.GetItemR(bindingData.resources[i]).ptr, id<MTLTexture>);
+                auto& txtRes = m_textures.GetItemR(bindingData.resources[i]);
+                id<MTLTexture> txt = AS_MTL(bindingData.viewIndices.empty() ? txtRes.views[0] : txtRes.views[bindingData.viewIndices[i]], id<MTLTexture>);
                 [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
                 [encoder setTexture:txt atIndex:0];
             }
@@ -1163,7 +1181,7 @@ uint16 MTLBackend::CreatePipelineLayout(const LinaGX::PipelineLayoutDesc &desc) 
 
 void MTLBackend::DestroyPipelineLayout(uint16 handle)
 {
-    auto& lyt = m_cmdStreams.GetItemR(handle);
+    auto& lyt = m_pipelineLayouts.GetItemR(handle);
     if (!lyt.isValid)
     {
         LOGE("Backend -> Pipeline Layout to be destroyed is not valid!");
@@ -1174,11 +1192,10 @@ void MTLBackend::DestroyPipelineLayout(uint16 handle)
 }
 
 
-uint32 MTLBackend::CreateCommandStream(CommandType cmdType) {
+uint32 MTLBackend::CreateCommandStream(const CommandStreamDesc& desc) {
     MTLCommandStream item = {};
     item.isValid = true;
-    item.type = cmdType;
-    
+    item.type = desc.type;
     return m_cmdStreams.AddItem(item);
 }
 
@@ -1202,6 +1219,24 @@ void MTLBackend::DestroyCommandStream(uint32 handle) {
     
     stream.intermediateResources.clear();
 
+    for(auto ptr : stream.allBlitEncoders)
+    {
+        id<MTLBlitCommandEncoder> encoder = AS_MTL(ptr, id<MTLBlitCommandEncoder>);
+        [encoder release];
+    }
+    
+    for(auto ptr : stream.allRenderEncoders)
+    {
+        id<MTLRenderCommandEncoder> encoder = AS_MTL(ptr, id<MTLRenderCommandEncoder>);
+        [encoder release];
+    }
+    
+    for(auto ptr : stream.allComputeEncoders)
+    {
+        id<MTLComputeCommandEncoder> encoder = AS_MTL(ptr, id<MTLComputeCommandEncoder>);
+        [encoder release];
+    }
+    
     m_cmdStreams.RemoveItem(handle);
 }
 
@@ -1237,6 +1272,14 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
             sr.currentBlitEncoder = nullptr;
         };
         
+        if(sr.boundConstants.data != nullptr)
+        {
+            LINAGX_FREE(sr.boundConstants.data);
+            LINAGX_FREE(sr.boundConstants.stages);
+        }
+        
+        sr.boundConstants = {};
+        
          for (uint32 i = 0; i < stream->m_commandCount; i++)
          {
              uint8*        data = stream->m_commands[i];
@@ -1246,7 +1289,7 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
              uint8*       cmd       = data + increment;
 
              // Starting blit ops but no blit encoder.
-             if(tid == LGX_GetTypeID<CMDCopyResource>() || tid == LGX_GetTypeID<CMDCopyBufferToTexture2D>())
+             if(tid == LGX_GetTypeID<CMDCopyResource>() || tid == LGX_GetTypeID<CMDCopyBufferToTexture2D>() || tid == LGX_GetTypeID<CMDCopyTexture>())
              {
                  if(sr.currentBlitEncoder == nullptr)
                  {
@@ -1354,7 +1397,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
     }
     
     const auto& queue = m_queues.GetItemR(desc.targetQueue);
-    
+
     if(queue.type == CommandType::Graphics)
         pfd.submits++;
     
@@ -1575,6 +1618,9 @@ bool MTLBackend::Initialize(const InitInfo &initInfo) {
     //         LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
     // }
     
+    // TODO: ?
+    GPUInfo.minConstantBufferOffsetAlignment = 0;
+    GPUInfo.minStorageBufferOffsetAlignment  = 0;
     
     return true;
 }
@@ -1827,6 +1873,7 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                 
                 const uint32 bufferID = reflectionBindingData.mslBufferID.at(stg);
                 
+             
                 if(mtlBinding.lgxBinding.type == DescriptorType::CombinedImageSampler)
                 {
                     LINAGX_VEC<id<MTLTexture>> textures;
@@ -1838,7 +1885,7 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     for(uint32 k = 0; k < dcCount; k++)
                     {
                         const auto& txt = m_textures.GetItemR(mtlBinding.resources[k]);
-                        id<MTLTexture> mtlTexture = AS_MTL(txt.ptr, id<MTLTexture>);
+                        id<MTLTexture> mtlTexture = AS_MTL(mtlBinding.viewIndices.empty() ? txt.views[0] : txt.views[mtlBinding.viewIndices[k]], id<MTLTexture>);
                         textures[k] = mtlTexture;
                         
                         const auto& sampler = m_samplers.GetItemR(mtlBinding.additionalResources[k]);
@@ -1858,7 +1905,6 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                         id<MTLBuffer> argBuffer2 = AS_MTL(mtlBinding.argBufferSecondary, id<MTLBuffer>);
                         setBuffer(&argBuffer, bufferID, 1, stg);
                         setBuffer(&argBuffer2, bufferID + 1, 1, stg);
-
                         [encoder useResources:&textures[0] count: dcCount usage:MTLResourceUsageRead stages:GetMTLRenderStage(stg)];
                     }
                    
@@ -1872,7 +1918,7 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     for(uint32 k = 0; k < dcCount; k++)
                     {
                         const auto& txt = m_textures.GetItemR(mtlBinding.resources[k]);
-                        id<MTLTexture> mtlTexture = AS_MTL(txt.ptr, id<MTLTexture>);
+                        id<MTLTexture> mtlTexture = AS_MTL(mtlBinding.viewIndices.empty() ? txt.views[0] : txt.views[mtlBinding.viewIndices[k]], id<MTLTexture>);
                         textures[k] = mtlTexture;
                     }
                     
@@ -1980,15 +2026,20 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     
     MTLRenderPassDescriptor* passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     
+    Format depthFormat = Format::UNDEFINED;
+    Format stencilFormat = Format::UNDEFINED;
+    
     if(begin->depthStencilAttachment.useDepth)
     {
         passDescriptor.depthAttachment.loadAction = GetMTLLoadOp(begin->depthStencilAttachment.depthLoadOp);
         passDescriptor.depthAttachment.storeAction = GetMTLStoreOp(begin->depthStencilAttachment.depthStoreOp);
         passDescriptor.depthAttachment.clearDepth = begin->depthStencilAttachment.clearDepth;
-        passDescriptor.depthAttachment.slice = begin->depthStencilAttachment.layer;
+        //passDescriptor.depthAttachment.slice = begin->depthStencilAttachment.layer;
      
-        id<MTLTexture> depth = AS_MTL(m_textures.GetItemR(begin->depthStencilAttachment.texture).ptr, id<MTLTexture>);
+        const auto& txtRes = m_textures.GetItemR(begin->depthStencilAttachment.texture);
+        id<MTLTexture> depth = AS_MTL(txtRes.views[begin->depthStencilAttachment.viewIndex], id<MTLTexture>);
         passDescriptor.depthAttachment.texture = depth;
+        depthFormat = txtRes.format;
     }
 
     if(begin->depthStencilAttachment.useStencil)
@@ -1996,11 +2047,16 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.stencilAttachment.clearStencil = begin->depthStencilAttachment.clearStencil;
         passDescriptor.stencilAttachment.loadAction = GetMTLLoadOp(begin->depthStencilAttachment.stencilLoadOp);
         passDescriptor.stencilAttachment.storeAction = GetMTLStoreOp(begin->depthStencilAttachment.stencilStoreOp);
-        passDescriptor.depthAttachment.slice = begin->depthStencilAttachment.layer;
+        // passDescriptor.depthAttachment.slice = begin->depthStencilAttachment.layer;
 
-        id<MTLTexture> stencil = AS_MTL(m_textures.GetItemR(begin->depthStencilAttachment.texture).ptr, id<MTLTexture>);
+        const auto& txtRes = m_textures.GetItemR(begin->depthStencilAttachment.texture);
+        id<MTLTexture> stencil = AS_MTL(txtRes.views[begin->depthStencilAttachment.viewIndex], id<MTLTexture>);
         passDescriptor.stencilAttachment.texture = stencil;
+        stencilFormat = txtRes.format;
     }
+    
+    LINAGX_VEC<Format> colorAttachmentFormats;
+    colorAttachmentFormats.resize(begin->colorAttachmentCount);
     
     for(uint32 i = 0; i < begin->colorAttachmentCount; i++)
     {
@@ -2008,8 +2064,7 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         passDescriptor.colorAttachments[i].loadAction = GetMTLLoadOp(att.loadOp);
         passDescriptor.colorAttachments[i].storeAction = GetMTLStoreOp(att.storeOp);
         passDescriptor.colorAttachments[i].clearColor = MTLClearColorMake(att.clearColor.x, att.clearColor.y, att.clearColor.z, att.clearColor.w);
-        passDescriptor.colorAttachments[i].slice = att.layer;
-        
+        // passDescriptor.colorAttachments[i].slice = att.layer;
         if(att.isSwapchain)
         {
             const uint8 swpHandle = static_cast<uint8>(att.texture);
@@ -2017,18 +2072,21 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
             id<CAMetalDrawable> drawable = AS_MTL(swp._currentDrawable, id<CAMetalDrawable>);
             passDescriptor.colorAttachments[i].texture = drawable.texture;
             stream.writtenSwapchains.push_back(swpHandle);
+            colorAttachmentFormats[i] = swp.format;
+
         }
         else
         {
-            id<MTLTexture> txt = AS_MTL(m_textures.GetItemR(att.texture).ptr, id<MTLTexture>);
+            const auto& txtRes = m_textures.GetItemR(att.texture);
+            id<MTLTexture> txt = AS_MTL(txtRes.views[att.viewIndex], id<MTLTexture>);
             passDescriptor.colorAttachments[i].texture = txt;
+            colorAttachmentFormats[i] = txtRes.format;
         }
     }
     
     id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:passDescriptor];
     [encoder retain];
-
-  
+    
     MTLViewport vp;
     vp.width = begin->viewport.width;
     vp.height = begin->viewport.height;
@@ -2047,6 +2105,34 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     [encoder setViewport:vp];
     stream.currentEncoder = AS_VOID(encoder);
     stream.allRenderEncoders.push_back(stream.currentEncoder);
+
+    // Only set the currently bound shader if its color attachment formats are compatible with the render pass we just begin.
+    // If not, user is already expected to set some pipeline state that is suitable.
+    if(stream.currentShaderExists)
+    {
+        const auto& shader = m_shaders.GetItemR(stream.currentShader);
+        
+        if(shader.colorAttachmentFormats.size() == colorAttachmentFormats.size() && shader.depthFormat == depthFormat && shader.stencilFormat == stencilFormat)
+        {
+            bool incompatible = false;
+            const uint32 sz = static_cast<uint32>(shader.colorAttachmentFormats.size());
+            for(uint32 i = 0; i < sz; i++)
+            {
+                if(shader.colorAttachmentFormats[i] != colorAttachmentFormats[i])
+                {
+                    incompatible = true;
+                    break;
+                }
+            }
+            
+            if(!incompatible)
+            {
+                CMDBindPipeline pp;
+                pp.shader = stream.currentShader;
+                CMD_BindPipeline((uint8*)&pp, stream);
+            }
+        }
+    }
     
     if(stream.containsDelayedVtxBind)
     {
@@ -2054,6 +2140,12 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         CMD_BindVertexBuffers((uint8*)(&stream.delayedVtxBind), stream);
     }
     
+    if(stream.lastDebugLabel.compare("") != 0)
+    {
+        NSString *debugNSString = [NSString stringWithUTF8String:stream.lastDebugLabel.c_str()];
+        [encoder pushDebugGroup:debugNSString];
+
+    }
     BindDescriptorSets(stream);
 }
 
@@ -2061,8 +2153,8 @@ void MTLBackend::CMD_EndRenderPass(uint8 *data, MTLCommandStream &stream) {
     CMDEndRenderPass* end  = reinterpret_cast<CMDEndRenderPass*>(data);
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     [encoder endEncoding];
-    [encoder release];
     stream.currentEncoder = nullptr;
+    // NOTE: DO NOT release encoders here, submitting will release all encoders.
 }
 
 void MTLBackend::CMD_SetViewport(uint8 *data, MTLCommandStream &stream) {
@@ -2089,9 +2181,68 @@ void MTLBackend::CMD_SetScissors(uint8 *data, MTLCommandStream &stream) {
     [encoder setScissorRect:sc];
 }
 
+
+void BindConstants(MTLCommandStream& stream, MTLShader& shader)
+{
+    if (stream.boundConstants.data == nullptr || stream.boundConstants.size == 0)
+        return;
+
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
+    
+    uint8* finalData = nullptr;
+    if(stream.boundConstants.offset != 0)
+    {
+        uint8* bytes = (uint8*)malloc(static_cast<size_t>(stream.boundConstants.size + stream.boundConstants.offset));
+        uint8* dummy = (uint8*)malloc(static_cast<size_t>(stream.boundConstants.offset));
+        std::memcpy(bytes, dummy, stream.boundConstants.offset);
+        std::memcpy(bytes + stream.boundConstants.offset, stream.boundConstants.data, static_cast<size_t>(stream.boundConstants.size));
+        finalData = bytes;
+    }
+    else
+        finalData = (uint8*)stream.boundConstants.data;
+    
+    if(shader.isCompute)
+    {
+        auto it = shader.layout.constantsMSLBuffers.find(ShaderStage::Compute);
+        if(it == shader.layout.constantsMSLBuffers.end())
+            return;
+
+        uint32 constantIndex = it->second;
+        [computeEncoder setBytes:finalData length:stream.boundConstants.size + stream.boundConstants.offset atIndex:constantIndex];
+    }
+    else
+    {
+        
+        for (uint32 i = 0; i < stream.boundConstants.stagesSize; ++i)
+        {
+            ShaderStage stage = stream.boundConstants.stages[i];
+            
+            auto it = shader.layout.constantsMSLBuffers.find(stage);
+            if(it == shader.layout.constantsMSLBuffers.end())
+                continue;
+            
+            uint32 constantIndex = it->second;
+            if (stage == ShaderStage::Vertex) {
+                [encoder setVertexBytes:finalData length:stream.boundConstants.size + stream.boundConstants.offset atIndex:constantIndex];
+            } else if (stage == ShaderStage::Fragment) {
+                [encoder setFragmentBytes:finalData length:stream.boundConstants.size + stream.boundConstants.offset atIndex:constantIndex];
+            }
+        }
+    }
+}
+
 void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     CMDBindPipeline* cmd  = reinterpret_cast<CMDBindPipeline*>(data);
-    const auto& shader = m_shaders.GetItemR(cmd->shader);
+    auto& shader = m_shaders.GetItemR(cmd->shader);
+    
+    stream.currentShader = cmd->shader;
+    stream.currentShaderIsCompute = shader.isCompute;
+    stream.currentShaderExists = true;
+    
+    if(stream.currentEncoder == nullptr)
+        return;
+    
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
     
@@ -2103,7 +2254,7 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     {
         [encoder setRenderPipelineState:AS_MTL(shader.pso, id<MTLRenderPipelineState>)];
         
-       if(stream.currentRenderPassUseDepth && shader.dsso != nullptr && shader.dsso != stream.currentEncoderDepthStencil)
+       if(stream.currentRenderPassUseDepth && shader.dsso != nullptr)
        {
            [encoder setDepthStencilState:AS_MTL(shader.dsso, id<MTLDepthStencilState>)];
            stream.currentEncoderDepthStencil = shader.dsso;
@@ -2115,9 +2266,9 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
         [encoder setFrontFacingWinding:shader.frontFace == FrontFace::CW ? MTLWindingClockwise : MTLWindingCounterClockwise];
     }
     
-    stream.currentShader = cmd->shader;
-    stream.currentShaderIsCompute = shader.isCompute;
-    stream.currentShaderExists = true;
+ 
+    
+    BindConstants(stream, shader);
     
     for (auto& set : stream.boundSets)
         set.second.isDirty = true;
@@ -2331,6 +2482,35 @@ void MTLBackend::CMD_CopyBufferToTexture2D(uint8 *data, MTLCommandStream &stream
     stream.intermediateResources[intermediateResource] = PerformanceStats.totalFrames;
 }
 
+
+void MTLBackend::CMD_CopyTexture(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) {
+    
+    CMDCopyTexture* cmd = reinterpret_cast<CMDCopyTexture*>(data);
+    const auto& srcTxtResource = m_textures.GetItemR(cmd->srcTexture);
+    const auto& dstTxtResource = m_textures.GetItemR(cmd->dstTexture);
+    
+    if (cmd->srcLayer >= srcTxtResource.arrayLength)
+    {
+        LOGE("Backend -> CMDCopyTexture source texture layer is bigger than total layers in the texture, aborting!");
+        return;
+    }
+
+    if (cmd->dstLayer >= dstTxtResource.arrayLength)
+    {
+        LOGE("Backend -> CMDCopyTexture dest texture layer is bigger than total layers in the texture, aborting!");
+        return;
+    }
+    
+    id<MTLBlitCommandEncoder> encoder = AS_MTL(stream.currentBlitEncoder, id<MTLBlitCommandEncoder>);
+    
+    id<MTLTexture> srcTexture = AS_MTL(srcTxtResource.ptr, id<MTLTexture>);
+    id<MTLTexture> dstTexture = AS_MTL(dstTxtResource.ptr, id<MTLTexture>);
+    
+    [encoder copyFromTexture:srcTexture sourceSlice:cmd->srcLayer sourceLevel:cmd->srcMip toTexture:dstTexture destinationSlice:cmd->dstLayer destinationLevel:cmd->dstMip sliceCount:1 levelCount:1];
+
+}
+
+
 void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
     CMDBindDescriptorSets* cmd    = reinterpret_cast<CMDBindDescriptorSets*>(data);
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
@@ -2360,51 +2540,25 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
 void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
     CMDBindConstants* cmd    = reinterpret_cast<CMDBindConstants*>(data);
     
-    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
-    id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
+    if(stream.boundConstants.data != nullptr)
+    {
+        LINAGX_FREE(stream.boundConstants.data);
+        LINAGX_FREE(stream.boundConstants.stages);
+    }
+    
+    stream.boundConstants.data = LINAGX_MALLOC(cmd->size);
+    stream.boundConstants.stages = (ShaderStage*)LINAGX_MALLOC(cmd->stagesSize * sizeof(ShaderStage));
+    LINAGX_MEMCPY(stream.boundConstants.data, cmd->data, cmd->size);
+    stream.boundConstants.offset = cmd->offset;
+    stream.boundConstants.size   = cmd->size;
+    stream.boundConstants.stagesSize = cmd->stagesSize;
+    LINAGX_MEMCPY(stream.boundConstants.stages, cmd->stages, cmd->stagesSize * sizeof(ShaderStage));
+    
+    if(stream.currentEncoder == nullptr && stream.currentComputeEncoder == nullptr)
+        return;
+    
     auto& shader = m_shaders.GetItemR(stream.currentShader);
-    
-    uint8* finalData = nullptr;
-    if(cmd->offset != 0)
-    {
-        uint8* bytes = (uint8*)malloc(static_cast<size_t>(cmd->size + cmd->offset));
-        uint8* dummy = (uint8*)malloc(static_cast<size_t>(cmd->offset));
-        std::memcpy(bytes, dummy, cmd->offset);
-        std::memcpy(bytes + cmd->offset, cmd->data, static_cast<size_t>(cmd->size));
-        finalData = bytes;
-    }
-    else
-        finalData = (uint8*)cmd->data;
-    
-    if(shader.isCompute)
-    {
-        auto it = shader.layout.constantsMSLBuffers.find(ShaderStage::Compute);
-        if(it == shader.layout.constantsMSLBuffers.end())
-            return;
-
-        uint32 constantIndex = it->second;
-        [computeEncoder setBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
-    }
-    else
-    {
-        
-        for (uint32 i = 0; i < cmd->stagesSize; ++i)
-        {
-            ShaderStage stage = cmd->stages[i];
-            
-            auto it = shader.layout.constantsMSLBuffers.find(stage);
-            if(it == shader.layout.constantsMSLBuffers.end())
-                continue;
-            
-            uint32 constantIndex = it->second;
-            if (stage == ShaderStage::Vertex) {
-                [encoder setVertexBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
-            } else if (stage == ShaderStage::Fragment) {
-                [encoder setFragmentBytes:finalData length:cmd->size + cmd->offset atIndex:constantIndex];
-            }
-        }
-    }
-
+    BindConstants(stream, shader);
 }
 
 void MTLBackend::CMD_Dispatch(uint8 *data, MTLCommandStream &stream) {
@@ -2424,15 +2578,47 @@ void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {
 
 void MTLBackend::CMD_ExecuteSecondaryStream(uint8 *data, MTLCommandStream &stream) {
     CMDExecuteSecondaryStream* cmd  = reinterpret_cast<CMDExecuteSecondaryStream*>(data);
+    // handled during close command streams.
 }
 
 void MTLBackend::CMD_Barrier(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) { 
     CMDBarrier* cmd = reinterpret_cast<CMDBarrier*>(data);
-    
+    // no barriers.
 }
 
+void MTLBackend::CMD_DebugEndLabel(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) { 
+    CMDDebugEndLabel* cmd = reinterpret_cast<CMDDebugEndLabel*>(data);
+  
+    if(stream.currentEncoder)
+    {
+        id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+        [encoder popDebugGroup];
+        stream.lastDebugLabel = "";
+    }
 
+}
 
+void MTLBackend::CMD_DebugBeginLabel(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) {
+    CMDDebugBeginLabel* cmd = reinterpret_cast<CMDDebugBeginLabel*>(data);
+ 
+    if(stream.currentEncoder == nullptr)
+    {
+        stream.lastDebugLabel = cmd->label;
+        return;
+    }
+   
+    NSString *debugNSString = [NSString stringWithUTF8String:cmd->label];
+
+    id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
+    [encoder pushDebugGroup:debugNSString];
+    stream.lastDebugLabel = "";
+
+}
+
+void MTLBackend::CMD_Debug(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) {
+    CMDDebug* cmd = reinterpret_cast<CMDDebug*>(data);
+    int a = 5;
+}
 
 } // namespace LinaVG
 

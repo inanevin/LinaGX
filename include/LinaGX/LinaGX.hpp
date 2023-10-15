@@ -58,25 +58,17 @@ FEATURES TO IMPLEMENT
 - Secondary command buffers (+++).
 - Group all barrier calls.
 
-- Metal texture 3d shaibas
-- metal debug layers config.
 - Carry everything to config.
 - support for variety of vertex formats.
-- metal missing formats.
-- metal minAlignments.
 - data formats, vectors, maps,
-- metal mip map binding and stuff.
 - get the format signed unsigned shit back :)
-- metal, bind constants similar to descriptor sets.
-- metal, clear the bound descriptor sets in CloseCommandStreams
-- DX12 bound constants ---> use linear allocator instead of constantly memcpying.
-- We did parameter checking & ensuring in DX12 descriptor bindings, did we already do the same in metal, if not, do it.
+- DX12 & MTL bound constants ---> use linear allocator instead of constantly memcpying.
 - Camera data transfer, investigate slowness on integrated card.
 - commandlist4, this5, that2, feature support?
-
-- Support for different vertex buffer slots.
 - Indirect rendering count buffer.
 - Pipeline caching.
+- convert NDEBUGS to LINAGX_DEBUG or something
+- metal: resize and exit bugs.
 
 INDIRECT NOTES:
 

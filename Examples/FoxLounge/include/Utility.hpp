@@ -126,6 +126,7 @@ namespace LinaGX
             glm::vec4 lightPos;
             glm::vec4 lightColor;
             glm::vec2 resolution;
+            float     nearPlane;
             float     farPlane;
         };
 

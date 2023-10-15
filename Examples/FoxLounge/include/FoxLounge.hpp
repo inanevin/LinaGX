@@ -55,6 +55,8 @@ namespace LinaGX
             uint32 rscObjDataCPU        = 0;
             uint32 rscObjDataGPU        = 0;
             uint8* rscObjDataCPUMapping = nullptr;
+            
+            int32 boundShader = -1;
         };
 
         struct Texture2D
@@ -67,7 +69,6 @@ namespace LinaGX
         struct Material
         {
             std::string                                         name      = "";
-            bool                                                isLantern = false;
             GPUMaterialData                                     gpuMat;
             std::unordered_map<LinaGX::GLTFTextureType, uint32> textureIndices;
             uint16                                              descriptorSets[FRAMES_IN_FLIGHT];
@@ -134,7 +135,7 @@ namespace LinaGX
 
             void BeginPass(uint32 frameIndex, PassType pass, uint32 width = 0, uint32 height = 0, uint32 viewIndex = 0, uint32 depthViewIndex = 0);
             void EndPass(uint32 frameIndex);
-            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true, bool excludeLantern = false);
+            void DrawObjects(uint32 frameIndex, uint16 flags, Shader shader, bool bindMaterials = true);
             void DrawCube(uint32 frameIndex);
             void DrawFullscreenQuad(uint32 frameIndex);
             void BindShader(uint32 frameIndex, uint32 target);
@@ -166,7 +167,6 @@ namespace LinaGX
 
             uint32 m_skyboxIndexCount = 0;
             Camera m_camera;
-            int32  m_boundShader = -1;
 
             std::vector<uint16>                 m_pipelineLayouts;
             std::vector<LinaGX::TextureBarrier> m_passBarriers;
