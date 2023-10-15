@@ -89,7 +89,7 @@ namespace LinaGX::Examples
 
     void Example::CreateMainWindow()
     {
-        m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 800, 800, WindowStyle::WindowedApplication);
+        m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 1920, 1080, WindowStyle::WindowedApplication);
         m_window->SetCallbackClose([this]() { Quit(); });
         m_window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
             if (newSize.x == 0 || newSize.y == 0)
@@ -1846,7 +1846,7 @@ namespace LinaGX::Examples
         const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
         auto&        currentFrame  = m_pfd[frameIndex];
 
-        SSAOGeometry(frameIndex);
+        SSAOGeometry(frameIndex, width, height);
 
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
@@ -2037,7 +2037,7 @@ namespace LinaGX::Examples
         }
     }
 
-    void Example::SSAOGeometry(uint32 frameIndex)
+    void Example::SSAOGeometry(uint32 frameIndex, uint32 width, uint32 height)
     {
         auto& currentFrame = m_pfd[frameIndex];
 
@@ -2046,7 +2046,7 @@ namespace LinaGX::Examples
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment);
 
         BindPassSet(frameIndex, PipelineLayoutType::PL_SSAOGeometry, m_passes[PS_SSAOGeometry].descriptorSets[frameIndex], 0, true);
-        BeginPass(frameIndex, PassType::PS_SSAOGeometry, 0, 0);
+        BeginPass(frameIndex, PassType::PS_SSAOGeometry, width, height);
         DrawObjects(frameIndex, DrawObjectFlags::DrawDefault, Shader::SH_SSAOGeometry, false);
         EndPass(frameIndex);
 

@@ -150,7 +150,7 @@ namespace LinaGX
             void IrradiancePrefilterBRDF();
             void DrawShadowmap(uint32 frameIndex);
             void Bloom(uint32 frameIndex);
-            void SSAOGeometry(uint32 frameIndex);
+            void SSAOGeometry(uint32 frameIndex, uint32 width, uint32 height);
 
         private:
             LinaGX::Instance*      m_lgx       = nullptr;
