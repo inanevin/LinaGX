@@ -54,10 +54,6 @@ namespace LinaGX::Examples
 #define BRDF_MAP_RES         512
 #define SHADOW_MAP_RES       512
 
-    float testFxaaReduceMin = 1.0f / 128.0f;
-    float testFxaaReduceMul = 1.0f / 8.0f;
-    float testFxaaSpan = 8.0f;
-
     void Example::ConfigureInitializeLinaGX()
     {
         LinaGX::Config.logLevel                               = LogLevel::Verbose;
@@ -67,6 +63,7 @@ namespace LinaGX::Examples
         LinaGX::Config.dx12Config.enableDebugLayers           = true;
 
         BackendAPI api = BackendAPI::DX12;
+
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
@@ -78,7 +75,7 @@ namespace LinaGX::Examples
 
         LinaGX::InitInfo initInfo = InitInfo{
             .api                   = api,
-            .gpu                   = PreferredGPUType::Discrete,
+            .gpu                   = PreferredGPUType::Integrated,
             .framesInFlight        = FRAMES_IN_FLIGHT,
             .backbufferCount       = BACKBUFFER_COUNT,
             .gpuLimits             = limits,
@@ -594,8 +591,20 @@ namespace LinaGX::Examples
             //.mipLodBias = 6.0f,
         };
 
+        LinaGX::SamplerDesc clampSampler = {
+            .minFilter  = Filter::Linear,
+            .magFilter  = Filter::Linear,
+            .mode       = SamplerAddressMode::ClampToEdge,
+            .mipmapMode = MipmapMode::Linear,
+            .anisotropy = 0,
+            .minLod     = 0.0f,
+            .maxLod     = 1.0f,
+            //.mipLodBias = 6.0f,
+        };
+
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
         m_samplers.push_back(m_lgx->CreateSampler(depthSampler));
+        m_samplers.push_back(m_lgx->CreateSampler(clampSampler));
     }
 
     void Example::SetupGlobalDescriptorSet()
@@ -627,7 +636,8 @@ namespace LinaGX::Examples
                 LinaGX::DescriptorUpdateImageDesc smpUpdate = {
                     .setHandle = pfd.globalSet,
                     .binding   = 2,
-                    .samplers  = {m_samplers[0], m_samplers[1]}};
+                    .samplers  = m_samplers,
+                };
 
                 m_lgx->DescriptorUpdateImage(smpUpdate);
             }
@@ -637,6 +647,7 @@ namespace LinaGX::Examples
     void Example::SetupPipelineLayouts()
     {
         m_pipelineLayouts.resize(PipelineLayoutType::PL_Max);
+
 
         LinaGX::PipelineLayoutDesc pipelineLayoutSetGlobal = {
             .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal()},
@@ -1704,15 +1715,12 @@ namespace LinaGX::Examples
         // Scene data.
         {
             GPUSceneData sceneData = {
-                .skyColor1     = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
-                .skyColor2     = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
-                .lightPos      = m_lightPos,
-                .lightColor    = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
-                .resolution    = glm::vec2(m_window->GetSize().x, m_window->GetSize().y),
-                .farPlane      = FAR_PLANE,
-                .fxaaReduceMin = testFxaaReduceMin,
-                .fxaaReduceMul = testFxaaReduceMul,
-                .fxaaSpanMax   = testFxaaSpan,
+                .skyColor1  = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
+                .skyColor2  = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
+                .lightPos   = m_lightPos,
+                .lightColor = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
+                .resolution = glm::vec2(m_window->GetSize().x, m_window->GetSize().y),
+                .farPlane   = FAR_PLANE,
             };
 
             std::memcpy(currentFrame.rscSceneDataMapping, &sceneData, sizeof(GPUSceneData));
@@ -1990,8 +1998,7 @@ namespace LinaGX::Examples
 
     void Example::Bloom(uint32 frameIndex)
     {
-        auto& pfd = m_pfd[frameIndex];
-
+        auto&  pfd        = m_pfd[frameIndex];
         bool   horizontal = true;
         uint32 amount     = 8;
 
@@ -2052,7 +2059,6 @@ namespace LinaGX::Examples
     {
         auto now      = std::chrono::high_resolution_clock::now();
         m_boundShader = -1;
-
         // Check for window inputs.
         m_lgx->PollWindowsAndInput();
 
@@ -2081,43 +2087,37 @@ namespace LinaGX::Examples
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
         {
-            testFxaaReduceMul *= 2.0f;
-            //dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[2].texture;
-            //dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[2].texture;
-            //dbgUpdate       = true;
+            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[2].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[2].texture;
+            dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
         {
-            testFxaaReduceMul /= 2.0f;
-
-            //dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[3].texture;
-            //dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[3].texture;
-            //dbgUpdate       = true;
+            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[3].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[3].texture;
+            dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_6))
         {
-            testFxaaSpan *= 2.0f;
-            //dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].depthStencilAttachment.texture;
-            //dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].depthStencilAttachment.texture;
-            //dbgUpdate       = true;
+            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].depthStencilAttachment.texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].depthStencilAttachment.texture;
+            dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_7))
         {
-            testFxaaSpan /= 2.0f;
-
-            //dbgUpdateTxt[0] = m_passes[PassType::PS_BRDF].renderTargets[0].colorAttachments[0].texture;
-            //dbgUpdateTxt[1] = m_passes[PassType::PS_BRDF].renderTargets[1].colorAttachments[0].texture;
-            //dbgUpdate       = true;
+            dbgUpdateTxt[0] = m_passes[PassType::PS_BRDF].renderTargets[0].colorAttachments[0].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_BRDF].renderTargets[1].colorAttachments[0].texture;
+            dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_8))
         {
-            //dbgUpdateTxt[0] = m_passes[PassType::PS_Lighting].renderTargets[0].colorAttachments[1].texture;
-            //dbgUpdateTxt[1] = m_passes[PassType::PS_Lighting].renderTargets[1].colorAttachments[1].texture;
-            //dbgUpdate       = true;
+            dbgUpdateTxt[0] = m_passes[PassType::PS_Lighting].renderTargets[0].colorAttachments[1].texture;
+            dbgUpdateTxt[1] = m_passes[PassType::PS_Lighting].renderTargets[1].colorAttachments[1].texture;
+            dbgUpdate       = true;
         }
 
         if (dbgUpdate)

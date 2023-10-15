@@ -127,9 +127,6 @@ namespace LinaGX
             glm::vec4 lightColor;
             glm::vec2 resolution;
             float     farPlane;
-            float     fxaaReduceMin;
-            float     fxaaReduceMul;
-            float     fxaaSpanMax;
         };
 
         struct GPUObjectData

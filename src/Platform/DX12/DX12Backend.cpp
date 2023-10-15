@@ -906,11 +906,21 @@ namespace LinaGX
 
             ComPtr<IDxcBlob> code;
             result->GetResult(&code);
-            const SIZE_T sz = code->GetBufferSize();
-            outBlob.size    = code->GetBufferSize();
-            outBlob.ptr     = new uint8[sz];
-            LINAGX_MEMCPY(outBlob.ptr, code->GetBufferPointer(), outBlob.size);
-            code->Release();
+
+            if (code.Get() != NULL)
+            {
+                const SIZE_T sz = code->GetBufferSize();
+                outBlob.size    = code->GetBufferSize();
+                outBlob.ptr     = new uint8[sz];
+                LINAGX_MEMCPY(outBlob.ptr, code->GetBufferPointer(), outBlob.size);
+                code->Release();
+            }
+            else
+            {
+                LOGE("Backend -> Failed compiling IDXC blob!");
+                throw;
+            }
+
             sourceBlob->Release();
         }
         catch (HrException e)
@@ -2730,6 +2740,8 @@ namespace LinaGX
                 uint8*        data = stream->m_commands[i];
                 LINAGX_TYPEID tid  = 0;
                 LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
+                LINAGX_STRING name = GetCMDDebugName(tid);
+
                 const size_t increment = sizeof(LINAGX_TYPEID);
                 uint8*       cmd       = data + increment;
                 (this->*m_cmdFunctions[tid])(cmd, sr);
@@ -3113,6 +3125,9 @@ namespace LinaGX
 
     void DX12Backend::BindConstants(DX12CommandStream& stream, DX12Shader& shader)
     {
+        if (stream.boundConstants.data == nullptr || stream.boundConstants.size == 0)
+            return;
+
         DX12RootParamInfo* param = FindRootParam(&shader.layout.rootParams, DescriptorType::ConstantBlock, shader.layout.constantsBinding, shader.layout.constantsSpace);
         if (param == nullptr)
             return;

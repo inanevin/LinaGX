@@ -158,9 +158,6 @@ namespace LinaGX
             PerFrameData           m_pfd[FRAMES_IN_FLIGHT];
             std::vector<Texture2D> m_textures;
 
-            // GPUBuffer m_indxBuffer;
-            // GPUBuffer m_vtxBuffer;
-
             std::vector<uint32>      m_samplers;
             std::vector<uint16>      m_shaders;
             std::vector<WorldObject> m_worldObjects;

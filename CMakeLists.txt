@@ -73,6 +73,7 @@ src/Core/Backend.cpp
 src/Core/Instance.cpp
 src/Core/CommandStream.cpp
 src/Core/WindowManager.cpp
+src/Core/Commands.cpp
 src/Utility/SPIRVUtility.cpp
 src/Utility/ImageUtility.cpp
 src/Utility/ModelUtility.cpp

@@ -170,7 +170,7 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding2 = {
-            .descriptorCount = 2,
+            .descriptorCount = 3,
             .type            = LinaGX::DescriptorType::SeparateSampler,
             .stages          = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
         };

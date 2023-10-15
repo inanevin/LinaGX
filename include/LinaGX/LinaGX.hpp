@@ -71,11 +71,10 @@ FEATURES TO IMPLEMENT
 - metal, clear the bound descriptor sets in CloseCommandStreams
 - DX12 bound constants ---> use linear allocator instead of constantly memcpying.
 - We did parameter checking & ensuring in DX12 descriptor bindings, did we already do the same in metal, if not, do it.
+- Camera data transfer, investigate slowness on integrated card.
 - commandlist4, this5, that2, feature support?
 
 - Support for different vertex buffer slots.
-- Custom barriers & compute barrier.
-- Subpasses maybe.
 - Indirect rendering count buffer.
 - Pipeline caching.
 
@@ -89,27 +88,6 @@ INDIRECT NOTES:
  - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
  - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
  - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
-
-POSSIBLE EPIC DEMO:
-
-- Some sort of alley, semi outdoors.
-- PBR shaders.
-- Proper IBL.
-- Sun light + point lights.
-- Shadows.
-- HDR + tonemapping.
-- Deferred rendering.
-- Forward pass transparency.
-- GPU driven occlusion culling.
-- Instanced particles maybe.
-- Some AA.
-- SSBO.
-- Fast + performant, bindless.
-- Resolution selection.
-
-OR INSTEAD OF AN EPIC DEMO, maybe make a smaller one :).
-
-- Fox GLTF using PBR, light and a shadow map, a mirror on the side.
 
 NOTES TO DOCUMENT:
 

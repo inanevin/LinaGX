@@ -259,6 +259,8 @@ namespace LinaGX
         uint32           dstStageFlags;
     };
 
+    extern LINAGX_STRING GetCMDDebugName(LINAGX_TYPEID tid);
+
 #define BACKEND_BIND_COMMANDS(BACKEND)                                                                 \
     m_cmdFunctions[LGX_GetTypeID<CMDBeginRenderPass>()]        = &BACKEND::CMD_BeginRenderPass;        \
     m_cmdFunctions[LGX_GetTypeID<CMDEndRenderPass>()]          = &BACKEND::CMD_EndRenderPass;          \

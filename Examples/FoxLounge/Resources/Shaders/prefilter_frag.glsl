@@ -21,9 +21,6 @@ layout(set = 0, binding = 0) uniform SceneData
     vec4 lightColor;
     vec2 resolution;
     float farPlane;
-    float fxaaReduceMin;
-    float fxaaReduceMul;
-    float fxaaSpanMax;
 } sceneData;
 
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
@@ -31,7 +28,7 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
     Object objects[];
 } objectData;
 
-layout (set = 0, binding = 2) uniform sampler samplers[2];
+layout (set = 0, binding = 2) uniform sampler samplers[3];
 
 layout (set = 1, binding = 0) uniform CameraData
 {
