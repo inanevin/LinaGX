@@ -45,19 +45,6 @@ THINGS TO RESEARCH:
 
 FEATURES TO IMPLEMENT
 
-- PSO write mask. (+++)
-- Shader multiple attachments. (+++)
-- Render pass multiple attachments, load/store actions per attachment. (+++)
-- Stencil buffer. (+++)
-- Finalize/test depth stuff. (+++)
-- Array textures and sampler2Darray and alike. (+++)
-- DrawIndirect (without indexed) (+++)
-- Allow for binding without shader. (+++)
-- Mouse confinement and restriction (+++).
-- Dynamic descriptor set UBO and SSBO bindings. (+++)
-- Secondary command buffers (+++).
-- Group all barrier calls.
-
 - Carry everything to config.
 - support for variety of vertex formats.
 - data formats, vectors, maps,
