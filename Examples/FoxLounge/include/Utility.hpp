@@ -60,7 +60,6 @@ namespace LinaGX
             SH_BRDF,
             SH_Shadows,
             SH_Bloom,
-            SH_SSAO,
             SH_SSAOGeometry,
             SH_Max,
         };
@@ -76,7 +75,6 @@ namespace LinaGX
             PS_Shadows,
             PS_BloomHori,
             PS_BloomVert,
-            PS_SSAO,
             PS_SSAOGeometry,
             PS_Max,
         };
@@ -91,7 +89,6 @@ namespace LinaGX
             PL_SimpleQuad,
             PL_FinalQuad,
             PL_Irradiance,
-            PL_SSAO,
             PL_Max,
         };
 
@@ -128,7 +125,11 @@ namespace LinaGX
             glm::vec4 skyColor2;
             glm::vec4 lightPos;
             glm::vec4 lightColor;
+            glm::vec2 resolution;
             float     farPlane;
+            float     fxaaReduceMin;
+            float     fxaaReduceMul;
+            float     fxaaSpanMax;
         };
 
         struct GPUObjectData
@@ -184,7 +185,6 @@ namespace LinaGX
             static LinaGX::DescriptorSetDesc GetSetDescriptionGlobal();
             static LinaGX::DescriptorSetDesc GetSetDescriptionLightingPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionSimpleQuadPass();
-            static LinaGX::DescriptorSetDesc GetSetDescriptionSSAO();
             static LinaGX::DescriptorSetDesc GetSetDescriptionFinalPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectPass();
             static LinaGX::DescriptorSetDesc GetSetDescriptionObjectMaterial();

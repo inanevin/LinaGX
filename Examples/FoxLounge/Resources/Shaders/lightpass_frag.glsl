@@ -23,7 +23,11 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    vec2 resolution;
     float farPlane;
+    float fxaaReduceMin;
+    float fxaaReduceMul;
+    float fxaaSpanMax;
 } sceneData;
 
 
@@ -41,11 +45,16 @@ layout (set = 1, binding = 0) uniform CameraData
     vec4 camPos;
 } cameraData;
 
-layout (set = 1, binding = 1) uniform texture2D gBuffer[4];
+layout (set = 1, binding = 1) uniform texture2D gBuffer[5];
 layout (set = 1, binding = 2) uniform textureCube irradianceMap;
 layout (set = 1, binding = 3) uniform textureCube prefilterMap;
 layout (set = 1, binding = 4) uniform texture2D brdfLUT;
 layout (set = 1, binding = 5) uniform textureCube shadowsDepth;
+layout (set = 1, binding = 6) uniform texture2D ssaoTextures[3];
+layout (set = 1, binding = 7) uniform SSAOData
+{
+    vec4 samples[64];
+} ssaoData;
 
 const float PI = 3.14159265359;
 
@@ -140,9 +149,58 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, vec3 viewPos)
     //return shadow;
 }  
 
+int kernelSize = 64;
+float radius = 0.5;
+float bias = 0.025;
+const vec2 noiseScale = vec2(800.0/4.0, 800.0/4.0); 
+
+float CalculateSSAO(vec3 initialFragPos)
+{
+    vec2 noiseScale = vec2(sceneData.resolution.x / 4.0, sceneData.resolution.y / 4.0);
+    vec3 fragPos = initialFragPos;
+
+    vec3 normal = texture(sampler2D(ssaoTextures[1], samplers[0]), uv).rgb;
+
+    //get input for SSAO algorithm
+    vec3 randomVec = normalize(texture(sampler2D(ssaoTextures[2], samplers[1]), uv * noiseScale).xyz);
+
+    // create TBN change-of-basis matrix: from tangent-space to view-space
+    vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+    vec3 bitangent = cross(normal, tangent);
+    mat3 TBN = mat3(tangent, bitangent, normal);
+
+    // iterate over the sample kernel and calculate occlusion factor
+    float occlusion = 0.0;
+    for(int i = 0; i < kernelSize; ++i)
+    {
+        // get sample position
+        vec3 smp = ssaoData.samples[i].rgb;
+        vec3 samplePos = TBN * smp; // from tangent to view-space
+        samplePos = fragPos + samplePos * radius; 
+        
+        // project sample position (to sample texture) (to get position on screen/texture)
+        vec4 offset = vec4(samplePos, 1.0);
+        offset = cameraData.projection * offset; // from view to clip-space
+        offset.xyz /= offset.w; // perspective divide
+        offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
+        offset.y = 1.0f - offset.y;
+
+        // get sample depth
+        float sampleDepth = texture(sampler2D(ssaoTextures[0], samplers[0]), offset.xy).z; // get depth value of kernel sample
+
+        // range check & accumulate
+        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - sampleDepth));
+        occlusion += (sampleDepth >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;           
+    }
+    occlusion = 1.0 - (occlusion / kernelSize);
+    return occlusion;
+}
+
 
 void main()
 {
+    vec4 ssaoAndFogFragPos = texture(sampler2D(ssaoTextures[0], samplers[0]), uv);
+
     vec4 albedoRoughness = texture(sampler2D(gBuffer[0], samplers[0]), uv);
 
     if(albedoRoughness.a < 0.0f)
@@ -213,7 +271,6 @@ void main()
        
     float shadow = ShadowCalculation(position.rgb, lightPos, camPos);
     Lo *= (1.0 - shadow);
-    vec3 color = vec3(0.05) * albedo + Lo;
  
     vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     vec3 kS = F;
@@ -221,19 +278,19 @@ void main()
     kD *= 1.0 - metallic;
     
     vec3 irradiance = texture(samplerCube(irradianceMap, samplers[0]), N).rgb;
-    vec3 diffuse      = irradiance * albedo;
+    vec3 diffuse      = irradiance * albedo * CalculateSSAO(ssaoAndFogFragPos.rgb);
     
     // sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
     const float MAX_REFLECTION_LOD = 4.0;
     vec3 prefilteredColor = textureLod(samplerCube(prefilterMap, samplers[0]), R,  roughness * MAX_REFLECTION_LOD).rgb;    
     vec2 brdf  = texture(sampler2D(brdfLUT, samplers[0]), vec2(max(dot(N, V), 0.0), roughness)).rg;
-    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
-    
-    vec3 ao = vec3(0.2);
-    vec3 ambient = (kD * diffuse + specular * ao);
+    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y) * 0.2;
+    vec3 ambient = (kD * diffuse + specular);
 
-    color = ambient + Lo;
+    vec3 color = ambient  + Lo;
     color += emission.rgb;
+    vec3 fogColor = mix(vec3(sceneData.skyColor1), vec3(sceneData.skyColor2), uv.y); // Linearly interpolate between your gradient skybox colors
+    color = mix(color, sceneData.skyColor2.rgb, ssaoAndFogFragPos.w);
 
     float brightness = dot(emission.rgb, vec3(0.2126, 0.7152, 0.0722));
 

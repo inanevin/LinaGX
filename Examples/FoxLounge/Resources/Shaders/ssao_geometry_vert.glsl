@@ -6,7 +6,7 @@ layout(location = 1) in vec2 uv;
 layout(location = 2) in vec3 normal;
 // layout(location = 3) in vec4 inBoneIndices;
 // layout(location = 4) in vec4 inBoneWeights;
-layout(location = 0) out vec3 outFragPos;
+layout(location = 0) out vec4 outFragPos;
 layout(location = 1) out vec3 outNormal;
 
 #define MAX_BONES 30
@@ -27,7 +27,11 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    vec2 resolution;
     float farPlane;
+    float fxaaReduceMin;
+    float fxaaReduceMul;
+    float fxaaSpanMax;
 } sceneData;
 
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
@@ -66,7 +70,7 @@ void main() {
     skinnedPosition = vec4(inPosition, 1.0);
 
     vec4 viewPos = cameraData.view * object.modelMatrix * skinnedPosition;
-    outFragPos = viewPos.xyz;
+    outFragPos = viewPos;
     outNormal = mat3(object.normalMatrix) * normal;
     gl_Position = cameraData.projection * viewPos;
 }

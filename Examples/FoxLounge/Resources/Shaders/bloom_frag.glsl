@@ -22,7 +22,11 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    vec2 resolution;
     float farPlane;
+    float fxaaReduceMin;
+    float fxaaReduceMul;
+    float fxaaSpanMax;
 } sceneData;
 
 layout(std430, set = 0, binding = 1) readonly buffer ObjectData
@@ -44,7 +48,7 @@ float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
 
 void main()
 {
-    vec2 tex_offset = 1.0 / textureSize(inputTexture, 0); // gets size of single texel
+    vec2 tex_offset = 1.0 / sceneData.resolution; // gets size of single texel
     vec3 result = texture(sampler2D(inputTexture, samplers[0]), uv).rgb * weight[0]; // current fragment's contribution
     if(Constants.isHorizontal == 1)
     {

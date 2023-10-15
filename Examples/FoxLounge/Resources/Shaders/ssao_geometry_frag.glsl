@@ -2,7 +2,7 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(location = 0) in vec3 inFragPos;
+layout(location = 0) in vec4 inFragPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 0) out vec4 outPosition;
 layout(location = 1) out vec4 outNormal;
@@ -24,7 +24,11 @@ layout(set = 0, binding = 0) uniform SceneData
 	vec4 skyColor2;
 	vec4 lightPosition;
     vec4 lightColor;
+    vec2 resolution;
     float farPlane;
+    float fxaaReduceMin;
+    float fxaaReduceMul;
+    float fxaaSpanMax;
 } sceneData;
 
 
@@ -35,9 +39,17 @@ layout(std430, set = 0, binding = 1) readonly buffer ObjectData
 
 layout (set = 0, binding = 2) uniform sampler samplers[2];
 
+
+float GetFogFactor(float coord)
+{
+    float density = 0.02f;
+    float res = exp(density * coord);
+    return 1.0 - clamp(res, 0.0, 1.0);
+}
+
 void main()
 {
-  outPosition = vec4(inFragPos, 1.0f);
+  outPosition = vec4(inFragPos.rgb, GetFogFactor(inFragPos.z / inFragPos.w));
   outNormal = vec4(normalize(inNormal), 1.0f);
 }
 

@@ -54,6 +54,10 @@ namespace LinaGX::Examples
 #define BRDF_MAP_RES         512
 #define SHADOW_MAP_RES       512
 
+    float testFxaaReduceMin = 1.0f / 128.0f;
+    float testFxaaReduceMul = 1.0f / 8.0f;
+    float testFxaaSpan = 8.0f;
+
     void Example::ConfigureInitializeLinaGX()
     {
         LinaGX::Config.logLevel                               = LogLevel::Verbose;
@@ -62,7 +66,7 @@ namespace LinaGX::Examples
         LinaGX::Config.dx12Config.serializeShaderDebugSymbols = false;
         LinaGX::Config.dx12Config.enableDebugLayers           = true;
 
-        BackendAPI api = BackendAPI::Vulkan;
+        BackendAPI api = BackendAPI::DX12;
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;
 #endif
@@ -683,17 +687,12 @@ namespace LinaGX::Examples
             .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
         };
         m_pipelineLayouts[PipelineLayoutType::PL_Irradiance] = m_lgx->CreatePipelineLayout(pipelineLayoutIrradiancePass);
-
-        LinaGX::PipelineLayoutDesc pipelineLayoutSSAO{
-            .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal(), Utility::GetSetDescriptionSSAO()},
-            .constantRanges            = {{{LinaGX::ShaderStage::Fragment, LinaGX::ShaderStage::Vertex}, sizeof(GPUConstants)}},
-        };
-        m_pipelineLayouts[PipelineLayoutType::PL_SSAO] = m_lgx->CreatePipelineLayout(pipelineLayoutSSAO);
     }
 
     void Example::SetupShaders()
     {
         LOGT("Compiling shaders...");
+
         m_shaders.resize(Shader::SH_Max);
         m_shaders[Shader::SH_Lighting]     = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 2, true, m_pipelineLayouts[PL_Lighting], "Deferred Lighpass Shader");
         m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "PBR Default Shader");
@@ -701,7 +700,6 @@ namespace LinaGX::Examples
         m_shaders[Shader::SH_Shadows]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/shadowpass_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 0, true, m_pipelineLayouts[PL_Simple], "Unlit Shader");
         m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuad], "Final Quad Shader");
         m_shaders[Shader::SH_Bloom]        = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/bloom_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_SimpleQuad], "Bloom Shader");
-        m_shaders[Shader::SH_SSAO]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/ssao_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_SSAO], "SSAO Shader");
         m_shaders[Shader::SH_Skybox]       = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "Skybox Shader");
         m_shaders[Shader::SH_Irradiance]   = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/irradiance_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Irradiance Shader");
         m_shaders[Shader::SH_Prefilter]    = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/prefilter_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Prefilter Shader");
@@ -711,7 +709,6 @@ namespace LinaGX::Examples
     void Example::SetupGlobalResources()
     {
         LOGT("Setting up global resources...");
-
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             auto& pfd = m_pfd[i];
@@ -1010,12 +1007,6 @@ namespace LinaGX::Examples
                 m_passes[PassType::PS_BloomHori].additionalDescriptorSets[i] = m_lgx->CreateDescriptorSet(Utility::GetSetDescriptionSimpleQuadPass());
         }
 
-        // SSAO
-        {
-            const auto& rtDesc = Utility::GetRTDesc("SSAO", customWidth, customHeight);
-            SetupPass(PassType::PS_SSAO, {rtDesc}, false, {}, Utility::GetSetDescriptionSSAO(), false);
-        }
-
         // Final Quad
         {
             SetupPass(PassType::PS_FinalQuad, {}, false, {}, Utility::GetSetDescriptionFinalPass(), true);
@@ -1065,6 +1056,7 @@ namespace LinaGX::Examples
                         m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[1].texture,
                         m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[2].texture,
                         m_passes[PassType::PS_Objects].renderTargets[i].colorAttachments[3].texture,
+                        m_passes[PassType::PS_Objects].renderTargets[i].depthStencilAttachment.texture,
                     },
                 };
 
@@ -1104,6 +1096,22 @@ namespace LinaGX::Examples
                 };
 
                 m_lgx->DescriptorUpdateImage(updateShadows);
+
+                LinaGX::DescriptorUpdateImageDesc updateSSAOTexts = {
+                    .setHandle = m_passes[PS_Lighting].descriptorSets[i],
+                    .binding   = 6,
+                    .textures  = {m_passes[PassType::PS_SSAOGeometry].renderTargets[i].colorAttachments[0].texture, m_passes[PassType::PS_SSAOGeometry].renderTargets[i].colorAttachments[1].texture, m_ssaoNoiseTexture},
+                };
+
+                m_lgx->DescriptorUpdateImage(updateSSAOTexts);
+
+                LinaGX::DescriptorUpdateBufferDesc updateSSAOKernels = {
+                    .setHandle = m_passes[PS_Lighting].descriptorSets[i],
+                    .binding   = 7,
+                    .buffers   = {m_ssaoDataGPU},
+                };
+
+                m_lgx->DescriptorUpdateBuffer(updateSSAOKernels);
             }
 
             if (isFirst)
@@ -1176,42 +1184,6 @@ namespace LinaGX::Examples
                     .textures  = {m_passes[PassType::PS_Lighting].renderTargets[i].colorAttachments[1].texture},
                 };
                 m_lgx->DescriptorUpdateImage(update2);
-            }
-
-            // SSAO
-            {
-                LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
-                    .setHandle = m_passes[PS_SSAO].descriptorSets[i],
-                    .binding   = 0,
-                    .buffers   = {m_pfd[i].rscCameraData0},
-                    .ranges    = {sizeof(GPUCameraData)},
-                };
-
-                m_lgx->DescriptorUpdateBuffer(bufferUpdate);
-
-                LinaGX::DescriptorUpdateImageDesc updateSSAOGBuf = {
-                    .setHandle = m_passes[PS_SSAO].descriptorSets[i],
-                    .binding   = 1,
-                    .textures  = {m_passes[PassType::PS_SSAOGeometry].renderTargets[i].colorAttachments[0].texture, m_passes[PassType::PS_SSAOGeometry].renderTargets[i].colorAttachments[1].texture},
-                };
-
-                m_lgx->DescriptorUpdateImage(updateSSAOGBuf);
-
-                LinaGX::DescriptorUpdateImageDesc updateSSAONoise = {
-                    .setHandle = m_passes[PS_SSAO].descriptorSets[i],
-                    .binding   = 2,
-                    .textures  = {m_ssaoNoiseTexture},
-                };
-
-                m_lgx->DescriptorUpdateImage(updateSSAONoise);
-
-                LinaGX::DescriptorUpdateBufferDesc updateSSAOKernels = {
-                    .setHandle = m_passes[PS_SSAO].descriptorSets[i],
-                    .binding   = 3,
-                    .buffers   = {m_ssaoDataGPU},
-                };
-
-                m_lgx->DescriptorUpdateBuffer(updateSSAOKernels);
             }
 
             // Bloom Vertical
@@ -1732,12 +1704,17 @@ namespace LinaGX::Examples
         // Scene data.
         {
             GPUSceneData sceneData = {
-                .skyColor1  = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
-                .skyColor2  = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
-                .lightPos   = m_lightPos,
-                .lightColor = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
-                .farPlane   = FAR_PLANE,
+                .skyColor1     = glm::vec4(0.002f, 0.137f, 0.004f, 1.0f),
+                .skyColor2     = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
+                .lightPos      = m_lightPos,
+                .lightColor    = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
+                .resolution    = glm::vec2(m_window->GetSize().x, m_window->GetSize().y),
+                .farPlane      = FAR_PLANE,
+                .fxaaReduceMin = testFxaaReduceMin,
+                .fxaaReduceMul = testFxaaReduceMul,
+                .fxaaSpanMax   = testFxaaSpan,
             };
+
             std::memcpy(currentFrame.rscSceneDataMapping, &sceneData, sizeof(GPUSceneData));
         }
 
@@ -1863,10 +1840,11 @@ namespace LinaGX::Examples
     {
         const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
         auto&        currentFrame  = m_pfd[frameIndex];
+
+        SSAOGeometry(frameIndex);
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
         CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-        CollectPassBarrier(frameIndex, PS_SSAO, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment);
 
         BindPassSet(frameIndex, PipelineLayoutType::PL_Objects, m_passes[PS_Objects].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
@@ -1876,15 +1854,6 @@ namespace LinaGX::Examples
 
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
-        ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
-
-        BindPassSet(frameIndex, PipelineLayoutType::PL_SSAO, m_passes[PS_SSAO].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
-        BeginPass(frameIndex, PassType::PS_SSAO, width, height);
-        BindShader(frameIndex, Shader::SH_SSAO);
-        DrawFullscreenQuad(frameIndex);
-        EndPass(frameIndex);
-
-        CollectPassBarrier(frameIndex, PS_SSAO, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
 
         BindPassSet(frameIndex, PipelineLayoutType::PL_Lighting, m_passes[PS_Lighting].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
@@ -2112,44 +2081,43 @@ namespace LinaGX::Examples
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_4))
         {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[2].texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[2].texture;
-            dbgUpdate       = true;
+            testFxaaReduceMul *= 2.0f;
+            //dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[2].texture;
+            //dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[2].texture;
+            //dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_5))
         {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[3].texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[3].texture;
-            dbgUpdate       = true;
+            testFxaaReduceMul /= 2.0f;
+
+            //dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].colorAttachments[3].texture;
+            //dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].colorAttachments[3].texture;
+            //dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_6))
         {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].depthStencilAttachment.texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].depthStencilAttachment.texture;
-            dbgUpdate       = true;
+            testFxaaSpan *= 2.0f;
+            //dbgUpdateTxt[0] = m_passes[PassType::PS_Objects].renderTargets[0].depthStencilAttachment.texture;
+            //dbgUpdateTxt[1] = m_passes[PassType::PS_Objects].renderTargets[1].depthStencilAttachment.texture;
+            //dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_7))
         {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_BRDF].renderTargets[0].colorAttachments[0].texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_BRDF].renderTargets[1].colorAttachments[0].texture;
-            dbgUpdate       = true;
+            testFxaaSpan /= 2.0f;
+
+            //dbgUpdateTxt[0] = m_passes[PassType::PS_BRDF].renderTargets[0].colorAttachments[0].texture;
+            //dbgUpdateTxt[1] = m_passes[PassType::PS_BRDF].renderTargets[1].colorAttachments[0].texture;
+            //dbgUpdate       = true;
         }
 
         if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_8))
         {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_Lighting].renderTargets[0].colorAttachments[1].texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_Lighting].renderTargets[1].colorAttachments[1].texture;
-            dbgUpdate       = true;
-        }
-
-        if (m_lgx->GetInput().GetKeyDown(LINAGX_KEY_9))
-        {
-            dbgUpdateTxt[0] = m_passes[PassType::PS_SSAO].renderTargets[0].colorAttachments[0].texture;
-            dbgUpdateTxt[1] = m_passes[PassType::PS_SSAO].renderTargets[1].colorAttachments[0].texture;
-            dbgUpdate       = true;
+            //dbgUpdateTxt[0] = m_passes[PassType::PS_Lighting].renderTargets[0].colorAttachments[1].texture;
+            //dbgUpdateTxt[1] = m_passes[PassType::PS_Lighting].renderTargets[1].colorAttachments[1].texture;
+            //dbgUpdate       = true;
         }
 
         if (dbgUpdate)
@@ -2183,7 +2151,6 @@ namespace LinaGX::Examples
         BindGlobalSet(currentFrameIndex);
 
         DrawShadowmap(currentFrameIndex);
-        SSAOGeometry(currentFrameIndex);
 
         CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         DeferredRenderScene(currentFrameIndex, DrawObjectFlags::DrawDefault | DrawObjectFlags::DrawSkybox, 0, 0, 0);

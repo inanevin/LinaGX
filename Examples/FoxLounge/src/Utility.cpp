@@ -41,7 +41,6 @@ namespace LinaGX::Examples
         {PS_Shadows, "Shadow Pass"},
         {PS_BloomHori, "BloomHorizontal Pass"},
         {PS_BloomVert, "BloomVertical Pass"},
-        {PS_SSAO, "SSAOPass"},
         {PS_SSAOGeometry, "SSAOPass Geometry"},
     };
 
@@ -193,7 +192,7 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorBinding binding1 = {
-            .descriptorCount = 4,
+            .descriptorCount = 5,
             .type            = LinaGX::DescriptorType::SeparateImage,
             .stages          = {LinaGX::ShaderStage::Fragment},
         };
@@ -222,7 +221,19 @@ namespace LinaGX::Examples
             .stages          = {LinaGX::ShaderStage::Fragment},
         };
 
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3, binding4, binding5}};
+        LinaGX::DescriptorBinding binding6 = {
+            .descriptorCount = 3,
+            .type            = LinaGX::DescriptorType::SeparateImage,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorBinding binding7 = {
+            .descriptorCount = 1,
+            .type            = LinaGX::DescriptorType::UBO,
+            .stages          = {LinaGX::ShaderStage::Fragment},
+        };
+
+        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3, binding4, binding5, binding6, binding7}};
 
         return desc;
     }
@@ -236,38 +247,6 @@ namespace LinaGX::Examples
         };
 
         LinaGX::DescriptorSetDesc desc = {.bindings = {binding0}};
-
-        return desc;
-    }
-
-    LinaGX::DescriptorSetDesc Utility::GetSetDescriptionSSAO()
-    {
-        LinaGX::DescriptorBinding binding0 = {
-            .descriptorCount  = 1,
-            .type             = LinaGX::DescriptorType::UBO,
-            .useDynamicOffset = true,
-            .stages           = {LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorBinding binding1 = {
-            .descriptorCount = 2,
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorBinding binding2 = {
-            .descriptorCount = 1,
-            .type            = LinaGX::DescriptorType::SeparateImage,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorBinding binding3 = {
-            .descriptorCount = 1,
-            .type            = LinaGX::DescriptorType::UBO,
-            .stages          = {LinaGX::ShaderStage::Fragment},
-        };
-
-        LinaGX::DescriptorSetDesc desc = {.bindings = {binding0, binding1, binding2, binding3}};
 
         return desc;
     }
