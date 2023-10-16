@@ -71,7 +71,7 @@ namespace LinaGX
             T* retVal = reinterpret_cast<T*>(ptr);
 
             // Commons
-            retVal->extension = nullptr;
+            retVal->Init();
 
             return retVal;
         }

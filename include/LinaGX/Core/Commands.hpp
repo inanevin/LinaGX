@@ -61,123 +61,208 @@ namespace LinaGX
 
     struct CMDBeginRenderPass
     {
-        void*                            extension;
         RenderPassColorAttachment*       colorAttachments;
         uint32                           colorAttachmentCount;
         RenderPassDepthStencilAttachment depthStencilAttachment;
         Viewport                         viewport;
         ScissorsRect                     scissors;
-        LINAGX_STRING                    debugName;
+
+        inline void Init()
+        {
+            colorAttachmentCount   = 0;
+            colorAttachments       = nullptr;
+            depthStencilAttachment = {};
+            viewport               = {};
+            scissors               = {};
+        }
     };
 
     struct CMDEndRenderPass
     {
-        void* extension;
+        inline void Init()
+        {
+
+        }
     };
 
     struct CMDSetViewport
     {
-        void*  extension;
         uint32 x;
         uint32 y;
         uint32 width;
         uint32 height;
         float  minDepth;
         float  maxDepth;
+
+        inline void Init()
+        {
+            x = y = width = height = 0;
+            minDepth               = 0.0f;
+            maxDepth               = 1.0f;
+        }
     };
 
     struct CMDSetScissors
     {
-        void*  extension;
         uint32 x;
         uint32 y;
         uint32 width;
         uint32 height;
+
+        inline void Init()
+        {
+            x = y = width = height = 0;
+        }
     };
 
     struct CMDBindPipeline
     {
-        void*  extension;
         uint16 shader;
+
+        inline void Init()
+        {
+            shader = 0;
+        }
     };
 
     struct CMDDrawInstanced
     {
-        void*  extension;
         uint32 vertexCountPerInstance;
         uint32 instanceCount;
         uint32 startVertexLocation;
         uint32 startInstanceLocation;
+
+        inline void Init()
+        {
+            vertexCountPerInstance = 0;
+            instanceCount          = 0;
+            startVertexLocation    = 0;
+            startInstanceLocation  = 0;
+        }
     };
 
     struct CMDDrawIndexedInstanced
     {
-        void*  extension;
         uint32 indexCountPerInstance;
         uint32 instanceCount;
         uint32 startIndexLocation;
         uint32 baseVertexLocation;
         uint32 startInstanceLocation;
+
+        inline void Init()
+        {
+            indexCountPerInstance = 0;
+            instanceCount         = 0;
+            startIndexLocation    = 0;
+            baseVertexLocation    = 0;
+            startInstanceLocation = 0;
+        }
     };
 
     struct CMDDrawIndexedIndirect
     {
-        void*  extension;
         uint32 indirectBuffer;
         uint32 count;
         uint32 stride;
+
+        inline void Init()
+        {
+            indirectBuffer = 0;
+            count          = 0;
+            stride         = 0;
+        }
     };
 
     struct CMDDrawIndirect
     {
-        void*  extension;
         uint32 indirectBuffer;
         uint32 count;
         uint32 stride;
+
+        inline void Init()
+        {
+            indirectBuffer = 0;
+            count          = 0;
+            stride         = 0;
+        }
     };
 
     struct CMDCopyResource
     {
-        void*  extension;
         uint32 source;
         uint32 destination;
+
+        inline void Init()
+        {
+            source      = 0;
+            destination = 0;
+        }
     };
 
     struct CMDCopyBufferToTexture2D
     {
-        void*          extension;
         uint32         destTexture;
         uint32         mipLevels;
         uint32         destinationSlice;
         TextureBuffer* buffers;
+
+        inline void Init()
+        {
+            destTexture      = 0;
+            mipLevels        = 0;
+            destinationSlice = 0;
+            buffers          = nullptr;
+        }
     };
 
     struct CMDCopyTexture
     {
-        void*  extension;
         uint32 srcTexture;
         uint32 dstTexture;
         uint32 srcLayer;
         uint32 dstLayer;
         uint32 srcMip;
         uint32 dstMip;
+
+        inline void Init()
+        {
+            srcTexture = 0;
+            dstTexture = 0;
+            srcLayer   = 0;
+            dstLayer   = 0;
+            srcMip     = 0;
+            dstMip     = 0;
+        }
     };
 
     struct CMDBindVertexBuffers
     {
-        void*  extension;
         uint32 slot;
         uint32 resource;
         uint32 vertexSize;
         uint64 offset;
+
+        inline void Init()
+        {
+            slot       = 0;
+            resource   = 0;
+            vertexSize = 0;
+            offset     = 0;
+        }
     };
 
     struct CMDBindIndexBuffers
     {
-        void*     extension;
         uint32    resource;
         uint64    offset;
         IndexType indexType;
+
+        inline void Init()
+        {
+            resource  = 0;
+            offset    = 0;
+            indexType = IndexType::Uint16;
+        }
     };
 
     enum class DescriptorSetsLayoutSource
@@ -189,7 +274,6 @@ namespace LinaGX
 
     struct CMDBindDescriptorSets
     {
-        void*                      extension;
         uint32                     firstSet;
         uint32                     setCount;
         uint16*                    descriptorSetHandles;
@@ -199,64 +283,113 @@ namespace LinaGX
         DescriptorSetsLayoutSource layoutSource;
         uint16                     customLayout;
         uint32                     customLayoutShader;
+
+        inline void Init()
+        {
+            firstSet             = 0;
+            setCount             = 0;
+            descriptorSetHandles = nullptr;
+            isCompute            = false;
+            dynamicOffsetCount   = 0;
+            dynamicOffsets       = nullptr;
+            layoutSource         = {};
+            customLayout         = 0;
+            customLayoutShader   = 0;
+        }
     };
 
     struct CMDBindConstants
     {
-        void*        extension;
         void*        data;
         uint32       offset;
         uint32       size;
         ShaderStage* stages;
         uint32       stagesSize;
+
+        inline void Init()
+        {
+            data       = nullptr;
+            offset     = 0;
+            size       = 0;
+            stages     = nullptr;
+            stagesSize = 0;
+        }
     };
 
     struct CMDDispatch
     {
-        void*  extension;
         uint32 groupSizeX;
         uint32 groupSizeY;
         uint32 groupSizeZ;
+
+        inline void Init()
+        {
+            groupSizeX = 0;
+            groupSizeY = 0;
+            groupSizeZ = 0;
+        }
     };
 
     struct CMDComputeBarrier
     {
-        void* extension;
     };
 
     struct CMDExecuteSecondaryStream
     {
-        void*          extension;
         CommandStream* secondaryStream;
-        bool           recordInThreads;
+
+        inline void Init()
+        {
+            secondaryStream = nullptr;
+        }
     };
 
     struct CMDDebug
     {
-        void*  extension;
         uint32 id;
+
+        inline void Init()
+        {
+            id = 0;
+        }
     };
 
     struct CMDDebugBeginLabel
     {
-        void*       extension;
         const char* label;
+
+        inline void Init()
+        {
+            label = nullptr;
+        }
     };
 
     struct CMDDebugEndLabel
     {
-        void* extension;
+        inline void Init()
+        {
+
+        }
     };
 
     struct CMDBarrier
     {
-        void*            extension;
         uint32           textureBarrierCount;
         TextureBarrier*  textureBarriers;
         uint32           resourceBarrierCount;
         ResourceBarrier* resourceBarriers;
         uint32           srcStageFlags;
         uint32           dstStageFlags;
+
+        inline void Init()
+        {
+            textureBarrierCount  = 0;
+            textureBarriers      = nullptr;
+            resourceBarrierCount = 0;
+            resourceBarriers     = nullptr;
+            srcStageFlags        = 0;
+            dstStageFlags        = 0;
+        }
     };
 
     extern LINAGX_STRING GetCMDDebugName(LINAGX_TYPEID tid);

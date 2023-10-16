@@ -128,8 +128,8 @@ namespace LinaGX::Examples
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             auto& pfd                  = m_pfd[i];
-            pfd.graphicsStream         = m_lgx->CreateCommandStream({1500, CommandType::Graphics, 10000, "Graphics Stream"});
-            pfd.transferStream         = m_lgx->CreateCommandStream({100, CommandType::Transfer, 10000, "Transfer Stream"});
+            pfd.graphicsStream         = m_lgx->CreateCommandStream({1500, CommandType::Graphics, 24000, 10000, "Graphics Stream"});
+            pfd.transferStream         = m_lgx->CreateCommandStream({100, CommandType::Transfer, 12000, 10000, "Transfer Stream"});
             pfd.transferSemaphoreValue = 0;
             pfd.transferSemaphore      = m_lgx->CreateUserSemaphore();
         }
@@ -219,7 +219,6 @@ namespace LinaGX::Examples
                 std::memcpy(mapping, &mat.gpuMat, sizeof(GPUMaterialData));
 
                 LinaGX::CMDCopyResource* copy = m_pfd[0].transferStream->AddCommand<LinaGX::CMDCopyResource>();
-                copy->extension               = nullptr;
                 copy->source                  = mat.stagingResources[i];
                 copy->destination             = mat.gpuResources[i];
 
@@ -291,9 +290,9 @@ namespace LinaGX::Examples
             std::memcpy(mapped, indices.data(), indices.size() * sizeof(uint32));
         };
 
-        auto createVertexBuffer = [&](std::vector<VertexSkinned>& vertices, GPUBuffer& buf) {
+        auto createVertexBuffer = [&](std::vector<Vertex>& vertices, GPUBuffer& buf) {
             LinaGX::ResourceDesc vtxBufDesc = {
-                .size          = sizeof(VertexSkinned) * vertices.size(),
+                .size          = sizeof(Vertex) * vertices.size(),
                 .typeHintFlags = LinaGX::TH_VertexBuffer,
                 .heapType      = ResourceHeap::StagingHeap,
                 .debugName     = "VB Staging",
@@ -307,7 +306,7 @@ namespace LinaGX::Examples
             // Map to CPU & copy.
             uint8* mapped = nullptr;
             m_lgx->MapResource(buf.staging, mapped);
-            std::memcpy(mapped, vertices.data(), vertices.size() * sizeof(VertexSkinned));
+            std::memcpy(mapped, vertices.data(), vertices.size() * sizeof(Vertex));
         };
 
         uint32 matIndex     = 0;
@@ -351,14 +350,14 @@ namespace LinaGX::Examples
                     wo.primitives.push_back({});
                     MeshPrimitive& primitive = wo.primitives.back();
 
-                    std::vector<VertexSkinned> vertices;
+                    std::vector<Vertex> vertices;
                     std::vector<uint32>        indices;
                     primitive.materialIndex = p->material ? (matIndex + p->material->index) : 0;
 
                     for (uint32 k = 0; k < p->vertexCount; k++)
                     {
                         vertices.push_back({});
-                        VertexSkinned& vtx = vertices.back();
+                        Vertex& vtx = vertices.back();
                         vtx.position       = p->positions[k];
                         vtx.uv             = p->texCoords[k];
                         vtx.normal         = p->normals[k];
@@ -406,14 +405,12 @@ namespace LinaGX::Examples
                     createIndexBuffer(indices, primitive.indexBuffer);
 
                     LinaGX::CMDCopyResource* copy = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
-                    copy->extension               = nullptr;
                     copy->destination             = primitive.indexBuffer.gpu;
                     copy->source                  = primitive.indexBuffer.staging;
 
-                    LinaGX::CMDCopyResource* copySkinned = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
-                    copySkinned->extension               = nullptr;
-                    copySkinned->destination             = primitive.vtxBuffer.gpu;
-                    copySkinned->source                  = primitive.vtxBuffer.staging;
+                    LinaGX::CMDCopyResource* copyVtx = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
+                    copyVtx->destination             = primitive.vtxBuffer.gpu;
+                    copyVtx->source                  = primitive.vtxBuffer.staging;
                 }
             }
 
@@ -504,7 +501,6 @@ namespace LinaGX::Examples
             // Transition all to transfer destination.
             {
                 LinaGX::CMDBarrier* textureBarrier   = pfd.transferStream->AddCommand<LinaGX::CMDBarrier>();
-                textureBarrier->extension            = nullptr;
                 textureBarrier->resourceBarrierCount = 0;
                 textureBarrier->textureBarrierCount  = static_cast<uint32>(m_textures.size());
                 textureBarrier->textureBarriers      = pfd.transferStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * m_textures.size());
@@ -528,7 +524,6 @@ namespace LinaGX::Examples
             for (auto& txt : m_textures)
             {
                 LinaGX::CMDCopyBufferToTexture2D* copyTxt = pfd.transferStream->AddCommand<LinaGX::CMDCopyBufferToTexture2D>();
-                copyTxt->extension                        = nullptr;
                 copyTxt->destTexture                      = txt.gpuHandle;
                 copyTxt->mipLevels                        = static_cast<uint32>(txt.allLevels.size()),
                 copyTxt->buffers                          = pfd.transferStream->EmplaceAuxMemory<LinaGX::TextureBuffer>(txt.allLevels.data(), sizeof(LinaGX::TextureBuffer) * txt.allLevels.size());
@@ -538,7 +533,6 @@ namespace LinaGX::Examples
             // Transition all to shader read;
             {
                 LinaGX::CMDBarrier* textureBarrier   = pfd.transferStream->AddCommand<LinaGX::CMDBarrier>();
-                textureBarrier->extension            = nullptr;
                 textureBarrier->resourceBarrierCount = 0;
                 textureBarrier->textureBarrierCount  = static_cast<uint32>(m_textures.size());
                 textureBarrier->textureBarriers      = pfd.transferStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * m_textures.size());
@@ -644,7 +638,6 @@ namespace LinaGX::Examples
     void Example::SetupPipelineLayouts()
     {
         m_pipelineLayouts.resize(PipelineLayoutType::PL_Max);
-
 
         LinaGX::PipelineLayoutDesc pipelineLayoutSetGlobal = {
             .descriptorSetDescriptions = {Utility::GetSetDescriptionGlobal()},
@@ -830,7 +823,6 @@ namespace LinaGX::Examples
 
             std::memcpy(mapped, &gpuSSAOData, sizeof(GPUSSAOData));
             LinaGX::CMDCopyResource* copy = pfd.transferStream->AddCommand<LinaGX::CMDCopyResource>();
-            copy->extension               = nullptr;
             copy->destination             = m_ssaoDataGPU;
             copy->source                  = m_ssaoDataCPU;
 
@@ -865,7 +857,6 @@ namespace LinaGX::Examples
             // To copy dest
             {
                 LinaGX::CMDBarrier* textureBarrier   = pfd.transferStream->AddCommand<LinaGX::CMDBarrier>();
-                textureBarrier->extension            = nullptr;
                 textureBarrier->resourceBarrierCount = 0;
                 textureBarrier->textureBarrierCount  = 1;
                 textureBarrier->textureBarriers      = pfd.transferStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
@@ -881,7 +872,6 @@ namespace LinaGX::Examples
             }
 
             LinaGX::CMDCopyBufferToTexture2D* copyTxt = pfd.transferStream->AddCommand<LinaGX::CMDCopyBufferToTexture2D>();
-            copyTxt->extension                        = nullptr;
             copyTxt->destinationSlice                 = 0;
             copyTxt->destTexture                      = m_ssaoNoiseTexture;
             copyTxt->mipLevels                        = 1;
@@ -890,7 +880,6 @@ namespace LinaGX::Examples
             // Transition all to shader read;
             {
                 LinaGX::CMDBarrier* textureBarrier   = pfd.transferStream->AddCommand<LinaGX::CMDBarrier>();
-                textureBarrier->extension            = nullptr;
                 textureBarrier->resourceBarrierCount = 0;
                 textureBarrier->textureBarrierCount  = 1;
                 textureBarrier->textureBarriers      = pfd.transferStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
@@ -1279,7 +1268,6 @@ namespace LinaGX::Examples
             label->label                      = currentFrame.graphicsStream->EmplaceAuxMemory<const char>(lbl.data(), lbl.size());
 
             LinaGX::CMDBeginRenderPass* beginRenderPass = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBeginRenderPass>();
-            beginRenderPass->extension                  = nullptr;
             beginRenderPass->colorAttachmentCount       = static_cast<uint32>(rt.colorAttachments.size());
             beginRenderPass->colorAttachments           = rt.colorAttachments.empty() ? nullptr : currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::RenderPassColorAttachment>(rt.colorAttachments.data(), sizeof(LinaGX::RenderPassColorAttachment) * rt.colorAttachments.size());
             beginRenderPass->depthStencilAttachment     = rt.depthStencilAttachment;
@@ -1379,7 +1367,6 @@ namespace LinaGX::Examples
         m_camera.Initialize(m_lgx);
         m_camera.Tick(0.016f);
 
-        
         // Generate environment cubemap, irradiance map, convolution prefilter map and BRDF LUT texture.
         IrradiancePrefilterBRDF();
         m_lgx->Join();
@@ -1491,7 +1478,6 @@ namespace LinaGX::Examples
                 if (bindMaterials)
                 {
                     LinaGX::CMDBindDescriptorSets* bind = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
-                    bind->extension                     = nullptr;
                     bind->isCompute                     = false;
                     bind->firstSet                      = 2;
                     bind->setCount                      = 1;
@@ -1507,7 +1493,6 @@ namespace LinaGX::Examples
                     // Global index buffer.
                     {
                         LinaGX::CMDBindIndexBuffers* index = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindIndexBuffers>();
-                        index->extension                   = nullptr;
                         index->indexType                   = LinaGX::IndexType::Uint32;
                         index->offset                      = 0;
                         index->resource                    = primData.prim->indexBuffer.gpu;
@@ -1516,15 +1501,13 @@ namespace LinaGX::Examples
                     // Global vertex buffer.
                     {
                         LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
-                        vtx->extension                    = nullptr;
                         vtx->offset                       = 0;
                         vtx->slot                         = 0;
-                        vtx->vertexSize                   = sizeof(VertexSkinned);
+                        vtx->vertexSize                   = sizeof(Vertex);
                         vtx->resource                     = primData.prim->vtxBuffer.gpu;
                     }
 
                     LinaGX::CMDDrawIndexedInstanced* draw = currentFrame.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
-                    draw->extension                       = nullptr;
                     draw->instanceCount                   = 1;
                     draw->startInstanceLocation           = 0;
                     draw->startIndexLocation              = 0;
@@ -1561,7 +1544,6 @@ namespace LinaGX::Examples
                 // index buffer.
                 {
                     LinaGX::CMDBindIndexBuffers* index = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindIndexBuffers>();
-                    index->extension                   = nullptr;
                     index->indexType                   = LinaGX::IndexType::Uint32;
                     index->offset                      = 0;
                     index->resource                    = prim.indexBuffer.gpu;
@@ -1570,15 +1552,13 @@ namespace LinaGX::Examples
                 // Global vertex buffer.
                 {
                     LinaGX::CMDBindVertexBuffers* vtx = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindVertexBuffers>();
-                    vtx->extension                    = nullptr;
                     vtx->offset                       = 0;
                     vtx->slot                         = 0;
-                    vtx->vertexSize                   = sizeof(VertexSkinned);
+                    vtx->vertexSize                   = sizeof(Vertex);
                     vtx->resource                     = prim.vtxBuffer.gpu;
                 }
 
                 LinaGX::CMDDrawIndexedInstanced* draw = currentFrame.graphicsStream->AddCommand<LinaGX::CMDDrawIndexedInstanced>();
-                draw->extension                       = nullptr;
                 draw->baseVertexLocation              = 0;
                 draw->startIndexLocation              = 0;
                 draw->startInstanceLocation           = 0;
@@ -1601,23 +1581,21 @@ namespace LinaGX::Examples
 
     void Example::BindShader(uint32 frameIndex, uint32 target)
     {
-        auto&                    pfd      = m_pfd[frameIndex];
+        auto& pfd = m_pfd[frameIndex];
 
         if (static_cast<uint32>(pfd.boundShader) == target)
             return;
 
         LinaGX::CMDBindPipeline* pipeline = pfd.graphicsStream->AddCommand<LinaGX::CMDBindPipeline>();
-        pipeline->extension               = nullptr;
         pipeline->shader                  = m_shaders[target];
 
-       pfd.boundShader = static_cast<int32>(target);
+        pfd.boundShader = static_cast<int32>(target);
     }
 
     void Example::BindPassSet(uint32 frameIndex, PipelineLayoutType layout, uint16 set, uint32 offset, bool useDynamicOffset)
     {
         auto&                          pfd  = m_pfd[frameIndex];
         LinaGX::CMDBindDescriptorSets* bind = pfd.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
-        bind->extension                     = nullptr;
         bind->isCompute                     = false;
         bind->firstSet                      = 1;
         bind->setCount                      = 1;
@@ -1693,7 +1671,6 @@ namespace LinaGX::Examples
     void Example::ExecPassBarriers(LinaGX::CommandStream* stream, uint32 srcStage, uint32 dstStage)
     {
         LinaGX::CMDBarrier* barrier   = stream->AddCommand<LinaGX::CMDBarrier>();
-        barrier->extension            = nullptr;
         barrier->resourceBarrierCount = 0;
         barrier->textureBarrierCount  = static_cast<uint32>(m_passBarriers.size());
         barrier->textureBarriers      = stream->EmplaceAuxMemory<LinaGX::TextureBarrier>(m_passBarriers.data(), sizeof(LinaGX::TextureBarrier) * m_passBarriers.size());
@@ -1790,7 +1767,6 @@ namespace LinaGX::Examples
             LinaGX::CMDCopyResource* copy = currentFrame.transferStream->AddCommand<LinaGX::CMDCopyResource>();
             copy->destination             = currentFrame.rscObjDataGPU;
             copy->source                  = currentFrame.rscObjDataCPU;
-            copy->extension               = nullptr;
         }
 
         // Send transfers.
@@ -1816,7 +1792,6 @@ namespace LinaGX::Examples
     {
         auto&                          currentFrame = m_pfd[frameIndex];
         LinaGX::CMDBindDescriptorSets* bind         = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindDescriptorSets>();
-        bind->extension                             = nullptr;
         bind->isCompute                             = false;
         bind->firstSet                              = 0;
         bind->setCount                              = 1;
@@ -1833,7 +1808,6 @@ namespace LinaGX::Examples
         constants.int1               = c1;
         constants.int2               = c2;
         LinaGX::CMDBindConstants* ct = currentFrame.graphicsStream->AddCommand<LinaGX::CMDBindConstants>();
-        ct->extension                = nullptr;
         ct->offset                   = 0;
         ct->size                     = sizeof(GPUConstants);
         ct->stages                   = currentFrame.graphicsStream->EmplaceAuxMemory<LinaGX::ShaderStage>(LinaGX::ShaderStage::Vertex, LinaGX::ShaderStage::Fragment);
@@ -1852,22 +1826,22 @@ namespace LinaGX::Examples
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
         CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment);
-        
+
         BindPassSet(frameIndex, PipelineLayoutType::PL_Objects, m_passes[PS_Objects].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
         BeginPass(frameIndex, PassType::PS_Objects, width, height);
         DrawObjects(frameIndex, drawObjFlags, Shader::SH_Default);
         EndPass(frameIndex);
-        
+
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
         CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
-        
+
         BindPassSet(frameIndex, PipelineLayoutType::PL_Lighting, m_passes[PS_Lighting].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
         BeginPass(frameIndex, PassType::PS_Lighting, width, height);
         BindShader(frameIndex, Shader::SH_Lighting);
         DrawFullscreenQuad(frameIndex);
         EndPass(frameIndex);
-        
+
         CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
     }
@@ -1886,44 +1860,42 @@ namespace LinaGX::Examples
             CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
             ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
 
-
             for (uint32 i = 0; i < 6; i++)
             {
                 DeferredRenderScene(frame, DrawObjectFlags::DrawSkybox, i + 1, ENVIRONMENT_MAP_RES, ENVIRONMENT_MAP_RES);
 
-              {
-                  CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::TransferSource, LinaGX::AF_MemoryRead, LinaGX::AF_TransferRead);
+                {
+                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::TransferSource, LinaGX::AF_MemoryRead, LinaGX::AF_TransferRead);
 
-                  LinaGX::TextureBarrier barrier = {};
-                  barrier.toState                = LinaGX::TextureBarrierState::TransferDestination;
-                  barrier.texture                = m_sceneCubemap;
-                  barrier.isSwapchain            = false;
-                  barrier.srcAccessFlags         = AF_MemoryRead | AF_MemoryWrite;
-                  barrier.dstAccessFlags         = AF_TransferWrite;
-                  m_passBarriers.push_back(barrier);
-                  ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_Transfer);
-              }
+                    LinaGX::TextureBarrier barrier = {};
+                    barrier.toState                = LinaGX::TextureBarrierState::TransferDestination;
+                    barrier.texture                = m_sceneCubemap;
+                    barrier.isSwapchain            = false;
+                    barrier.srcAccessFlags         = AF_MemoryRead | AF_MemoryWrite;
+                    barrier.dstAccessFlags         = AF_TransferWrite;
+                    m_passBarriers.push_back(barrier);
+                    ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_Transfer);
+                }
 
-              LinaGX::CMDCopyTexture* copyTexture = pfd.graphicsStream->AddCommand<LinaGX::CMDCopyTexture>();
-              copyTexture->extension              = nullptr;
-              copyTexture->srcTexture             = m_passes[PassType::PS_Lighting].renderTargets[frame].colorAttachments[0].texture;
-              copyTexture->dstTexture             = m_sceneCubemap;
-              copyTexture->dstLayer               = i;
-              copyTexture->srcLayer               = 0;
-              copyTexture->dstMip                 = 0;
-              copyTexture->srcMip                 = 0;
+                LinaGX::CMDCopyTexture* copyTexture = pfd.graphicsStream->AddCommand<LinaGX::CMDCopyTexture>();
+                copyTexture->srcTexture             = m_passes[PassType::PS_Lighting].renderTargets[frame].colorAttachments[0].texture;
+                copyTexture->dstTexture             = m_sceneCubemap;
+                copyTexture->dstLayer               = i;
+                copyTexture->srcLayer               = 0;
+                copyTexture->dstMip                 = 0;
+                copyTexture->srcMip                 = 0;
 
-              {
-                  CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_TransferRead, LinaGX::AF_MemoryRead);
-                  LinaGX::TextureBarrier barrier = {};
-                  barrier.toState                = LinaGX::TextureBarrierState::ShaderRead;
-                  barrier.texture                = m_sceneCubemap;
-                  barrier.isSwapchain            = false;
-                  barrier.srcAccessFlags         = LinaGX::AF_TransferWrite;
-                  barrier.dstAccessFlags         = 0;
-                  m_passBarriers.push_back(barrier);
-                  ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_Transfer, LinaGX::PSF_TopOfPipe);
-              }
+                {
+                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_TransferRead, LinaGX::AF_MemoryRead);
+                    LinaGX::TextureBarrier barrier = {};
+                    barrier.toState                = LinaGX::TextureBarrierState::ShaderRead;
+                    barrier.texture                = m_sceneCubemap;
+                    barrier.isSwapchain            = false;
+                    barrier.srcAccessFlags         = LinaGX::AF_TransferWrite;
+                    barrier.dstAccessFlags         = 0;
+                    m_passBarriers.push_back(barrier);
+                    ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_Transfer, LinaGX::PSF_TopOfPipe);
+                }
             }
 
             CollectPassBarrier(frame, PassType::PS_Irradiance, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
@@ -1942,15 +1914,14 @@ namespace LinaGX::Examples
             }
 
             BindShader(frame, Shader::SH_Prefilter);
-            
+
             for (uint32 mip = 0; mip < PREFILTER_MIP_LEVELS; mip++)
             {
                 unsigned int mipWidth  = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
                 unsigned int mipHeight = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
-                
-                
+
                 BindConstants(frame, static_cast<int>(static_cast<float>(mip) / static_cast<float>(PREFILTER_MIP_LEVELS - 1) * 100.0f), 0);
-                
+
                 for (uint32 i = 0; i < 6; i++)
                 {
                     const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
@@ -2057,8 +2028,8 @@ namespace LinaGX::Examples
 
     void Example::OnTick()
     {
-        auto now      = std::chrono::high_resolution_clock::now();
-        
+        auto now = std::chrono::high_resolution_clock::now();
+
         // Check for window inputs.
         m_lgx->PollWindowsAndInput();
 
@@ -2146,7 +2117,7 @@ namespace LinaGX::Examples
 
         const uint32 currentFrameIndex = m_lgx->GetCurrentFrameIndex();
         auto&        currentFrame      = m_pfd[currentFrameIndex];
-        currentFrame.boundShader = -1;
+        currentFrame.boundShader       = -1;
 
         TransferGlobalData(currentFrameIndex);
         BindGlobalSet(currentFrameIndex);
@@ -2156,7 +2127,7 @@ namespace LinaGX::Examples
         CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         DeferredRenderScene(currentFrameIndex, DrawObjectFlags::DrawDefault | DrawObjectFlags::DrawSkybox, 0, 0, 0);
 
-       Bloom(currentFrameIndex);
+        Bloom(currentFrameIndex);
 
         BindPassSet(currentFrameIndex, PipelineLayoutType::PL_FinalQuad, m_passes[PS_FinalQuad].descriptorSets[currentFrameIndex], 0, false);
         BeginPass(currentFrameIndex, PassType::PS_FinalQuad);

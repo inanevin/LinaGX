@@ -35,7 +35,7 @@ namespace LinaGX
     CommandStream::CommandStream(Backend* backend, const CommandStreamDesc& desc, uint32 gpuHandle)
     {
         m_backend           = backend;
-        m_commandBufferSize = desc.commandCount * 40;
+        m_commandBufferSize = desc.totalMemoryLimit;
         m_commandBuffer     = (uint8*)LINAGX_MALLOC(m_commandBufferSize);
         m_commands          = static_cast<uint8**>(malloc(sizeof(uint8*) * desc.commandCount));
         m_type              = desc.type;

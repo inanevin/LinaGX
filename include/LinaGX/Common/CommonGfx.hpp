@@ -600,10 +600,11 @@ namespace LinaGX
 
     struct CommandStreamDesc
     {
-        uint32      commandCount  = 0;
-        CommandType type          = CommandType::Graphics;
-        uint32      auxMemorySize = 4096;
-        const char* debugName     = "LinaGXCommandStream";
+        uint32      commandCount     = 0;
+        CommandType type             = CommandType::Graphics;
+        uint32      totalMemoryLimit = 48000;
+        uint32      auxMemorySize    = 4096;
+        const char* debugName        = "LinaGXCommandStream";
     };
 
     struct Viewport
@@ -832,7 +833,6 @@ namespace LinaGX
 
     struct MetalConfiguration
     {
-       
     };
 
     struct Configuration

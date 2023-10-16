@@ -144,7 +144,7 @@ namespace LinaGX
             glm::vec4 samples[64];
         };
 
-        struct VertexSkinned
+        struct Vertex
         {
             LinaGX::LGXVector3 position = {};
             LinaGX::LGXVector2 uv       = {};
