@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_COMMANDS_HPP
-#define LINAGX_COMMANDS_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
@@ -420,4 +417,3 @@ namespace LinaGX
     m_cmdFunctions[LGX_GetTypeID<CMDDebugEndLabel>()]          = &BACKEND::CMD_DebugEndLabel;
 } // namespace LinaGX
 
-#endif

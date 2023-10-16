@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_IMAGE_UTILITY_HPP
-#define LINAGX_IMAGE_UTILITY_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
@@ -78,5 +75,3 @@ namespace LinaGX
     LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace, uint32 requestLevels = 0);
 
 } // namespace LinaGX
-
-#endif

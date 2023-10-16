@@ -41,9 +41,8 @@ namespace LinaGX
     class Backend
     {
     public:
-        Backend(Instance* renderer)
-            : m_lgx(renderer){};
-        virtual ~Backend(){};
+        Backend()          = default;
+        virtual ~Backend() = default;
 
         virtual bool Initialize(const InitInfo& initInfo) = 0;
         virtual void Shutdown()                           = 0;
@@ -84,10 +83,7 @@ namespace LinaGX
         virtual void   DestroyQueue(uint8 queue)                                                        = 0;
         virtual uint8  GetPrimaryQueue(CommandType type)                                                = 0;
 
-        static Backend* CreateBackend(BackendAPI api, Instance* renderer);
-
-    protected:
-        Instance* m_lgx = nullptr;
+        static Backend* CreateBackend(BackendAPI api);
     };
 } // namespace LinaGX
 

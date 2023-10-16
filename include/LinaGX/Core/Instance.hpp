@@ -28,8 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_lgx_HPP
-#define LINAGX_lgx_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "WindowManager.hpp"
@@ -320,4 +318,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

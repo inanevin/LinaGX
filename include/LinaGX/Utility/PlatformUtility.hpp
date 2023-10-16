@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_PLATFORM_UTILITY_HPP
-#define LINAGX_PLATFORM_UTILITY_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
@@ -41,5 +38,3 @@ namespace LinaGX
     extern LINAGX_API void*          AdjustBufferPitch(void* data, uint32 width, uint32 height, uint32 bytesPerPixel, uint32 alignment);
 
 } // namespace LinaGX
-
-#endif

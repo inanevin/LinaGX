@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_SPIRVUTILITY_HPP
-#define LINAGX_SPIRVUTILITY_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "SPIRV/GlslangToSpv.h"
 
@@ -51,5 +48,3 @@ namespace LinaGX
         static void GetShaderTextWithIncludes(LINAGX_STRING& outStr, const LINAGX_STRING& shader, const LINAGX_STRING& includePath);
     };
 } // namespace LinaGX
-
-#endif

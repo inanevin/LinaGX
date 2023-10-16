@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_VKBackend_HPP
-#define LINAGX_VKBackend_HPP
-
 #include "LinaGX/Core/Backend.hpp"
 #include <atomic>
 
@@ -185,8 +182,8 @@ namespace LinaGX
         typedef void (VKBackend::*CommandFunction)(uint8*, VKBCommandStream& stream);
 
     public:
-        VKBackend(Instance* renderer)
-            : Backend(renderer){};
+        VKBackend()
+            : Backend(){};
         virtual ~VKBackend(){};
 
         virtual uint16 CreateUserSemaphore() override;
@@ -307,4 +304,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

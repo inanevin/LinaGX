@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_DX12HEAP_STAGING_HPP
-#define LINAGX_DX12HEAP_STAGING_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Platform/DX12/DX12Common.hpp"
 
@@ -90,4 +87,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

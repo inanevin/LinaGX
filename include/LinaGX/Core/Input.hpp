@@ -27,8 +27,6 @@ SOFTWARE.
 */
 
 #pragma once
-#ifndef LINAGX_INPUT_HPP
-#define LINAGX_INPUT_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Common/Math.hpp"
@@ -238,4 +236,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

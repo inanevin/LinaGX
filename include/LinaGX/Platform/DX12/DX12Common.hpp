@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_DX12_COMMON_HPP
-#define LINAGX_DX12_COMMON_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Platform/DX12/SDK/d3dx12.h"
 #include "LinaGX/Platform/DX12/SDK/d3d12shader.h"
@@ -142,4 +139,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

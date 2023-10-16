@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_DATASTRUCTURES_HPP
-#define LINAGX_DATASTRUCTURES_HPP
-
 #include "LinaGX/LinaGXExports.hpp"
 #include <vector>
 #include <string>
@@ -443,4 +440,3 @@ namespace LinaGX
 
 } // namespace LinaGX
 
-#endif

@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_MODEL_UTILITY_HPP
-#define LINAGX_MODEL_UTILITY_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Common/Math.hpp"
 
@@ -256,5 +253,3 @@ namespace LinaGX
     LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData);
 
 } // namespace LinaGX
-
-#endif

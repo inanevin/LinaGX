@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_VECTORS_HPP
-#define LINAGX_VECTORS_HPP
-
 namespace LinaGX
 {
 
@@ -82,4 +79,3 @@ namespace LinaGX
 
 } // namespace LinaGX
 
-#endif

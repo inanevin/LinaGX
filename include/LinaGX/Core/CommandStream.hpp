@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_COMMAND_STREAM_HPP
-#define LINAGX_COMMAND_STREAM_HPP
-
 #include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
@@ -141,4 +138,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

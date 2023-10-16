@@ -97,9 +97,6 @@ UNSUPPORTED ON FIRST RELEASE:
 
 #pragma once
 
-#ifndef LinaGX_HPP
-#define LinaGX_HPP
-
 #include "Core/Instance.hpp"
 #include "Core/CommandStream.hpp"
 #include "Core/Commands.hpp"
@@ -114,4 +111,3 @@ namespace LinaGX
 
 } // namespace LinaGX
 
-#endif

@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_DX12BACKEND_HPP
-#define LINAGX_DX12BACKEND_HPP
-
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Platform/DX12/DX12Common.hpp"
 #include <atomic>
@@ -202,8 +199,8 @@ namespace LinaGX
         typedef void (DX12Backend::*CommandFunction)(uint8*, DX12CommandStream& stream);
 
     public:
-        DX12Backend(Instance* renderer)
-            : Backend(renderer){};
+        DX12Backend()
+            : Backend(){};
         virtual ~DX12Backend(){};
 
         virtual uint16 CreateUserSemaphore() override;
@@ -331,4 +328,3 @@ namespace LinaGX
 
 } // namespace LinaGX
 
-#endif

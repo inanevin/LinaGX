@@ -28,9 +28,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifndef LINAGX_MATH_HPP
-#define LINAGX_MATH_HPP
-
 #include "CommonData.hpp"
 #include "Vectors.hpp"
 
@@ -62,4 +59,3 @@ namespace LinaGX
 
 } // namespace LinaGX
 
-#endif

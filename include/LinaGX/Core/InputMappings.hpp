@@ -27,8 +27,6 @@ SOFTWARE.
 */
 
 #pragma once
-#ifndef LINAGX_INPUTMAPPINGS_HPP
-#define LINAGX_INPUTMAPPINGS_HPP
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>
@@ -477,4 +475,3 @@ namespace LinaGX
 
 } // namespace LinaGX
 
-#endif
