@@ -51,7 +51,7 @@ namespace LinaGX
         }
 #endif
 
-        m_backend = Backend::CreateBackend(info.api, this);
+        m_backend = Backend::CreateBackend(info.api);
 
         if (m_backend == nullptr)
         {

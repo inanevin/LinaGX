@@ -28,9 +28,6 @@
 
 #pragma once
 
-#ifndef LINAGX_METAL_BACKEND_HPP
-#define LINAGX_METAL_BACKEND_HPP
-
 #include "LinaGX/Core/Backend.hpp"
 #include "LinaGX/Core/Commands.hpp"
 #include <atomic>
@@ -315,4 +312,3 @@ private:
 
 } // namespace LinaGX
 
-#endif
