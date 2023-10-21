@@ -32,30 +32,36 @@ SOFTWARE.
 
 namespace LinaGX
 {
+    /// <summary>
+    /// Defines a color render target.
+    /// </summary>
     struct RenderPassColorAttachment
     {
-        LoadOp     loadOp;
-        StoreOp    storeOp;
-        LGXVector4 clearColor;
-        uint32     texture;
-        uint32     viewIndex;
+        LoadOp     loadOp      = LoadOp::Clear;
+        StoreOp    storeOp     = StoreOp::Store;
+        LGXVector4 clearColor  = {0, 0, 0, 1};
+        uint32     texture     = 0; // Target texture to write to.
+        uint32     viewIndex   = 0;
         bool       isSwapchain = false;
     };
 
     struct RenderPassDepthStencilAttachment
     {
-        bool    useDepth;
-        bool    useStencil;
-        uint32  texture;
-        LoadOp  depthLoadOp;
-        StoreOp depthStoreOp;
-        float   clearDepth;
-        LoadOp  stencilLoadOp;
-        StoreOp stencilStoreOp;
-        uint32  clearStencil;
-        uint32  viewIndex;
+        bool    useDepth       = false;
+        bool    useStencil     = false;
+        uint32  texture        = 0; // Target depth-stencil texture to write to.
+        LoadOp  depthLoadOp    = LoadOp::Clear;
+        StoreOp depthStoreOp   = StoreOp::Store;
+        float   clearDepth     = 1.0f;
+        LoadOp  stencilLoadOp  = LoadOp::Clear;
+        StoreOp stencilStoreOp = StoreOp::Store;
+        uint32  clearStencil   = 0;
+        uint32  viewIndex      = 0;
     };
 
+    /// <summary>
+    /// Starts a render pass, at least 1 attachment (either color or depthStencil) is required.
+    /// </summary>
     struct CMDBeginRenderPass
     {
         RenderPassColorAttachment*       colorAttachments;
@@ -74,14 +80,19 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDEndRenderPass
     {
         inline void Init()
         {
-
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDSetViewport
     {
         uint32 x;
@@ -99,6 +110,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDSetScissors
     {
         uint32 x;
@@ -112,6 +126,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDBindPipeline
     {
         uint16 shader;
@@ -122,6 +139,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDDrawInstanced
     {
         uint32 vertexCountPerInstance;
@@ -138,6 +158,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDDrawIndexedInstanced
     {
         uint32 indexCountPerInstance;
@@ -156,34 +179,45 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDDrawIndexedIndirect
     {
         uint32 indirectBuffer;
+        uint32 indirectBufferOffset;
         uint32 count;
-        uint32 stride;
 
         inline void Init()
         {
-            indirectBuffer = 0;
-            count          = 0;
-            stride         = 0;
+            indirectBuffer       = 0;
+            indirectBufferOffset = 0;
+            count                = 0;
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDDrawIndirect
     {
         uint32 indirectBuffer;
+        uint32 indirectBufferOffset;
         uint32 count;
         uint32 stride;
 
         inline void Init()
         {
-            indirectBuffer = 0;
-            count          = 0;
-            stride         = 0;
+            indirectBuffer       = 0;
+            indirectBufferOffset = 0;
+            count                = 0;
+            stride               = 0;
         }
     };
 
+    /// <summary>
+    /// Use for copying from staging to gpu resources.
+    /// </summary>
     struct CMDCopyResource
     {
         uint32 source;
@@ -196,6 +230,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    /// Use for filling in texture pixel information from CPU.
+    /// </summary>
     struct CMDCopyBufferToTexture2D
     {
         uint32         destTexture;
@@ -212,6 +249,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    /// GPU-to-GPU texture copy.
+    /// </summary>
     struct CMDCopyTexture
     {
         uint32 srcTexture;
@@ -232,6 +272,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDBindVertexBuffers
     {
         uint32 slot;
@@ -248,6 +291,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDBindIndexBuffers
     {
         uint32    resource;
@@ -262,6 +308,11 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    /// LastBoundShader - uses the pipeline layout(either custom or auto-generated via reflection) of the last bound shader.
+    /// CustomLayout - uses a specific layout user creates, need to supply it to customLayout parameter
+    /// CustomShader - uses the pipeline layout of a specific shader, need to supply it to customLayoutShader parameter
+    /// </summary>
     enum class DescriptorSetsLayoutSource
     {
         LastBoundShader,
@@ -269,6 +320,9 @@ namespace LinaGX
         CustomShader,
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDBindDescriptorSets
     {
         uint32                     firstSet;
@@ -277,9 +331,9 @@ namespace LinaGX
         bool                       isCompute;
         uint32                     dynamicOffsetCount;
         uint32*                    dynamicOffsets;
-        DescriptorSetsLayoutSource layoutSource;
-        uint16                     customLayout;
-        uint32                     customLayoutShader;
+        DescriptorSetsLayoutSource layoutSource;       // determine where to take the pipeline layout for this binding.
+        uint16                     customLayout;       // when layoutSource == ::CustomLayout,
+        uint32                     customLayoutShader; // when layoutSource == ::CustomShader
 
         inline void Init()
         {
@@ -295,6 +349,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDBindConstants
     {
         void*        data;
@@ -313,6 +370,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDDispatch
     {
         uint32 groupSizeX;
@@ -327,10 +387,9 @@ namespace LinaGX
         }
     };
 
-    struct CMDComputeBarrier
-    {
-    };
-
+    /// <summary>
+    ///
+    /// </summary>
     struct CMDExecuteSecondaryStream
     {
         CommandStream* secondaryStream;
@@ -341,6 +400,9 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    /// Used for break-point debugging.
+    /// </summary>
     struct CMDDebug
     {
         uint32 id;
@@ -351,6 +413,10 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    /// Used for labeling using VK debug utilities, DX12 PIX events or Metal debug groups.
+    /// Make sure to call CMDDebugEndLabel for every CMDDebugBeginLabel call.
+    /// </summary>
     struct CMDDebugBeginLabel
     {
         const char* label;
@@ -361,14 +427,21 @@ namespace LinaGX
         }
     };
 
+    /// <summary>
+    /// Used for labeling using VK debug utilities, DX12 PIX events or Metal debug groups.
+    /// </summary>
     struct CMDDebugEndLabel
     {
         inline void Init()
         {
-
         }
     };
 
+    /// <summary>
+    /// Barrier operations in Vulkan, resource transitions in DX12, dull face of emptiness in Metal.
+    /// If targeting Vulkan, srcStageFlags and dstStageFlags are required. Use PipelineStageFlags enumeration.
+    /// In DX12 stage flags are not required to be filled. In Metal no transition/barriers are needed.
+    /// </summary>
     struct CMDBarrier
     {
         uint32           textureBarrierCount;
@@ -408,7 +481,6 @@ namespace LinaGX
     m_cmdFunctions[LGX_GetTypeID<CMDCopyTexture>()]            = &BACKEND::CMD_CopyTexture;            \
     m_cmdFunctions[LGX_GetTypeID<CMDBindDescriptorSets>()]     = &BACKEND::CMD_BindDescriptorSets;     \
     m_cmdFunctions[LGX_GetTypeID<CMDDispatch>()]               = &BACKEND::CMD_Dispatch;               \
-    m_cmdFunctions[LGX_GetTypeID<CMDComputeBarrier>()]         = &BACKEND::CMD_ComputeBarrier;         \
     m_cmdFunctions[LGX_GetTypeID<CMDBindConstants>()]          = &BACKEND::CMD_BindConstants;          \
     m_cmdFunctions[LGX_GetTypeID<CMDExecuteSecondaryStream>()] = &BACKEND::CMD_ExecuteSecondaryStream; \
     m_cmdFunctions[LGX_GetTypeID<CMDBarrier>()]                = &BACKEND::CMD_Barrier;                \
@@ -416,4 +488,3 @@ namespace LinaGX
     m_cmdFunctions[LGX_GetTypeID<CMDDebugBeginLabel>()]        = &BACKEND::CMD_DebugBeginLabel;        \
     m_cmdFunctions[LGX_GetTypeID<CMDDebugEndLabel>()]          = &BACKEND::CMD_DebugEndLabel;
 } // namespace LinaGX
-

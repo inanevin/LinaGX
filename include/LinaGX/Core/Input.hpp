@@ -49,141 +49,106 @@ namespace LinaGX
     {
     public:
         /// <summary>
-        ///
+        /// Returns 16 bit unsigned integer representing LinaGX::CharacterMask for the given wide-character.
         /// </summary>
-        /// <param name="ch"></param>
-        /// <returns></returns>
         uint16 GetCharacterMask(wchar_t ch);
 
         /// <summary>
-        ///
+        /// 32-bit unsigned integer code for the given 32-bit character.
         /// </summary>
-        /// <param name="c"></param>
-        /// <returns></returns>
         uint32 GetKeycode(char32_t c);
 
         /// <summary>
-        ///
+        /// Tries to find the wide-character representation of the given keycode.
         /// </summary>
-        /// <param name="key"></param>
-        /// <returns></returns>
         wchar_t GetCharacterFromKey(uint32 key);
 
         /// <summary>
-        ///
+        /// This is NOT only CTRL keys, it's all "control" keys, e.g. CTRLs, ALTs, TAB and CAPSLOCK.
         /// </summary>
-        /// <returns></returns>
         bool IsControlPressed();
 
         /// <summary>
-        ///
+        /// True if given key is pressed.
         /// </summary>
-        /// <param name="button"></param>
-        /// <returns></returns>
         bool GetKey(int button);
 
         /// <summary>
-        ///
+        /// True for a single-frame, on the frame that the given key is pressed.
         /// </summary>
-        /// <param name="button"></param>
-        /// <returns></returns>
         bool GetKeyDown(int button);
 
         /// <summary>
-        ///
+        /// True for a single-frame, on the frame that the given key is released.
         /// </summary>
-        /// <param name="button"></param>
-        /// <returns></returns>
         bool GetKeyUp(int button);
 
         /// <summary>
-        ///
+        /// True if given button is pressed.
         /// </summary>
-        /// <param name="button"></param>
-        /// <returns></returns>
         bool GetMouseButton(int button);
 
         /// <summary>
-        ///
+        /// True for a single-frame, on the frame that the given button is pressed.
         /// </summary>
-        /// <param name="button"></param>
-        /// <returns></returns>
         bool GetMouseButtonDown(int button);
 
         /// <summary>
-        ///
+        /// True for a single-frame, on the frame that the given button is released.
         /// </summary>
-        /// <param name="button"></param>
-        /// <returns></returns>
         bool GetMouseButtonUp(int button);
 
         /// <summary>
-        ///
+        /// Absolute mouse position across all monitors, OS-space.
         /// </summary>
-        /// <returns></returns>
         inline LGXVector2i GetMousePositionAbs()
         {
             return m_currentMousePositionAbs;
         }
 
         /// <summary>
-        ///
+        /// Delta-motion of the mouse.
         /// </summary>
-        /// <returns></returns>
         inline LGXVector2i GetMouseDelta()
         {
             return m_mouseDelta;
         }
 
         /// <summary>
-        ///
+        /// Mouse middle scroll value.
         /// </summary>
-        /// <returns></returns>
-        inline LGXVector2i GetMouseDeltaRaw()
-        {
-            return m_mouseDeltaRaw;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
         inline int32 GetMouseScroll()
         {
             return m_mouseScroll;
         }
 
         /// <summary>
-        ///
+        /// Set to receive callbacks on key presses and releases.
         /// </summary>
-        /// <param name="cb"></param>
         inline void SetCallbackKey(CallbackKey&& cb)
         {
             m_cbKey = cb;
         }
 
         /// <summary>
-        ///
+        /// Set to receive callbacks on mouse presses and releases.
         /// </summary>
-        /// <param name="cb"></param>
         inline void SetCallbackMouse(CallbackMouse&& cb)
         {
             m_cbMouse = cb;
         }
 
         /// <summary>
-        ///
+        /// Set to receive callbacks on mouse wheel.
         /// </summary>
-        /// <param name="cb"></param>
         inline void SetCallbackMouseWheel(CallbackMouseWheel&& cb)
         {
             m_cbMouseWheel = cb;
         }
 
         /// <summary>
-        ///
+        /// Set to receive callbacks on mouse motion.
         /// </summary>
-        /// <param name="cb"></param>
         inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
         {
             m_cbMouseMove = cb;
@@ -220,7 +185,6 @@ namespace LinaGX
         LGXVector2i m_currentMousePositionAbs           = {0, 0};
         LGXVector2i m_previousMousePosition             = {0, 0};
         LGXVector2i m_mouseDelta                        = {0, 0};
-        LGXVector2i m_mouseDeltaRaw                     = {0, 0};
         int32       m_mouseScroll                       = 0;
         bool        m_currentStates[256]                = {0};
         bool        m_previousStates[256]               = {0};
@@ -235,4 +199,3 @@ namespace LinaGX
         bool                     m_receivedDelta = false;
     };
 } // namespace LinaGX
-

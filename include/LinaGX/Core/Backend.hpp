@@ -44,12 +44,12 @@ namespace LinaGX
         Backend()          = default;
         virtual ~Backend() = default;
 
-        virtual bool Initialize(const InitInfo& initInfo) = 0;
-        virtual void Shutdown()                           = 0;
-        virtual void Join()                               = 0;
-        virtual void StartFrame(uint32 frameIndex)        = 0;
-        virtual void EndFrame()                           = 0;
-        virtual void Present(const PresentDesc& present)  = 0;
+        virtual bool Initialize()                        = 0;
+        virtual void Shutdown()                          = 0;
+        virtual void Join()                              = 0;
+        virtual void StartFrame(uint32 frameIndex)       = 0;
+        virtual void EndFrame()                          = 0;
+        virtual void Present(const PresentDesc& present) = 0;
 
         virtual uint16 CreateUserSemaphore()                                                            = 0;
         virtual void   DestroyUserSemaphore(uint16 handle)                                              = 0;
@@ -77,13 +77,14 @@ namespace LinaGX
         virtual void   DestroyPipelineLayout(uint16 layout)                                             = 0;
         virtual uint32 CreateCommandStream(const CommandStreamDesc& desc)                               = 0;
         virtual void   DestroyCommandStream(uint32 handle)                                              = 0;
+        virtual void   SetCommandStreamImpl(uint32 handle, CommandStream* stream)                       = 0;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc)                                     = 0;
         virtual uint8  CreateQueue(const QueueDesc& desc)                                               = 0;
         virtual void   DestroyQueue(uint8 queue)                                                        = 0;
         virtual uint8  GetPrimaryQueue(CommandType type)                                                = 0;
 
-        static Backend* CreateBackend(BackendAPI api);
+        static Backend* CreateBackend();
     };
 } // namespace LinaGX
 

@@ -32,6 +32,10 @@ SOFTWARE.
 #include "LinaGX/Core/CommandStream.hpp"
 #include "LinaGX/Common/Math.hpp"
 
+#ifdef LINAGX_PLATFORM_WINDOWS
+#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
+#endif
+
 namespace LinaGX
 {
     Instance::~Instance()
@@ -39,7 +43,7 @@ namespace LinaGX
         Shutdown();
     }
 
-    bool Instance::Initialize(const InitInfo& info)
+    bool Instance::Initialize()
     {
 #ifdef LINAGX_PLATFORM_APPLE
 
@@ -51,7 +55,7 @@ namespace LinaGX
         }
 #endif
 
-        m_backend = Backend::CreateBackend(info.api);
+        m_backend = Backend::CreateBackend();
 
         if (m_backend == nullptr)
         {
@@ -59,7 +63,7 @@ namespace LinaGX
             return false;
         }
 
-        if (!m_backend->Initialize(info))
+        if (!m_backend->Initialize())
         {
             LOGE("Instance -> Failed initializing backend!");
             return false;
@@ -67,7 +71,6 @@ namespace LinaGX
 
         LOGT("Instance -> Successfuly initialized.");
 
-        m_initInfo = info;
         m_windowManager.Initialize();
         SPIRVUtility::Initialize();
         return true;
@@ -108,7 +111,7 @@ namespace LinaGX
     void Instance::EndFrame()
     {
         m_backend->EndFrame();
-        m_currentFrameIndex = (m_currentFrameIndex + 1) % m_initInfo.framesInFlight;
+        m_currentFrameIndex = (m_currentFrameIndex + 1) % Config.framesInFlight;
         PerformanceStats.totalFrames++;
         m_windowManager.EndFrame();
     }
@@ -116,6 +119,17 @@ namespace LinaGX
     void Instance::Present(const PresentDesc& present)
     {
         m_backend->Present(present);
+    }
+
+    FormatSupportInfo Instance::GetFormatSupport(Format format)
+    {
+        for (const auto& fmt : GPUInfo.supportedTexture2DFormats)
+        {
+            if (fmt.format == format)
+                return fmt;
+        }
+
+        return {Format::UNDEFINED};
     }
 
     uint16 Instance::CreateUserSemaphore()
@@ -158,15 +172,15 @@ namespace LinaGX
         for (const auto& [stage, data] : compileData)
         {
             DataBlob spv = {};
-            if (!SPIRVUtility::GLSL2SPV(stage, data.text, data.includePath, spv, outLayout, m_initInfo.api))
+            if (!SPIRVUtility::GLSL2SPV(stage, data.text, data.includePath, spv, outLayout, Config.api))
                 return false;
 
             outCompiledBlobs[stage] = spv;
         }
 
-        SPIRVUtility::PostFillReflection(outLayout, m_initInfo.api);
+        SPIRVUtility::PostFillReflection(outLayout, Config.api);
 
-        if (m_initInfo.api == BackendAPI::DX12)
+        if (Config.api == BackendAPI::DX12)
         {
             LINAGX_MAP<ShaderStage, LINAGX_STRING> outHLSLs;
 
@@ -215,7 +229,7 @@ namespace LinaGX
                     return false;
             }
         }
-        else if (m_initInfo.api == BackendAPI::Metal)
+        else if (Config.api == BackendAPI::Metal)
         {
             for (auto& [stage, spv] : outCompiledBlobs)
             {
@@ -250,7 +264,9 @@ namespace LinaGX
 
     CommandStream* Instance::CreateCommandStream(const CommandStreamDesc& desc)
     {
-        CommandStream* stream = new CommandStream(m_backend, desc, m_backend->CreateCommandStream(desc));
+        const uint32   strHandle = m_backend->CreateCommandStream(desc);
+        CommandStream* stream    = new CommandStream(m_backend, desc, strHandle);
+        m_backend->SetCommandStreamImpl(strHandle, stream);
         m_commandStreams.push_back(stream);
         return stream;
     }
@@ -343,6 +359,14 @@ namespace LinaGX
     uint8 Instance::GetPrimaryQueue(CommandType type)
     {
         return m_backend->GetPrimaryQueue(type);
+    }
+
+    uint32 Instance::VKQueryFeatureSupport(PreferredGPUType gpuType)
+    {
+#ifdef LINAGX_PLATFORM_WINDOWS
+        return VKBackend::QueryFeatureSupport(gpuType);
+#endif
+        return 0;
     }
 
 } // namespace LinaGX

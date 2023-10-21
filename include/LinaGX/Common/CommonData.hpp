@@ -5,7 +5,7 @@ https://github.com/inanevin/LinaGX
 Author: Inan Evin
 http://www.inanevin.com
 
-Copyright (c) [2022-] [Inan Evin]
+Copyright (c) [2023-] [Inan Evin]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,15 +29,26 @@ SOFTWARE.
 #pragma once
 
 #include "LinaGX/LinaGXExports.hpp"
-#include <vector>
 #include <string>
-#include <unordered_map>
-#include <queue>
-#include <deque>
-#include <functional>
+#include <string_view>
 #include <typeinfo>
 #include <functional>
-#include <string_view>
+
+#ifndef LINAGX_VEC
+#include <vector>
+#endif
+
+#ifndef LINAGX_MAP
+#include <unordered_map>
+#endif
+
+#ifndef LINAGX_QUEUE
+#include <queue>
+#endif
+
+#ifndef LINAGX_DEQUE
+#include <deque>
+#endif
 
 namespace LinaGX
 {
@@ -160,11 +171,11 @@ namespace LinaGX
 
     enum class CursorType
     {
-        None,
-        Default,
-        SizeHorizontal,
-        SizeVertical,
-        Caret,
+        None,           // Default
+        Default,        // Default
+        SizeHorizontal, // That horizontal sizing cursor thingy
+        SizeVertical,   // That vertical sizing cursor thingy
+        Caret,          // Text/input caret
     };
 
     enum CharacterMask
@@ -179,18 +190,6 @@ namespace LinaGX
         Operator   = 1 << 8,
         Sign       = 1 << 9,
         Any        = Letter | Number | Separator | Whitespace | Control | Symbol | Printable | Operator | Sign,
-    };
-
-    template <typename T>
-    struct Handle
-    {
-        Handle(T it)
-        {
-            item = it;
-        }
-
-        T    item    = T();
-        bool isValid = true;
     };
 
     template <typename U, typename T>
@@ -328,7 +327,7 @@ namespace LinaGX
         // {
         //     return len == 0 ? hash : fnvHashConstexpr(str + 1, len - 1, (hash ^ *str) * FNV_PRIME);
         // }
-        
+
         static constexpr unsigned int fnvHashConstexpr(const char* str)
         {
             const size_t length = std::char_traits<char>::length(str) + 1;
@@ -349,13 +348,13 @@ namespace LinaGX
             : hash_value(fnvHash(wrapper.str))
         {
         }
-        
+
         //// calulate in compile-time
-        //template <unsigned int N>
-        //constexpr FnvHash(const char (&str)[N])
-        //    : hash_value(fnvHashConst(str))
+        // template <unsigned int N>
+        // constexpr FnvHash(const char (&str)[N])
+        //     : hash_value(fnvHashConst(str))
         //{
-        //}
+        // }
 
         constexpr FnvHash(const char* str)
             : hash_value(fnvHashConstexpr(str))
@@ -377,7 +376,7 @@ namespace LinaGX
 
     constexpr LINAGX_STRINGID operator"" _hs(const char* str, size_t len) noexcept
     {
-       return FnvHash(str);
+        return FnvHash(str);
     }
 
     extern LINAGX_STRINGID LGX_ToSID(const char* ty);
@@ -439,4 +438,3 @@ namespace LinaGX
     };
 
 } // namespace LinaGX
-

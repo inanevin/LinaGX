@@ -71,8 +71,8 @@ namespace LinaGX
         LINAGX_VEC<LGXVector4>     tangents;
         LINAGX_VEC<LGXVector4>     colors;
         LINAGX_VEC<unsigned char>  indices;
-        LINAGX_VEC<LGXVector4ui16> jointsui16;
-        LINAGX_VEC<LGXVector4ui8>  jointsui8;
+        LINAGX_VEC<LGXVector4ui16> jointsui16; // either jointsui8 or jointsui16 will be filled.
+        LINAGX_VEC<LGXVector4ui8>  jointsui8;  // either jointsui8 or jointsui16 will be filled.
         LINAGX_VEC<LGXVector4>     weights;
         uint32                     vertexCount = 0;
         IndexType                  indexType   = IndexType::Uint16;
@@ -148,12 +148,11 @@ namespace LinaGX
         ModelNode*             parent = nullptr;
         LINAGX_STRING          name   = "";
         LINAGX_VEC<ModelNode*> children;
-
-        LINAGX_VEC<float> localMatrix;
-        LINAGX_VEC<float> inverseBindMatrix;
-        LGXVector3        position = {};
-        LGXVector3        scale    = {1.0f, 1.0f, 1.0f};
-        LGXVector4        quatRot  = {0.0f, 0.0f, 0.0f, 1.0f};
+        LINAGX_VEC<float>      localMatrix; // Either localMatrix will be non-empty, or position-scale-quatRot parameters will be filled.
+        LINAGX_VEC<float>      inverseBindMatrix;
+        LGXVector3             position = {};
+        LGXVector3             scale    = {1.0f, 1.0f, 1.0f};
+        LGXVector4             quatRot  = {0.0f, 0.0f, 0.0f, 1.0f};
 
         ~ModelNode()
         {
@@ -190,8 +189,8 @@ namespace LinaGX
 
     struct ModelData
     {
-        LINAGX_VEC<ModelNode*>      rootNodes;
-        LINAGX_VEC<ModelNode*>      allNodes;
+        LINAGX_VEC<ModelNode*>      rootNodes; // All nodes without a parent.
+        LINAGX_VEC<ModelNode*>      allNodes;  // All nodes regardless of whether they are children or not.
         LINAGX_VEC<ModelMaterial*>  allMaterials;
         LINAGX_VEC<ModelTexture*>   allTextures;
         LINAGX_VEC<ModelMesh*>      allMeshes;
@@ -236,20 +235,13 @@ namespace LinaGX
     };
 
     /// <summary>
-    /// Preserve!
+    /// Load a .glb file.
     /// </summary>
-    /// <param name="path"></param>
-    /// <param name="outData"></param>
-    /// <param name="channelMask"></param>
-    /// <returns></returns>
     LINAGX_API bool LoadGLTFBinary(const char* path, ModelData& outData);
 
     /// <summary>
-    /// Preserve!
+    /// Load a .gltf file, if .bin file is present in the same directory it will be loaded and necessary data will be filled.
     /// </summary>
-    /// <param name="path"></param>
-    /// <param name="outData"></param>
-    /// <returns></returns>
     LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData);
 
 } // namespace LinaGX

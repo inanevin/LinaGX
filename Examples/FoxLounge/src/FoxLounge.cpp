@@ -56,40 +56,48 @@ namespace LinaGX::Examples
 
     void Example::ConfigureInitializeLinaGX()
     {
+        BackendAPI api = BackendAPI::Vulkan;
+
+#ifdef LINAGX_PLATFORM_APPLE
+        api = BackendAPI::Metal;
+#endif
+
+        LinaGX::Config.api                                    = api;
+        LinaGX::Config.gpu                                    = PreferredGPUType::Discrete;
+        LinaGX::Config.framesInFlight                         = FRAMES_IN_FLIGHT;
+        LinaGX::Config.backbufferCount                        = BACKBUFFER_COUNT;
+        LinaGX::Config.gpuLimits                              = {};
         LinaGX::Config.logLevel                               = LogLevel::Verbose;
         LinaGX::Config.errorCallback                          = LogError;
         LinaGX::Config.infoCallback                           = LogInfo;
         LinaGX::Config.dx12Config.serializeShaderDebugSymbols = false;
         LinaGX::Config.dx12Config.enableDebugLayers           = true;
-
-        BackendAPI api = BackendAPI::DX12;
-
-#ifdef LINAGX_PLATFORM_APPLE
-        api = BackendAPI::Metal;
-#endif
-        LinaGX::GPUFeatures features = {
-            .enableBindless = true,
-        };
-
-        LinaGX::GPULimits limits = {};
-
-        LinaGX::InitInfo initInfo = InitInfo{
-            .api                   = api,
-            .gpu                   = PreferredGPUType::Integrated,
-            .framesInFlight        = FRAMES_IN_FLIGHT,
-            .backbufferCount       = BACKBUFFER_COUNT,
-            .gpuLimits             = limits,
-            .gpuFeatures           = features,
-            .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
-        };
+        LinaGX::Config.vulkanConfig.enableVulkanFeatures      = VulkanFeatureFlags::VKF_SamplerAnisotropy;
 
         m_lgx = new LinaGX::Instance();
-        m_lgx->Initialize(initInfo);
+
+        uint32 supported = m_lgx->VKQueryFeatureSupport(PreferredGPUType::Discrete);
+        m_lgx->Initialize();
+
+        std::vector<LinaGX::Format> formatSupport = {
+            Format::R32G32B32A32_SFLOAT,
+            Format::R16G16B16A16_SFLOAT,
+            Format::R16G16B16A16_UNORM,
+            Format::R8G8B8A8_SRGB,
+            Format::R8G8B8A8_UNORM,
+            Format::B8G8R8A8_UNORM,
+        };
+
+        for (const auto& fmt : formatSupport)
+        {
+            if (m_lgx->GetFormatSupport(fmt).format == Format::UNDEFINED)
+                LOGE("One of the required formats is not supported on this device, faulty program: %d", static_cast<uint32>(fmt));
+        }
     }
 
     void Example::CreateMainWindow()
     {
-        m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 1920, 1080, WindowStyle::WindowedApplication);
+        m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 800, 800, WindowStyle::WindowedApplication);
         m_window->SetCallbackClose([this]() { Quit(); });
         m_window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
             if (newSize.x == 0 || newSize.y == 0)
@@ -119,7 +127,7 @@ namespace LinaGX::Examples
             .window       = m_window->GetWindowHandle(),
             .osHandle     = m_window->GetOSHandle(),
             .isFullscreen = false,
-            .vsyncMode    = VsyncMode::None,
+            .vsyncStyle   = {VKVsync::None, DXVsync::None},
         });
     }
 
@@ -128,8 +136,8 @@ namespace LinaGX::Examples
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
             auto& pfd                  = m_pfd[i];
-            pfd.graphicsStream         = m_lgx->CreateCommandStream({1500, CommandType::Graphics, 24000, 10000, "Graphics Stream"});
-            pfd.transferStream         = m_lgx->CreateCommandStream({100, CommandType::Transfer, 12000, 10000, "Transfer Stream"});
+            pfd.graphicsStream         = m_lgx->CreateCommandStream({CommandType::Graphics, 1500, 24000, 10000, 128, "Graphics Stream"});
+            pfd.transferStream         = m_lgx->CreateCommandStream({CommandType::Transfer, 100, 12000, 10000, 0, "Transfer Stream"});
             pfd.transferSemaphoreValue = 0;
             pfd.transferSemaphore      = m_lgx->CreateUserSemaphore();
         }
@@ -351,16 +359,16 @@ namespace LinaGX::Examples
                     MeshPrimitive& primitive = wo.primitives.back();
 
                     std::vector<Vertex> vertices;
-                    std::vector<uint32>        indices;
+                    std::vector<uint32> indices;
                     primitive.materialIndex = p->material ? (matIndex + p->material->index) : 0;
 
                     for (uint32 k = 0; k < p->vertexCount; k++)
                     {
                         vertices.push_back({});
-                        Vertex& vtx = vertices.back();
-                        vtx.position       = p->positions[k];
-                        vtx.uv             = p->texCoords[k];
-                        vtx.normal         = p->normals[k];
+                        Vertex& vtx  = vertices.back();
+                        vtx.position = p->positions[k];
+                        vtx.uv       = p->texCoords[k];
+                        vtx.normal   = p->normals[k];
 
                         // if (!p->weights.empty())
                         //     vtx.inBoneWeights = p->weights[k];
@@ -695,16 +703,16 @@ namespace LinaGX::Examples
         LOGT("Compiling shaders...");
 
         m_shaders.resize(Shader::SH_Max);
-        m_shaders[Shader::SH_Lighting]     = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 2, true, m_pipelineLayouts[PL_Lighting], "Deferred Lighpass Shader");
-        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "PBR Default Shader");
-        m_shaders[Shader::SH_SSAOGeometry] = Utility::CreateShader(m_lgx, "Resources/Shaders/ssao_geometry_vert.glsl", "Resources/Shaders/ssao_geometry_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 2, true, m_pipelineLayouts[PL_SSAOGeometry], "SSAO Geometry");
-        m_shaders[Shader::SH_Shadows]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/shadowpass_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 0, true, m_pipelineLayouts[PL_Simple], "Unlit Shader");
+        m_shaders[Shader::SH_Lighting]     = Utility::CreateShader(m_lgx, "Resources/Shaders/lightpass_vert.glsl", "Resources/Shaders/lightpass_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 2, true, m_pipelineLayouts[PL_Lighting], "Deferred Lighpass Shader");
+        m_shaders[Shader::SH_Default]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/default_pbr_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "PBR Default Shader");
+        m_shaders[Shader::SH_SSAOGeometry] = Utility::CreateShader(m_lgx, "Resources/Shaders/ssao_geometry_vert.glsl", "Resources/Shaders/ssao_geometry_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 2, true, m_pipelineLayouts[PL_SSAOGeometry], "SSAO Geometry");
+        m_shaders[Shader::SH_Shadows]      = Utility::CreateShader(m_lgx, "Resources/Shaders/default_pbr_vert.glsl", "Resources/Shaders/shadowpass_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, true, 0, true, m_pipelineLayouts[PL_Simple], "Unlit Shader");
         m_shaders[Shader::SH_Quad]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/screenquad_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::B8G8R8A8_SRGB, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuad], "Final Quad Shader");
-        m_shaders[Shader::SH_Bloom]        = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/bloom_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_SimpleQuad], "Bloom Shader");
-        m_shaders[Shader::SH_Skybox]       = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "Skybox Shader");
-        m_shaders[Shader::SH_Irradiance]   = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/irradiance_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Irradiance Shader");
-        m_shaders[Shader::SH_Prefilter]    = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/prefilter_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Prefilter Shader");
-        m_shaders[Shader::SH_BRDF]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/brdf_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_FLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuad], "BRDF Shader");
+        m_shaders[Shader::SH_Bloom]        = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/bloom_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_SimpleQuad], "Bloom Shader");
+        m_shaders[Shader::SH_Skybox]       = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/skybox_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, true, 4, true, m_pipelineLayouts[PL_Objects], "Skybox Shader");
+        m_shaders[Shader::SH_Irradiance]   = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/irradiance_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Irradiance Shader");
+        m_shaders[Shader::SH_Prefilter]    = Utility::CreateShader(m_lgx, "Resources/Shaders/skybox_vert.glsl", "Resources/Shaders/prefilter_frag.glsl", LinaGX::CullMode::Back, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::LEqual, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_Irradiance], "Prefilter Shader");
+        m_shaders[Shader::SH_BRDF]         = Utility::CreateShader(m_lgx, "Resources/Shaders/screenquad_vert.glsl", "Resources/Shaders/brdf_frag.glsl", LinaGX::CullMode::None, LinaGX::Format::R16G16B16A16_SFLOAT, CompareOp::Less, LinaGX::FrontFace::CCW, false, 1, true, m_pipelineLayouts[PL_FinalQuad], "BRDF Shader");
     }
 
     void Example::SetupGlobalResources()
@@ -835,7 +843,7 @@ namespace LinaGX::Examples
 
             LinaGX::TextureDesc noise = {
                 .type        = TextureType::Texture2D,
-                .format      = Format::R32G32B32A32_FLOAT,
+                .format      = Format::R32G32B32A32_SFLOAT,
                 .flags       = LinaGX::TF_Sampled | LinaGX::TF_CopyDest | LinaGX::TF_LinearTiling,
                 .width       = 4,
                 .height      = 4,

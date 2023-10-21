@@ -50,12 +50,11 @@ namespace LinaGX
         bool                                    isActive     = true;
         bool                                    isFullscreen = false;
         Format                                  format       = Format::B8G8R8A8_UNORM;
-        Format                                  depthFormat  = Format::D32_SFLOAT;
         LINAGX_VEC<uint32>                      colorTextures;
         uint32                                  width       = 0;
         uint32                                  height      = 0;
         uint32                                  _imageIndex = 0;
-        VsyncMode                               vsync       = VsyncMode::None;
+        VSyncStyle                              vsync       = {};
     };
 
     struct DX12RootParamInfo
@@ -124,9 +123,11 @@ namespace LinaGX
 
     struct DX12BoundConstant
     {
-        void*  data   = nullptr;
-        uint32 offset = 0;
-        uint32 size   = 0;
+        uint8* data             = nullptr;
+        uint32 offset           = 0;
+        uint32 size             = 0;
+        bool   usesStreamAlloc  = false;
+        size_t linearAllocIndex = 0;
     };
 
     struct DX12CommandStream
@@ -141,6 +142,7 @@ namespace LinaGX
         LINAGX_MAP<void*, uint64>                          adjustedBuffers;
         LINAGX_MAP<uint32, DX12BoundDescriptorSet>         boundDescriptorSets;
         DX12BoundConstant                                  boundConstants;
+        CommandStream*                                     streamImpl = nullptr;
     };
 
     struct DX12PerFrameData
@@ -228,6 +230,7 @@ namespace LinaGX
         virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc) override;
         virtual void   DestroyPipelineLayout(uint16 layout) override;
         virtual uint32 CreateCommandStream(const CommandStreamDesc& desc) override;
+        virtual void   SetCommandStreamImpl(uint32 handle, CommandStream* stream) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
@@ -252,7 +255,7 @@ namespace LinaGX
         void   IncreaseGraphicsFences();
 
     public:
-        virtual bool Initialize(const InitInfo& initInfo) override;
+        virtual bool Initialize() override;
         virtual void Shutdown() override;
         virtual void Join() override;
         virtual void StartFrame(uint32 frameIndex) override;
@@ -277,7 +280,6 @@ namespace LinaGX
         void CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream);
         void CMD_BindConstants(uint8* data, DX12CommandStream& stream);
         void CMD_Dispatch(uint8* data, DX12CommandStream& stream);
-        void CMD_ComputeBarrier(uint8* data, DX12CommandStream& stream);
         void CMD_ExecuteSecondaryStream(uint8* data, DX12CommandStream& stream);
         void CMD_Barrier(uint8* data, DX12CommandStream& stream);
         void CMD_Debug(uint8* data, DX12CommandStream& stream);
@@ -321,10 +323,8 @@ namespace LinaGX
         LINAGX_VEC<DX12PerFrameData>   m_perFrameData;
         LINAGX_MAP<CommandType, uint8> m_primaryQueues;
 
-        InitInfo            m_initInfo            = {};
         std::atomic<uint32> m_submissionPerFrame  = 0;
         std::atomic<bool>   m_graphicsFencesDirty = false;
     };
 
 } // namespace LinaGX
-

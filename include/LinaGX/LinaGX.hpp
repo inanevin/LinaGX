@@ -39,36 +39,36 @@ THINGS TO RESEARCH:
 
 - Proper alignment. Alignment between struct elements in SSBO and UBO in different platforms. Also alignment between lets say array ubos. Or alignment between different bindings. UBO alignment 256 for example?
 - gl_InstanceIndex and alike and their support.
-- Minimium #version we require?
 - Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
 - allocate N sets & pool them.
 
 FEATURES TO IMPLEMENT
 
-- Carry everything to config.
-- support for variety of vertex formats.
-- data formats, vectors, maps,
-- get the format signed unsigned shit back :)
-- DX12 & MTL bound constants ---> use linear allocator instead of constantly memcpying.
+- Indirect rendering: check vulkan multiDrawIndirect support, count buffer support for later.
 - Camera data transfer, investigate slowness on integrated card.
-- commandlist4, this5, that2, feature support?
 - Indirect rendering count buffer.
 - Pipeline caching.
-- convert NDEBUGS to LINAGX_DEBUG or something
 - metal: resize and exit bugs.
 
 INDIRECT NOTES:
 
-- Indirect: You need to always use IndexedIndirectCommand or IndirectCommand structure. You need to set LGX_DrawID in the structure to the index of the draw command in the buffer. You need to use gl_DrawID in Vertex Shader to access the current draw index, which you can use to index into another buffer for per-draw-call parameters.
- - fuuuu gl_DrawID will always be 0 for cases where there is no multi-draw-indirect support.
- - Should we enforce users to create a constant buffer?
- - also should we just use a CBV for per-draw data?
- - vulkan users need to check if multi draw indirect is supported.
- - if not, glDrawID won't be of any use. So they should make sure push constants or use vertex data for accessing draw-specific parameters.
- - Change vulkan implementation so that it only calls 1 time when multiDrawIndirect is not supported.
- - So users can make the call N times pushing different constants on each. (give warning if count != 1 && !multiDrawIndirectSupported)
+- Need to use IndexedIndirectCommand or IndirectCommand structure.
+- In GLSL, use gl_DrawID to index into any custom buffers per-draw.
+- In Vulkan, gl_DrawID will always be 0 if multiDraw feature is not supported. In DX12 and Metal, it will be set to the index of the active draw.
+- In cases where gl_DrawID is not supported in Vulkan or not desired, need to call DrawIndirect commands one by one while setting your custom buffer bindings.
 
 NOTES TO DOCUMENT:
+
+- Vertex, Fragment and Compute are supported. Geometry is not supported on Metal. Geometry and Tesellation stages are not battle tested, might be problematic.
+
+ - Minimum Vulkan 1.3 is required.
+ - Target devices need to support Vulkan 1.2 timeline semaphores.
+ - When requested bindless rendering: shaderSampledImageArrayDynamicIndexing, runtimeDescriptorArray, descriptorBindingPartiallyBound,
+ descriptorBindingSampledImageUpdateAfterBind, descriptorBindingStorageBufferUpdateAfterBind, descriptorBindingUniformBufferUpdateAfterBind are required.
+ - Minimum GLSL #version 450.
+
+ - DX12 - D3D_FEATURE_LEVEL_11_0 is minimum support. HLSL shader model SM6_0 is required.
+
 
  - All entry points to your shaders must be named main.
  - Only single push_constants can be used.
@@ -89,7 +89,6 @@ NOTES TO DOCUMENT:
 
 UNSUPPORTED ON FIRST RELEASE:
 
- - Custom barriers.
  - Subpasses.
  - Multiple vertex buffer slot bindings.
 
@@ -110,4 +109,3 @@ namespace LinaGX
 {
 
 } // namespace LinaGX
-

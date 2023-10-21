@@ -446,7 +446,7 @@ uint8 MTLBackend::CreateSwapchain(const SwapchainDesc &desc) {
     [layer retain];
     layer.device = AS_MTL(m_device, id<MTLDevice>);
     layer.pixelFormat = GetMTLFormat(desc.format);
-    layer.maximumDrawableCount = m_initInfo.backbufferCount;
+    layer.maximumDrawableCount = Config.backbufferCount;
     item.layer = AS_VOID(layer);
     item.width = desc.width;
     item.height = desc.height;
@@ -1240,6 +1240,12 @@ void MTLBackend::DestroyCommandStream(uint32 handle) {
     m_cmdStreams.RemoveItem(handle);
 }
 
+void MTLBackend::SetCommandStreamImpl(uint32 handle, CommandStream* stream)
+{
+    auto& str = m_cmdStreams.GetItemR(handle);
+    str.streamImpl = stream;
+}
+
 void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount) {
     
     const auto& q = m_queues.GetItemR(GetPrimaryQueue(CommandType::Graphics));
@@ -1274,8 +1280,11 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
         
         if(sr.boundConstants.data != nullptr)
         {
-            LINAGX_FREE(sr.boundConstants.data);
-            LINAGX_FREE(sr.boundConstants.stages);
+            if(!sr.boundConstants.usesStreamAlloc)
+            {
+                LINAGX_FREE(sr.boundConstants.data);
+                LINAGX_FREE(sr.boundConstants.stages);
+            }
         }
         
         sr.boundConstants = {};
@@ -1537,9 +1546,8 @@ uint8 MTLBackend::GetPrimaryQueue(CommandType type) {
 }
 
 
-bool MTLBackend::Initialize(const InitInfo &initInfo) {
+bool MTLBackend::Initialize() {
         
-    m_initInfo = initInfo;
     
     NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
         NSLog(@"Current directory: %@", currentDirectory);
@@ -1548,10 +1556,10 @@ bool MTLBackend::Initialize(const InitInfo &initInfo) {
     id<MTLDevice> selectedDevice = nil;
 
     for (id<MTLDevice> device in availableDevices) {
-        if (m_initInfo.gpu == PreferredGPUType::Discrete && [device isLowPower]) {
+        if (Config.gpu == PreferredGPUType::Discrete && [device isLowPower]) {
             continue;
         }
-        if (m_initInfo.gpu == PreferredGPUType::Integrated && ![device isLowPower]) {
+        if (Config.gpu == PreferredGPUType::Integrated && ![device isLowPower]) {
             continue;
         }
         selectedDevice = device;
@@ -1585,7 +1593,7 @@ bool MTLBackend::Initialize(const InitInfo &initInfo) {
     
     // Per frame
     {
-        for (uint32 i = 0; i < initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             MTLPerFrameData pfd = {};
             m_perFrameData.push_back(pfd);
@@ -1611,7 +1619,7 @@ bool MTLBackend::Initialize(const InitInfo &initInfo) {
     //
     // }
     //
-    // for (auto& f : m_initInfo.checkForFormatSupport)
+    // for (auto& f : Config.checkForFormatSupport)
     // {
     //     auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
     //     if (it == GPUInfo.supportedImageFormats.end())
@@ -1627,7 +1635,7 @@ bool MTLBackend::Initialize(const InitInfo &initInfo) {
 
 void MTLBackend::Shutdown() {
             
-    for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+    for (uint32 i = 0; i < Config.framesInFlight; i++)
     {
         MTLPerFrameData& pfd = m_perFrameData[i];
     }
@@ -1692,7 +1700,7 @@ void MTLBackend::Shutdown() {
 
 void MTLBackend::Join() {
         
-    for(uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+    for(uint32 i = 0; i < Config.framesInFlight; i++)
     {
         const auto& pfd = m_perFrameData[i];
         
@@ -1723,7 +1731,7 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
         if(!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)
             continue;
         
-        swp._currentDrawableIndex = (swp._currentDrawableIndex + 1) % m_initInfo.backbufferCount;
+        swp._currentDrawableIndex = (swp._currentDrawableIndex + 1) % Config.backbufferCount;
         
         CAMetalLayer* layer = AS_MTL(swp.layer, CAMetalLayer*);
         id<CAMetalDrawable> drawable = [layer nextDrawable];
@@ -1743,7 +1751,7 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
 
         for (auto it = cs.intermediateResources.begin(); it != cs.intermediateResources.end();)
         {
-            if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+            if (PerformanceStats.totalFrames > it->second + Config.framesInFlight + 1)
             {
                 DestroyResource(it->first);
                 it = cs.intermediateResources.erase(it);
@@ -1760,7 +1768,7 @@ void MTLBackend::Present(const PresentDesc &present) {
 
 void MTLBackend::EndFrame() {
     m_frameOnGoing = false;
-    LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+    LOGA((m_submissionPerFrame < Config.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
 }
 
 
@@ -2542,17 +2550,33 @@ void MTLBackend::CMD_BindConstants(uint8 *data, MTLCommandStream &stream) {
     
     if(stream.boundConstants.data != nullptr)
     {
-        LINAGX_FREE(stream.boundConstants.data);
-        LINAGX_FREE(stream.boundConstants.stages);
+        if (!stream.boundConstants.usesStreamAlloc)
+        {
+            LINAGX_FREE(stream.boundConstants.data);
+            LINAGX_FREE(stream.boundConstants.stages);
+        }
     }
-    
-    stream.boundConstants.data = LINAGX_MALLOC(cmd->size);
-    stream.boundConstants.stages = (ShaderStage*)LINAGX_MALLOC(cmd->stagesSize * sizeof(ShaderStage));
+   
+    if (cmd->size + cmd->stagesSize * sizeof(ShaderStage) < stream.streamImpl->GetConstantBlockSize())
+    {
+        stream.boundConstants.data              = stream.streamImpl->GetConstantBlockMemory();
+        stream.boundConstants.stages            = (ShaderStage*)(stream.boundConstants.data + cmd->size);
+        stream.boundConstants.usesStreamAlloc   = true;
+    }
+    else
+    {
+        stream.boundConstants.data              = (uint8*)LINAGX_MALLOC(cmd->size);
+        stream.boundConstants.stages            = (ShaderStage*)LINAGX_MALLOC(cmd->stagesSize * sizeof(ShaderStage));
+        stream.boundConstants.usesStreamAlloc   = false;
+    }
+
     LINAGX_MEMCPY(stream.boundConstants.data, cmd->data, cmd->size);
+    LINAGX_MEMCPY(stream.boundConstants.stages, cmd->stages, cmd->stagesSize * sizeof(ShaderStage));
+
+
     stream.boundConstants.offset = cmd->offset;
     stream.boundConstants.size   = cmd->size;
     stream.boundConstants.stagesSize = cmd->stagesSize;
-    LINAGX_MEMCPY(stream.boundConstants.stages, cmd->stages, cmd->stagesSize * sizeof(ShaderStage));
     
     if(stream.currentEncoder == nullptr && stream.currentComputeEncoder == nullptr)
         return;

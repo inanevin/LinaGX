@@ -35,15 +35,19 @@ namespace LinaGX
     CommandStream::CommandStream(Backend* backend, const CommandStreamDesc& desc, uint32 gpuHandle)
     {
         m_backend           = backend;
-        m_commandBufferSize = desc.totalMemoryLimit;
-        m_commandBuffer     = (uint8*)LINAGX_MALLOC(m_commandBufferSize);
-        m_commands          = static_cast<uint8**>(malloc(sizeof(uint8*) * desc.commandCount));
+        m_commandBufferSize = static_cast<uint32>(desc.totalMemoryLimit);
+        m_commandBuffer     = (uint8*)LINAGX_MALLOC(desc.totalMemoryLimit);
+        m_commands          = static_cast<uint8**>(LINAGX_MALLOC(sizeof(uint8*) * desc.commandCount));
         m_type              = desc.type;
         m_maxCommands       = desc.commandCount;
         m_gpuHandle         = gpuHandle;
         m_auxMemoryIndex    = 0;
-        m_auxMemorySize     = desc.auxMemorySize;
-        m_auxMemory         = (uint8*)LINAGX_MALLOC(m_auxMemorySize);
+        m_auxMemorySize     = static_cast<uint32>(desc.auxMemorySize);
+        m_auxMemory         = (uint8*)LINAGX_MALLOC(desc.auxMemorySize);
+        m_constantBlockSize = static_cast<uint32>(desc.constantBlockSize);
+
+        if (Config.api != BackendAPI::Vulkan && desc.constantBlockSize != 0)
+            m_constantBlockMemory = (uint8*)LINAGX_MALLOC(desc.constantBlockSize);
     }
 
     void CommandStream::Reset()
@@ -53,11 +57,19 @@ namespace LinaGX
         m_auxMemoryIndex = 0;
     }
 
+    void CommandStream::WriteToConstantBlock(void* data, size_t size)
+    {
+        LINAGX_MEMCPY(m_constantBlockMemory, data, size);
+    }
+
     CommandStream::~CommandStream()
     {
         m_backend->DestroyCommandStream(m_gpuHandle);
         LINAGX_FREE(m_commands);
         LINAGX_FREE(m_commandBuffer);
         LINAGX_FREE(m_auxMemory);
+
+        if (m_constantBlockMemory != nullptr)
+            LINAGX_FREE(m_constantBlockMemory);
     }
 } // namespace LinaGX

@@ -49,7 +49,6 @@ namespace LinaGX
             {LGX_GetTypeID<CMDCopyTexture>(), "CMDCopyTexture"},
             {LGX_GetTypeID<CMDBindDescriptorSets>(), "CMDBindDescriptorSets"},
             {LGX_GetTypeID<CMDDispatch>(), "CMDDispatch"},
-            {LGX_GetTypeID<CMDComputeBarrier>(), "CMDComputeBarrier"},
             {LGX_GetTypeID<CMDBindConstants>(), "CMDBindConstants"},
             {LGX_GetTypeID<CMDExecuteSecondaryStream>(), "CMDExecuteSecondaryStream"},
             {LGX_GetTypeID<CMDBarrier>(), "CMDBarrier"},

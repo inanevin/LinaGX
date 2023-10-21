@@ -40,3 +40,6 @@ else()
    target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_COMPILER_OTHER=1)
 endif()
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:LINAGX_DEBUG>
+)

@@ -40,13 +40,13 @@ SOFTWARE.
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend(BackendAPI api)
+    Backend* LinaGX::Backend::CreateBackend()
     {
         
 #ifdef LINAGX_PLATFORM_WINDOWS
-        if(api == BackendAPI::Vulkan)
+        if(Config.api == BackendAPI::Vulkan)
             return new VKBackend();
-        else if (api == BackendAPI::DX12)
+        else if (Config.api == BackendAPI::DX12)
             return new DX12Backend();
 #endif
 

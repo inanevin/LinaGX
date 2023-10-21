@@ -556,14 +556,155 @@ namespace LinaGX
                     input.size               = type.vecsize * type.columns * (isFloat ? sizeof(float) : sizeof(int));
                     input.name               = compiler.get_name(resource.id);
 
-                    if (type.vecsize == 1)
-                        input.format = isFloat ? Format::R32_FLOAT : Format::R32_INT;
-                    else if (type.vecsize == 2)
-                        input.format = isFloat ? Format::R32G32_FLOAT : Format::R32G32_INT;
-                    else if (type.vecsize == 3)
-                        input.format = isFloat ? Format::R32G32B32_FLOAT : Format::R32G32B32_INT;
-                    else
-                        input.format = isFloat ? Format::R32G32B32A32_FLOAT : Format::R32G32B32A32_INT;
+                    switch (type.basetype)
+                    {
+                    case spirv_cross::SPIRType::Boolean: {
+                        if (type.vecsize == 1)
+                            input.format = Format::R8_UINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R8G8_UINT;
+                        else
+                            input.format = Format::R8G8B8A8_UINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::SByte: {
+                        // Signed 8-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R8_SINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R8G8_SINT;
+                        else
+                            input.format = Format::R8G8B8A8_SINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::UByte: {
+                        // Unsigned 8-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R8_UINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R8G8_UINT;
+                        else
+                            input.format = Format::R8G8B8A8_UINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::Short: {
+                        if (type.vecsize == 1)
+                            input.format = Format::R16_SINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R16G16_SINT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R16G16B16A16_SINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::UShort: {
+                        // Unsigned 16-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R16_UINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R16G16_UINT;
+                        else
+                            input.format = Format::R16G16B16A16_UINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::Int: {
+                        // Signed 32-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R32_SINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R32G32_SINT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R32G32B32_SINT;
+                        else
+                            input.format = Format::R32G32B32A32_SINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::UInt: {
+                        // Unsigned 32-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R32_UINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R32G32_UINT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R32G32B32_UINT;
+                        else
+                            input.format = Format::R32G32B32A32_UINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::Int64: {
+                        LOGE("SPIRVUtility -> 64 bit vertex inputs are not supported!");
+                        // Unsigned 32-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R32_UINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R32G32_UINT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R32G32B32_UINT;
+                        else
+                            input.format = Format::R32G32B32A32_UINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::UInt64: {
+                        LOGE("SPIRVUtility -> 64 bit vertex inputs are not supported!");
+                        // Unsigned 32-bit integer
+                        if (type.vecsize == 1)
+                            input.format = Format::R32_UINT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R32G32_UINT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R32G32B32_UINT;
+                        else
+                            input.format = Format::R32G32B32A32_UINT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::Half: {
+                        // 16-bit float
+                        if (type.vecsize == 1)
+                            input.format = Format::R16_SFLOAT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R16G16_SFLOAT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R16G16B16A16_SFLOAT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::Float: {
+                        // 32-bit float
+                        if (type.vecsize == 1)
+                            input.format = Format::R32_SFLOAT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R32G32_SFLOAT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R32G32B32_SFLOAT;
+                        else
+                            input.format = Format::R32G32B32A32_SFLOAT;
+
+                        break;
+                    }
+                    case spirv_cross::SPIRType::Double: {
+                        LOGE("SPIRVUtility -> 64 bit vertex inputs are not supported!");
+                        // 32-bit float
+                        if (type.vecsize == 1)
+                            input.format = Format::R32_SFLOAT;
+                        else if (type.vecsize == 2)
+                            input.format = Format::R32G32_SFLOAT;
+                        else if (type.vecsize == 3)
+                            input.format = Format::R32G32B32_SFLOAT;
+                        else
+                            input.format = Format::R32G32B32A32_SFLOAT;
+                        break;
+                    }
+                    default:
+                        break;
+                    }
 
                     outLayout.vertexInputs.push_back(input);
                 }
@@ -801,12 +942,12 @@ namespace LinaGX
     {
         if (stg == ShaderStage::Fragment)
             return spv::ExecutionModelFragment;
-        else if (stg == ShaderStage::Tesellation)
+        else if (stg == ShaderStage::TesellationControl)
             return spv::ExecutionModelTessellationControl;
+        else if (stg == ShaderStage::TesellationEval)
+            return spv::ExecutionModelTessellationEvaluation;
         else if (stg == ShaderStage::Geometry)
-        {
-            LOGA(false, "Geometry shaders are not supported yet!");
-        }
+            return spv::ExecutionModelGeometry;
         else if (stg == ShaderStage::Compute)
             return spv::ExecutionModelGLCompute;
 

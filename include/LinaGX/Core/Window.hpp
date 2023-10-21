@@ -40,29 +40,23 @@ namespace LinaGX
     {
     public:
         /// <summary>
-        ///
+        /// Check WindowStyle enumeration for descriptions of different styles.
         /// </summary>
-        /// <param name="style"></param>
         virtual void SetStyle(WindowStyle style) = 0;
 
         /// <summary>
-        ///
+        /// Check CursorStyle enumeration for descriptions of different styles.
         /// </summary>
-        /// <param name="type"></param>
         virtual void SetCursorType(CursorType type) = 0;
 
         /// <summary>
-        ///
+        /// Place the window in a position in OS-space.
         /// </summary>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
         virtual void SetPosition(const LGXVector2i& pos) = 0;
 
         /// <summary>
         ///
         /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
         virtual void SetSize(const LGXVector2ui& size) = 0;
 
         /// <summary>
@@ -73,19 +67,17 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        /// <returns></returns>
         virtual void SetVisible(bool isVisible) = 0;
 
         /// <summary>
-        ///
+        /// Only supported on windows with BorderlessAlpha style.
         /// </summary>
         /// <param name="alpha"></param>
         virtual void SetAlpha(float alpha) = 0;
 
         /// <summary>
-        ///
+        /// Don't set too frequently, especially on Windows, performance may surprise you :)
         /// </summary>
-        /// <param name="str"></param>
         virtual void SetTitle(const LINAGX_STRING& str) = 0;
 
         /// <summary>
@@ -116,31 +108,26 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        /// <returns></returns>
         virtual MonitorInfo GetMonitorInfoFromWindow() = 0;
 
         /// <summary>
-        ///
+        /// Work area is the monitor area excluding the taskbar.
         /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
         virtual LGXVector2ui GetMonitorWorkArea() = 0;
 
         /// <summary>
         ///
         /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
         virtual LGXVector2ui GetMonitorSize() = 0;
 
         /// <summary>
-        ///
+        /// HWND in Windows, NSWindow in MacOS.
         /// </summary>
         /// <returns></returns>
         virtual void* GetWindowHandle() = 0;
 
         /// <summary>
-        ///
+        /// HINSTANCE on Windows, NSView in MacOS.
         /// </summary>
         /// <returns></returns>
         virtual void* GetOSHandle() = 0;
@@ -158,25 +145,25 @@ namespace LinaGX
         virtual bool GetIsMinimized() = 0;
 
         /// <summary>
-        ///
+        /// Restricts the mouse movement to the entire window.
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouse() = 0;
 
         /// <summary>
-        ///
+        /// Restricts the mouse movement for a specific local-region in the window.
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouseToRegion(const LGXRectui& region) = 0;
 
         /// <summary>
-        ///
+        /// Restricts the mouse movement to a small region in the center of the window.
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouseToCenter() = 0;
 
         /// <summary>
-        ///
+        /// Removes all confine restrictions.
         /// </summary>
         /// <returns></returns>
         virtual void FreeMouse() = 0;
@@ -184,54 +171,83 @@ namespace LinaGX
         /// <summary>
         ///
         /// </summary>
-        /// <returns></returns>
         virtual void SetMouseVisible(bool visible) = 0;
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackClose(CallbackNoArg&& cb)
         {
             m_cbClose = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackPositionChanged(CallbackPosChanged&& cb)
         {
             m_cbPosChanged = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackSizeChanged(CallbackSizeChanged&& cb)
         {
             m_cbSizeChanged = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackKey(CallbackKey&& cb)
         {
             m_cbKey = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackMouse(CallbackMouse&& cb)
         {
             m_cbMouse = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackMouseWheel(CallbackMouseWheel&& cb)
         {
             m_cbMouseWheel = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
         {
             m_cbMouseMove = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackFocus(CallbackFocus&& cb)
         {
             m_cbFocus = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackHoverBegin(CallbackHoverBegin&& cb)
         {
             m_cbHoverBegin = cb;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
         inline void SetCallbackHoverEnd(CallbackHoverEnd&& cb)
         {
             m_cbHoverEnd = cb;
@@ -287,6 +303,9 @@ namespace LinaGX
             return m_hasFocus;
         }
 
+        /// <summary>
+        /// Drag rectangle is the local-region of the window that the operating system dragging takes control on Borderless windows.
+        /// </summary>
         inline void SetDragRect(const LinaGX::LGXRectui& rect)
         {
             m_dragRect = rect;
@@ -297,6 +316,10 @@ namespace LinaGX
             return m_isHovered;
         }
 
+        /// <summary>
+        /// Sometimes you don't want to size the window immediately but after the current frame has completed. Use this then.
+        /// </summary>
+        /// <param name="req"></param>
         inline void AddSizeRequest(const LGXVector2ui& req)
         {
             m_sizeRequests.push_back(req);
@@ -355,4 +378,3 @@ namespace LinaGX
         WindowStyle              m_style = WindowStyle::WindowedApplication;
     };
 } // namespace LinaGX
-

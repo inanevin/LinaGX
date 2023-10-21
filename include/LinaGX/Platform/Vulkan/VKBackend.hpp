@@ -82,7 +82,6 @@ namespace LinaGX
         uint32                    width       = 0;
         uint32                    height      = 0;
         VkFormat                  format      = VkFormat::VK_FORMAT_B8G8R8A8_SNORM;
-        Format                    depthFormat = Format::D32_SFLOAT;
         VkSwapchainKHR            ptr         = nullptr;
         VkSurfaceKHR              surface     = nullptr;
         VkPresentModeKHR          presentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -116,6 +115,7 @@ namespace LinaGX
         VkCommandPool              pool        = nullptr;
         LINAGX_MAP<uint32, uint64> intermediateResources;
         LINAGX_VEC<uint8>          swapchainWrites;
+        CommandStream*             streamImpl = nullptr;
     };
 
     struct VKBResource
@@ -212,11 +212,14 @@ namespace LinaGX
         virtual void   DestroyPipelineLayout(uint16 layout) override;
         virtual uint32 CreateCommandStream(const CommandStreamDesc& desc) override;
         virtual void   DestroyCommandStream(uint32 handle) override;
+        virtual void   SetCommandStreamImpl(uint32 handle, CommandStream* stream) override;
         virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) override;
         virtual void   SubmitCommandStreams(const SubmitDesc& desc) override;
         virtual uint8  CreateQueue(const QueueDesc& desc) override;
         virtual void   DestroyQueue(uint8 queue) override;
         virtual uint8  GetPrimaryQueue(CommandType type) override;
+
+        static uint32 QueryFeatureSupport(PreferredGPUType gpuType);
 
     private:
         uint16                CreateFence();
@@ -224,7 +227,7 @@ namespace LinaGX
         VkDescriptorSetLayout CreateDescriptorSetLayout(const DescriptorSetDesc& desc);
 
     public:
-        virtual bool Initialize(const InitInfo& initInfo) override;
+        virtual bool Initialize() override;
         virtual void Shutdown();
         virtual void Join();
         virtual void StartFrame(uint32 frameIndex) override;
@@ -249,7 +252,6 @@ namespace LinaGX
         void CMD_BindDescriptorSets(uint8* data, VKBCommandStream& stream);
         void CMD_BindConstants(uint8* data, VKBCommandStream& stream);
         void CMD_Dispatch(uint8* data, VKBCommandStream& stream);
-        void CMD_ComputeBarrier(uint8* data, VKBCommandStream& stream);
         void CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream);
         void CMD_Barrier(uint8* data, VKBCommandStream& stream);
         void CMD_Debug(uint8* data, VKBCommandStream& stream);
@@ -291,7 +293,6 @@ namespace LinaGX
         IDList<uint8, VKBQueue>           m_queues          = {5};
         IDList<uint16, VKBPipelineLayout> m_pipelineLayouts = {10};
 
-        InitInfo                                   m_initInfo     = {};
         LINAGX_VEC<VKBPerFrameData>                m_perFrameData = {};
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions = {};
         LINAGX_MAP<CommandType, uint8>             m_primaryQueues;
@@ -303,4 +304,3 @@ namespace LinaGX
         LINAGX_MAP<CommandType, VKBQueueData> m_queueData;
     };
 } // namespace LinaGX
-

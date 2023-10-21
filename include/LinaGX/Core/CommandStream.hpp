@@ -42,8 +42,12 @@ namespace LinaGX
     {
     public:
         CommandStream(Backend* backend, const CommandStreamDesc& desc, uint32 gpuHandle);
+        void WriteToConstantBlock(void* data, size_t size);
 
-
+        /// <summary>
+        /// Use LinaGX::CMDXXX structures to perform GPU operations by adding those commands to the stream.
+        /// </summary>
+        /// <returns>Pointer to the allocated command structure where you can edit the parameters directly.</returns>
         template <typename T>
         T* AddCommand()
         {
@@ -73,6 +77,15 @@ namespace LinaGX
             return retVal;
         }
 
+        /// <summary>
+        /// Some commands you add require memory addresses for some parameters, specifically arrays.
+        /// But none of the commands will be executed immediately as you add them, but will be executed upon calling CloseCommandStreams().
+        /// If you for example use addresses of local stack variables in functions and alike, those variables might have been destroyed by the CloseCommandStreams()
+        /// call, leading to undefined behavior.
+        /// In such cases, use EmplaceAuxMemory to place your variables' values alongside the command stream's persistenly mapped memory space. The space will only be
+        /// cleared once all the commands are executed.
+        /// </summary>
+        /// <returns>The beginning address of the memory block containing the values you've passed.</returns>
         template <typename T, typename... Args>
         T* EmplaceAuxMemory(T firstValue, Args... remainingValues)
         {
@@ -93,6 +106,15 @@ namespace LinaGX
             return reinterpret_cast<T*>(initialHead);
         }
 
+        /// <summary>
+        /// Some commands you add require memory addresses for some parameters, specifically arrays.
+        /// But none of the commands will be executed immediately as you add them, but will be executed upon calling CloseCommandStreams().
+        /// If you for example use addresses of local stack variables in functions and alike, those variables might have been destroyed by the CloseCommandStreams()
+        /// call, leading to undefined behavior.
+        /// In such cases, use EmplaceAuxMemory to place your variables' values alongside the command stream's persistenly mapped memory space. The space will only be
+        /// cleared once all the commands are executed.
+        /// </summary>
+        /// <returns>The beginning address of the memory block containing the data you've passed.</returns>
         template <typename T>
         T* EmplaceAuxMemory(void* data, size_t size)
         {
@@ -103,6 +125,15 @@ namespace LinaGX
             return reinterpret_cast<T*>(initialHead);
         }
 
+        /// <summary>
+        /// Some commands you add require memory addresses for some parameters, specifically arrays.
+        /// But none of the commands will be executed immediately as you add them, but will be executed upon calling CloseCommandStreams().
+        /// If you for example use addresses of local stack variables in functions and alike, those variables might have been destroyed by the CloseCommandStreams()
+        /// call, leading to undefined behavior.
+        /// In such cases, use EmplaceAuxMemory to place your variables' values alongside the command stream's persistenly mapped memory space. The space will only be
+        /// cleared once all the commands are executed.
+        /// </summary>
+        /// <returns>The beginning address of an empty memory block of size 'size', you can fill the data yourself.</returns>
         template <typename T>
         T* EmplaceAuxMemorySizeOnly(size_t size)
         {
@@ -110,6 +141,16 @@ namespace LinaGX
             m_auxMemoryIndex += static_cast<uint32>(size);
             LOGA(m_auxMemoryIndex < m_auxMemorySize, "Exceeded aux memory limit!");
             return reinterpret_cast<T*>(initialHead);
+        }
+
+        inline uint32 GetConstantBlockSize() const
+        {
+            return m_constantBlockSize;
+        }
+
+        inline uint8* GetConstantBlockMemory()
+        {
+            return m_constantBlockMemory;
         }
 
     private:
@@ -135,6 +176,8 @@ namespace LinaGX
         uint8* m_auxMemory      = nullptr;
         uint32 m_auxMemoryIndex = 0;
         uint32 m_auxMemorySize  = 0;
+
+        uint8* m_constantBlockMemory = nullptr;
+        uint32 m_constantBlockSize   = 0;
     };
 } // namespace LinaGX
-

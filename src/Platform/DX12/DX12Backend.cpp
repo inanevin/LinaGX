@@ -49,7 +49,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace LinaGX
 {
-#ifndef NDEBUG
+#ifdef LINAGX_DEBUG
 #define NAME_DX12_OBJECT_CSTR(x, NAME)       \
     auto wcharConverted = CharToWChar(NAME); \
     x->SetName(wcharConverted);              \
@@ -73,49 +73,115 @@ namespace LinaGX
         {
         case Format::UNDEFINED:
             return DXGI_FORMAT_UNKNOWN;
-        case Format::B8G8R8A8_SRGB:
-            return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-        case Format::B8G8R8A8_UNORM:
-            return DXGI_FORMAT_B8G8R8A8_UNORM;
-        case Format::R32G32B32_FLOAT:
-            return DXGI_FORMAT_R32G32B32_FLOAT;
-        case Format::R32G32B32_INT:
-            return DXGI_FORMAT_R32G32B32_SINT;
-        case Format::R32G32B32A32_FLOAT:
-            return DXGI_FORMAT_R32G32B32A32_FLOAT;
-        case Format::R32G32B32A32_INT:
-            return DXGI_FORMAT_R32G32B32A32_SINT;
-        case Format::R16G16B16A16_FLOAT:
-            return DXGI_FORMAT_R16G16B16A16_FLOAT;
-        case Format::R16G16B16A16_UNORM:
-            return DXGI_FORMAT_R16G16B16A16_UNORM;
-        case Format::R32G32_FLOAT:
-            return DXGI_FORMAT_R32G32_FLOAT;
-        case Format::R32G32_INT:
-            return DXGI_FORMAT_R32G32_SINT;
-        case Format::D32_SFLOAT:
-            return DXGI_FORMAT_D32_FLOAT;
-        case Format::R8G8B8A8_UNORM:
-            return DXGI_FORMAT_R8G8B8A8_UNORM;
-        case Format::R8G8B8A8_SRGB:
-            return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-        case Format::R8G8_UNORM:
-            return DXGI_FORMAT_R8G8_UNORM;
-        case Format::R8_UNORM:
-            return DXGI_FORMAT_R8_UNORM;
+
+            // 8 bit
+        case Format::R8_SINT:
+            return DXGI_FORMAT_R8_SINT;
         case Format::R8_UINT:
             return DXGI_FORMAT_R8_UINT;
-        case Format::R16_FLOAT:
-            return DXGI_FORMAT_R16_FLOAT;
-        case Format::R16_INT:
+        case Format::R8_UNORM:
+            return DXGI_FORMAT_R8_UNORM;
+        case Format::R8_SNORM:
+            return DXGI_FORMAT_R8_SNORM;
+
+        case Format::R8G8_SINT:
+            return DXGI_FORMAT_R8G8_SINT;
+        case Format::R8G8_UINT:
+            return DXGI_FORMAT_R8G8_UINT;
+        case Format::R8G8_UNORM:
+            return DXGI_FORMAT_R8G8_UNORM;
+        case Format::R8G8_SNORM:
+            return DXGI_FORMAT_R8G8_SNORM;
+
+        case Format::R8G8B8A8_SINT:
+            return DXGI_FORMAT_R8G8B8A8_SINT;
+        case Format::R8G8B8A8_UINT:
+            return DXGI_FORMAT_R8G8B8A8_UINT;
+        case Format::R8G8B8A8_UNORM:
+            return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case Format::R8G8B8A8_SNORM:
+            return DXGI_FORMAT_R8G8B8A8_SNORM;
+        case Format::R8G8B8A8_SRGB:
+            return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+        case Format::B8G8R8A8_UNORM:
+            return DXGI_FORMAT_B8G8R8A8_UNORM;
+        case Format::B8G8R8A8_SRGB:
+            return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+
+            // 16 bit
+        case Format::R16_SINT:
             return DXGI_FORMAT_R16_SINT;
-        case Format::R32_FLOAT:
-            return DXGI_FORMAT_R32_FLOAT;
-        case Format::R32_INT:
+        case Format::R16_UINT:
+            return DXGI_FORMAT_R16_UINT;
+        case Format::R16_UNORM:
+            return DXGI_FORMAT_R16_UNORM;
+        case Format::R16_SNORM:
+            return DXGI_FORMAT_R16_SNORM;
+        case Format::R16_SFLOAT:
+            return DXGI_FORMAT_R16_FLOAT;
+
+        case Format::R16G16_SINT:
+            return DXGI_FORMAT_R16G16_SINT;
+        case Format::R16G16_UINT:
+            return DXGI_FORMAT_R16G16_UINT;
+        case Format::R16G16_UNORM:
+            return DXGI_FORMAT_R16G16_UNORM;
+        case Format::R16G16_SNORM:
+            return DXGI_FORMAT_R16G16_SNORM;
+        case Format::R16G16_SFLOAT:
+            return DXGI_FORMAT_R16G16_FLOAT;
+
+        case Format::R16G16B16A16_SINT:
+            return DXGI_FORMAT_R16G16B16A16_SINT;
+        case Format::R16G16B16A16_UINT:
+            return DXGI_FORMAT_R16G16B16A16_UINT;
+        case Format::R16G16B16A16_UNORM:
+            return DXGI_FORMAT_R16G16B16A16_UNORM;
+        case Format::R16G16B16A16_SNORM:
+            return DXGI_FORMAT_R16G16B16A16_SNORM;
+        case Format::R16G16B16A16_SFLOAT:
+            return DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+            // 32 bit
+        case Format::R32_SINT:
             return DXGI_FORMAT_R32_SINT;
         case Format::R32_UINT:
             return DXGI_FORMAT_R32_UINT;
-        case Format::R11G11B10_FLOAT:
+        case Format::R32_SFLOAT:
+            return DXGI_FORMAT_R32_FLOAT;
+
+        case Format::R32G32_SINT:
+            return DXGI_FORMAT_R32G32_SINT;
+        case Format::R32G32_UINT:
+            return DXGI_FORMAT_R32G32_UINT;
+        case Format::R32G32_SFLOAT:
+            return DXGI_FORMAT_R32G32_FLOAT;
+
+        case Format::R32G32B32_SFLOAT:
+            return DXGI_FORMAT_R32G32B32_FLOAT;
+        case Format::R32G32B32_SINT:
+            return DXGI_FORMAT_R32G32B32_SINT;
+        case Format::R32G32B32_UINT:
+            return DXGI_FORMAT_R32G32B32_UINT;
+
+        case Format::R32G32B32A32_SINT:
+            return DXGI_FORMAT_R32G32B32A32_SINT;
+        case Format::R32G32B32A32_UINT:
+            return DXGI_FORMAT_R32G32B32A32_UINT;
+        case Format::R32G32B32A32_SFLOAT:
+            return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+            // depth-stencil
+        case Format::D32_SFLOAT:
+            return DXGI_FORMAT_D32_FLOAT;
+        case Format::D24_UNORM_S8_UINT:
+            return DXGI_FORMAT_D24_UNORM_S8_UINT;
+        case Format::D16_UNORM:
+            return DXGI_FORMAT_D16_UNORM;
+
+            // misc
+        case Format::R11G11B10_SFLOAT:
             return DXGI_FORMAT_R11G11B10_FLOAT;
         case Format::R10G0B10A2_INT:
             return DXGI_FORMAT_R10G10B10A2_UINT;
@@ -123,6 +189,7 @@ namespace LinaGX
             return DXGI_FORMAT_BC3_UNORM_SRGB;
         case Format::BC3_BLOCK_UNORM:
             return DXGI_FORMAT_BC3_UNORM;
+
         default:
             return DXGI_FORMAT_UNKNOWN;
         }
@@ -375,8 +442,10 @@ namespace LinaGX
             return D3D12_SHADER_VISIBILITY_PIXEL;
         case ShaderStage::Geometry:
             return D3D12_SHADER_VISIBILITY_GEOMETRY;
-        case ShaderStage::Tesellation:
+        case ShaderStage::TesellationControl:
             return D3D12_SHADER_VISIBILITY_HULL;
+        case ShaderStage::TesellationEval:
+            return D3D12_SHADER_VISIBILITY_DOMAIN;
         default:
             return D3D12_SHADER_VISIBILITY_ALL;
         }
@@ -628,7 +697,7 @@ namespace LinaGX
         DXGI_FORMAT swapFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
         // DXGI flip swapchains can only be b8g8r8a8_unorm, r16g16b16a16_float or r8g8b8a8_unorm.
-        if (desc.format == Format::R16G16B16A16_FLOAT)
+        if (desc.format == Format::R16G16B16A16_SFLOAT)
             swapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
         else if (desc.format == Format::R8G8B8A8_UNORM)
             swapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -636,7 +705,7 @@ namespace LinaGX
             swapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
         DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-        swapchainDesc.BufferCount           = m_initInfo.backbufferCount;
+        swapchainDesc.BufferCount           = Config.backbufferCount;
         swapchainDesc.Width                 = static_cast<UINT>(desc.width);
         swapchainDesc.Height                = static_cast<UINT>(desc.height);
         swapchainDesc.Format                = swapFormat;
@@ -652,7 +721,7 @@ namespace LinaGX
 
         try
         {
-            const auto& primaryGraphics = m_queues.GetItemR(desc.queue);
+            const auto& primaryGraphics = m_queues.GetItemR(GetPrimaryQueue(CommandType::Graphics));
             ThrowIfFailed(m_factory->CreateSwapChainForHwnd(primaryGraphics.queue.Get(), // Swap chain needs the queue so that it can force a flush on it.
                                                             (HWND)desc.window,
                                                             &swapchainDesc,
@@ -662,15 +731,14 @@ namespace LinaGX
 
             // ThrowIfFailed(swapchain->SetFullscreenState(desc.isFullscreen, nullptr));
             // m_factory->MakeWindowAssociation((HWND)desc.window, DXGI_MWA_NO_ALT_ENTER);
-            // ThrowIfFailed(swapchain->ResizeBuffers(m_initInfo.backbufferCount, desc.width, desc.height, swapchainDesc.Format, swapchainDesc.Flags));
+            // ThrowIfFailed(swapchain->ResizeBuffers(Config.backbufferCount, desc.width, desc.height, swapchainDesc.Format, swapchainDesc.Flags));
 
             DX12Swapchain swp = {};
             swp.isValid       = true;
             swp.width         = desc.width;
             swp.height        = desc.height;
-            swp.vsync         = desc.vsyncMode;
+            swp.vsync         = desc.vsyncStyle;
             swp.format        = desc.format;
-            swp.depthFormat   = desc.depthFormat;
             swp.isFullscreen  = desc.isFullscreen;
             ThrowIfFailed(swapchain.As(&swp.ptr));
 
@@ -678,7 +746,7 @@ namespace LinaGX
 
             // Create RT and depth textures for swapchain.
             {
-                for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
+                for (uint32 i = 0; i < Config.backbufferCount; i++)
                 {
                     DX12Texture2D color      = {};
                     color.isSwapchainTexture = true;
@@ -755,16 +823,17 @@ namespace LinaGX
             // if (!m_allowTearing)
             //     ThrowIfFailed(swp.ptr->SetFullscreenState(desc.isFullscreen, nullptr));
 
-            for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
+            for (uint32 i = 0; i < Config.backbufferCount; i++)
                 DestroyTexture(swp.colorTextures[i]);
 
-            ThrowIfFailed(swp.ptr->ResizeBuffers(m_initInfo.backbufferCount, desc.width, desc.height, swpDesc.BufferDesc.Format, swpDesc.Flags));
+            ThrowIfFailed(swp.ptr->ResizeBuffers(Config.backbufferCount, desc.width, desc.height, swpDesc.BufferDesc.Format, swpDesc.Flags));
 
             swp.width       = desc.width;
             swp.height      = desc.height;
             swp._imageIndex = swp.ptr->GetCurrentBackBufferIndex();
+            swp.vsync       = desc.vsyncStyle;
 
-            for (uint32 i = 0; i < m_initInfo.backbufferCount; i++)
+            for (uint32 i = 0; i < Config.backbufferCount; i++)
             {
                 DX12Texture2D color      = {};
                 color.isSwapchainTexture = true;
@@ -833,8 +902,10 @@ namespace LinaGX
                 targetProfile = L"cs_6_0";
             else if (stage == ShaderStage::Geometry)
                 targetProfile = L"gs_6_0";
-            else if (stage == ShaderStage::Tesellation)
+            else if (stage == ShaderStage::TesellationControl)
                 targetProfile = L"hs_6_0";
+            else if (stage == ShaderStage::TesellationEval)
+                targetProfile = L"ds_6_0";
 
             DxcBuffer sourceBuffer;
             sourceBuffer.Ptr      = sourceBlob->GetBufferPointer();
@@ -1223,18 +1294,37 @@ namespace LinaGX
 
         LINAGX_VEC<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
-        uint32 i = 0;
-        for (const auto& input : shaderDesc.layout.vertexInputs)
+        if (shaderDesc.useCustomVertexInputs)
         {
-            D3D12_INPUT_ELEMENT_DESC desc = D3D12_INPUT_ELEMENT_DESC{};
-            desc.SemanticName             = "TEXCOORD";
-            desc.SemanticIndex            = i++;
-            desc.Format                   = GetDXFormat(input.format);
-            desc.InputSlot                = 0;
-            desc.AlignedByteOffset        = static_cast<uint32>(input.offset);
-            desc.InputSlotClass           = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-            desc.InstanceDataStepRate     = 0;
-            inputLayout.push_back(desc);
+            uint32 i = 0;
+            for (const auto& input : shaderDesc.customVertexInputs)
+            {
+                D3D12_INPUT_ELEMENT_DESC desc = D3D12_INPUT_ELEMENT_DESC{};
+                desc.SemanticName             = "TEXCOORD";
+                desc.SemanticIndex            = i++;
+                desc.Format                   = GetDXFormat(input.format);
+                desc.InputSlot                = 0;
+                desc.AlignedByteOffset        = static_cast<uint32>(input.offset);
+                desc.InputSlotClass           = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+                desc.InstanceDataStepRate     = 0;
+                inputLayout.push_back(desc);
+            }
+        }
+        else
+        {
+            uint32 i = 0;
+            for (const auto& input : shaderDesc.layout.vertexInputs)
+            {
+                D3D12_INPUT_ELEMENT_DESC desc = D3D12_INPUT_ELEMENT_DESC{};
+                desc.SemanticName             = "TEXCOORD";
+                desc.SemanticIndex            = i++;
+                desc.Format                   = GetDXFormat(input.format);
+                desc.InputSlot                = 0;
+                desc.AlignedByteOffset        = static_cast<uint32>(input.offset);
+                desc.InputSlotClass           = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+                desc.InstanceDataStepRate     = 0;
+                inputLayout.push_back(desc);
+            }
         }
 
         // Describe and create the graphics pipeline state object (PSO).
@@ -1312,10 +1402,15 @@ namespace LinaGX
                 psoDesc.GS.pShaderBytecode = byteCode;
                 psoDesc.GS.BytecodeLength  = length;
             }
-            else if (stg == ShaderStage::Tesellation)
+            else if (stg == ShaderStage::TesellationControl)
             {
                 psoDesc.HS.pShaderBytecode = byteCode;
                 psoDesc.HS.BytecodeLength  = length;
+            }
+            else if (stg == ShaderStage::TesellationEval)
+            {
+                psoDesc.DS.pShaderBytecode = byteCode;
+                psoDesc.DS.BytecodeLength  = length;
             }
             else if (stg == ShaderStage::Compute)
             {
@@ -2338,10 +2433,8 @@ namespace LinaGX
         }
     }
 
-    bool DX12Backend::Initialize(const InitInfo& initInfo)
+    bool DX12Backend::Initialize()
     {
-        m_initInfo = initInfo;
-
         try
         {
             {
@@ -2378,18 +2471,8 @@ namespace LinaGX
 
             // Choose gpu & create device
             {
-                if (initInfo.gpu == PreferredGPUType::CPU)
-                {
-                    ComPtr<IDXGIAdapter> warpAdapter;
-                    ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-                    ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
-                }
-                else
-                {
-                    GetHardwareAdapter(m_factory.Get(), &m_adapter, initInfo.gpu);
-
-                    ThrowIfFailed(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
-                }
+                GetHardwareAdapter(m_factory.Get(), &m_adapter, Config.gpu);
+                ThrowIfFailed(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
             }
 
             if (Config.dx12Config.enableDebugLayers)
@@ -2440,13 +2523,13 @@ namespace LinaGX
 
             // Heaps
             {
-                m_bufferHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimit);
-                m_textureHeap    = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.textureLimit);
-                m_dsvHeap        = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, m_initInfo.gpuLimits.textureLimit);
-                m_rtvHeap        = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_initInfo.gpuLimits.textureLimit);
-                m_samplerHeap    = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimit);
-                m_gpuHeapBuffer  = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_initInfo.gpuLimits.bufferLimit, true);
-                m_gpuHeapSampler = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, m_initInfo.gpuLimits.samplerLimit, true);
+                m_bufferHeap     = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Config.gpuLimits.bufferLimit);
+                m_textureHeap    = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Config.gpuLimits.textureLimit);
+                m_dsvHeap        = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, Config.gpuLimits.textureLimit);
+                m_rtvHeap        = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, Config.gpuLimits.textureLimit);
+                m_samplerHeap    = new DX12HeapStaging(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, Config.gpuLimits.samplerLimit);
+                m_gpuHeapBuffer  = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Config.gpuLimits.bufferLimit, true);
+                m_gpuHeapSampler = new DX12HeapGPU(this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, Config.gpuLimits.samplerLimit, true);
             }
 
             // Command functions
@@ -2456,7 +2539,7 @@ namespace LinaGX
 
             // Per frame
             {
-                for (uint32 i = 0; i < initInfo.framesInFlight; i++)
+                for (uint32 i = 0; i < Config.framesInFlight; i++)
                 {
                     DX12PerFrameData pfd = {};
                     m_perFrameData.push_back(pfd);
@@ -2478,19 +2561,17 @@ namespace LinaGX
                 {
                     const Format lgxFormat = static_cast<Format>(i);
 
-                    D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport = {GetDXFormat(lgxFormat), D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE};
+                    D3D12_FEATURE_DATA_FORMAT_SUPPORT sup = {GetDXFormat(lgxFormat), D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE};
 
-                    ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &formatSupport, sizeof(formatSupport)));
+                    ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &sup, sizeof(sup)));
 
-                    if ((formatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D) != 0)
-                        GPUInfo.supportedImageFormats.push_back(lgxFormat);
-                }
-
-                for (auto& f : m_initInfo.checkForFormatSupport)
-                {
-                    auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
-                    if (it == GPUInfo.supportedImageFormats.end())
-                        LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+                    if (sup.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D)
+                    {
+                        const bool sampled  = sup.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE;
+                        const bool colorAtt = sup.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET;
+                        const bool depthAtt = sup.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL;
+                        GPUInfo.supportedTexture2DFormats.push_back({lgxFormat, sampled, colorAtt, depthAtt});
+                    }
                 }
             }
 
@@ -2570,7 +2651,7 @@ namespace LinaGX
             }
         }
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];
         }
@@ -2596,7 +2677,7 @@ namespace LinaGX
             IncreaseGraphicsFences();
         }
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             const auto& frame = m_perFrameData[i];
             for (auto& q : m_queues)
@@ -2636,6 +2717,12 @@ namespace LinaGX
         return m_cmdStreams.AddItem(item);
     }
 
+    void DX12Backend::SetCommandStreamImpl(uint32 handle, CommandStream* stream)
+    {
+        auto& str      = m_cmdStreams.GetItemR(handle);
+        str.streamImpl = stream;
+    }
+
     void DX12Backend::StartFrame(uint32 frameIndex)
     {
         m_submissionPerFrame = 0;
@@ -2659,7 +2746,7 @@ namespace LinaGX
 
             for (auto it = cs.intermediateResources.begin(); it != cs.intermediateResources.end();)
             {
-                if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+                if (PerformanceStats.totalFrames > it->second + Config.framesInFlight + 1)
                 {
                     DestroyResource(it->first);
                     it = cs.intermediateResources.erase(it);
@@ -2670,7 +2757,7 @@ namespace LinaGX
 
             for (auto it = cs.adjustedBuffers.begin(); it != cs.adjustedBuffers.end();)
             {
-                if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+                if (PerformanceStats.totalFrames > it->second + Config.framesInFlight + 1)
                 {
                     LINAGX_FREE(it->first);
                     it = cs.adjustedBuffers.erase(it);
@@ -2720,7 +2807,10 @@ namespace LinaGX
                 sr.boundRootSignature = nullptr;
                 sr.boundDescriptorSets.clear();
                 if (sr.boundConstants.data != nullptr)
-                    LINAGX_FREE(sr.boundConstants.data);
+                {
+                    if (!sr.boundConstants.usesStreamAlloc)
+                        LINAGX_FREE(sr.boundConstants.data);
+                }
 
                 sr.boundConstants = {};
 
@@ -2820,13 +2910,13 @@ namespace LinaGX
         ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&item.queue)));
         NAME_DX12_OBJECT_CSTR(item.queue, desc.debugName);
 
-        item.frameFences.resize(m_initInfo.framesInFlight);
-        item.storedFenceValues.resize(m_initInfo.framesInFlight);
+        item.frameFences.resize(Config.framesInFlight);
+        item.storedFenceValues.resize(Config.framesInFlight);
         // item.inUse = new std::atomic_flag();
 
         try
         {
-            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            for (uint32 i = 0; i < Config.framesInFlight; i++)
                 ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&item.frameFences[i])));
         }
         catch (HrException e)
@@ -2848,7 +2938,7 @@ namespace LinaGX
 
         // delete item.inUse;
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
             item.frameFences[i].Reset();
 
         item.queue.Reset();
@@ -2882,12 +2972,12 @@ namespace LinaGX
                 UINT   flags    = (m_allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
                 uint32 interval = 0;
 
-                if (swp.vsync == VsyncMode::EveryVBlank)
+                if (swp.vsync.dx12Vsync == DXVsync::EveryVBlank)
                 {
                     interval = 1;
                     flags    = 0;
                 }
-                else if (swp.vsync == VsyncMode::EverySecondVBlank)
+                else if (swp.vsync.dx12Vsync == DXVsync::EverySecondVBlank)
                 {
                     interval = 2;
                     flags    = 0;
@@ -2920,7 +3010,7 @@ namespace LinaGX
 
     void DX12Backend::EndFrame()
     {
-        LOGA((m_submissionPerFrame < m_initInfo.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        LOGA((m_submissionPerFrame < Config.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
         IncreaseGraphicsFences();
     }
 
@@ -3202,7 +3292,7 @@ namespace LinaGX
         CMDDrawIndexedIndirect* cmd    = reinterpret_cast<CMDDrawIndexedIndirect*>(data);
         auto&                   shader = m_shaders.GetItemR(stream.boundShader);
         auto                    buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
-        stream.list->ExecuteIndirect(shader.layout.indirectIndexedSig.Get(), cmd->count, buffer, 0, NULL, 0);
+        stream.list->ExecuteIndirect(shader.layout.indirectIndexedSig.Get(), cmd->count, buffer, cmd->indirectBufferOffset, NULL, 0);
     }
 
     void DX12Backend::CMD_DrawIndirect(uint8* data, DX12CommandStream& stream)
@@ -3210,7 +3300,7 @@ namespace LinaGX
         CMDDrawIndirect* cmd    = reinterpret_cast<CMDDrawIndirect*>(data);
         auto&            shader = m_shaders.GetItemR(stream.boundShader);
         auto             buffer = GetGPUResource(m_resources.GetItemR(cmd->indirectBuffer));
-        stream.list->ExecuteIndirect(shader.layout.indirectDrawSig.Get(), cmd->count, buffer, 0, NULL, 0);
+        stream.list->ExecuteIndirect(shader.layout.indirectDrawSig.Get(), cmd->count, buffer, cmd->indirectBufferOffset, NULL, 0);
     }
 
     void DX12Backend::CMD_BindVertexBuffers(uint8* data, DX12CommandStream& stream)
@@ -3369,12 +3459,27 @@ namespace LinaGX
         // DX12RootParamInfo* param  = FindRootParam(&shader.layout.rootParams, DescriptorType::ConstantBlock, shader.layout.constantsBinding, shader.layout.constantsSpace);
         // stream.list->SetGraphicsRoot32BitConstants(param->rootParameter, cmd->size / sizeof(uint32), cmd->data, cmd->offset / sizeof(uint32));
 
+        auto& pfd = m_perFrameData[m_currentFrameIndex];
+
         if (stream.boundConstants.data != nullptr)
-            LINAGX_FREE(stream.boundConstants.data);
+        {
+            if (!stream.boundConstants.usesStreamAlloc)
+                LINAGX_FREE(stream.boundConstants.data);
+        }
 
-        stream.boundConstants.data = LINAGX_MALLOC(cmd->size);
+        // If fits to alloc.
+        if (cmd->size < stream.streamImpl->GetConstantBlockSize())
+        {
+            stream.boundConstants.data            = stream.streamImpl->GetConstantBlockMemory();
+            stream.boundConstants.usesStreamAlloc = true;
+        }
+        else
+        {
+            stream.boundConstants.data            = (uint8*)LINAGX_MALLOC(cmd->size);
+            stream.boundConstants.usesStreamAlloc = false;
+        }
+
         LINAGX_MEMCPY(stream.boundConstants.data, cmd->data, cmd->size);
-
         stream.boundConstants.offset = cmd->offset;
         stream.boundConstants.size   = cmd->size;
 
@@ -3389,11 +3494,6 @@ namespace LinaGX
     {
         CMDDispatch* cmd = reinterpret_cast<CMDDispatch*>(data);
         stream.list->Dispatch(cmd->groupSizeX, cmd->groupSizeY, cmd->groupSizeZ);
-    }
-
-    void DX12Backend::CMD_ComputeBarrier(uint8* data, DX12CommandStream& stream)
-    {
-        CMDComputeBarrier* cmd = reinterpret_cast<CMDComputeBarrier*>(data);
     }
 
     void DX12Backend::CMD_ExecuteSecondaryStream(uint8* data, DX12CommandStream& stream)

@@ -48,7 +48,7 @@ namespace LinaGX
 #define pfn_vkBeginDebugUtilLabelEXT     g_vkCmdBeginDebugUtilsLabelEXT
 #define pfn_vkEndDebugUtilLabelEXT       g_vkCmdEndDebugUtilsLabelEXT
 
-#ifndef NDEBUG
+#ifdef LINAGX_DEBUG
 #define VK_NAME_OBJECT(namedObject, objType, name, structName)                                     \
     VkDebugUtilsObjectNameInfoEXT structName = {};                                                 \
     structName.sType                         = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; \
@@ -124,49 +124,114 @@ namespace LinaGX
         {
         case Format::UNDEFINED:
             return VK_FORMAT_UNDEFINED;
-        case Format::B8G8R8A8_SRGB:
-            return VK_FORMAT_B8G8R8A8_SRGB;
-        case Format::B8G8R8A8_UNORM:
-            return VK_FORMAT_B8G8R8A8_UNORM;
-        case Format::R32G32B32_FLOAT:
-            return VK_FORMAT_R32G32B32_SFLOAT;
-        case Format::R32G32B32_INT:
-            return VK_FORMAT_R32G32B32_SINT;
-        case Format::R32G32B32A32_FLOAT:
-            return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case Format::R32G32B32A32_INT:
-            return VK_FORMAT_R32G32B32A32_SINT;
-        case Format::R16G16B16A16_FLOAT:
-            return VK_FORMAT_R16G16B16A16_SFLOAT;
-        case Format::R16G16B16A16_UNORM:
-            return VK_FORMAT_R16G16B16A16_UNORM;
-        case Format::R32G32_FLOAT:
-            return VK_FORMAT_R32G32_SFLOAT;
-        case Format::R32G32_INT:
-            return VK_FORMAT_R32G32_SINT;
-        case Format::D32_SFLOAT:
-            return VK_FORMAT_D32_SFLOAT;
+            // 8 bit
+        case Format::R8_SINT:
+            return VK_FORMAT_R8_SINT;
+        case Format::R8_UINT:
+            return VK_FORMAT_R8_UINT;
+        case Format::R8_UNORM:
+            return VK_FORMAT_R8_UNORM;
+        case Format::R8_SNORM:
+            return VK_FORMAT_R8_SNORM;
+
+        case Format::R8G8_SINT:
+            return VK_FORMAT_R8G8_SINT;
+        case Format::R8G8_UINT:
+            return VK_FORMAT_R8G8_UINT;
+        case Format::R8G8_UNORM:
+            return VK_FORMAT_R8G8_UNORM;
+        case Format::R8G8_SNORM:
+            return VK_FORMAT_R8G8_SNORM;
+
+        case Format::R8G8B8A8_SINT:
+            return VK_FORMAT_R8G8B8A8_SINT;
+        case Format::R8G8B8A8_UINT:
+            return VK_FORMAT_R8G8B8A8_UINT;
         case Format::R8G8B8A8_UNORM:
             return VK_FORMAT_R8G8B8A8_UNORM;
+        case Format::R8G8B8A8_SNORM:
+            return VK_FORMAT_R8G8B8A8_SNORM;
         case Format::R8G8B8A8_SRGB:
             return VK_FORMAT_R8G8B8A8_SRGB;
-        case Format::R16_FLOAT:
-            return VK_FORMAT_R16_SFLOAT;
-        case Format::R16_INT:
+
+        case Format::B8G8R8A8_UNORM:
+            return VK_FORMAT_B8G8R8A8_UNORM;
+        case Format::B8G8R8A8_SRGB:
+            return VK_FORMAT_B8G8R8A8_SRGB;
+
+            // 16 bit
+        case Format::R16_SINT:
             return VK_FORMAT_R16_SINT;
-        case Format::R32_FLOAT:
-            return VK_FORMAT_R32_SFLOAT;
-        case Format::R32_INT:
+        case Format::R16_UINT:
+            return VK_FORMAT_R16_UINT;
+        case Format::R16_UNORM:
+            return VK_FORMAT_R16_UNORM;
+        case Format::R16_SNORM:
+            return VK_FORMAT_R16_SNORM;
+        case Format::R16_SFLOAT:
+            return VK_FORMAT_R16_SFLOAT;
+
+        case Format::R16G16_SINT:
+            return VK_FORMAT_R16G16_SINT;
+        case Format::R16G16_UINT:
+            return VK_FORMAT_R16G16_UINT;
+        case Format::R16G16_UNORM:
+            return VK_FORMAT_R16G16_UNORM;
+        case Format::R16G16_SNORM:
+            return VK_FORMAT_R16G16_SNORM;
+        case Format::R16G16_SFLOAT:
+            return VK_FORMAT_R16G16_SFLOAT;
+
+        case Format::R16G16B16A16_SINT:
+            return VK_FORMAT_R16G16B16A16_SINT;
+        case Format::R16G16B16A16_UINT:
+            return VK_FORMAT_R16G16B16A16_UINT;
+        case Format::R16G16B16A16_UNORM:
+            return VK_FORMAT_R16G16B16A16_UNORM;
+        case Format::R16G16B16A16_SNORM:
+            return VK_FORMAT_R16G16B16A16_SNORM;
+        case Format::R16G16B16A16_SFLOAT:
+            return VK_FORMAT_R16G16B16A16_SFLOAT;
+
+            // 32 bit
+        case Format::R32_SINT:
             return VK_FORMAT_R32_SINT;
         case Format::R32_UINT:
             return VK_FORMAT_R32_UINT;
-        case Format::R8_UNORM:
-            return VK_FORMAT_R8_UNORM;
-        case Format::R8_UINT:
-            return VK_FORMAT_R8_UINT;
-        case Format::R8G8_UNORM:
-            return VK_FORMAT_R8G8_UNORM;
-        case Format::R11G11B10_FLOAT:
+        case Format::R32_SFLOAT:
+            return VK_FORMAT_R32_SFLOAT;
+
+        case Format::R32G32_SINT:
+            return VK_FORMAT_R32G32_SINT;
+        case Format::R32G32_UINT:
+            return VK_FORMAT_R32G32_UINT;
+        case Format::R32G32_SFLOAT:
+            return VK_FORMAT_R32G32_SFLOAT;
+
+        case Format::R32G32B32_SFLOAT:
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        case Format::R32G32B32_SINT:
+            return VK_FORMAT_R32G32B32_SINT;
+        case Format::R32G32B32_UINT:
+            return VK_FORMAT_R32G32B32_UINT;
+
+        case Format::R32G32B32A32_SINT:
+            return VK_FORMAT_R32G32B32A32_SINT;
+        case Format::R32G32B32A32_UINT:
+            return VK_FORMAT_R32G32B32A32_UINT;
+        case Format::R32G32B32A32_SFLOAT:
+            return VK_FORMAT_R32G32B32A32_SFLOAT;
+
+            // depth-stencil
+        case Format::D32_SFLOAT:
+            return VK_FORMAT_D32_SFLOAT;
+        case Format::D24_UNORM_S8_UINT:
+            return VK_FORMAT_D24_UNORM_S8_UINT;
+        case Format::D16_UNORM:
+            return VK_FORMAT_D16_UNORM;
+
+            // misc
+        case Format::R11G11B10_SFLOAT:
             return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
         case Format::R10G0B10A2_INT:
             return VK_FORMAT_A2B10G10R10_SINT_PACK32;
@@ -174,8 +239,9 @@ namespace LinaGX
             return VK_FORMAT_BC3_SRGB_BLOCK;
         case Format::BC3_BLOCK_UNORM:
             return VK_FORMAT_BC3_UNORM_BLOCK;
+
         default:
-            return VK_FORMAT_B8G8R8A8_SRGB;
+            return VK_FORMAT_UNDEFINED;
         }
     }
 
@@ -440,8 +506,10 @@ namespace LinaGX
         {
         case ShaderStage::Vertex:
             return VK_SHADER_STAGE_VERTEX_BIT;
-        case ShaderStage::Tesellation:
+        case ShaderStage::TesellationControl:
             return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        case ShaderStage::TesellationEval:
+            return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
         case ShaderStage::Geometry:
             return VK_SHADER_STAGE_GEOMETRY_BIT;
         case ShaderStage::Fragment:
@@ -450,38 +518,6 @@ namespace LinaGX
             return VK_SHADER_STAGE_COMPUTE_BIT;
         default:
             return VK_SHADER_STAGE_VERTEX_BIT;
-        }
-    }
-
-    VkImageUsageFlags GetVKImageUsage(TextureUsage usage)
-    {
-        switch (usage)
-        {
-        case TextureUsage::ColorTexture:
-        case TextureUsage::ColorTextureDynamic:
-            return VK_IMAGE_USAGE_SAMPLED_BIT;
-        case TextureUsage::ColorTextureRenderTarget:
-            return VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        case TextureUsage::DepthStencilTexture:
-            return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        default:
-            return VK_IMAGE_USAGE_SAMPLED_BIT;
-        }
-    }
-
-    VkImageLayout GetVKImageLayout(TextureUsage usage)
-    {
-        switch (usage)
-        {
-        case TextureUsage::ColorTexture:
-        case TextureUsage::ColorTextureDynamic:
-            return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
-        case TextureUsage::ColorTextureRenderTarget:
-            return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        case TextureUsage::DepthStencilTexture:
-            return VK_IMAGE_LAYOUT_UNDEFINED;
-        default:
-            return VK_IMAGE_LAYOUT_UNDEFINED;
         }
     }
 
@@ -604,16 +640,18 @@ namespace LinaGX
         }
     }
 
-    VkPresentModeKHR GetVKPresentMode(VsyncMode vsync)
+    VkPresentModeKHR GetVKPresentMode(VKVsync vsync)
     {
         switch (vsync)
         {
-        case VsyncMode::None:
+        case VKVsync::None:
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
-        case VsyncMode::EveryVBlank:
+        case VKVsync::FIFO:
             return VK_PRESENT_MODE_FIFO_KHR;
-        case VsyncMode::EverySecondVBlank:
+        case VKVsync::FIFO_RELAXED:
             return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        case VKVsync::MAILBOX:
+            return VK_PRESENT_MODE_MAILBOX_KHR;
         default:
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
         }
@@ -808,21 +846,21 @@ namespace LinaGX
         LOGA(false, "Backend -> Vulkan backend is only supported for Windows at the moment!");
 #endif
 
-        VkPresentModeKHR presentMode = GetVKPresentMode(desc.vsyncMode);
+        VkPresentModeKHR presentMode = GetVKPresentMode(desc.vsyncStyle.vulkanVsync);
 
         VkFormat              swpFormat = GetVKFormat(desc.format);
         vkb::SwapchainBuilder swapchainBuilder{m_gpu, m_device, surface};
+
         swapchainBuilder = swapchainBuilder
                                //.use_default_format_selection()
                                .set_desired_present_mode(presentMode)
                                .set_desired_extent(desc.width, desc.height)
                                .set_desired_format({swpFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-                               .set_desired_min_image_count(m_initInfo.backbufferCount);
+                               .set_desired_min_image_count(Config.backbufferCount);
 
         vkb::Swapchain vkbSwapchain = swapchainBuilder.build().value();
         swp.ptr                     = vkbSwapchain.swapchain;
         swp.format                  = vkbSwapchain.image_format;
-        swp.depthFormat             = desc.depthFormat;
         swp.imgs                    = vkbSwapchain.get_images().value();
         swp.views                   = vkbSwapchain.get_image_views().value();
         swp.surface                 = surface;
@@ -842,8 +880,8 @@ namespace LinaGX
         smpInfo.pNext                 = nullptr;
         smpInfo.flags                 = 0;
 
-        swp.imageAcquiredSemaphores.resize(m_initInfo.framesInFlight);
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        swp.imageAcquiredSemaphores.resize(Config.framesInFlight);
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             VkResult result = vkCreateSemaphore(m_device, &smpInfo, m_allocator, &swp.imageAcquiredSemaphores[i]);
             VK_CHECK_RESULT(result, "Failed creating semaphore.");
@@ -863,7 +901,7 @@ namespace LinaGX
             return;
         }
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
             vkDestroySemaphore(m_device, swp.imageAcquiredSemaphores[i], m_allocator);
 
         vkDestroySwapchainKHR(m_device, swp.ptr, m_allocator);
@@ -888,7 +926,7 @@ namespace LinaGX
         auto& swp       = m_swapchains.GetItemR(desc.swapchain);
         swp.width       = desc.width;
         swp.height      = desc.height;
-        swp.presentMode = GetVKPresentMode(desc.vsyncMode);
+        swp.presentMode = GetVKPresentMode(desc.vsyncStyle.vulkanVsync);
 
         if (!swp.isValid)
         {
@@ -903,7 +941,7 @@ namespace LinaGX
                                           .set_desired_present_mode(swp.presentMode)
                                           .set_desired_extent(desc.width, desc.height)
                                           .set_desired_format({swp.format, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-                                          .set_required_min_image_count(m_initInfo.backbufferCount)
+                                          .set_required_min_image_count(Config.backbufferCount)
                                           .build()
                                           .value();
         swp.ptr    = vkbSwapchain.swapchain;
@@ -972,10 +1010,11 @@ namespace LinaGX
         // Vertex Input Layout
         LINAGX_VEC<VkVertexInputBindingDescription>   bindingDescs;
         LINAGX_VEC<VkVertexInputAttributeDescription> attDescs;
-        if (!shaderDesc.layout.vertexInputs.empty())
+
+        if (shaderDesc.useCustomVertexInputs)
         {
             size_t stride = 0;
-            for (auto& i : shaderDesc.layout.vertexInputs)
+            for (auto& i : shaderDesc.customVertexInputs)
             {
                 VkVertexInputAttributeDescription att = VkVertexInputAttributeDescription{};
                 att.location                          = i.location;
@@ -991,6 +1030,29 @@ namespace LinaGX
             binding.stride                          = static_cast<uint32>(stride);
             binding.inputRate                       = VK_VERTEX_INPUT_RATE_VERTEX;
             bindingDescs.push_back(binding);
+        }
+        else
+        {
+            if (!shaderDesc.layout.vertexInputs.empty())
+            {
+                size_t stride = 0;
+                for (auto& i : shaderDesc.layout.vertexInputs)
+                {
+                    VkVertexInputAttributeDescription att = VkVertexInputAttributeDescription{};
+                    att.location                          = i.location;
+                    att.binding                           = 0;
+                    att.format                            = GetVKFormat(i.format);
+                    att.offset                            = static_cast<uint32>(i.offset);
+                    attDescs.push_back(att);
+                    stride += i.size;
+                }
+
+                VkVertexInputBindingDescription binding = VkVertexInputBindingDescription{};
+                binding.binding                         = 0;
+                binding.stride                          = static_cast<uint32>(stride);
+                binding.inputRate                       = VK_VERTEX_INPUT_RATE_VERTEX;
+                bindingDescs.push_back(binding);
+            }
         }
 
         VkPipelineVertexInputStateCreateInfo vertexInput = VkPipelineVertexInputStateCreateInfo{};
@@ -1556,19 +1618,34 @@ namespace LinaGX
             if (binding.type == DescriptorType::SeparateImage && binding.unbounded)
             {
                 containsBindlessTextures = true;
-                bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
+                uint32 pbFlag            = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+
+                if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind)
+                    pbFlag |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+
+                bindlessFlags.push_back(pbFlag);
                 // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
             }
             else if (binding.type == DescriptorType::SeparateSampler && binding.unbounded)
             {
                 containsBindlessTextures = true;
-                bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
+                uint32 pbFlag            = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+
+                if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind)
+                    pbFlag |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+
+                bindlessFlags.push_back(pbFlag);
                 // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
             else if (binding.type == DescriptorType::CombinedImageSampler && binding.unbounded)
             {
                 containsBindlessTextures = true;
-                bindlessFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
+                uint32 pbFlag            = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+
+                if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind)
+                    pbFlag |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+
+                bindlessFlags.push_back(pbFlag);
                 // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
             else
@@ -1595,8 +1672,8 @@ namespace LinaGX
         if (containsBindlessTextures)
         {
             layoutInfo.pNext = &extInfo;
-            layoutInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-            LOGA(m_initInfo.gpuFeatures.enableBindless, "Enable bindless feature in InitInfo to use bindless descriptors!");
+            layoutInfo.flags = (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind) ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
+            LOGA((Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_Bindless), "Enable bindless feature in InitInfo to use bindless descriptors!");
         }
 
         VkDescriptorSetLayout layout = nullptr;
@@ -1829,6 +1906,12 @@ namespace LinaGX
         m_cmdStreams.RemoveItem(handle);
     }
 
+    void VKBackend::SetCommandStreamImpl(uint32 handle, CommandStream* stream)
+    {
+        auto& str      = m_cmdStreams.GetItemR(handle);
+        str.streamImpl = stream;
+    }
+
     void VKBackend::CloseCommandStreams(CommandStream** streams, uint32 streamCount)
     {
 
@@ -1996,7 +2079,7 @@ namespace LinaGX
         submitInfo.pCommandBuffers      = _buffers.data();
         submitInfo.pWaitDstStageMask    = waitStages.data();
 
-        LOGA((frame.submissionCount < m_initInfo.gpuLimits.maxSubmitsPerFrame + 1), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+        LOGA((frame.submissionCount < Config.gpuLimits.maxSubmitsPerFrame + 1), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
 
         VkResult res = vkQueueSubmit(queue.queue, 1, &submitInfo, nullptr);
 
@@ -2044,9 +2127,9 @@ namespace LinaGX
         info.pNext                 = &timelineCreateInfo;
         info.flags                 = 0;
 
-        item.pfd.resize(m_initInfo.framesInFlight);
+        item.pfd.resize(Config.framesInFlight);
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             info.pNext   = &timelineCreateInfo;
             auto&    pfd = item.pfd[i];
@@ -2054,7 +2137,7 @@ namespace LinaGX
             VK_CHECK_RESULT(res, "Failed creating semaphore.");
 
             info.pNext                     = nullptr;
-            const uint32 submitSemaphoreSz = m_initInfo.gpuLimits.maxSubmitsPerFrame / 2;
+            const uint32 submitSemaphoreSz = Config.gpuLimits.maxSubmitsPerFrame / 2;
             pfd.submitSemaphoreBuffer.resize(submitSemaphoreSz);
 
             for (uint32 j = 0; j < submitSemaphoreSz; j++)
@@ -2065,7 +2148,7 @@ namespace LinaGX
         }
 
         item.queue = targetQueue;
-        item.wasSubmitted.resize(m_initInfo.framesInFlight);
+        item.wasSubmitted.resize(Config.framesInFlight);
 
         return m_queues.AddItem(item);
     }
@@ -2079,13 +2162,13 @@ namespace LinaGX
             return;
         }
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             auto& pfd = item.pfd[i];
 
             vkDestroySemaphore(m_device, pfd.startFrameWaitSemaphore, m_allocator);
 
-            const uint32 submitSemaphoreSz = m_initInfo.gpuLimits.maxSubmitsPerFrame / 2;
+            const uint32 submitSemaphoreSz = Config.gpuLimits.maxSubmitsPerFrame / 2;
             for (uint32 j = 0; j < submitSemaphoreSz; j++)
                 vkDestroySemaphore(m_device, pfd.submitSemaphoreBuffer[j], m_allocator);
         }
@@ -2127,10 +2210,77 @@ namespace LinaGX
         m_fences.RemoveItem(handle);
     }
 
-    bool VKBackend::Initialize(const InitInfo& initInfo)
+    uint32 VKBackend::QueryFeatureSupport(PreferredGPUType gpuType)
     {
-        m_initInfo = initInfo;
+        vkb::InstanceBuilder builder;
+        builder   = builder.set_app_name("").require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
+        auto inst = builder.build().value();
 
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(inst, &deviceCount, nullptr);
+        LINAGX_VEC<VkPhysicalDevice> devices(deviceCount);
+
+        if (deviceCount > 0)
+        {
+            VkResult result = vkEnumeratePhysicalDevices(inst, &deviceCount, devices.data());
+            if (result != VK_SUCCESS)
+            {
+                LOGE("Backend -> Failed enumerating physical devices!");
+            }
+        }
+
+        for (const auto& device : devices)
+        {
+            uint32                     features = 0;
+            VkPhysicalDeviceProperties deviceProperties;
+            vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+            if (gpuType == PreferredGPUType::Discrete && deviceProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+                continue;
+            if (gpuType == PreferredGPUType::Integrated && deviceProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+                continue;
+
+            VkPhysicalDeviceFeatures supportedFeatures;
+            vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
+            if (supportedFeatures.multiDrawIndirect)
+                features |= VulkanFeatureFlags::VKF_MultiDrawIndirect;
+
+            if (supportedFeatures.samplerAnisotropy)
+                features |= VulkanFeatureFlags::VKF_SamplerAnisotropy;
+
+            if (supportedFeatures.depthBiasClamp)
+                features |= VulkanFeatureFlags::VKF_DepthBiasClamp;
+
+            if (supportedFeatures.depthClamp)
+                features |= VulkanFeatureFlags::VKF_DepthClamp;
+
+            bool bindlessOKForFeatures0 = false;
+            if (supportedFeatures.shaderSampledImageArrayDynamicIndexing && supportedFeatures.shaderUniformBufferArrayDynamicIndexing)
+                bindlessOKForFeatures0 = true;
+
+            VkPhysicalDeviceVulkan12Features vulkan12Features = {};
+            vulkan12Features.sType                            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+            VkPhysicalDeviceFeatures2 features2{};
+            features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            features2.pNext = &vulkan12Features;
+            vkGetPhysicalDeviceFeatures2(device, &features2);
+
+            if (bindlessOKForFeatures0 && vulkan12Features.runtimeDescriptorArray && vulkan12Features.descriptorBindingPartiallyBound)
+                features |= VulkanFeatureFlags::VKF_Bindless;
+
+            if (vulkan12Features.descriptorBindingSampledImageUpdateAfterBind && vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind)
+                features |= VulkanFeatureFlags::VKF_UpdateAfterBind;
+
+            return features;
+        }
+
+        vkDestroyInstance(inst, nullptr);
+        return 0;
+    }
+
+    bool VKBackend::Initialize()
+    {
         // Total extensions
         LINAGX_VEC<const char*> requiredExtensions;
         requiredExtensions.push_back("VK_KHR_surface");
@@ -2141,7 +2291,7 @@ namespace LinaGX
 
         // Instance builder
         vkb::InstanceBuilder builder;
-        builder = builder.set_app_name(initInfo.appName).request_validation_layers(Config.vulkanConfig.enableValidationLayers).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
+        builder = builder.set_app_name(Config.appName).request_validation_layers(Config.vulkanConfig.enableValidationLayers).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
 
         // Extensions
         for (auto ext : requiredExtensions)
@@ -2160,7 +2310,7 @@ namespace LinaGX
         auto res = builder.build();
         if (!res)
         {
-            LOGE("Backend ->Vulkan builder failed!");
+            LOGE("Backend -> Vulkan builder failed!");
             return false;
         }
 
@@ -2168,81 +2318,91 @@ namespace LinaGX
         m_vkInstance       = inst.instance;
         m_debugMessenger   = inst.debug_messenger;
 
+        // Check mandatory feature support
+        {
+            uint32_t deviceCount = 0;
+            vkEnumeratePhysicalDevices(inst, &deviceCount, nullptr);
+            LINAGX_VEC<VkPhysicalDevice> devices(deviceCount);
+
+            if (deviceCount > 0)
+            {
+                VkResult result = vkEnumeratePhysicalDevices(inst, &deviceCount, devices.data());
+                if (result != VK_SUCCESS)
+                {
+                    LOGE("Backend -> Failed enumerating physical devices!");
+                }
+            }
+
+            bool tsSupported = false;
+
+            LINAGX_VEC<uint32> supportedFlagsPerDevice;
+            supportedFlagsPerDevice.resize(deviceCount);
+
+            for (const auto& device : devices)
+            {
+                VkPhysicalDeviceVulkan12Features vulkan12Features = {};
+                vulkan12Features.sType                            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+                VkPhysicalDeviceFeatures2 features2{};
+                features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+                features2.pNext = &vulkan12Features;
+                vkGetPhysicalDeviceFeatures2(device, &features2);
+
+                if (vulkan12Features.timelineSemaphore)
+                    tsSupported = true;
+            }
+
+            if (!tsSupported)
+            {
+                LOGE("Backend -> No device were found supporting Vulkan 1.2 Timeline semaphores!");
+
+                if (m_debugMessenger != nullptr)
+                    vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+
+                vkDestroyInstance(m_vkInstance, m_allocator);
+
+                return false;
+            }
+        }
+
         vkb::PreferredDeviceType targetDeviceType = vkb::PreferredDeviceType::discrete;
 
-        if (initInfo.gpu == PreferredGPUType::CPU)
-            targetDeviceType = vkb::PreferredDeviceType::cpu;
-        else if (initInfo.gpu == PreferredGPUType::Integrated)
+        if (Config.gpu == PreferredGPUType::Integrated)
             targetDeviceType = vkb::PreferredDeviceType::integrated;
 
         // Physical device
         VkPhysicalDeviceFeatures features{};
-        features.samplerAnisotropy = true;
-        features.multiDrawIndirect = true;
 
-        if (m_initInfo.gpuFeatures.enableBindless)
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_SamplerAnisotropy)
+            features.samplerAnisotropy = true;
+
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_DepthClamp)
+            features.depthClamp = true;
+
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_DepthBiasClamp)
+            features.depthBiasClamp = true;
+
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_MultiDrawIndirect)
+            features.multiDrawIndirect = true;
+
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_Bindless)
         {
-            features.shaderSampledImageArrayDynamicIndexing = true;
+            features.shaderSampledImageArrayDynamicIndexing  = true;
+            features.shaderUniformBufferArrayDynamicIndexing = true;
         }
 
         VkPhysicalDeviceVulkan12Features vk12Features = {};
         vk12Features.timelineSemaphore                = true;
 
-        if (m_initInfo.gpuFeatures.enableBindless)
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_Bindless)
         {
-            vk12Features.runtimeDescriptorArray                        = true;
-            vk12Features.descriptorBindingPartiallyBound               = true;
-            vk12Features.descriptorBindingSampledImageUpdateAfterBind  = true;
-            vk12Features.descriptorBindingStorageBufferUpdateAfterBind = true;
-            vk12Features.descriptorBindingUniformBufferUpdateAfterBind = true;
+            vk12Features.runtimeDescriptorArray          = true;
+            vk12Features.descriptorBindingPartiallyBound = true;
         }
 
-        // Check for feature support
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind)
         {
-            uint32_t                     deviceCount = 0;
-            LINAGX_VEC<VkPhysicalDevice> devices(deviceCount);
-            vkEnumeratePhysicalDevices(inst, &deviceCount, nullptr);
-            LINAGX_VEC<bool> unsupportState(deviceCount);
-
-            uint32 i = 0;
-            for (const auto& device : devices)
-            {
-                VkPhysicalDeviceFeatures supportedFeatures;
-                vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
-
-                VkPhysicalDeviceVulkan12Features supportedVulkan12Features = {};
-                supportedVulkan12Features.sType                            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-                VkPhysicalDeviceProperties2 deviceProperties2              = {};
-                deviceProperties2.sType                                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-                deviceProperties2.pNext                                    = &supportedVulkan12Features;
-                vkGetPhysicalDeviceProperties2(device, &deviceProperties2);
-
-                if (!supportedFeatures.samplerAnisotropy || !supportedFeatures.multiDrawIndirect || !supportedVulkan12Features.timelineSemaphore)
-                    unsupportState[i] = true;
-
-                if (m_initInfo.gpuFeatures.enableBindless)
-                {
-                    if (!supportedFeatures.shaderSampledImageArrayDynamicIndexing || !supportedVulkan12Features.runtimeDescriptorArray || !supportedVulkan12Features.descriptorBindingPartiallyBound || !supportedVulkan12Features.descriptorBindingSampledImageUpdateAfterBind || !supportedVulkan12Features.descriptorBindingUniformBufferUpdateAfterBind || !supportedVulkan12Features.descriptorBindingStorageBufferUpdateAfterBind)
-                        unsupportState[i] = true;
-                }
-
-                i++;
-            }
-
-            bool foundOne = false;
-            for (const auto& s : unsupportState)
-            {
-                if (!s)
-                {
-                    foundOne = true;
-                    break;
-                }
-            }
-
-            if (!foundOne)
-            {
-                LOGA(false, "No devices were found that supports all the features!");
-            }
+            vk12Features.descriptorBindingSampledImageUpdateAfterBind  = true;
+            vk12Features.descriptorBindingUniformBufferUpdateAfterBind = true;
         }
 
         vkb::PhysicalDeviceSelector      selector{inst};
@@ -2259,15 +2419,20 @@ namespace LinaGX
         // Disable not-crucial features if not supported.
         if (!phyRes.has_value())
         {
-            features.multiDrawIndirect  = false;
-            m_supportsMultiDrawIndirect = false;
-            physicalDevice              = selector.select(vkb::DeviceSelectionMode::partially_and_fully_suitable).value();
+            LOGE("Backend -> Failed creating a physical device with requested features!");
+
+            if (m_debugMessenger != nullptr)
+                vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+
+            vkDestroyInstance(m_vkInstance, m_allocator);
+
+            return false;
         }
-        else
-        {
+
+        physicalDevice = phyRes.value();
+
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_MultiDrawIndirect)
             m_supportsMultiDrawIndirect = true;
-            physicalDevice              = phyRes.value();
-        }
 
         // create the final Vulkan device
         vkb::DeviceBuilder                           deviceBuilder{physicalDevice};
@@ -2276,10 +2441,13 @@ namespace LinaGX
         shaderDrawParamsFeature.pNext                = nullptr;
         shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
 
-        VkPhysicalDeviceMultiDrawFeaturesEXT mt;
-        mt.sType     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT;
-        mt.multiDraw = true;
-        deviceBuilder.add_pNext(&mt);
+        if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_MultiDrawIndirect)
+        {
+            VkPhysicalDeviceMultiDrawFeaturesEXT mt;
+            mt.sType     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT;
+            mt.multiDraw = true;
+            deviceBuilder.add_pNext(&mt);
+        }
 
         // For using UPDATE_AFTER_BIND_BIT on material bindings - invalid after using VK12 Features
         // VkPhysicalDeviceDescriptorIndexingFeatures descFeatures    = VkPhysicalDeviceDescriptorIndexingFeatures{};
@@ -2369,7 +2537,7 @@ namespace LinaGX
         else
             queueIndicesAndCounts[computeQueueFamilies[0]]++;
 
-        queueIndicesAndCounts[graphicsQueueFamilies[0]] += 1 + m_initInfo.gpuFeatures.extraGraphicsQueueCount;
+        queueIndicesAndCounts[graphicsQueueFamilies[0]] += 1 + Config.vulkanConfig.extraGraphicsQueueCount;
 
         for (auto& pair : queueIndicesAndCounts)
         {
@@ -2453,10 +2621,10 @@ namespace LinaGX
             compute.actualQueueType = CommandType::Graphics;
         }
 
-        gfx.queues.resize(m_initInfo.gpuFeatures.extraGraphicsQueueCount + 1);
+        gfx.queues.resize(Config.vulkanConfig.extraGraphicsQueueCount + 1);
         gfx.familyIndex = graphicsQueueFamilies[0];
 
-        for (uint32 i = 0; i < m_initInfo.gpuFeatures.extraGraphicsQueueCount + 1; i++)
+        for (uint32 i = 0; i < Config.vulkanConfig.extraGraphicsQueueCount + 1; i++)
         {
             if (queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]] < queueFamilies[graphicsQueueFamilies[0]].queueCount)
             {
@@ -2509,18 +2677,13 @@ namespace LinaGX
             {
                 const Format   lgxFormat = static_cast<Format>(i);
                 const VkFormat vkFormat  = GetVKFormat(lgxFormat);
-                VkResult       supported = vkGetPhysicalDeviceImageFormatProperties(m_gpu, vkFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, &p);
-                if (supported == VK_SUCCESS)
-                {
-                    GPUInfo.supportedImageFormats.push_back(lgxFormat);
-                }
-            }
 
-            for (auto& f : m_initInfo.checkForFormatSupport)
-            {
-                auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
-                if (it == GPUInfo.supportedImageFormats.end())
-                    LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
+                VkResult supportsSampled2D      = vkGetPhysicalDeviceImageFormatProperties(m_gpu, vkFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT, 0, &p);
+                VkResult supportsColorAtt2D     = vkGetPhysicalDeviceImageFormatProperties(m_gpu, vkFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &p);
+                VkResult supportsDepthStencil2D = vkGetPhysicalDeviceImageFormatProperties(m_gpu, vkFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 0, &p);
+
+                if (supportsSampled2D || supportsColorAtt2D || supportsDepthStencil2D)
+                    GPUInfo.supportedTexture2DFormats.push_back({lgxFormat, supportsSampled2D == VK_SUCCESS, supportsColorAtt2D == VK_SUCCESS, supportsDepthStencil2D == VK_SUCCESS});
             }
         }
 
@@ -2564,7 +2727,7 @@ namespace LinaGX
 
         // Per frame data
         {
-            for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+            for (uint32 i = 0; i < Config.framesInFlight; i++)
             {
                 VKBPerFrameData pfd = {};
                 m_perFrameData.push_back(pfd);
@@ -2578,11 +2741,11 @@ namespace LinaGX
             uint32 totalSets = 0;
 
             LINAGX_MAP<DescriptorType, uint32> limits;
-            limits[DescriptorType::CombinedImageSampler] = m_initInfo.gpuLimits.samplerLimit;
-            limits[DescriptorType::SeparateSampler]      = m_initInfo.gpuLimits.samplerLimit;
-            limits[DescriptorType::SeparateImage]        = m_initInfo.gpuLimits.textureLimit;
-            limits[DescriptorType::UBO]                  = m_initInfo.gpuLimits.bufferLimit;
-            limits[DescriptorType::SSBO]                 = m_initInfo.gpuLimits.bufferLimit;
+            limits[DescriptorType::CombinedImageSampler] = Config.gpuLimits.samplerLimit;
+            limits[DescriptorType::SeparateSampler]      = Config.gpuLimits.samplerLimit;
+            limits[DescriptorType::SeparateImage]        = Config.gpuLimits.textureLimit;
+            limits[DescriptorType::UBO]                  = Config.gpuLimits.bufferLimit;
+            limits[DescriptorType::SSBO]                 = Config.gpuLimits.bufferLimit;
 
             for (const auto& [dt, limit] : limits)
             {
@@ -2605,8 +2768,8 @@ namespace LinaGX
 
             VkDescriptorPoolCreateInfo info = VkDescriptorPoolCreateInfo{};
             info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            info.flags                      = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-            info.maxSets                    = m_initInfo.gpuLimits.maxDescriptorSets;
+            info.flags                      = (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind) ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
+            info.maxSets                    = Config.gpuLimits.maxDescriptorSets;
             info.poolSizeCount              = static_cast<uint32>(sizeInfos.size());
             info.pPoolSizes                 = sizeInfos.data();
 
@@ -2632,7 +2795,7 @@ namespace LinaGX
 
         vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             auto& pfd = m_perFrameData[i];
         }
@@ -2703,7 +2866,7 @@ namespace LinaGX
         LINAGX_VEC<VkSemaphore> waitSemaphores;
         LINAGX_VEC<uint64>      waitSemaphoreValues;
 
-        for (uint32 i = 0; i < m_initInfo.framesInFlight; i++)
+        for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
             for (auto& q : m_queues)
             {
@@ -2817,7 +2980,7 @@ namespace LinaGX
 
             for (auto it = cs.intermediateResources.begin(); it != cs.intermediateResources.end();)
             {
-                if (PerformanceStats.totalFrames > it->second + m_initInfo.framesInFlight + 1)
+                if (PerformanceStats.totalFrames > it->second + Config.framesInFlight + 1)
                 {
                     DestroyResource(it->first);
                     it = cs.intermediateResources.erase(it);
@@ -3065,7 +3228,7 @@ namespace LinaGX
         auto&                   indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
 
         if (m_supportsMultiDrawIndirect)
-            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->stride);
+            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->indirectBufferOffset);
         else
         {
             for (uint32 i = 0; i < cmd->count; i++)
@@ -3271,25 +3434,6 @@ namespace LinaGX
         CMDDispatch* cmd    = reinterpret_cast<CMDDispatch*>(data);
         auto         buffer = stream.buffer;
         vkCmdDispatch(buffer, cmd->groupSizeX, cmd->groupSizeY, cmd->groupSizeZ);
-    }
-
-    void VKBackend::CMD_ComputeBarrier(uint8* data, VKBCommandStream& stream)
-    {
-        CMDComputeBarrier* cmd    = reinterpret_cast<CMDComputeBarrier*>(data);
-        auto               buffer = stream.buffer;
-
-        VkMemoryBarrier memoryBarrier{};
-        memoryBarrier.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-        memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        memoryBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
-
-        vkCmdPipelineBarrier(buffer,
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
-                             VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,  // dstStageMask
-                             0,                                    // dependencyFlags
-                             1, &memoryBarrier,                    // memoryBarrierCount, pMemoryBarriers
-                             0, nullptr,                           // bufferMemoryBarrierCount, pBufferMemoryBarriers
-                             0, nullptr);                          // imageMemoryBarrierCount, pImageMemoryBarriers
     }
 
     void VKBackend::CMD_ExecuteSecondaryStream(uint8* data, VKBCommandStream& stream)

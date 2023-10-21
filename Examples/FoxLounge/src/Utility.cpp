@@ -325,7 +325,7 @@ namespace LinaGX::Examples
     LinaGX::TextureDesc Utility::GetRTDesc(const char* debugName, uint32 width, uint32 height)
     {
         LinaGX::TextureDesc desc = {
-            .format    = LinaGX::Format::R16G16B16A16_FLOAT,
+            .format    = LinaGX::Format::R16G16B16A16_SFLOAT,
             .views     = {{0, 0, 0, 0, false}},
             .flags     = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopySource,
             .width     = width,
@@ -343,7 +343,7 @@ namespace LinaGX::Examples
 
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,
-            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .format      = LinaGX::Format::R16G16B16A16_SFLOAT,
             .views       = views,
             .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
             .width       = width,
@@ -366,7 +366,7 @@ namespace LinaGX::Examples
 
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,
-            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .format      = LinaGX::Format::R16G16B16A16_SFLOAT,
             .views       = views,
             .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
             .width       = width,
@@ -415,7 +415,7 @@ namespace LinaGX::Examples
 
         LinaGX::TextureDesc desc{
             .type        = LinaGX::TextureType::Texture2D,
-            .format      = LinaGX::Format::R16G16B16A16_FLOAT,
+            .format      = LinaGX::Format::R16G16B16A16_SFLOAT,
             .views       = views,
             .flags       = TextureFlags::TF_ColorAttachment | TextureFlags::TF_Sampled | TextureFlags::TF_CopyDest | TextureFlags::TF_Cubemap,
             .width       = width,
