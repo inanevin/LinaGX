@@ -2333,27 +2333,51 @@ namespace LinaGX
                 }
             }
 
-            bool tsSupported = false;
+            bool tsSupported = false, drSupported = false;
 
             LINAGX_VEC<uint32> supportedFlagsPerDevice;
             supportedFlagsPerDevice.resize(deviceCount);
 
             for (const auto& device : devices)
             {
+                VkPhysicalDeviceVulkan13Features vulkan13Features = {};
+                vulkan13Features.sType                            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+
                 VkPhysicalDeviceVulkan12Features vulkan12Features = {};
                 vulkan12Features.sType                            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+
                 VkPhysicalDeviceFeatures2 features2{};
                 features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
                 features2.pNext = &vulkan12Features;
                 vkGetPhysicalDeviceFeatures2(device, &features2);
 
+                VkPhysicalDeviceFeatures2 features2_3{};
+                features2_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+                features2_3.pNext = &vulkan13Features;
+                vkGetPhysicalDeviceFeatures2(device, &features2_3);
+
                 if (vulkan12Features.timelineSemaphore)
                     tsSupported = true;
+
+                if (vulkan13Features.dynamicRendering)
+                    drSupported = true;
             }
 
             if (!tsSupported)
             {
-                LOGE("Backend -> No device were found supporting Vulkan 1.2 Timeline semaphores!");
+                LOGE("Backend -> No device were found supporting Vulkan 1.2 Timeline Semaphores!");
+
+                if (m_debugMessenger != nullptr)
+                    vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
+
+                vkDestroyInstance(m_vkInstance, m_allocator);
+
+                return false;
+            }
+
+            if (!drSupported)
+            {
+                LOGE("Backend -> No device were found supporting Vulkan 1.3 Dynamic Rendering!");
 
                 if (m_debugMessenger != nullptr)
                     vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);

@@ -29,7 +29,6 @@ SOFTWARE.
 /*
 THINGS TO ADD ALL BACKENDS/FIX:
 
- - Proper feature support. Find all features we are using, categorize them, make sure users are able to know if particular thing is supported or not.
  - Fero model won't load.
  - Fero'da format/hdr problemi.
  - Document & format all.
@@ -37,17 +36,12 @@ THINGS TO ADD ALL BACKENDS/FIX:
 
 THINGS TO RESEARCH:
 
-- Proper alignment. Alignment between struct elements in SSBO and UBO in different platforms. Also alignment between lets say array ubos. Or alignment between different bindings. UBO alignment 256 for example?
 - gl_InstanceIndex and alike and their support.
-- Find a proper solution for bindless and multi-draw-indirect issue. If using gl_DrawID it makes sense only if multi-draw-indirect is supported. Otherwise need to use push-constant.
 - allocate N sets & pool them.
 
 FEATURES TO IMPLEMENT
 
-- Indirect rendering: check vulkan multiDrawIndirect support, count buffer support for later.
 - Camera data transfer, investigate slowness on integrated card.
-- Indirect rendering count buffer.
-- Pipeline caching.
 - metal: resize and exit bugs.
 
 INDIRECT NOTES:
@@ -59,23 +53,18 @@ INDIRECT NOTES:
 
 NOTES TO DOCUMENT:
 
-- Vertex, Fragment and Compute are supported. Geometry is not supported on Metal. Geometry and Tesellation stages are not battle tested, might be problematic.
-
- - Minimum Vulkan 1.3 is required.
- - Target devices need to support Vulkan 1.2 timeline semaphores.
- - When requested bindless rendering: shaderSampledImageArrayDynamicIndexing, runtimeDescriptorArray, descriptorBindingPartiallyBound,
- descriptorBindingSampledImageUpdateAfterBind, descriptorBindingStorageBufferUpdateAfterBind, descriptorBindingUniformBufferUpdateAfterBind are required.
- - Minimum GLSL #version 450.
-
+ - Always use alignment rules for your target graphics backend.
+ - Vertex, Fragment and Compute are supported. Geometry is not supported on Metal. Geometry and Tesellation stages are not battle tested, might be problematic.
+ - Minimum Vulkan 1.3 is required and GLSL version #450 is required. On Vulkan, devices need to support 1.2. Timeline Semaphores and 1.3. Dynamic Rendering features.
+ - Bindless rendering requires: shaderSampledImageArrayDynamicIndexing, shaderUniformBufferArrayDynamicIndexing, runtimeDescriptorArray, descriptorBindingPartiallyBound
+ - Update after bind requires: descriptorBindingSampledImageUpdateAfterBind & descriptorBindingUniformBufferUpdateAfterBind and only supports those 2.
  - DX12 - D3D_FEATURE_LEVEL_11_0 is minimum support. HLSL shader model SM6_0 is required.
-
-
  - All entry points to your shaders must be named main.
  - Only single push_constants can be used.
- - Don't do bindless SSBO its pointless. You can do binless texture2D, sampler, sampler2D and UBO.
+ - Bindless is supported on sampler2D, texture2D, sampler and UBOs.
  - If dynamically indexing into unsized array, don't forget the nonuniform extension: #extension GL_EXT_nonuniform_qualifier : enable
  - If you statically index a unsized array, it will be converted to a sized one.
- - Set numbers must be properly increasing. Can't have set 1 if the shader does not define a set 0. Of course this is across all stages. (e.g. vertex have Set 1, fragment has Set 0, its valid.)
+ - Set numbers must be properly increasing if you are using auto-generated shader layouts. Can't have set 1 if the shader does not define a set 0. Of course this is across all stages. (e.g. vertex have Set 1, fragment has Set 0, its valid.)
  - If you are writing to a swapchain, make sure you submit that draw to a primary queue.
  - Don't forget to set isMultithreaded flag if submitting queues from multiple threads (Vulkan and Metal).
  - And of course don't write to the same texture/swapchain from multiple queues.
@@ -91,6 +80,8 @@ UNSUPPORTED ON FIRST RELEASE:
 
  - Subpasses.
  - Multiple vertex buffer slot bindings.
+ - Pipeline caching.
+ - Indirect rendering count buffer.
 
 */
 
