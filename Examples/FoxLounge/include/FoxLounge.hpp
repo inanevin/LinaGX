@@ -47,15 +47,15 @@ namespace LinaGX
             uint16                 transferSemaphore      = 0;
             uint16                 globalSet              = 0;
 
-            uint32 rscCameraData0        = 0;
-            uint8* rscCameraDataMapping0 = nullptr;
+            uint32 rscCameraData        = 0;
+            uint8* rscCameraDataMapping = nullptr;
 
             uint32 rscSceneData         = 0;
             uint8* rscSceneDataMapping  = nullptr;
             uint32 rscObjDataCPU        = 0;
             uint32 rscObjDataGPU        = 0;
             uint8* rscObjDataCPUMapping = nullptr;
-            
+
             int32 boundShader = -1;
         };
 
@@ -68,7 +68,7 @@ namespace LinaGX
 
         struct Material
         {
-            std::string                                         name      = "";
+            std::string                                         name = "";
             GPUMaterialData                                     gpuMat;
             std::unordered_map<LinaGX::GLTFTextureType, uint32> textureIndices;
             uint16                                              descriptorSets[FRAMES_IN_FLIGHT];

@@ -43,6 +43,7 @@ FEATURES TO IMPLEMENT
 
 - Camera data transfer, investigate slowness on integrated card.
 - metal: resize and exit bugs.
+- metal formats, some api changes?
 
 INDIRECT NOTES:
 
