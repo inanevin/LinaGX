@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "LinaGX/Core/WindowManager.hpp"
 #include "LinaGX/Core/Input.hpp"
 
@@ -70,11 +69,11 @@ namespace LinaGX
         m_windows.erase(it);
     }
 
-    void WindowManager::PollWindowsAndInput()
+    void WindowManager::TickWindowSystem()
     {
         m_input->Tick();
 
-        for (const auto [sid, w] : m_windows)
+        for (const auto& [sid, w] : m_windows)
             w->Tick();
     }
 

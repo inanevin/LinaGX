@@ -754,11 +754,15 @@ namespace LinaGX::Examples
                 .size          = camDataPadded * 13,
                 .typeHintFlags = LinaGX::TH_ConstantBuffer,
                 .heapType      = LinaGX::ResourceHeap::StagingHeap,
-                .debugName     = "Camera Data 1",
+                .debugName     = "Camera Data CPU",
             };
 
             pfd.rscCameraData = m_lgx->CreateResource(cameraDataResource);
             m_lgx->MapResource(pfd.rscCameraData, pfd.rscCameraDataMapping);
+
+            cameraDataResource.debugName = "Camera Data GPU";
+            cameraDataResource.heapType  = LinaGX::ResourceHeap::GPUOnly;
+            pfd.rscCameraDataGPU         = m_lgx->CreateResource(cameraDataResource);
 
             // For environment mapping.
             for (uint32 i = 0; i < 6; i++)
@@ -790,6 +794,10 @@ namespace LinaGX::Examples
                 };
                 std::memcpy(pfd.rscCameraDataMapping + camDataPadded + (camDataPadded * i), &cd, sizeof(GPUCameraData));
             }
+
+            LinaGX::CMDCopyResource* camCopy = m_pfd[0].transferStream->AddCommand<LinaGX::CMDCopyResource>();
+            camCopy->destination             = pfd.rscCameraDataGPU;
+            camCopy->source                  = pfd.rscCameraData;
         }
 
         // SSAO Kernels & Noise
@@ -1024,7 +1032,7 @@ namespace LinaGX::Examples
                 LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
                     .setHandle = m_passes[PS_Objects].descriptorSets[i],
                     .binding   = 0,
-                    .buffers   = {m_pfd[i].rscCameraData},
+                    .buffers   = {m_pfd[i].rscCameraDataGPU},
                     .ranges    = {sizeof(GPUCameraData)},
                 };
 
@@ -1036,7 +1044,7 @@ namespace LinaGX::Examples
                 LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
                     .setHandle = m_passes[PS_SSAOGeometry].descriptorSets[i],
                     .binding   = 0,
-                    .buffers   = {m_pfd[i].rscCameraData},
+                    .buffers   = {m_pfd[i].rscCameraDataGPU},
                     .ranges    = {sizeof(GPUCameraData)},
                 };
 
@@ -1048,7 +1056,7 @@ namespace LinaGX::Examples
                 LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
                     .setHandle = m_passes[PS_Lighting].descriptorSets[i],
                     .binding   = 0,
-                    .buffers   = {m_pfd[i].rscCameraData},
+                    .buffers   = {m_pfd[i].rscCameraDataGPU},
                     .ranges    = {sizeof(GPUCameraData)},
                 };
                 m_lgx->DescriptorUpdateBuffer(bufferUpdate);
@@ -1126,7 +1134,7 @@ namespace LinaGX::Examples
                     LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
                         .setHandle = m_passes[PS_Irradiance].descriptorSets[i],
                         .binding   = 0,
-                        .buffers   = {m_pfd[i].rscCameraData},
+                        .buffers   = {m_pfd[i].rscCameraDataGPU},
                         .ranges    = {sizeof(GPUCameraData)},
                     };
 
@@ -1146,7 +1154,7 @@ namespace LinaGX::Examples
                     LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
                         .setHandle = m_passes[PS_Shadows].descriptorSets[i],
                         .binding   = 0,
-                        .buffers   = {m_pfd[i].rscCameraData},
+                        .buffers   = {m_pfd[i].rscCameraDataGPU},
                         .ranges    = {sizeof(GPUCameraData)},
                     };
 
@@ -1158,7 +1166,7 @@ namespace LinaGX::Examples
                     LinaGX::DescriptorUpdateBufferDesc bufferUpdate = {
                         .setHandle = m_passes[PS_Prefilter].descriptorSets[i],
                         .binding   = 0,
-                        .buffers   = {m_pfd[i].rscCameraData},
+                        .buffers   = {m_pfd[i].rscCameraDataGPU},
                         .ranges    = {sizeof(GPUCameraData)},
                     };
 
@@ -1432,6 +1440,7 @@ namespace LinaGX::Examples
             m_lgx->DestroyResource(pfd.rscObjDataCPU);
             m_lgx->DestroyResource(pfd.rscObjDataGPU);
             m_lgx->DestroyResource(pfd.rscCameraData);
+            m_lgx->DestroyResource(pfd.rscCameraDataGPU);
 
             for (auto& mat : m_materials)
             {
@@ -1720,6 +1729,7 @@ namespace LinaGX::Examples
             };
 
             std::memcpy(currentFrame.rscCameraDataMapping, &camData, sizeof(GPUCameraData));
+
             // Light cameras.
             for (uint32 i = 0; i < 6; i++)
             {
@@ -1749,6 +1759,10 @@ namespace LinaGX::Examples
 
                 std::memcpy(currentFrame.rscCameraDataMapping + camDataPadded * 7 + (camDataPadded * i), &cd, sizeof(GPUCameraData));
             }
+
+            LinaGX::CMDCopyResource* camCopy = currentFrame.transferStream->AddCommand<LinaGX::CMDCopyResource>();
+            camCopy->destination             = currentFrame.rscCameraDataGPU;
+            camCopy->source                  = currentFrame.rscCameraData;
         }
 
         // Obj data.
@@ -2036,10 +2050,13 @@ namespace LinaGX::Examples
 
     void Example::OnTick()
     {
-        auto now = std::chrono::high_resolution_clock::now();
-
         // Check for window inputs.
-        m_lgx->PollWindowsAndInput();
+        m_lgx->TickWindowSystem();
+        m_camera.Tick(m_deltaSeconds);
+    }
+
+    void Example::OnRender()
+    {
 
         bool dbgUpdate = false;
 
@@ -2118,8 +2135,6 @@ namespace LinaGX::Examples
         if (m_window->GetSize().x == 0 || m_window->GetSize().y == 0)
             return;
 
-        m_camera.Tick(m_deltaSeconds);
-
         // Let LinaGX know we are starting a new frame.
         m_lgx->StartFrame();
 
@@ -2157,9 +2172,6 @@ namespace LinaGX::Examples
 
         // Let LinaGX know we are finalizing this frame.
         m_lgx->EndFrame();
-
-        auto end      = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - now);
     }
 
 } // namespace LinaGX::Examples

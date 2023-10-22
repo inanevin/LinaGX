@@ -41,9 +41,9 @@ THINGS TO RESEARCH:
 
 FEATURES TO IMPLEMENT
 
-- Camera data transfer, investigate slowness on integrated card.
 - metal: resize and exit bugs.
 - metal formats, some api changes?
+- metal descriptor set allocation index.
 
 INDIRECT NOTES:
 

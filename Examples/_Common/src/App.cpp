@@ -42,7 +42,7 @@ namespace LinaGX::Examples
     void App::Run()
     {
         m_isRunning = true;
-        m_prevTime  = std::chrono::high_resolution_clock::now();
+        m_prevTime  = std::chrono::steady_clock::now();
 
         while (m_isRunning)
         {
@@ -54,13 +54,6 @@ namespace LinaGX::Examples
 
     void App::Tick()
     {
-        auto now            = std::chrono::high_resolution_clock::now();
-        auto duration       = std::chrono::duration_cast<std::chrono::microseconds>(now - m_prevTime);
-        m_prevTime          = now;
-        m_deltaMicroseconds = duration.count();
-        m_deltaSeconds      = static_cast<float>(m_deltaMicroseconds) / 1000000.0f;
-        m_elapsedSeconds += m_deltaSeconds;
-
         MSG msg    = {0};
         msg.wParam = 0;
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -69,7 +62,15 @@ namespace LinaGX::Examples
             DispatchMessage(&msg);
         }
 
+        auto now               = std::chrono::steady_clock::now();
+        auto deltaMicroSeconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_prevTime);
+        m_prevTime             = now;
+        m_deltaMicroseconds    = deltaMicroSeconds.count();
+        m_deltaSeconds         = static_cast<float>(m_deltaMicroseconds) / 1000000.0f;
+        m_elapsedSeconds += m_deltaSeconds;
+
         OnTick();
+        OnRender();
 
         static uint64 fpsCounter = 0;
         fpsCounter += m_deltaMicroseconds;

@@ -136,9 +136,10 @@ namespace LinaGX
 
     struct VKBDescriptorSet
     {
-        bool                          isValid = false;
-        VkDescriptorSet               ptr     = nullptr;
-        VkDescriptorSetLayout         layout  = nullptr;
+        bool                          isValid  = false;
+        VkDescriptorSet*              sets     = nullptr;
+        uint32                        setCount = 1;
+        VkDescriptorSetLayout         layout   = nullptr;
         LINAGX_VEC<DescriptorBinding> bindings;
     };
 

@@ -31,6 +31,7 @@ SOFTWARE.
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <chrono>
 
 namespace LinaGX::Examples
 {
@@ -39,11 +40,14 @@ namespace LinaGX::Examples
 #define ROTATE_SPEED 32.0f
 #define ROTATE_AMT   3.0f
 
+    std::chrono::steady_clock::time_point now;
+
     void Camera::Initialize(LinaGX::Instance* lgx)
     {
         m_lgx        = lgx;
         m_mainWindow = m_lgx->GetWindowManager().GetWindow(0);
         m_initialRot = m_rotation;
+        now          = std::chrono::high_resolution_clock::now();
     }
 
     void Camera::Tick(float dt)
@@ -65,6 +69,7 @@ namespace LinaGX::Examples
             }
         }
 
+        //m_controlsEnabled = true;
         if (m_controlsEnabled)
         {
             // Calc rot.
@@ -93,6 +98,14 @@ namespace LinaGX::Examples
             const glm::vec3 rightVec   = m_rotation * glm::vec3(1.0f, 0.0f, 0.0f);
             m_position += moveY * dt * glm::normalize(forwardVec) * MOVE_SPEED;
             m_position += moveX * dt * glm::normalize(rightVec) * MOVE_SPEED;
+
+            auto now2     = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now2 - now);
+
+            if (duration.count() > 3000)
+            {
+                int a = 5;
+            }
         }
 
         // Produce matrices.

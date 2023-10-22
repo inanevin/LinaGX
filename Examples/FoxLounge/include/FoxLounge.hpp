@@ -48,6 +48,7 @@ namespace LinaGX
             uint16                 globalSet              = 0;
 
             uint32 rscCameraData        = 0;
+            uint32 rscCameraDataGPU     = 0;
             uint8* rscCameraDataMapping = nullptr;
 
             uint32 rscSceneData         = 0;
@@ -114,6 +115,7 @@ namespace LinaGX
             virtual void Initialize() override;
             virtual void Shutdown() override;
             virtual void OnTick() override;
+            virtual void OnRender() override;
 
         private:
             void ConfigureInitializeLinaGX();

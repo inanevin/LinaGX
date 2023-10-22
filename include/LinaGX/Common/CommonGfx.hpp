@@ -916,11 +916,13 @@ namespace LinaGX
     struct DescriptorSetDesc
     {
         LINAGX_VEC<DescriptorBinding> bindings;
+        uint32                        allocationCount = 1;
     };
 
     struct DescriptorUpdateImageDesc
     {
         uint16             setHandle          = 0;
+        uint32             setAllocationIndex = 0; // You can allocate more than 1 set with single CreateDescriptorSet() call. This is the index of the allocation. Leave 0 if allocated only 1 set.
         uint32             binding            = 0;
         LINAGX_VEC<uint32> textures           = {};
         LINAGX_VEC<uint32> samplers           = {};
@@ -929,12 +931,13 @@ namespace LinaGX
 
     struct DescriptorUpdateBufferDesc
     {
-        uint16             setHandle     = 0;
-        uint32             binding       = 0;
-        LINAGX_VEC<uint32> buffers       = {};
-        LINAGX_VEC<uint32> ranges        = {}; // Can be left empty, whole size will be used.
-        LINAGX_VEC<uint32> offsets       = {}; // Can be left empty, no offset will be used.
-        bool               isWriteAccess = false;
+        uint16             setHandle          = 0;
+        uint32             setAllocationIndex = 0; // You can allocate more than 1 set with single CreateDescriptorSet() call. This is the index of the allocation. Leave 0 if allocated only 1 set.
+        uint32             binding            = 0;
+        LINAGX_VEC<uint32> buffers            = {};
+        LINAGX_VEC<uint32> ranges             = {}; // Can be left empty, whole size will be used.
+        LINAGX_VEC<uint32> offsets            = {}; // Can be left empty, no offset will be used.
+        bool               isWriteAccess      = false;
     };
 
     struct PipelineLayoutPushConstantRange

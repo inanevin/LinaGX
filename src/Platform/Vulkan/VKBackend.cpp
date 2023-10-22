@@ -1673,7 +1673,7 @@ namespace LinaGX
         {
             layoutInfo.pNext = &extInfo;
             layoutInfo.flags = (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind) ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
-            LOGA((Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_Bindless), "Enable bindless feature in InitInfo to use bindless descriptors!");
+            LOGA((Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_Bindless), "Enable bindless feature in Configs to use bindless descriptors!");
         }
 
         VkDescriptorSetLayout layout = nullptr;
@@ -1693,11 +1693,13 @@ namespace LinaGX
         allocInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.pNext                       = nullptr;
         allocInfo.descriptorPool              = m_descriptorPool;
-        allocInfo.descriptorSetCount          = 1;
+        allocInfo.descriptorSetCount          = desc.allocationCount;
         allocInfo.pSetLayouts                 = &item.layout;
+        item.sets                             = new VkDescriptorSet[desc.allocationCount];
 
-        VkResult res = vkAllocateDescriptorSets(m_device, &allocInfo, &item.ptr);
-        VK_CHECK_RESULT(res, "Backend -> Could not allocate descriptor set, make sure you have set enough descriptor limits in LinaGX::InitInfo::GPULimits structure!");
+        VkResult res  = vkAllocateDescriptorSets(m_device, &allocInfo, item.sets);
+        item.setCount = desc.allocationCount;
+        VK_CHECK_RESULT(res, "Backend -> Could not allocate descriptor set, make sure you have set enough descriptor limits in Configs!");
         return m_descriptorSets.AddItem(item);
     }
 
@@ -1709,6 +1711,8 @@ namespace LinaGX
             LOGE("Backend -> Descriptor set to be destroyed is not valid!");
             return;
         }
+
+        delete[] item.sets;
 
         vkDestroyDescriptorSetLayout(m_device, item.layout, m_allocator);
 
@@ -1737,14 +1741,15 @@ namespace LinaGX
             bufferInfos.push_back(binfo);
         }
 
-        VkWriteDescriptorSet write = {};
-        write.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.pNext                = nullptr;
-        write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
-        write.dstBinding           = desc.binding;
-        write.descriptorCount      = descriptorCount;
-        write.descriptorType       = GetVKDescriptorType(bindingData.type, bindingData.useDynamicOffset);
-        write.pBufferInfo          = bufferInfos.data();
+        const auto&          dscSet = m_descriptorSets.GetItemR(desc.setHandle);
+        VkWriteDescriptorSet write  = {};
+        write.sType                 = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.pNext                 = nullptr;
+        write.dstSet                = dscSet.sets[desc.setAllocationIndex];
+        write.dstBinding            = desc.binding;
+        write.descriptorCount       = descriptorCount;
+        write.descriptorType        = GetVKDescriptorType(bindingData.type, bindingData.useDynamicOffset);
+        write.pBufferInfo           = bufferInfos.data();
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
@@ -1793,7 +1798,7 @@ namespace LinaGX
         VkWriteDescriptorSet write = {};
         write.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.pNext                = nullptr;
-        write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).ptr;
+        write.dstSet               = m_descriptorSets.GetItemR(desc.setHandle).sets[desc.setAllocationIndex];
         write.dstBinding           = desc.binding;
         write.descriptorCount      = usedCount;
         write.descriptorType       = descriptorType;
@@ -3434,7 +3439,7 @@ namespace LinaGX
         sets.resize(cmd->setCount);
 
         for (uint32 i = 0; i < cmd->setCount; i++)
-            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).ptr;
+            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).sets[cmd->allocationIndex];
 
         vkCmdBindDescriptorSets(buffer, cmd->isCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, layout, cmd->firstSet, cmd->setCount, sets.data(), cmd->dynamicOffsetCount, cmd->dynamicOffsets);
     }

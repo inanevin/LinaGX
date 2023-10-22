@@ -74,6 +74,7 @@ namespace LinaGX
             virtual void Run();
             virtual void Shutdown();
             virtual void OnTick(){};
+            virtual void OnRender(){};
             virtual void Tick();
             virtual void Quit();
 

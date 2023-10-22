@@ -87,7 +87,7 @@ namespace LinaGX
 
         void Initialize();
         void Shutdown();
-        void PollWindowsAndInput();
+        void TickWindowSystem();
         void EndFrame();
 
     private:

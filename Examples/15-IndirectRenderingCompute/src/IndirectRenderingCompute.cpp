@@ -837,7 +837,7 @@ namespace LinaGX::Examples
     void Example::OnTick()
     {
         // Check for window inputs.
-        _lgx->PollWindowsAndInput();
+        _lgx->TickWindowSystem();
 
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();

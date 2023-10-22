@@ -2006,31 +2006,36 @@ namespace LinaGX
 
     uint16 DX12Backend::CreateDescriptorSet(const DescriptorSetDesc& desc)
     {
-        DX12DescriptorSet item = {};
-        item.isValid           = true;
+        DX12DescriptorSet item  = {};
+        item.isValid            = true;
+        item.setAllocationCount = desc.allocationCount;
+        item.bindings.resize(desc.allocationCount);
 
-        const uint32 bindingCount = static_cast<uint32>(desc.bindings.size());
-
-        for (uint32 i = 0; i < bindingCount; i++)
+        for (uint32 j = 0; j < desc.allocationCount; j++)
         {
-            const DescriptorBinding& binding = desc.bindings[i];
+            const uint32 bindingCount = static_cast<uint32>(desc.bindings.size());
 
-            DX12DescriptorBinding dx12Binding = {};
-            dx12Binding.lgxBinding            = binding;
-            dx12Binding.binding               = i;
-            dx12Binding.stages                = binding.stages;
-
-            if (binding.type == DescriptorType::CombinedImageSampler)
+            for (uint32 i = 0; i < bindingCount; i++)
             {
-                dx12Binding.gpuPointer           = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
-                dx12Binding.additionalGpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
-            }
-            else if (binding.type == DescriptorType::SeparateSampler)
-                dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
-            else
-                dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
+                const DescriptorBinding& binding = desc.bindings[i];
 
-            item.bindings.push_back(dx12Binding);
+                DX12DescriptorBinding dx12Binding = {};
+                dx12Binding.lgxBinding            = binding;
+                dx12Binding.binding               = i;
+                dx12Binding.stages                = binding.stages;
+
+                if (binding.type == DescriptorType::CombinedImageSampler)
+                {
+                    dx12Binding.gpuPointer           = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
+                    dx12Binding.additionalGpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
+                }
+                else if (binding.type == DescriptorType::SeparateSampler)
+                    dx12Binding.gpuPointer = m_gpuHeapSampler->GetHeapHandleBlock(binding.descriptorCount);
+                else
+                    dx12Binding.gpuPointer = m_gpuHeapBuffer->GetHeapHandleBlock(binding.descriptorCount);
+
+                item.bindings[j].push_back(dx12Binding);
+            }
         }
 
         return m_descriptorSets.AddItem(item);
@@ -2045,26 +2050,30 @@ namespace LinaGX
             return;
         }
 
-        for (const auto& b : item.bindings)
+        for (const auto& setBindings : item.bindings)
         {
-            if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
+            for (const auto& b : setBindings)
             {
-                m_gpuHeapBuffer->RemoveDescriptorHandle(b.gpuPointer);
-                m_gpuHeapSampler->RemoveDescriptorHandle(b.additionalGpuPointer);
+                if (b.lgxBinding.type == DescriptorType::CombinedImageSampler)
+                {
+                    m_gpuHeapBuffer->RemoveDescriptorHandle(b.gpuPointer);
+                    m_gpuHeapSampler->RemoveDescriptorHandle(b.additionalGpuPointer);
+                }
+                else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
+                    m_gpuHeapSampler->RemoveDescriptorHandle(b.gpuPointer);
+                else
+                    m_gpuHeapBuffer->RemoveDescriptorHandle(b.gpuPointer);
             }
-            else if (b.lgxBinding.type == DescriptorType::SeparateSampler)
-                m_gpuHeapSampler->RemoveDescriptorHandle(b.gpuPointer);
-            else
-                m_gpuHeapBuffer->RemoveDescriptorHandle(b.gpuPointer);
         }
+
         m_descriptorSets.RemoveItem(handle);
     }
 
     void DX12Backend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)
     {
         auto& item = m_descriptorSets.GetItemR(desc.setHandle);
-        LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
-        auto&        bindingData     = item.bindings[desc.binding];
+        LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
+        auto&        bindingData     = item.bindings[desc.setAllocationIndex][desc.binding];
         const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
         LOGA(descriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
         LOGA(bindingData.lgxBinding.type == DescriptorType::UBO || bindingData.lgxBinding.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
@@ -2073,7 +2082,7 @@ namespace LinaGX
         LINAGX_VEC<D3D12_CPU_DESCRIPTOR_HANDLE> srcDescriptors;
         auto&                                   descriptorSet = m_descriptorSets.GetItemR(desc.setHandle);
 
-        for (auto& binding : descriptorSet.bindings)
+        for (auto& binding : descriptorSet.bindings[desc.setAllocationIndex])
         {
             if (binding.binding == desc.binding)
             {
@@ -2108,8 +2117,8 @@ namespace LinaGX
     void DX12Backend::DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)
     {
         auto& item = m_descriptorSets.GetItemR(desc.setHandle);
-        LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
-        auto&        bindingData        = item.bindings[desc.binding];
+        LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
+        auto&        bindingData        = item.bindings[desc.setAllocationIndex][desc.binding];
         const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
         const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
         LOGA(txtDescriptorCount <= bindingData.lgxBinding.descriptorCount && smpDescriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
@@ -2132,7 +2141,7 @@ namespace LinaGX
 
         auto& descriptorSet = m_descriptorSets.GetItemR(desc.setHandle);
 
-        for (const auto& binding : descriptorSet.bindings)
+        for (const auto& binding : descriptorSet.bindings[desc.setAllocationIndex])
         {
             if (binding.binding == desc.binding)
             {
@@ -3145,7 +3154,7 @@ namespace LinaGX
 
             uint32 dynamicOffsetIndexCounter = 0;
 
-            for (const auto& binding : set.bindings)
+            for (const auto& binding : set.bindings[setData.setAllocIndex])
             {
                 DX12RootParamInfo* param = FindRootParam(&shader.layout.rootParams, binding.lgxBinding.type, binding.binding, index);
 
@@ -3438,8 +3447,9 @@ namespace LinaGX
             const uint32             targetSetIndex = i + cmd->firstSet;
             const DX12DescriptorSet& set            = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]);
             DX12BoundDescriptorSet   data           = {cmd->descriptorSetHandles[i], true};
+            data.setAllocIndex                      = cmd->allocationIndex;
 
-            for (const auto& b : set.bindings)
+            for (const auto& b : set.bindings[cmd->allocationIndex])
             {
                 if (b.lgxBinding.useDynamicOffset)
                     data.boundDynamicOffsets.push_back(cmd->dynamicOffsets[dynamicOffsetCounter++]);

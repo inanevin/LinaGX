@@ -119,6 +119,7 @@ namespace LinaGX
         uint16             handle  = 0;
         bool               isDirty = false;
         LINAGX_VEC<uint32> boundDynamicOffsets;
+        uint32             setAllocIndex = 0;
     };
 
     struct DX12BoundConstant
@@ -180,8 +181,9 @@ namespace LinaGX
 
     struct DX12DescriptorSet
     {
-        bool                              isValid = false;
-        LINAGX_VEC<DX12DescriptorBinding> bindings;
+        bool                                          isValid = false;
+        LINAGX_VEC<LINAGX_VEC<DX12DescriptorBinding>> bindings;
+        uint32                                        setAllocationCount = 1;
     };
 
     struct DX12Queue
