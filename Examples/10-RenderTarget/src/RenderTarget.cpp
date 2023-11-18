@@ -119,7 +119,7 @@ namespace LinaGX::Examples
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -263,7 +263,7 @@ namespace LinaGX::Examples
                 _pfd[i].renderTargetColor = _lgx->CreateTexture(desc);
 
                 desc.format    = Format::D32_SFLOAT;
-                desc.flags     = LinaGX::TextureFlags::TF_DepthTexture;
+                desc.flags     = LinaGX::TextureFlags::TF_DepthTexture | LinaGX::TextureFlags::TF_Sampled;
                 desc.debugName = "LinaGXRTDepthTexture";
 
                 _pfd[i].renderTargetDepth = _lgx->CreateTexture(desc);

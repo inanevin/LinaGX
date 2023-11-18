@@ -229,18 +229,23 @@ namespace LinaGX
             break;
         }
         case WM_INPUT: {
-            UINT        dwSize = sizeof(RAWINPUT);
-            static BYTE lpb[sizeof(RAWINPUT)];
 
-            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
-
-            RAWINPUT* raw = (RAWINPUT*)lpb;
-
-            if (raw->header.dwType == RIM_TYPEMOUSE)
+            if (win32Window->m_hasFocus)
             {
-                int xPosRelative = raw->data.mouse.lLastX;
-                int yPosRelative = raw->data.mouse.lLastY;
-                win32Window->m_input->WindowFeedDelta(xPosRelative, yPosRelative);
+
+                UINT        dwSize = sizeof(RAWINPUT);
+                static BYTE lpb[sizeof(RAWINPUT)];
+
+                GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+
+                RAWINPUT* raw = (RAWINPUT*)lpb;
+
+                if (raw->header.dwType == RIM_TYPEMOUSE)
+                {
+                    int xPosRelative = raw->data.mouse.lLastX;
+                    int yPosRelative = raw->data.mouse.lLastY;
+                    win32Window->m_input->WindowFeedDelta(xPosRelative, yPosRelative);
+                }
             }
 
             break;

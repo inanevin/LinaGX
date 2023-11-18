@@ -535,16 +535,14 @@ namespace LinaGX
             else
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
-        case LinaGX::TextureBarrierState::ShaderRead: {
-            if ((textureFlags & TextureFlags::TF_DepthTexture) && !(textureFlags & TextureFlags::TF_StencilTexture))
-                return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
-            else if (!(textureFlags & TextureFlags::TF_DepthTexture) && (textureFlags & TextureFlags::TF_StencilTexture))
-                return VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
-            else if ((textureFlags & TextureFlags::TF_DepthTexture) && (textureFlags & TextureFlags::TF_StencilTexture))
-                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
+        case LinaGX::TextureBarrierState::ShaderRead: 
             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        }
+        case LinaGX::TextureBarrierState::DepthRead:
+            return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+        case LinaGX::TextureBarrierState::StencilRead:
+            return VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
+        case LinaGX::TextureBarrierState::DepthStencilRead:
+            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
         case LinaGX::TextureBarrierState::Present:
             return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         case LinaGX::TextureBarrierState::TransferSource:

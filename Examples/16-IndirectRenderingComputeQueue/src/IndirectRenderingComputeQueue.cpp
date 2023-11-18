@@ -192,7 +192,7 @@ namespace LinaGX::Examples
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            BackendAPI api = BackendAPI::Vulkan;
+            BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -350,7 +350,7 @@ namespace LinaGX::Examples
 
             LinaGX::TextureDesc depthDesc = {
                 .format      = Format::D32_SFLOAT,
-                .flags       = LinaGX::TextureFlags::TF_DepthTexture,
+                .flags       = LinaGX::TextureFlags::TF_DepthTexture | LinaGX::TextureFlags::TF_Sampled,
                 .width       = _window->GetSize().x,
                 .height      = _window->GetSize().y,
                 .mipLevels   = 1,

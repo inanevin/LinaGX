@@ -531,16 +531,14 @@ namespace LinaGX
             return D3D12_RESOURCE_STATE_DEPTH_WRITE;
         case LinaGX::TextureBarrierState::ShaderRead: {
             D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
             if (txtFlags & TextureFlags::TF_SampleOutsideFragment)
                 state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-
-            // Override if depth/stencil
-            if ((txtFlags & TextureFlags::TF_DepthTexture) || (txtFlags & TextureFlags::TF_StencilTexture))
-                state = D3D12_RESOURCE_STATE_DEPTH_READ;
-
             return state;
         }
+        case LinaGX::TextureBarrierState::DepthRead:
+        case LinaGX::TextureBarrierState::StencilRead:
+        case LinaGX::TextureBarrierState::DepthStencilRead:
+            return D3D12_RESOURCE_STATE_DEPTH_READ;
         case LinaGX::TextureBarrierState::Present:
             return D3D12_RESOURCE_STATE_PRESENT;
         case LinaGX::TextureBarrierState::TransferSource:
