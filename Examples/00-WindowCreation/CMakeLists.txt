@@ -47,7 +47,7 @@ include/WindowCreation.hpp
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ProjectSettings.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ExampleProjectSettings.cmake)
 
 
 if(APPLE)

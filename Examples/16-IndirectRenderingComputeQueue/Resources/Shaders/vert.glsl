@@ -21,16 +21,17 @@ struct Object
     mat4 modelMatrix;
 };
 
+layout(std140, set = 1, binding = 0) readonly buffer ObjectData
+{
+    Object objects[];
+} objectData;
+
 struct IndirectArguments
 {
     int objectID;
     int materialByteIndex;
 };
 
-layout(std140, set = 1, binding = 0) readonly buffer ObjectData
-{
-    Object objects[];
-} objectData;
 
 layout(set = 1, binding = 1) readonly buffer IndirectArgumentsData
 {

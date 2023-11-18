@@ -450,6 +450,8 @@ namespace LinaGX
         TextureBarrier*  textureBarriers;
         uint32           resourceBarrierCount;
         ResourceBarrier* resourceBarriers;
+        uint32           memoryBarrierCount;
+        MemBarrier*      memoryBarriers;
         uint32           srcStageFlags;
         uint32           dstStageFlags;
 
@@ -459,6 +461,8 @@ namespace LinaGX
             textureBarriers      = nullptr;
             resourceBarrierCount = 0;
             resourceBarriers     = nullptr;
+            memoryBarrierCount   = 0;
+            memoryBarriers       = nullptr;
             srcStageFlags        = 0;
             dstStageFlags        = 0;
         }

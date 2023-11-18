@@ -535,8 +535,16 @@ namespace LinaGX
             else
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
-        case LinaGX::TextureBarrierState::ShaderRead:
+        case LinaGX::TextureBarrierState::ShaderRead: {
+            if ((textureFlags & TextureFlags::TF_DepthTexture) && !(textureFlags & TextureFlags::TF_StencilTexture))
+                return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+            else if (!(textureFlags & TextureFlags::TF_DepthTexture) && (textureFlags & TextureFlags::TF_StencilTexture))
+                return VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
+            else if ((textureFlags & TextureFlags::TF_DepthTexture) && (textureFlags & TextureFlags::TF_StencilTexture))
+                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        }
         case LinaGX::TextureBarrierState::Present:
             return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         case LinaGX::TextureBarrierState::TransferSource:
@@ -1624,7 +1632,7 @@ namespace LinaGX
                     pbFlag |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
                 bindlessFlags.push_back(pbFlag);
-                // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
             }
             else if (binding.type == DescriptorType::SeparateSampler && binding.unbounded)
             {
@@ -1635,7 +1643,7 @@ namespace LinaGX
                     pbFlag |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
                 bindlessFlags.push_back(pbFlag);
-                // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
             else if (binding.type == DescriptorType::CombinedImageSampler && binding.unbounded)
             {
@@ -1646,7 +1654,7 @@ namespace LinaGX
                     pbFlag |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
                 bindlessFlags.push_back(pbFlag);
-                // vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
+                vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSamplers;
             }
             else
                 bindlessFlags.push_back(0);
@@ -3257,11 +3265,11 @@ namespace LinaGX
         auto&                   indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
 
         if (m_supportsMultiDrawIndirect)
-            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->indirectBufferOffset);
+            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + cmd->indirectBufferOffset, cmd->count, sizeof(IndexedIndirectCommand));
         else
         {
             for (uint32 i = 0; i < cmd->count; i++)
-                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
+                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + cmd->indirectBufferOffset + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
         }
     }
 
@@ -3272,11 +3280,11 @@ namespace LinaGX
         auto&            indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
 
         if (m_supportsMultiDrawIndirect)
-            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, cmd->stride);
+            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, sizeof(IndirectCommand));
         else
         {
             for (uint32 i = 0; i < cmd->count; i++)
-                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
+                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + sizeof(IndirectCommand) * i, 1, sizeof(IndirectCommand));
         }
     }
 
@@ -3565,7 +3573,22 @@ namespace LinaGX
             rscBarriers[i]                  = vkBarrier;
         }
 
-        vkCmdPipelineBarrier(buffer, cmd->srcStageFlags, cmd->dstStageFlags, 0, 0, nullptr, cmd->resourceBarrierCount, rscBarriers.data(), cmd->textureBarrierCount, imgBarriers.data());
+        LINAGX_VEC<VkMemoryBarrier> memBarriers;
+        memBarriers.resize(cmd->memoryBarrierCount);
+
+        for (uint32 i = 0; i < cmd->memoryBarrierCount; i++)
+        {
+            const auto& memBarrier = cmd->memoryBarriers[i];
+
+            VkMemoryBarrier mb = {};
+            mb.sType           = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            mb.srcAccessMask   = memBarrier.srcAccessFlags;
+            mb.dstAccessMask   = memBarrier.dstAccessFlags;
+            mb.pNext           = nullptr;
+            memBarriers[i]     = mb;
+        }
+
+        vkCmdPipelineBarrier(buffer, cmd->srcStageFlags, cmd->dstStageFlags, 0, cmd->memoryBarrierCount, memBarriers.data(), cmd->resourceBarrierCount, rscBarriers.data(), cmd->textureBarrierCount, imgBarriers.data());
     }
 
     void VKBackend::CMD_Debug(uint8* data, VKBCommandStream& stream)
@@ -3584,81 +3607,21 @@ namespace LinaGX
         VK_CMD_END_LABEL(stream.buffer);
     }
 
-    void VKBackend::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32 mipLevels, uint32 arraySize)
-    {
-        return;
-        VkImageMemoryBarrier barrier{};
-        barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout                       = oldLayout;
-        barrier.newLayout                       = newLayout;
-        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image                           = image;
-        barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        barrier.subresourceRange.baseMipLevel   = 0;
-        barrier.subresourceRange.levelCount     = mipLevels;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount     = arraySize;
-
-        VkPipelineStageFlags sourceStage;
-        VkPipelineStageFlags destinationStage;
-
-        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-            sourceStage      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = (m_supportsDedicatedComputeQueue || m_supportsSeparateTransferQueue) ? 0 : VK_ACCESS_SHADER_READ_BIT;
-
-            sourceStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destinationStage = (m_supportsDedicatedComputeQueue || m_supportsSeparateTransferQueue) ? VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        }
-        else if ((oldLayout == VK_IMAGE_LAYOUT_UNDEFINED || oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-        {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            sourceStage           = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationStage      = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-        {
-            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            barrier.dstAccessMask = 0;
-            sourceStage           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            destinationStage      = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        {
-            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            sourceStage           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            destinationStage      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-        {
-            barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            sourceStage           = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            destinationStage      = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        }
-        else
-        {
-            LOGA(false, "Backend -> Unsupported transition!");
-        }
-
-        vkCmdPipelineBarrier(
-            commandBuffer,
-            sourceStage, destinationStage,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier);
-    }
+    //  void VKBackend::CMD_ComputeBarrier(uint8* data, VKBCommandStream& stream)
+    // {
+    //     CMDComputeBarrier* cmd    = reinterpret_cast<CMDComputeBarrier*>(data);
+    //     auto               buffer = stream.buffer;
+    //     VkMemoryBarrier memoryBarrier{};
+    //     memoryBarrier.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    //     memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    //     memoryBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+    //     vkCmdPipelineBarrier(buffer,
+    //                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
+    //                          VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,  // dstStageMask
+    //                          0,                                    // dependencyFlags
+    //                          1, &memoryBarrier,                    // memoryBarrierCount, pMemoryBarriers
+    //                          0, nullptr,                           // bufferMemoryBarrierCount, pBufferMemoryBarriers
+    //                          0, nullptr);                          // imageMemoryBarrierCount, pImageMemoryBarriers
+    // }
 
 } // namespace LinaGX

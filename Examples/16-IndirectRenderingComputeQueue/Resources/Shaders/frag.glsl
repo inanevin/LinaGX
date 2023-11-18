@@ -5,6 +5,22 @@ layout(location = 0) in vec2 inUV;
 layout(location = 1) flat in uint inDrawID;
 layout(location = 0) out vec4 FragColor;
 
+
+layout(set = 0, binding = 0) uniform SceneData
+{
+    mat4 viewProj;
+} scene;
+
+struct Object
+{
+    mat4 modelMatrix;
+};
+
+layout(std140, set = 1, binding = 0) readonly buffer ObjectData
+{
+    Object objects[];
+} objectData;
+
 struct IndirectArguments
 {
     int objectID;
@@ -58,6 +74,7 @@ void main()
 	Material1 mat = AsMaterial1(indirectArguments.args[inDrawID].materialByteIndex);
 	vec4 albedo = texture(textures[mat.albedoIndex], inUV);
 	FragColor = albedo * mat.baseColor * mat.tint;
+	// FragColor = vec4(0,0,1,1);
 }
 
 

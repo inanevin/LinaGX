@@ -41,9 +41,11 @@ namespace LinaGX::Examples
 
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
+#define BACK_BUFFER      2
 
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
+    uint32            _depth     = 0;
     Window*           _window    = nullptr;
 
     struct Vertex
@@ -109,26 +111,23 @@ namespace LinaGX::Examples
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            LinaGX::Config.logLevel      = LogLevel::Verbose;
-            LinaGX::Config.errorCallback = LogError;
-            LinaGX::Config.infoCallback  = LogInfo;
-
             BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
 
-            LinaGX::InitInfo initInfo = InitInfo{
-                .api                   = api,
-                .gpu                   = PreferredGPUType::Integrated,
-                .framesInFlight        = FRAMES_IN_FLIGHT,
-                .backbufferCount       = 2,
-                .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
-            };
+            LinaGX::Config.api             = api;
+            LinaGX::Config.gpu             = PreferredGPUType::Integrated;
+            LinaGX::Config.framesInFlight  = FRAMES_IN_FLIGHT;
+            LinaGX::Config.backbufferCount = BACK_BUFFER;
+            LinaGX::Config.gpuLimits       = {};
+            LinaGX::Config.logLevel        = LogLevel::Verbose;
+            LinaGX::Config.errorCallback   = LogError;
+            LinaGX::Config.infoCallback    = LogInfo;
 
             _lgx = new LinaGX::Instance();
-            _lgx->Initialize(initInfo);
+            _lgx->Initialize();
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
@@ -150,21 +149,28 @@ namespace LinaGX::Examples
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
+            LinaGX::ShaderColorAttachment colorAttachment = {
+                .format = Format::B8G8R8A8_UNORM,
+
+            };
+
+            LinaGX::ShaderDepthStencilDesc depthStencil;
+            depthStencil.depthStencilAttachmentFormat = LinaGX::Format::D32_SFLOAT;
+            depthStencil.depthTest = depthStencil.depthWrite = true;
+            depthStencil.depthCompare                        = LinaGX::CompareOp::Less;
+
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachmentFormat = Format::B8G8R8A8_UNORM,
-                .depthAttachmentFormat = Format::D32_SFLOAT,
-                .layout                = outLayout,
-                .polygonMode           = PolygonMode::Fill,
-                .cullMode              = CullMode::Back,
-                .frontFace             = FrontFace::CCW,
-                .depthTest             = true,
-                .depthWrite            = true,
-                .depthCompare          = CompareOp::Less,
-                .topology              = Topology::TriangleList,
-                .blendAttachment       = {.componentFlags = ColorComponentFlags::RGBA},
+                .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
+                .colorAttachments = {colorAttachment},
+                .depthStencilDesc = depthStencil,
+                .layout           = outLayout,
+                .polygonMode      = PolygonMode::Fill,
+                .cullMode         = CullMode::Back,
+                .frontFace        = FrontFace::CCW,
+                .topology         = Topology::TriangleList,
             };
+
             _shaderProgram = _lgx->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
@@ -177,7 +183,6 @@ namespace LinaGX::Examples
             // Create a swapchain for main window.
             _swapchain = _lgx->CreateSwapchain({
                 .format       = Format::B8G8R8A8_UNORM,
-                .depthFormat  = Format::D32_SFLOAT,
                 .x            = 0,
                 .y            = 0,
                 .width        = _window->GetSize().x,
@@ -185,8 +190,17 @@ namespace LinaGX::Examples
                 .window       = _window->GetWindowHandle(),
                 .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
-                .vsyncMode    = VsyncMode::None,
             });
+
+            LinaGX::TextureDesc depthDesc = {
+                .format    = LinaGX::Format::D32_SFLOAT,
+                .flags     = TextureFlags::TF_DepthTexture,
+                .width     = _window->GetSize().x,
+                .height    = _window->GetSize().y,
+                .debugName = "Depth Texture",
+            };
+
+            _depth = _lgx->CreateTexture(depthDesc);
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
             _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
@@ -198,13 +212,24 @@ namespace LinaGX::Examples
                     .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
                 };
                 _lgx->RecreateSwapchain(resizeDesc);
+
+                _lgx->DestroyTexture(_depth);
+                LinaGX::TextureDesc depthDesc = {
+                    .format    = LinaGX::Format::D32_SFLOAT,
+                    .flags     = TextureFlags::TF_DepthTexture,
+                    .width     = _window->GetSize().x,
+                    .height    = _window->GetSize().y,
+                    .debugName = "Depth Texture",
+                };
+
+                _depth = _lgx->CreateTexture(depthDesc);
             });
 
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-                _pfd[i].stream        = _lgx->CreateCommandStream(10, CommandType::Graphics);
-                _pfd[i].copyStream    = _lgx->CreateCommandStream(10, CommandType::Transfer);
+                _pfd[i].stream        = _lgx->CreateCommandStream({CommandType::Graphics, 10, 512, 4096, 64});
+                _pfd[i].copyStream    = _lgx->CreateCommandStream({CommandType::Transfer, 10, 512, 4096, 64});
                 _pfd[i].copySemaphore = _lgx->CreateUserSemaphore();
             }
         }
@@ -213,9 +238,10 @@ namespace LinaGX::Examples
         {
             LinaGX::LoadGLTFBinary("Resources/Models/Fox.glb", _modelData);
 
-            for (uint32 i = 0; i < _modelData.allNodesCount; i++)
+            const auto ns = static_cast<uint32>(_modelData.allNodes.size());
+            for (uint32 i = 0; i < ns; i++)
             {
-                ModelNode* node = _modelData.allNodes + i;
+                ModelNode* node = _modelData.allNodes[i];
 
                 if (node->mesh != nullptr)
                 {
@@ -223,9 +249,10 @@ namespace LinaGX::Examples
                     Object& obj = _objects[_objects.size() - 1];
                     obj.index   = static_cast<uint32>(_objects.size() - 1);
 
-                    for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
+                    const auto ps = static_cast<uint32>(node->mesh->primitives.size());
+                    for (uint32 j = 0; j < ps; j++)
                     {
-                        ModelMeshPrimitive* prim = node->mesh->primitives + j;
+                        ModelMeshPrimitive* prim = node->mesh->primitives[j];
 
                         for (uint32 k = 0; k < prim->vertexCount; k++)
                         {
@@ -233,10 +260,10 @@ namespace LinaGX::Examples
                             vtx.position        = prim->positions[k];
                             vtx.uv              = prim->texCoords[k];
                             vtx.inBoneWeights   = prim->weights[k];
-                            vtx.inBoneIndices.x = static_cast<float>(prim->joints[k].x);
-                            vtx.inBoneIndices.y = static_cast<float>(prim->joints[k].y);
-                            vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
-                            vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
+                            vtx.inBoneIndices.x = static_cast<float>(prim->jointsui16[k].x);
+                            vtx.inBoneIndices.y = static_cast<float>(prim->jointsui16[k].y);
+                            vtx.inBoneIndices.z = static_cast<float>(prim->jointsui16[k].z);
+                            vtx.inBoneIndices.w = static_cast<float>(prim->jointsui16[k].w);
                             obj.vertices.push_back(vtx);
                         }
                     }
@@ -279,17 +306,18 @@ namespace LinaGX::Examples
             _sampler = _lgx->CreateSampler(samplerDesc);
 
             // Will be base color, skipping the whole material shenanigans from gltf for now.
-            _baseTexture = _modelData.allTextures;
+            _baseTexture = _modelData.allTextures[0];
 
             // Create gpu resource
             TextureDesc desc = {
-                .usage     = TextureUsage::ColorTexture,
+                .format    = Format::R8G8B8A8_UNORM,
+                .flags     = LinaGX::TextureFlags::TF_Sampled | LinaGX::TextureFlags::TF_CopyDest,
                 .width     = _baseTexture->buffer.width,
                 .height    = _baseTexture->buffer.height,
                 .mipLevels = 1,
-                .format    = Format::R8G8B8A8_UNORM,
                 .debugName = "Lina Logo",
             };
+
             _baseColorGPU = _lgx->CreateTexture(desc);
         }
 
@@ -364,42 +392,32 @@ namespace LinaGX::Examples
 
         //*******************  DESCRIPTOR SET
         {
-
-            DescriptorBinding set0Bindings[2];
-
-            set0Bindings[0] = {
-                .binding         = 0,
+            DescriptorBinding set0Binding0 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::UBO,
                 .stages          = {ShaderStage::Vertex},
             };
 
-            set0Bindings[1] = {
-                .binding         = 1,
+            DescriptorBinding set0Binding1 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::CombinedImageSampler,
                 .stages          = {ShaderStage::Fragment},
             };
 
             DescriptorSetDesc set0Desc = {
-                .bindings      = set0Bindings,
-                .bindingsCount = 2,
+                .bindings = {set0Binding0, set0Binding1},
             };
 
             _descriptorSet0 = _lgx->CreateDescriptorSet(set0Desc);
 
-            DescriptorBinding set1Bindings[1];
-
-            set1Bindings[0] = {
-                .binding         = 0,
+            DescriptorBinding set1Binding0 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
                 .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set1Desc = {
-                .bindings      = set1Bindings,
-                .bindingsCount = 1,
+                .bindings = {set1Binding0},
             };
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -407,31 +425,25 @@ namespace LinaGX::Examples
                 _pfd[i].ssboSet = _lgx->CreateDescriptorSet(set1Desc);
 
                 DescriptorUpdateBufferDesc bufferDesc = {
-                    .setHandle       = _pfd[i].ssboSet,
-                    .binding         = 0,
-                    .descriptorCount = 1,
-                    .resources       = &_pfd[i].ssboGPU,
-                    .descriptorType  = DescriptorType::SSBO,
+                    .setHandle = _pfd[i].ssboSet,
+                    .binding   = 0,
+                    .buffers   = {_pfd[i].ssboGPU},
                 };
 
                 _lgx->DescriptorUpdateBuffer(bufferDesc);
             }
 
             DescriptorUpdateBufferDesc uboUpdate = {
-                .setHandle       = _descriptorSet0,
-                .binding         = 0,
-                .descriptorCount = 1,
-                .resources       = &_ubo,
-                .descriptorType  = DescriptorType::UBO,
+                .setHandle = _descriptorSet0,
+                .binding   = 0,
+                .buffers   = {_ubo},
             };
 
             DescriptorUpdateImageDesc imgUpdate = {
-                .setHandle       = _descriptorSet0,
-                .binding         = 1,
-                .descriptorCount = 1,
-                .textures        = &_baseColorGPU,
-                .samplers        = &_sampler,
-                .descriptorType  = DescriptorType::CombinedImageSampler,
+                .setHandle = _descriptorSet0,
+                .binding   = 1,
+                .textures  = {_baseColorGPU},
+                .samplers  = {_sampler},
             };
 
             _lgx->DescriptorUpdateBuffer(uboUpdate);
@@ -464,6 +476,7 @@ namespace LinaGX::Examples
         _lgx->DestroyResource(_ubo);
         _lgx->DestroyDescriptorSet(_descriptorSet0);
         _lgx->DestroyTexture(_baseColorGPU);
+        _lgx->DestroyTexture(_depth);
         _lgx->DestroySampler(_sampler);
         _lgx->DestroySwapchain(_swapchain);
         _lgx->DestroyShader(_shaderProgram);
@@ -611,12 +624,12 @@ namespace LinaGX::Examples
 
         // Sample animation
         {
-            auto         targetAnimation = _modelData.allAnimations + 0;
+            auto         targetAnimation = _modelData.allAnims[0] + 0;
             static float time            = 0.0f;
             time += m_deltaSeconds;
             if (time > targetAnimation->duration)
                 time = 0.0f;
-            SampleAnimation(_modelData.allSkins, targetAnimation, time);
+            SampleAnimation(_modelData.allSkins[0], targetAnimation, time);
         }
 
         // Copy SSBO data on copy queue
@@ -625,7 +638,7 @@ namespace LinaGX::Examples
             objectData.resize(_objects.size());
 
             // Inverse root-global matrix.
-            auto            root       = _modelData.allSkins->rootJoint;
+            auto            root       = _modelData.allSkins[0]->rootJoint;
             const glm::mat4 rootGlobal = CalculateGlobalMatrix(root);
             const glm::mat4 inv        = glm::inverse(rootGlobal);
 
@@ -640,7 +653,7 @@ namespace LinaGX::Examples
                 // Assign all skinning matrices.
                 // This is a very basic implementation of skinned animations
                 uint32 k = 0;
-                for (auto joint : _modelData.allSkins->joints)
+                for (auto joint : _modelData.allSkins[0]->joints)
                 {
                     const glm::mat4 jointGlobal = CalculateGlobalMatrix(joint);
                     const glm::mat4 inverseBind = glm::make_mat4(joint->inverseBindMatrix.data());
@@ -683,19 +696,51 @@ namespace LinaGX::Examples
             std::memcpy(_uboMapping, &sceneData, sizeof(GPUSceneData));
         }
 
+        // Barrier to Color Attachment
+        {
+            LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags                   = LinaGX::PSF_TopOfPipe;
+            barrier->dstStageFlags                   = LinaGX::PSF_ColorAttachment;
+            barrier->textureBarrierCount             = 1;
+            barrier->textureBarriers                 = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+            barrier->textureBarriers->srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+            barrier->textureBarriers->dstAccessFlags = LinaGX::AF_ColorAttachmentRead;
+            barrier->textureBarriers->isSwapchain    = true;
+            barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::ColorAttachment;
+        }
+
+        // Barrier to Depth Write
+        {
+            LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags                   = LinaGX::PSF_TopOfPipe;
+            barrier->dstStageFlags                   = LinaGX::PSF_ColorAttachment;
+            barrier->textureBarrierCount             = 1;
+            barrier->textureBarriers                 = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+            barrier->textureBarriers->srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+            barrier->textureBarriers->dstAccessFlags = LinaGX::AF_ColorAttachmentRead;
+            barrier->textureBarriers->isSwapchain    = true;
+            barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::ColorAttachment;
+        }
+
         // Render pass begin
         {
-            Viewport            viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect        sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
-            CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
-            beginRenderPass->isSwapchain        = true;
-            beginRenderPass->swapchain          = _swapchain;
-            beginRenderPass->clearColor[0]      = 0.79f;
-            beginRenderPass->clearColor[1]      = 0.4f;
-            beginRenderPass->clearColor[2]      = 1.0f;
-            beginRenderPass->clearColor[3]      = 1.0f;
-            beginRenderPass->viewport           = viewport;
-            beginRenderPass->scissors           = sc;
+            Viewport                  viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect              sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
+            CMDBeginRenderPass*       beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
+            RenderPassColorAttachment colorAttachment;
+            colorAttachment.clearColor                       = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture                          = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain                      = true;
+            colorAttachment.loadOp                           = LoadOp::Clear;
+            colorAttachment.storeOp                          = StoreOp::Store;
+            beginRenderPass->colorAttachmentCount            = 1;
+            beginRenderPass->colorAttachments                = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            beginRenderPass->viewport                        = viewport;
+            beginRenderPass->scissors                        = sc;
+            beginRenderPass->depthStencilAttachment.useDepth = true;
+            beginRenderPass->depthStencilAttachment.texture  = _depth;
         }
 
         // Set shader
@@ -710,7 +755,6 @@ namespace LinaGX::Examples
             bindSets->firstSet              = 0;
             bindSets->setCount              = 2;
             bindSets->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0, currentFrame.ssboSet);
-            bindSets->isCompute             = false;
         }
 
         // Per object, bind vertex buffers, push constants and draw.
@@ -741,8 +785,20 @@ namespace LinaGX::Examples
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
-            end->isSwapchain      = true;
-            end->swapchain        = _swapchain;
+        }
+
+        // Barrier to Present
+        {
+            LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags                   = LinaGX::PSF_ColorAttachment;
+            barrier->dstStageFlags                   = LinaGX::PSF_BottomOfPipe;
+            barrier->textureBarrierCount             = 1;
+            barrier->textureBarriers                 = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+            barrier->textureBarriers->srcAccessFlags = LinaGX::AF_ColorAttachmentWrite;
+            barrier->textureBarriers->dstAccessFlags = 0;
+            barrier->textureBarriers->isSwapchain    = true;
+            barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::Present;
         }
 
         // This does the actual *recording* of every single command stream alive.

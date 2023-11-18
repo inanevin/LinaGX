@@ -11,7 +11,7 @@ layout( push_constant ) uniform constantsFrag
 
 void main()
 {
-    FragColor = texture(albedo, uv) * vec4(ConstantsFrag.test, ConstantsFrag.test,0, 1);
+    FragColor = texture(albedo, uv) * vec4(ConstantsFrag.test, ConstantsFrag.test, ConstantsFrag.test, 1);
 }
 
 

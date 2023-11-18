@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "Main.hpp"
 #include "WindowCreation.hpp"
 
 using namespace LinaGX::Examples;

@@ -39,8 +39,10 @@ SOFTWARE.
 
 namespace LinaGX::Examples
 {
+
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
+#define BACK_BUFFER      2
 
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
@@ -114,9 +116,8 @@ namespace LinaGX::Examples
 
     struct DefaultTexture
     {
-        TextureLoadData loadData;
-        uint32          gpuResource = 0;
-        const char*     path        = "";
+        uint32      gpuResource = 0;
+        const char* path        = "";
     };
 
     // Resources
@@ -131,7 +132,7 @@ namespace LinaGX::Examples
     uint32 _mergedIndexBufferStaging  = 0;
     uint32 _mergedIndexBufferGPU      = 0;
 
-uint32 _depthTexture = 0;
+    uint32 _depthTexture = 0;
 
     struct PerFrameData
     {
@@ -181,6 +182,7 @@ uint32 _depthTexture = 0;
         const glm::mat4 nodeLocal = node->localMatrix.empty() ? TranslateRotateScale(node->position, node->quatRot, node->scale) : glm::make_mat4(node->localMatrix.data());
         if (node->parent != nullptr)
             return CalculateGlobalMatrix(node->parent) * nodeLocal;
+
         return nodeLocal;
     }
 
@@ -190,31 +192,24 @@ uint32 _depthTexture = 0;
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            LinaGX::Config.logLevel      = LogLevel::Verbose;
-            LinaGX::Config.errorCallback = LogError;
-            LinaGX::Config.infoCallback  = LogInfo;
-
             BackendAPI api = BackendAPI::DX12;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
-            LinaGX::GPULimits   limits;
-            LinaGX::GPUFeatures features;
-            features.enableBindless = true;
 
-            LinaGX::InitInfo initInfo = InitInfo{
-                .api                   = api,
-                .gpu                   = PreferredGPUType::Discrete,
-                .framesInFlight        = FRAMES_IN_FLIGHT,
-                .backbufferCount       = 2,
-                .gpuLimits             = limits,
-                .gpuFeatures           = features,
-                .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
-            };
+            LinaGX::Config.api                               = api;
+            LinaGX::Config.gpu                               = PreferredGPUType::Integrated;
+            LinaGX::Config.framesInFlight                    = FRAMES_IN_FLIGHT;
+            LinaGX::Config.backbufferCount                   = BACK_BUFFER;
+            LinaGX::Config.gpuLimits                         = {};
+            LinaGX::Config.logLevel                          = LogLevel::Verbose;
+            LinaGX::Config.errorCallback                     = LogError;
+            LinaGX::Config.infoCallback                      = LogInfo;
+            LinaGX::Config.vulkanConfig.enableVulkanFeatures = LinaGX::VulkanFeatureFlags::VKF_Bindless | LinaGX::VulkanFeatureFlags::VKF_UpdateAfterBind | LinaGX::VulkanFeatureFlags::VKF_MultiDrawIndirect;
 
             _lgx = new LinaGX::Instance();
-            _lgx->Initialize(initInfo);
+            _lgx->Initialize();
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
@@ -247,27 +242,28 @@ uint32 _depthTexture = 0;
             };
 
             ShaderColorAttachment att = ShaderColorAttachment{
-                .format = Format::B8G8R8A8_UNORM,
+                .format          = Format::B8G8R8A8_UNORM,
                 .blendAttachment = blend,
             };
-            
+
             ShaderDepthStencilDesc depthStencilDesc = {
                 .depthStencilAttachmentFormat = Format::D32_SFLOAT,
-                .depthWrite = true,
-                .depthTest = true,
-                .depthCompare = CompareOp::Less,
-                .stencilEnabled = false,
+                .depthWrite                   = true,
+                .depthTest                    = true,
+                .depthCompare                 = CompareOp::Less,
+                .stencilEnabled               = false,
             };
-            
+
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
-                .colorAttachments = {att},
-                .depthStencilDesc = depthStencilDesc,
-                .layout                = outLayout,
-                .polygonMode           = PolygonMode::Fill,
-                .cullMode              = CullMode::Back,
-                .frontFace             = FrontFace::CCW,
-                .topology              = Topology::TriangleList,
+                .stages              = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
+                .colorAttachments    = {att},
+                .depthStencilDesc    = depthStencilDesc,
+                .layout              = outLayout,
+                .polygonMode         = PolygonMode::Fill,
+                .cullMode            = CullMode::Back,
+                .frontFace           = FrontFace::CCW,
+                .topology            = Topology::TriangleList,
+                .drawIndirectEnabled = true,
             };
 
             _shaderProgram = _lgx->CreateShader(shaderDesc);
@@ -292,29 +288,28 @@ uint32 _depthTexture = 0;
                 .blendEnabled = false,
             };
 
-            
             ShaderColorAttachment att = ShaderColorAttachment{
-                .format = Format::B8G8R8A8_UNORM,
+                .format          = Format::B8G8R8A8_UNORM,
                 .blendAttachment = blend,
             };
-            
+
             ShaderDepthStencilDesc depthStencilDesc = {
                 .depthStencilAttachmentFormat = Format::D32_SFLOAT,
-                .depthWrite = true,
-                .depthTest = true,
-                .depthCompare = CompareOp::Less,
-                .stencilEnabled = false,
+                .depthWrite                   = true,
+                .depthTest                    = true,
+                .depthCompare                 = CompareOp::Less,
+                .stencilEnabled               = false,
             };
-            
+
             ShaderDesc shaderDesc = {
-                .stages                = {{ShaderStage::Compute, outCompiledBlobs[ShaderStage::Compute]}},
+                .stages           = {{ShaderStage::Compute, outCompiledBlobs[ShaderStage::Compute]}},
                 .colorAttachments = {att},
                 .depthStencilDesc = depthStencilDesc,
-                .layout                = outLayout,
-                .polygonMode           = PolygonMode::Fill,
-                .cullMode              = CullMode::Back,
-                .frontFace             = FrontFace::CCW,
-                .topology              = Topology::TriangleList,
+                .layout           = outLayout,
+                .polygonMode      = PolygonMode::Fill,
+                .cullMode         = CullMode::Back,
+                .frontFace        = FrontFace::CCW,
+                .topology         = Topology::TriangleList,
             };
 
             _shaderProgramCompute = _lgx->CreateShader(shaderDesc);
@@ -329,7 +324,6 @@ uint32 _depthTexture = 0;
             // Create a swapchain for main window.
             _swapchain = _lgx->CreateSwapchain({
                 .format       = Format::B8G8R8A8_UNORM,
-                .depthFormat  = Format::D32_SFLOAT,
                 .x            = 0,
                 .y            = 0,
                 .width        = _window->GetSize().x,
@@ -337,21 +331,19 @@ uint32 _depthTexture = 0;
                 .window       = _window->GetWindowHandle(),
                 .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
-                .vsyncMode    = VsyncMode::None,
             });
 
-            
             LinaGX::TextureDesc depthDesc = {
-                .usage = TextureUsage::DepthStencilTexture,
-                .depthStencilAspect = DepthStencilAspect::DepthStencil,
-                .width = _window->GetSize().x,
-                .height = _window->GetSize().y,
-                .mipLevels = 1,
-                .format = Format::D32_SFLOAT,
+                .format      = Format::D32_SFLOAT,
+                .flags       = LinaGX::TextureFlags::TF_DepthTexture,
+                .width       = _window->GetSize().x,
+                .height      = _window->GetSize().y,
+                .mipLevels   = 1,
                 .arrayLength = 1,
             };
+
             _depthTexture = _lgx->CreateTexture(depthDesc);
-            
+
             // We need to re-create the swapchain (thus it's images) if window size changes!
             _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
                 LGXVector2ui          monitor    = _window->GetMonitorSize();
@@ -367,9 +359,9 @@ uint32 _depthTexture = 0;
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
             {
-                _pfd[i].stream           = _lgx->CreateCommandStream(100, CommandType::Graphics);
-                _pfd[i].copyStream       = _lgx->CreateCommandStream(100, CommandType::Transfer);
-                _pfd[i].computeStream    = _lgx->CreateCommandStream(100, CommandType::Compute);
+                _pfd[i].stream           = _lgx->CreateCommandStream({CommandType::Graphics, 100, 4096, 4096, 64});
+                _pfd[i].copyStream       = _lgx->CreateCommandStream({CommandType::Transfer, 100, 4096, 4096, 64});
+                _pfd[i].computeStream    = _lgx->CreateCommandStream({CommandType::Compute, 100, 4096, 4096, 64});
                 _pfd[i].copySemaphore    = _lgx->CreateUserSemaphore();
                 _pfd[i].computeSemaphore = _lgx->CreateUserSemaphore();
             }
@@ -393,10 +385,9 @@ uint32 _depthTexture = 0;
             _objects.push_back({});
             _objects.push_back({});
 
-            glm::mat4 mat = glm::mat4(1.0f);
-            glm::quat q   = glm::quat(glm::vec3(0.0f, DEG2RAD(180.0f), 0.0f));
-            mat           = TranslateRotateScale({-150.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {3000, 3000, 3000});
-
+            glm::mat4 mat                       = glm::mat4(1.0f);
+            glm::quat q                         = glm::quat(glm::vec3(0.0f, DEG2RAD(180.0f), 0.0f));
+            mat                                 = TranslateRotateScale({-150.0f, 0.0f, 0.0f}, {q.x, q.y, q.z, q.w}, {3000, 3000, 3000});
             auto& avacado                       = _objects[0];
             avacado.modelMatrix                 = mat;
             avacado.constants.index             = 0;
@@ -413,36 +404,40 @@ uint32 _depthTexture = 0;
 
             for (auto& obj : _objects)
             {
-                obj.texturesGPU.resize(obj.model.allTexturesCount);
+                obj.texturesGPU.resize(obj.model.allTextures.size());
 
-                for (uint32 i = 0; i < obj.model.allTexturesCount; i++)
+                const uint32 sz = static_cast<uint32>(obj.model.allTextures.size());
+                for (uint32 i = 0; i < sz; i++)
                 {
-                    auto* txt = obj.model.allTextures + i;
+                    auto* txt = obj.model.allTextures[i];
 
                     TextureDesc desc = {
-                        .usage     = TextureUsage::ColorTexture,
+                        .format    = Format::R8G8B8A8_SRGB,
+                        .flags     = LinaGX::TextureFlags::TF_Sampled | LinaGX::TextureFlags::TF_CopyDest,
                         .width     = txt->buffer.width,
                         .height    = txt->buffer.height,
                         .mipLevels = 1,
-                        .format    = Format::R8G8B8A8_SRGB,
                         .debugName = "Material Texture",
                     };
 
                     obj.texturesGPU[i] = _lgx->CreateTexture(desc);
                 }
 
-                for (uint32 i = 0; i < obj.model.allNodesCount; i++)
+                const uint32 nodesSz = static_cast<uint32>(obj.model.allNodes.size());
+
+                for (uint32 i = 0; i < nodesSz; i++)
                 {
-                    ModelNode* node = obj.model.allNodes + i;
+                    ModelNode* node = obj.model.allNodes[i];
 
                     if (node->mesh != nullptr)
                     {
-                        for (uint32 j = 0; j < node->mesh->primitiveCount; j++)
+                        const uint32 primSz = static_cast<uint32>(node->mesh->primitives.size());
+                        for (uint32 j = 0; j < primSz; j++)
                         {
                             obj.meshes.push_back({});
                             auto& mesh = obj.meshes[obj.meshes.size() - 1];
 
-                            ModelMeshPrimitive* prim = node->mesh->primitives + j;
+                            ModelMeshPrimitive* prim = node->mesh->primitives[j];
                             mesh.indexType           = prim->indexType;
 
                             if (!prim->indices.empty())
@@ -457,12 +452,12 @@ uint32 _depthTexture = 0;
                                 if (!prim->weights.empty())
                                     vtx.inBoneWeights = prim->weights[k];
 
-                                if (!prim->joints.empty())
+                                if (!prim->jointsui16.empty())
                                 {
-                                    vtx.inBoneIndices.x = static_cast<float>(prim->joints[k].x);
-                                    vtx.inBoneIndices.y = static_cast<float>(prim->joints[k].y);
-                                    vtx.inBoneIndices.z = static_cast<float>(prim->joints[k].z);
-                                    vtx.inBoneIndices.w = static_cast<float>(prim->joints[k].w);
+                                    vtx.inBoneIndices.x = static_cast<float>(prim->jointsui16[k].x);
+                                    vtx.inBoneIndices.y = static_cast<float>(prim->jointsui16[k].y);
+                                    vtx.inBoneIndices.z = static_cast<float>(prim->jointsui16[k].z);
+                                    vtx.inBoneIndices.w = static_cast<float>(prim->jointsui16[k].w);
                                 }
 
                                 if (!prim->normals.empty())
@@ -535,11 +530,34 @@ uint32 _depthTexture = 0;
 
             for (auto& obj : _objects)
             {
-                obj.texturesGPU.resize(obj.model.allTexturesCount);
+                obj.texturesGPU.resize(obj.model.allTextures.size());
+                const uint32 sz = static_cast<uint32>(obj.model.allTextures.size());
 
-                for (uint32 i = 0; i < obj.model.allTexturesCount; i++)
+                // Transition all to transfer destination.
                 {
-                    auto* txt = obj.model.allTextures + i;
+                    LinaGX::CMDBarrier* textureBarrier   = _pfd[0].copyStream->AddCommand<LinaGX::CMDBarrier>();
+                    textureBarrier->resourceBarrierCount = 0;
+                    textureBarrier->textureBarrierCount  = sz;
+                    textureBarrier->textureBarriers      = _pfd[0].copyStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * sz);
+                    textureBarrier->srcStageFlags        = LinaGX::PSF_TopOfPipe;
+                    textureBarrier->dstStageFlags        = LinaGX::PSF_Transfer;
+
+                    uint32 index = 0;
+                    for (uint32 i = 0; i < sz; i++)
+                    {
+                        auto& barrier          = textureBarrier->textureBarriers[index];
+                        barrier.texture        = obj.texturesGPU[i];
+                        barrier.toState        = LinaGX::TextureBarrierState::TransferDestination;
+                        barrier.isSwapchain    = false;
+                        barrier.srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+                        barrier.dstAccessFlags = LinaGX::AF_TransferWrite;
+                        index++;
+                    }
+                }
+
+                for (uint32 i = 0; i < sz; i++)
+                {
+                    auto* txt = obj.model.allTextures[i];
 
                     TextureBuffer txtBuffer = {
                         .pixels        = txt->buffer.pixels,
@@ -553,7 +571,29 @@ uint32 _depthTexture = 0;
                     copyTxt->destTexture              = obj.texturesGPU[i];
                     copyTxt->mipLevels                = 1;
                     copyTxt->buffers                  = _pfd[0].copyStream->EmplaceAuxMemory<TextureBuffer>(txtBuffer);
-                    copyTxt->destinationSlice = 0;
+                    copyTxt->destinationSlice         = 0;
+                }
+
+                // Transition all to shader read
+                {
+                    LinaGX::CMDBarrier* textureBarrier   = _pfd[0].copyStream->AddCommand<LinaGX::CMDBarrier>();
+                    textureBarrier->resourceBarrierCount = 0;
+                    textureBarrier->textureBarrierCount  = sz;
+                    textureBarrier->textureBarriers      = _pfd[0].copyStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * sz);
+                    textureBarrier->srcStageFlags        = LinaGX::PSF_Transfer;
+                    textureBarrier->dstStageFlags        = LinaGX::PSF_Transfer;
+
+                    uint32 index = 0;
+                    for (uint32 i = 0; i < sz; i++)
+                    {
+                        auto& barrier          = textureBarrier->textureBarriers[index];
+                        barrier.texture        = obj.texturesGPU[i];
+                        barrier.toState        = LinaGX::TextureBarrierState::ShaderRead;
+                        barrier.srcAccessFlags = LinaGX::AF_TransferWrite;
+                        barrier.dstAccessFlags = LinaGX::AF_TransferRead;
+                        barrier.isSwapchain    = false;
+                        index++;
+                    }
                 }
             }
 
@@ -663,11 +703,11 @@ uint32 _depthTexture = 0;
             DescriptorBinding set0Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::UBO,
+                .stages          = {ShaderStage::Vertex},
             };
 
             DescriptorSetDesc set0Desc = {
-                .bindings      = {set0Binding},
-                .stages          = {ShaderStage::Vertex},
+                .bindings = {set0Binding},
             };
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -675,38 +715,39 @@ uint32 _depthTexture = 0;
                 _pfd[i].descriptorSetSceneData0 = _lgx->CreateDescriptorSet(set0Desc);
 
                 DescriptorUpdateBufferDesc uboUpdate = {
-                    .setHandle       = _pfd[i].descriptorSetSceneData0,
-                    .binding         = 0,
-                    .buffers     = {_pfd[i].ubo0},
+                    .setHandle = _pfd[i].descriptorSetSceneData0,
+                    .binding   = 0,
+                    .buffers   = {_pfd[i].ubo0},
                 };
 
                 _lgx->DescriptorUpdateBuffer(uboUpdate);
             }
 
-            DescriptorBinding set1Binding0 =  {
+            DescriptorBinding set1Binding0 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
+                .stages          = {ShaderStage::Vertex},
             };
 
-
-            DescriptorBinding  set1Binding1 = {
+            DescriptorBinding set1Binding1 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
-            };
-
-            DescriptorSetDesc set1Desc = {
-                .bindings      = {set1Binding0, set1Binding1},
                 .stages          = {ShaderStage::Vertex, ShaderStage::Fragment},
             };
 
-            DescriptorBinding computeBinding= {
+            DescriptorSetDesc set1Desc = {
+                .bindings = {set1Binding0, set1Binding1},
+            };
+
+            DescriptorBinding computeBinding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
+                .isWritable      = true,
+                .stages          = {ShaderStage::Compute},
             };
 
             DescriptorSetDesc computeDesc = {
-                .bindings      = {computeBinding},
-                .stages          = {ShaderStage::Compute},
+                .bindings = {computeBinding},
             };
 
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -714,15 +755,15 @@ uint32 _depthTexture = 0;
                 _pfd[i].ssboSet = _lgx->CreateDescriptorSet(set1Desc);
 
                 DescriptorUpdateBufferDesc bufferDesc = {
-                    .setHandle       = _pfd[i].ssboSet,
-                    .binding         = 0,
-                    .buffers       = {_pfd[i].ssboGPU},
+                    .setHandle = _pfd[i].ssboSet,
+                    .binding   = 0,
+                    .buffers   = {_pfd[i].ssboGPU},
                 };
 
                 DescriptorUpdateBufferDesc bufferDesc2 = {
-                    .setHandle       = _pfd[i].ssboSet,
-                    .binding         = 1,
-                    .buffers       = {_pfd[i].indirectArgsGPU},
+                    .setHandle = _pfd[i].ssboSet,
+                    .binding   = 1,
+                    .buffers   = {_pfd[i].indirectArgsGPU},
                 };
 
                 _lgx->DescriptorUpdateBuffer(bufferDesc);
@@ -731,10 +772,10 @@ uint32 _depthTexture = 0;
                 _pfd[i].computeSet = _lgx->CreateDescriptorSet(computeDesc);
 
                 DescriptorUpdateBufferDesc computeBufferDesc = {
-                    .setHandle       = _pfd[i].computeSet,
-                    .binding         = 0,
+                    .setHandle     = _pfd[i].computeSet,
+                    .binding       = 0,
                     .buffers       = {_pfd[i].indirectBufferGPU},
-                    .isWriteAccess   = true,
+                    .isWriteAccess = true,
                 };
 
                 _lgx->DescriptorUpdateBuffer(computeBufferDesc);
@@ -743,18 +784,19 @@ uint32 _depthTexture = 0;
             DescriptorBinding set2Binding0 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
+                .stages          = {ShaderStage::Fragment},
             };
 
             // 10 as max number
-            DescriptorBinding  set2Binding1 = {
+            DescriptorBinding set2Binding1 = {
                 .descriptorCount = 10,
                 .type            = DescriptorType::CombinedImageSampler,
-                .unbounded        = true,
+                .unbounded       = true,
+                .stages          = {ShaderStage::Fragment},
             };
 
             DescriptorSetDesc set2Desc = {
-                .bindings      = {set2Binding0, set2Binding1},
-                .stages          = {ShaderStage::Fragment},
+                .bindings = {set2Binding0, set2Binding1},
             };
 
             LINAGX_VEC<uint32> textures;
@@ -776,18 +818,18 @@ uint32 _depthTexture = 0;
                 _pfd[i].ssboMaterialsSet = _lgx->CreateDescriptorSet(set2Desc);
 
                 DescriptorUpdateBufferDesc bufferDesc = {
-                    .setHandle       = _pfd[i].ssboMaterialsSet,
-                    .binding         = 0,
-                    .buffers     = {_pfd[i].ssboMaterialsGPU},
+                    .setHandle = _pfd[i].ssboMaterialsSet,
+                    .binding   = 0,
+                    .buffers   = {_pfd[i].ssboMaterialsGPU},
                 };
 
                 _lgx->DescriptorUpdateBuffer(bufferDesc);
 
                 DescriptorUpdateImageDesc imgUpdate = {
-                    .setHandle       = _pfd[i].ssboMaterialsSet,
-                    .binding         = 1,
-                    .textures        = textures,
-                    .samplers        = samplers,
+                    .setHandle = _pfd[i].ssboMaterialsSet,
+                    .binding   = 1,
+                    .textures  = textures,
+                    .samplers  = samplers,
                 };
 
                 _lgx->DescriptorUpdateImage(imgUpdate);
@@ -809,6 +851,8 @@ uint32 _depthTexture = 0;
             for (auto& txt : obj.texturesGPU)
                 _lgx->DestroyTexture(txt);
         }
+
+        _lgx->DestroyTexture(_depthTexture);
 
         for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
         {
@@ -874,12 +918,10 @@ uint32 _depthTexture = 0;
                     };
 
                     indirectCommands.push_back(cmd);
-
                     ConstantsData data = {.index = obj.constants.index, .materialByteIndex = obj.constants.materialByteIndex};
                     indirectArguments.push_back(data);
                 }
             }
-
             std::memcpy(currentFrame.indirectBufferMapping, indirectCommands.data(), sizeof(IndexedIndirectCommand) * indirectCommands.size());
             std::memcpy(currentFrame.indirectArgsMapping, indirectArguments.data(), sizeof(ConstantsData) * indirectArguments.size());
 
@@ -928,7 +970,7 @@ uint32 _depthTexture = 0;
             currentFrame.copySemaphoreValue++;
 
             SubmitDesc submit = {
-                    .targetQueue      = _lgx->GetPrimaryQueue(CommandType::Transfer),
+                .targetQueue      = _lgx->GetPrimaryQueue(CommandType::Transfer),
                 .streams          = &currentFrame.copyStream,
                 .streamCount      = 1,
                 .useWait          = false,
@@ -983,33 +1025,65 @@ uint32 _depthTexture = 0;
             _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(CommandType::Compute), .streams = &currentFrame.computeStream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue, .useSignal = true, .signalCount = 1, .signalSemaphores = &currentFrame.computeSemaphore, .signalValues = &currentFrame.computeSemaphoreValue});
         }
 
+        // COMPUTE BARRIER HERE
+        {
+            LinaGX::CMDBarrier* barrier               = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags                    = LinaGX::PSF_Compute;
+            barrier->dstStageFlags                    = LinaGX::PSF_DrawIndirect;
+            barrier->memoryBarrierCount               = 1;
+            barrier->memoryBarriers                   = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::MemBarrier>(sizeof(LinaGX::MemBarrier));
+            barrier->memoryBarriers[0].srcAccessFlags = LinaGX::AF_ShaderWrite;
+            barrier->memoryBarriers[0].dstAccessFlags = LinaGX::AF_IndirectCommandRead;
+        }
+
+        // Barrier to Color Attachment RT and Swapchain
+        {
+            LinaGX::CMDBarrier* barrier  = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags       = LinaGX::PSF_TopOfPipe;
+            barrier->dstStageFlags       = LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment;
+            barrier->textureBarrierCount = 2;
+            barrier->textureBarriers     = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * 2);
+
+            // Swp to color
+            barrier->textureBarriers[0].srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+            barrier->textureBarriers[0].dstAccessFlags = LinaGX::AF_ColorAttachmentRead;
+            barrier->textureBarriers[0].isSwapchain    = true;
+            barrier->textureBarriers[0].texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers[0].toState        = LinaGX::TextureBarrierState::ColorAttachment;
+
+            barrier->textureBarriers[1].srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+            barrier->textureBarriers[1].dstAccessFlags = LinaGX::AF_DepthStencilAttachmentRead;
+            barrier->textureBarriers[1].isSwapchain    = false;
+            barrier->textureBarriers[1].texture        = _depthTexture;
+            barrier->textureBarriers[1].toState        = LinaGX::TextureBarrierState::DepthStencilAttachment;
+        }
+
         // Render pass 1.
         {
             CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
 
-            beginRenderPass->viewport           = viewport;
-            beginRenderPass->scissors           = sc;
-            
+            beginRenderPass->viewport = viewport;
+            beginRenderPass->scissors = sc;
+
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor = {0.8f, 0.8f, 0.8f, 1.0f};
-            colorAttachment.texture = static_cast<uint32>(_swapchain);
-            colorAttachment.isSwapchain = true;
-            colorAttachment.loadOp = LoadOp::Clear;
-            colorAttachment.storeOp = StoreOp::Store;
-            beginRenderPass->colorAttachments = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            colorAttachment.clearColor            = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture               = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain           = true;
+            colorAttachment.loadOp                = LoadOp::Clear;
+            colorAttachment.storeOp               = StoreOp::Store;
+            beginRenderPass->colorAttachments     = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
             beginRenderPass->colorAttachmentCount = 1;
-            beginRenderPass->extension = nullptr;
-            
-            beginRenderPass->depthStencilAttachment.useDepth = true;
-            beginRenderPass->depthStencilAttachment.depthLoadOp = LoadOp::Clear;
+
+            beginRenderPass->depthStencilAttachment.useDepth     = true;
+            beginRenderPass->depthStencilAttachment.depthLoadOp  = LoadOp::Clear;
             beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
-            beginRenderPass->depthStencilAttachment.clearDepth = 1.0f;
-            beginRenderPass->depthStencilAttachment.texture = _depthTexture;
-            
+            beginRenderPass->depthStencilAttachment.clearDepth   = 1.0f;
+            beginRenderPass->depthStencilAttachment.texture      = _depthTexture;
+
             beginRenderPass->depthStencilAttachment.useStencil = false;
-            
-            beginRenderPass->viewport           = viewport;
-            beginRenderPass->scissors           = sc;
+
+            beginRenderPass->viewport = viewport;
+            beginRenderPass->scissors = sc;
         }
 
         // Set shader
@@ -1036,7 +1110,7 @@ uint32 _depthTexture = 0;
             vtx->offset               = 0;
 
             CMDBindIndexBuffers* indx = currentFrame.stream->AddCommand<CMDBindIndexBuffers>();
-            indx->indexType         = IndexType::Uint16;
+            indx->indexType           = IndexType::Uint16;
             indx->offset              = 0;
             indx->resource            = _mergedIndexBufferGPU;
         }
@@ -1046,12 +1120,32 @@ uint32 _depthTexture = 0;
             CMDDrawIndexedIndirect* indirect = currentFrame.stream->AddCommand<CMDDrawIndexedIndirect>();
             indirect->count                  = static_cast<uint32>(indirectCommands.size());
             indirect->indirectBuffer         = currentFrame.indirectBufferGPU;
-            indirect->stride                 = sizeof(IndexedIndirectCommand);
+            indirect->indirectBufferOffset   = 0;
         }
 
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
+        }
+
+        // Barrier to Present
+        {
+            LinaGX::CMDBarrier* barrier  = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags       = LinaGX::PSF_ColorAttachment;
+            barrier->dstStageFlags       = LinaGX::PSF_BottomOfPipe;
+            barrier->textureBarrierCount = 2;
+            barrier->textureBarriers     = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * 2);
+
+            barrier->textureBarriers[0].srcAccessFlags = LinaGX::AF_ColorAttachmentWrite;
+            barrier->textureBarriers[0].dstAccessFlags = 0;
+            barrier->textureBarriers[0].isSwapchain    = true;
+            barrier->textureBarriers[0].texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers[0].toState        = LinaGX::TextureBarrierState::Present;
+            barrier->textureBarriers[1].srcAccessFlags = AF_DepthStencilAttachmentRead;
+            barrier->textureBarriers[1].dstAccessFlags = LinaGX::AF_ShaderRead;
+            barrier->textureBarriers[1].isSwapchain    = false;
+            barrier->textureBarriers[1].texture        = _depthTexture;
+            barrier->textureBarriers[1].toState        = LinaGX::TextureBarrierState::ShaderRead;
         }
 
         // This does the actual *recording* of every single command stream alive.

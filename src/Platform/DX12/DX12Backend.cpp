@@ -535,8 +535,9 @@ namespace LinaGX
             if (txtFlags & TextureFlags::TF_SampleOutsideFragment)
                 state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
+            // Override if depth/stencil
             if ((txtFlags & TextureFlags::TF_DepthTexture) || (txtFlags & TextureFlags::TF_StencilTexture))
-                state |= D3D12_RESOURCE_STATE_DEPTH_READ;
+                state = D3D12_RESOURCE_STATE_DEPTH_READ;
 
             return state;
         }
@@ -1153,7 +1154,7 @@ namespace LinaGX
             }
 
             uint32 drawIDRootParamIndex = 0;
-            if (shaderDesc.layout.hasGLDrawID)
+            if (shaderDesc.layout.hasGLDrawID || shaderDesc.drawIndirectEnabled)
             {
                 CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -1233,7 +1234,7 @@ namespace LinaGX
             }
 
             // Indirect signature.
-            if (shaderDesc.layout.hasGLDrawID)
+            if (shaderDesc.layout.hasGLDrawID || shaderDesc.drawIndirectEnabled)
             {
                 try
                 {
@@ -1251,19 +1252,19 @@ namespace LinaGX
 
                     ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectIndexedSig)));
 
-                    D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]    = {};
-                    argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
-                    argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
-                    argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
-                    argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
-                    argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+                    D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]     = {};
+                    argumentDescs2[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                    argumentDescs2[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                    argumentDescs2[0].Constant.DestOffsetIn32BitValues = 0;
+                    argumentDescs2[0].Constant.Num32BitValuesToSet     = 1;
+                    argumentDescs2[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
 
                     D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
-                    commandSignatureDesc.pArgumentDescs                = argumentDescs2;
-                    commandSignatureDesc.NumArgumentDescs              = _countof(argumentDescs2);
-                    commandSignatureDesc.ByteStride                    = sizeof(IndirectCommand);
+                    commandSignatureDesc2.pArgumentDescs               = argumentDescs2;
+                    commandSignatureDesc2.NumArgumentDescs             = _countof(argumentDescs2);
+                    commandSignatureDesc2.ByteStride                   = sizeof(IndirectCommand);
 
-                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc2, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectDrawSig)));
+                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectDrawSig)));
                 }
                 catch (HrException e)
                 {
@@ -1669,10 +1670,10 @@ namespace LinaGX
             m_device->CreateDepthStencilView(item.allocation->GetResource(), &depthStencilDesc, {targetDescriptor.GetCPUHandle()});
         };
 
-        item.srvs.resize(txtDesc.views.size());
-
         if ((txtDesc.flags & TextureFlags::TF_Sampled) || (txtDesc.flags & TextureFlags::TF_SampleOutsideFragment))
         {
+            item.srvs.resize(txtDesc.views.size());
+
             DXGI_FORMAT srvFormat = GetDXFormat(txtDesc.format);
 
             if ((txtDesc.flags & TextureFlags::TF_DepthTexture) || (txtDesc.flags & TextureFlags::TF_StencilTexture))
@@ -2339,19 +2340,19 @@ namespace LinaGX
 
                 ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, item.rootSig.Get(), IID_PPV_ARGS(&item.indirectIndexedSig)));
 
-                D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]    = {};
-                argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
-                argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
-                argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
-                argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
-                argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+                D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]     = {};
+                argumentDescs2[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                argumentDescs2[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                argumentDescs2[0].Constant.DestOffsetIn32BitValues = 0;
+                argumentDescs2[0].Constant.Num32BitValuesToSet     = 1;
+                argumentDescs2[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
 
                 D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
-                commandSignatureDesc.pArgumentDescs                = argumentDescs2;
-                commandSignatureDesc.NumArgumentDescs              = _countof(argumentDescs2);
-                commandSignatureDesc.ByteStride                    = sizeof(IndirectCommand);
+                commandSignatureDesc2.pArgumentDescs               = argumentDescs2;
+                commandSignatureDesc2.NumArgumentDescs             = _countof(argumentDescs2);
+                commandSignatureDesc2.ByteStride                   = sizeof(IndirectCommand);
 
-                ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc2, item.rootSig.Get(), IID_PPV_ARGS(&item.indirectDrawSig)));
+                ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, item.rootSig.Get(), IID_PPV_ARGS(&item.indirectDrawSig)));
             }
             catch (HrException e)
             {
@@ -3169,7 +3170,7 @@ namespace LinaGX
                 if (binding.lgxBinding.unbounded && param->elementSize != 0)
                     layoutMatches = false;
 
-                if (param->elementSize != binding.lgxBinding.descriptorCount)
+                if (!binding.lgxBinding.unbounded && param->elementSize != binding.lgxBinding.descriptorCount)
                     layoutMatches = false;
 
                 if (param->isWritable != binding.lgxBinding.isWritable)

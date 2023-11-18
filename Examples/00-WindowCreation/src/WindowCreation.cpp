@@ -37,35 +37,32 @@ namespace LinaGX::Examples
 
 #define MAIN_WINDOW_ID 0
 
-    LinaGX::Instance* _lgx = nullptr;
-    Window*           _window   = nullptr;
+    LinaGX::Instance* _lgx    = nullptr;
+    Window*           _window = nullptr;
 
     void Example::Initialize()
     {
         App::Initialize();
 
-        
         //******************* CONFIGURATION & INITIALIZATION
         {
-            LinaGX::Config.logLevel      = LogLevel::Verbose;
-            LinaGX::Config.errorCallback = LogError;
-            LinaGX::Config.infoCallback  = LogInfo;
-
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
 
-            LinaGX::InitInfo initInfo = InitInfo{
-                .api               = api,
-                .gpu               = PreferredGPUType::Discrete,
-                .framesInFlight    = 2,
-                .backbufferCount   = 2,
-            };
+            LinaGX::Config.api                                    = api;
+            LinaGX::Config.gpu                                    = PreferredGPUType::Integrated;
+            LinaGX::Config.framesInFlight                         = 2;
+            LinaGX::Config.backbufferCount                        = 2;
+            LinaGX::Config.gpuLimits                              = {};
+            LinaGX::Config.logLevel                               = LogLevel::Verbose;
+            LinaGX::Config.errorCallback                          = LogError;
+            LinaGX::Config.infoCallback                           = LogInfo;
 
             _lgx = new LinaGX::Instance();
-            _lgx->Initialize(initInfo);
+            _lgx->Initialize();
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
@@ -87,7 +84,7 @@ namespace LinaGX::Examples
 
     void Example::OnTick()
     {
-        // Check for window inputs.
+        // Update window & input systems.
         _lgx->TickWindowSystem();
     }
 

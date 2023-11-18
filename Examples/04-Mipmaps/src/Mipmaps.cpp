@@ -37,6 +37,7 @@ namespace LinaGX::Examples
 
 #define MAIN_WINDOW_ID   0
 #define FRAMES_IN_FLIGHT 2
+#define BACK_BUFFER      2
 
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
@@ -80,26 +81,23 @@ namespace LinaGX::Examples
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            LinaGX::Config.logLevel      = LogLevel::Verbose;
-            LinaGX::Config.errorCallback = LogError;
-            LinaGX::Config.infoCallback  = LogInfo;
-
             BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
 
-            LinaGX::InitInfo initInfo = InitInfo{
-                .api                   = api,
-                .gpu                   = PreferredGPUType::Discrete,
-                .framesInFlight        = FRAMES_IN_FLIGHT,
-                .backbufferCount       = 2,
-                .checkForFormatSupport = {Format::B8G8R8A8_UNORM, Format::D32_SFLOAT},
-            };
+            LinaGX::Config.api             = api;
+            LinaGX::Config.gpu             = PreferredGPUType::Integrated;
+            LinaGX::Config.framesInFlight  = FRAMES_IN_FLIGHT;
+            LinaGX::Config.backbufferCount = BACK_BUFFER;
+            LinaGX::Config.gpuLimits       = {};
+            LinaGX::Config.logLevel        = LogLevel::Verbose;
+            LinaGX::Config.errorCallback   = LogError;
+            LinaGX::Config.infoCallback    = LogInfo;
 
             _lgx = new LinaGX::Instance();
-            _lgx->Initialize(initInfo);
+            _lgx->Initialize();
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
@@ -155,7 +153,6 @@ namespace LinaGX::Examples
                 .window       = _window->GetWindowHandle(),
                 .osHandle     = _window->GetOSHandle(),
                 .isFullscreen = false,
-                .vsyncMode    = VsyncMode::None,
             });
 
             // We need to re-create the swapchain (thus it's images) if window size changes!
@@ -172,9 +169,9 @@ namespace LinaGX::Examples
 
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
-                _pfd[i].stream = _lgx->CreateCommandStream(10, CommandType::Graphics);
+                _pfd[i].stream = _lgx->CreateCommandStream({CommandType::Graphics, 10, 512, 512, 64});
 
-            _copyStream    = _lgx->CreateCommandStream(10, CommandType::Transfer);
+            _copyStream    = _lgx->CreateCommandStream({CommandType::Transfer, 10, 512, 4096, 64});
             _copySemaphore = _lgx->CreateUserSemaphore();
         }
 
@@ -224,31 +221,31 @@ namespace LinaGX::Examples
         }
 
         // Load image.
-        TextureLoadData loadedTextureData  = {};
-        TextureLoadData loadedTextureData2 = {};
-        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::Rgba);
-        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX2.png", loadedTextureData2, ImageChannelMask::Rgba);
+        TextureBuffer loadedTextureData  = {};
+        TextureBuffer loadedTextureData2 = {};
+        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::RGBA);
+        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX2.png", loadedTextureData2, ImageChannelMask::RGBA);
+
+        std::vector<TextureBuffer> txtData1 = {loadedTextureData}, txtData2 = {loadedTextureData2};
 
         // Generate mipmaps
-        std::vector<MipData> outMipmaps;
-        std::vector<MipData> outMipmaps2;
-        LinaGX::GenerateMipmaps(loadedTextureData, outMipmaps, MipmapFilter::Default, ImageChannelMask::Rgba, false);
-        LinaGX::GenerateMipmaps(loadedTextureData2, outMipmaps2, MipmapFilter::Default, ImageChannelMask::Rgba, false);
+        LinaGX::GenerateMipmaps(loadedTextureData, txtData1, MipmapFilter::Default, ImageChannelMask::RGBA, false);
+        LinaGX::GenerateMipmaps(loadedTextureData2, txtData2, MipmapFilter::Default, ImageChannelMask::RGBA, false);
 
         // Need big enough staging resource, calculate size.
-        uint32 totalStagingResourceSize = loadedTextureData.width * loadedTextureData.height * 4;
-        for (const auto& md : outMipmaps)
+        uint32 totalStagingResourceSize = 0;
+        for (const auto& md : txtData1)
             totalStagingResourceSize += md.width * md.height * 4;
 
         //******************* TEXTURE
         {
             // Create gpu resource
             TextureDesc desc = {
-                .usage       = TextureUsage::ColorTexture,
+                .format      = Format::R8G8B8A8_UNORM,
+                .flags       = LinaGX::TextureFlags::TF_CopyDest | LinaGX::TextureFlags::TF_Sampled,
                 .width       = loadedTextureData.width,
                 .height      = loadedTextureData.height,
-                .mipLevels   = loadedTextureData.totalMipLevels,
-                .format      = Format::R8G8B8A8_UNORM,
+                .mipLevels   = static_cast<uint32>(txtData1.size()),
                 .arrayLength = 2,
                 .debugName   = "Lina Logo",
             };
@@ -281,48 +278,50 @@ namespace LinaGX::Examples
                 .bytesPerPixel = 4,
             };
 
-            // Put the base texture data + all mip data together.
-            std::vector<TextureBuffer> textureDataWithMips;
-            std::vector<TextureBuffer> textureDataWithMips2;
-            textureDataWithMips.push_back(txtBuffer);
-            textureDataWithMips2.push_back(txtBuffer2);
-
-            for (const auto& md : outMipmaps)
+            // Barrier to transfer destination.
             {
-                TextureBuffer mip = {
-                    .pixels        = md.pixels,
-                    .width         = md.width,
-                    .height        = md.height,
-                    .bytesPerPixel = 4,
-                };
-
-                textureDataWithMips.push_back(mip);
-            }
-
-            for (const auto& md : outMipmaps2)
-            {
-                TextureBuffer mip = {
-                    .pixels        = md.pixels,
-                    .width         = md.width,
-                    .height        = md.height,
-                    .bytesPerPixel = 4,
-                };
-
-                textureDataWithMips2.push_back(mip);
+                LinaGX::CMDBarrier* textureBarrier   = _copyStream->AddCommand<LinaGX::CMDBarrier>();
+                textureBarrier->resourceBarrierCount = 0;
+                textureBarrier->textureBarrierCount  = 1;
+                textureBarrier->textureBarriers      = _copyStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+                textureBarrier->srcStageFlags        = LinaGX::PSF_TopOfPipe;
+                textureBarrier->dstStageFlags        = LinaGX::PSF_Transfer;
+                auto& barrier                        = textureBarrier->textureBarriers[0];
+                barrier.texture                      = _textureGPU;
+                barrier.toState                      = LinaGX::TextureBarrierState::TransferDestination;
+                barrier.isSwapchain                  = false;
+                barrier.srcAccessFlags               = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+                barrier.dstAccessFlags               = LinaGX::AF_TransferWrite;
             }
 
             // Copy texture
             CMDCopyBufferToTexture2D* copyTxt = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt->destTexture              = _textureGPU;
-            copyTxt->mipLevels                = loadedTextureData.totalMipLevels;
-            copyTxt->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips.data(), sizeof(TextureBuffer) * textureDataWithMips.size());
+            copyTxt->mipLevels                = static_cast<uint32>(txtData1.size());
+            copyTxt->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(txtData1.data(), sizeof(TextureBuffer) * txtData1.size());
             copyTxt->destinationSlice         = 0;
 
             CMDCopyBufferToTexture2D* copyTxt2 = _copyStream->AddCommand<CMDCopyBufferToTexture2D>();
             copyTxt2->destTexture              = _textureGPU;
-            copyTxt2->mipLevels                = loadedTextureData2.totalMipLevels;
-            copyTxt2->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(textureDataWithMips2.data(), sizeof(TextureBuffer) * textureDataWithMips2.size());
+            copyTxt2->mipLevels                = static_cast<uint32>(txtData2.size());
+            copyTxt2->buffers                  = _copyStream->EmplaceAuxMemory<TextureBuffer>(txtData2.data(), sizeof(TextureBuffer) * txtData2.size());
             copyTxt2->destinationSlice         = 1;
+
+            // Barrier back to sampling.
+            {
+                LinaGX::CMDBarrier* textureBarrier   = _copyStream->AddCommand<LinaGX::CMDBarrier>();
+                textureBarrier->resourceBarrierCount = 0;
+                textureBarrier->textureBarrierCount  = 1;
+                textureBarrier->textureBarriers      = _copyStream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+                textureBarrier->srcStageFlags        = LinaGX::PSF_Transfer;
+                textureBarrier->dstStageFlags        = LinaGX::PSF_Transfer;
+                auto& barrier                        = textureBarrier->textureBarriers[0];
+                barrier.texture                      = _textureGPU;
+                barrier.toState                      = LinaGX::TextureBarrierState::ShaderRead;
+                barrier.srcAccessFlags               = LinaGX::AF_TransferWrite;
+                barrier.dstAccessFlags               = LinaGX::AF_TransferRead;
+                barrier.isSwapchain                  = false;
+            }
 
             // Record copy command.
             CMDCopyResource* copyVtxBuf = _copyStream->AddCommand<CMDCopyResource>();
@@ -344,11 +343,11 @@ namespace LinaGX::Examples
             _lgx->DestroyResource(_vertexBufferStaging);
             _lgx->DestroyResource(_indexBufferStaging);
 
-            // Done with pixels.
-            LinaGX::FreeImage(loadedTextureData.pixels);
+            for (const auto& td : txtData1)
+                LinaGX::FreeImage(td.pixels);
 
-            for (const auto& md : outMipmaps)
-                LinaGX::FreeImage(md.pixels);
+            for (const auto& td : txtData2)
+                LinaGX::FreeImage(td.pixels);
         }
 
         //******************* DESCRIPTOR SET
@@ -357,11 +356,11 @@ namespace LinaGX::Examples
                 .descriptorCount  = 1,
                 .type             = DescriptorType::CombinedImageSampler,
                 .useDynamicOffset = false,
+                .stages           = {ShaderStage::Fragment},
             };
 
             DescriptorSetDesc desc = {
                 .bindings = {binding},
-                .stages   = {ShaderStage::Fragment},
             };
 
             _descriptorSet0 = _lgx->CreateDescriptorSet(desc);
@@ -414,13 +413,27 @@ namespace LinaGX::Examples
 
         auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
 
+        // Barrier to Color Attachment
+        {
+            LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags                   = LinaGX::PSF_TopOfPipe;
+            barrier->dstStageFlags                   = LinaGX::PSF_ColorAttachment;
+            barrier->textureBarrierCount             = 1;
+            barrier->textureBarriers                 = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+            barrier->textureBarriers->srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
+            barrier->textureBarriers->dstAccessFlags = LinaGX::AF_ColorAttachmentRead;
+            barrier->textureBarriers->isSwapchain    = true;
+            barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::ColorAttachment;
+        }
+
         // Render pass begin
         {
             Viewport                  viewport        = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
             ScissorsRect              sc              = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
             CMDBeginRenderPass*       beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor                       = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.clearColor                       = {0.3f, 0.3f, 0.3f, 1.0f};
             colorAttachment.texture                          = static_cast<uint32>(_swapchain);
             colorAttachment.isSwapchain                      = true;
             colorAttachment.loadOp                           = LoadOp::Clear;
@@ -442,7 +455,7 @@ namespace LinaGX::Examples
 
             CMDBindIndexBuffers* bindIndex = currentFrame.stream->AddCommand<CMDBindIndexBuffers>();
             bindIndex->resource            = _indexBufferGPU;
-            bindIndex->indexType         = IndexType::Uint32;
+            bindIndex->indexType           = IndexType::Uint32;
             bindIndex->offset              = 0;
         }
 
@@ -458,10 +471,7 @@ namespace LinaGX::Examples
             bindTxt->firstSet              = 0;
             bindTxt->setCount              = 1;
             bindTxt->descriptorSetHandles  = currentFrame.stream->EmplaceAuxMemory<uint16>(_descriptorSet0);
-            bindTxt->isCompute             = false;
-            bindTxt->explicitShaderLayout  = false;
-            bindTxt->dynamicOffsetCount    = 0;
-            bindTxt->dynamicOffsets        = nullptr;
+            bindTxt->layoutSource          = LinaGX::DescriptorSetsLayoutSource::LastBoundShader;
         }
 
         // Draw the triangle
@@ -477,6 +487,20 @@ namespace LinaGX::Examples
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
+        }
+
+        // Barrier to Present
+        {
+            LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+            barrier->srcStageFlags                   = LinaGX::PSF_ColorAttachment;
+            barrier->dstStageFlags                   = LinaGX::PSF_BottomOfPipe;
+            barrier->textureBarrierCount             = 1;
+            barrier->textureBarriers                 = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier));
+            barrier->textureBarriers->srcAccessFlags = LinaGX::AF_ColorAttachmentWrite;
+            barrier->textureBarriers->dstAccessFlags = 0;
+            barrier->textureBarriers->isSwapchain    = true;
+            barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
+            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::Present;
         }
 
         // This does the actual *recording* of every single command stream alive.

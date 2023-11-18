@@ -424,7 +424,7 @@ namespace LinaGX
 
     enum AccessFlags
     {
-        AF_IndirectCommand             = 0x00000001,
+        AF_IndirectCommandRead         = 0x00000001,
         AF_IndexRead                   = 0x00000002,
         AF_VertexAttributeRead         = 0x00000004,
         AF_UniformRead                 = 0x00000008,
@@ -627,6 +627,17 @@ namespace LinaGX
         uint32               dstAccessFlags;
     };
 
+    /// <summary>
+    /// If targeting Vulkan, need to use srcAccessFlags and dstAccessFlags. Use AccessFlags enumeration.
+    /// In DX12 access flags are not required.
+    /// In Metal no transition/barrier is required at all.
+    /// </summary>
+    struct MemBarrier
+    {
+        uint32 srcAccessFlags;
+        uint32 dstAccessFlags;
+    };
+
     struct GPULimits
     {
         uint32 textureLimit       = 512;
@@ -772,7 +783,7 @@ namespace LinaGX
     {
         CommandType type              = CommandType::Graphics;
         uint32      commandCount      = 200;   // Maximum number of commands that can be recorded in this stream.
-        size_t      totalMemoryLimit  = 48000; // Maximum allowed memory pool, this amount will be reserved for the lifetime of stream, so experiment and keep it sensible.
+        size_t      totalMemoryLimit  = 24000; // Maximum allowed memory pool, this amount will be reserved for the lifetime of stream, so experiment and keep it sensible.
         size_t      auxMemorySize     = 4096;  // Maximum allowed auxilary memory poolthis amount will be reserved for the lifetime of stream, so experiment and keep it sensible.
         size_t      constantBlockSize = 64;    // Not used in Vulkan, but in DX12 and Metal used to store constant bindings data in the shaders. If constants to be bound is bigger than available space, they are MALLOC'ed directly.
         const char* debugName         = "LinaGXCommandStream";
@@ -844,6 +855,7 @@ namespace LinaGX
         bool                               blendLogicOpEnabled     = false;
         LogicOp                            blendLogicOp            = LogicOp::Copy;
         bool                               alphaToCoverage         = false;
+        bool                               drawIndirectEnabled     = false;
         bool                               useCustomPipelineLayout = false; // If false, layout from the reflection info will be auto-generated and used.
         uint16                             customPipelineLayout    = 0;     // If useCustomPipelineLayout is true, set this to the handle of the layout you create with CreatePipelineLayout
         bool                               useCustomVertexInputs   = false; // If false, vertex inputs from the reflection info will be used.
