@@ -81,6 +81,7 @@ int main(int argc, char* argv[])
             [app setDelegate:appDelegate];
             [app activateIgnoringOtherApps:YES];
             [app run];
+
         }
     
     exampleApp.Shutdown();

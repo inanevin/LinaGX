@@ -27,23 +27,10 @@ SOFTWARE.
 */
 
 /*
-THINGS TO ADD ALL BACKENDS/FIX:
-
- - Fero model won't load.
- - Fero'da format/hdr problemi.
- - Document & format all.
- - Metal obj release problem.
 
 THINGS TO RESEARCH:
 
 - gl_InstanceIndex and alike and their support.
-- allocate N sets & pool them.
-
-FEATURES TO IMPLEMENT
-
-- metal: resize and exit bugs.
-- metal descriptor set allocation index.
-- metal mouse input shit
 
 INDIRECT NOTES:
 

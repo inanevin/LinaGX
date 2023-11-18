@@ -52,30 +52,31 @@ namespace LinaGX::Examples
 
     void Camera::Tick(float dt)
     {
-        if (m_controlsEnabled && m_lgx->GetInput().GetKeyDown(LINAGX_KEY_ESCAPE))
+        if (m_controlsEnabled && m_lgx->GetInput().GetKey(LINAGX_KEY_ESCAPE))
         {
             m_controlsEnabled = false;
             m_mainWindow->SetMouseVisible(true);
             m_mainWindow->FreeMouse();
         }
 
-        if (!m_controlsEnabled)
+        if (m_lgx->GetInput().GetMouseButton(LINAGX_MOUSE_0) && !m_controlsEnabled)
         {
-            if (m_lgx->GetInput().GetMouseButtonDown(LINAGX_MOUSE_0))
-            {
-                m_mainWindow->SetMouseVisible(false);
-                m_mainWindow->ConfineMouseToCenter();
-                m_controlsEnabled = true;
-            }
+            m_mainWindow->SetMouseVisible(false);
+            m_mainWindow->ConfineMouseToCenter();
+            m_controlsEnabled = true;
         }
-
+        
         //m_controlsEnabled = true;
         if (m_controlsEnabled)
         {
             // Calc rot.
-            auto mt = m_lgx->GetInput().GetMouseDelta();
-            m_targetX -= mt.y * dt * ROTATE_AMT;
-            m_targetY -= mt.x * dt * ROTATE_AMT;
+            auto md = m_lgx->GetInput().GetMouseDelta();
+            
+            md.x = std::clamp(md.x, -2, 2);
+            md.y = std::clamp(md.y, -2, 2);
+            
+            m_targetX -= md.y * dt * ROTATE_AMT;
+            m_targetY -= md.x * dt * ROTATE_AMT;
             m_angleX           = LinaGX::Lerp(m_angleX, m_targetX, dt * ROTATE_SPEED);
             m_angleY           = LinaGX::Lerp(m_angleY, m_targetY, dt * ROTATE_SPEED);
             const glm::quat qx = glm::angleAxis(m_angleX, glm::vec3(1, 0, 0));
@@ -99,13 +100,6 @@ namespace LinaGX::Examples
             m_position += moveY * dt * glm::normalize(forwardVec) * MOVE_SPEED;
             m_position += moveX * dt * glm::normalize(rightVec) * MOVE_SPEED;
 
-            auto now2     = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now2 - now);
-
-            if (duration.count() > 3000)
-            {
-                int a = 5;
-            }
         }
 
         // Produce matrices.

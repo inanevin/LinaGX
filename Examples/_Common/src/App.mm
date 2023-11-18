@@ -50,7 +50,6 @@ namespace LinaGX::Examples
         
         wnd->SetCallbackSizeChanged([this](const LGXVector2ui& newSize){
             std::lock_guard<std::mutex> lg(m_sizeMtx);
-            LOGT("RESIZING %d %d", newSize.x, newSize.y);
             OnWindowResized(newSize.x, newSize.y);
         });
     }
