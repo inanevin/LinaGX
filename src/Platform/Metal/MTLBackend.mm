@@ -60,61 +60,125 @@ MTLPixelFormat GetMTLFormat(Format format)
     {
     case Format::UNDEFINED:
         return MTLPixelFormatInvalid;
-    case Format::B8G8R8A8_SRGB:
-        return MTLPixelFormatBGRA8Unorm_sRGB;
-    case Format::B8G8R8A8_UNORM:
-        return MTLPixelFormatBGRA8Unorm;
-    case Format::R32G32B32_FLOAT:
-        LOGA(false, "Not supported on Metal!");
-        return MTLPixelFormatInvalid;
-    case Format::R32G32B32_INT:
-        LOGA(false, "Not supported on Metal!");
-        return MTLPixelFormatInvalid;
-    case Format::R11G11B10_FLOAT:
-        return MTLPixelFormatRG11B10Float;
-    case Format::R10G0B10A2_INT:
-        return MTLPixelFormatRGB10A2Uint;
-    case Format::R32G32B32A32_FLOAT:
-        return MTLPixelFormatRGBA32Float;
-    case Format::R32G32B32A32_INT:
-        return MTLPixelFormatRGBA32Sint;
-    case Format::R16G16B16A16_FLOAT:
-        return MTLPixelFormatRGBA16Float;
-    case Format::R16G16B16A16_UNORM:
-        return MTLPixelFormatRGBA16Unorm;
-    case Format::R32G32_FLOAT:
-        return MTLPixelFormatRG32Float;
-    case Format::R32G32_INT:
-        return MTLPixelFormatRG32Sint;
-    case Format::D32_SFLOAT:
-        return MTLPixelFormatDepth32Float;
-    case Format::R8G8B8A8_UNORM:
-        return MTLPixelFormatRGBA8Unorm;
-    case Format::R8G8B8A8_SRGB:
-        return MTLPixelFormatRGBA8Unorm_sRGB;
-    case Format::R8G8_UNORM:
-        return MTLPixelFormatRG8Unorm;
-    case Format::R8_UNORM:
-        return MTLPixelFormatR8Unorm;
+
+        // 8 bit
+    case Format::R8_SINT:
+        return MTLPixelFormatR8Sint;
     case Format::R8_UINT:
         return MTLPixelFormatR8Uint;
-    case Format::R16_FLOAT:
-        return MTLPixelFormatR16Float;
-    case Format::R16_INT:
-        return MTLPixelFormatR16Sint;
-    case Format::R32_FLOAT:
-        return MTLPixelFormatR32Float;
-    case Format::R32_INT:
-        return MTLPixelFormatR32Sint;
+    case Format::R8_UNORM:
+        return MTLPixelFormatR8Unorm;
+    case Format::R8_SNORM:
+        return MTLPixelFormatR8Snorm;
+
+    case Format::R8G8_SINT:
+            return MTLPixelFormatRG8Sint;
+    case Format::R8G8_UINT:
+            return MTLPixelFormatRG8Uint;
+    case Format::R8G8_UNORM:
+            return MTLPixelFormatRG8Unorm;
+    case Format::R8G8_SNORM:
+            return MTLPixelFormatRG8Snorm;
+
+    case Format::R8G8B8A8_SINT:
+            return MTLPixelFormatRGBA8Sint;
+    case Format::R8G8B8A8_UINT:
+            return MTLPixelFormatRGBA8Uint;
+    case Format::R8G8B8A8_UNORM:
+            return MTLPixelFormatRGBA8Unorm;
+    case Format::R8G8B8A8_SNORM:
+            return MTLPixelFormatRGBA8Snorm;
+    case Format::R8G8B8A8_SRGB:
+            return MTLPixelFormatRGBA8Unorm_sRGB;
+
+    case Format::B8G8R8A8_UNORM:
+            return MTLPixelFormatBGRA8Unorm;
+    case Format::B8G8R8A8_SRGB:
+            return MTLPixelFormatBGRA8Unorm_sRGB;
+
+        // 16 bit
+    case Format::R16_SINT:
+            return MTLPixelFormatR16Sint;
+    case Format::R16_UINT:
+            return MTLPixelFormatR16Uint;
+    case Format::R16_UNORM:
+            return MTLPixelFormatR16Unorm;
+    case Format::R16_SNORM:
+            return MTLPixelFormatR16Snorm;
+    case Format::R16_SFLOAT:
+            return MTLPixelFormatR16Float;
+
+    case Format::R16G16_SINT:
+            return MTLPixelFormatRG16Sint;
+    case Format::R16G16_UINT:
+            return MTLPixelFormatRG16Uint;
+    case Format::R16G16_UNORM:
+            return MTLPixelFormatRG16Unorm;
+    case Format::R16G16_SNORM:
+            return MTLPixelFormatRG16Snorm;
+    case Format::R16G16_SFLOAT:
+            return MTLPixelFormatRG16Float;
+
+    case Format::R16G16B16A16_SINT:
+            return MTLPixelFormatRGBA16Sint;
+    case Format::R16G16B16A16_UINT:
+            return MTLPixelFormatRGBA16Uint;
+    case Format::R16G16B16A16_UNORM:
+            return MTLPixelFormatRGBA16Unorm;
+    case Format::R16G16B16A16_SNORM:
+            return MTLPixelFormatRGBA16Snorm;
+    case Format::R16G16B16A16_SFLOAT:
+            return MTLPixelFormatRGBA16Float;
+
+        // 32 bit
+    case Format::R32_SINT:
+            return MTLPixelFormatR32Sint;
     case Format::R32_UINT:
-        return MTLPixelFormatR32Uint;
+            return MTLPixelFormatR32Uint;
+    case Format::R32_SFLOAT:
+            return MTLPixelFormatR32Float;
+
+    case Format::R32G32_SINT:
+            return MTLPixelFormatRG32Sint;
+    case Format::R32G32_UINT:
+            return MTLPixelFormatRG32Uint;
+    case Format::R32G32_SFLOAT:
+            return MTLPixelFormatRG32Float;
+
+    case Format::R32G32B32_SFLOAT:
+            return MTLPixelFormatInvalid;
+    case Format::R32G32B32_SINT:
+            return MTLPixelFormatInvalid;
+    case Format::R32G32B32_UINT:
+            return MTLPixelFormatInvalid;
+
+    case Format::R32G32B32A32_SINT:
+            return MTLPixelFormatRGBA32Sint;
+    case Format::R32G32B32A32_UINT:
+            return MTLPixelFormatRGBA32Uint;
+    case Format::R32G32B32A32_SFLOAT:
+            return MTLPixelFormatRGBA32Float;
+            
+        // depth-stencil
+    case Format::D32_SFLOAT:
+            return MTLPixelFormatDepth32Float;
+    case Format::D24_UNORM_S8_UINT:
+            return MTLPixelFormatDepth32Float_Stencil8;
+        case Format::D16_UNORM:
+            return MTLPixelFormatDepth16Unorm;
+
+        // misc
+    case Format::R11G11B10_SFLOAT:
+            return MTLPixelFormatRG11B10Float;
+    case Format::R10G0B10A2_INT:
+        return MTLPixelFormatRGB10A2Uint;
     case Format::BC3_BLOCK_SRGB:
-        return MTLPixelFormatBC3_RGBA_sRGB;
+            return MTLPixelFormatBC3_RGBA_sRGB;
     case Format::BC3_BLOCK_UNORM:
         return MTLPixelFormatBC3_RGBA;
+
     default:
-        LOGA(false, "Not supported yet!");
-        return MTLPixelFormatInvalid;
+            return MTLPixelFormatInvalid;
     }
 
     return MTLPixelFormatInvalid;
@@ -191,28 +255,118 @@ MTLCompareFunction GetMTLCompareOp(CompareOp op) {
 
 MTLVertexFormat GetMTLVertexFormat(Format format)
 {
-    switch(format)
+    switch (format)
     {
-        case Format::R32G32B32A32_FLOAT:
-            return MTLVertexFormatFloat4;
-        case Format::R32G32B32A32_INT:
-            return MTLVertexFormatInt4;
-        case Format::R32G32B32_FLOAT:
-            return MTLVertexFormatFloat3;
-        case Format::R32G32B32_INT:
-            return MTLVertexFormatInt3;
-        case Format::R32G32_FLOAT:
-            return MTLVertexFormatFloat2;
-        case Format::R32G32_INT:
-            return MTLVertexFormatInt2;
-        case Format::R32_INT:
+    case Format::UNDEFINED:
+        return MTLVertexFormatInvalid;
+
+        // 8 bit
+    case Format::R8_SINT:
+            return MTLVertexFormatChar;
+    case Format::R8_UINT:
+            return MTLVertexFormatUChar;
+    case Format::R8_UNORM:
+            return MTLVertexFormatUCharNormalized;
+    case Format::R8_SNORM:
+            return MTLVertexFormatCharNormalized;
+
+    case Format::R8G8_SINT:
+            return MTLVertexFormatChar2;
+    case Format::R8G8_UINT:
+            return MTLVertexFormatUChar2;
+    case Format::R8G8_UNORM:
+            return MTLVertexFormatUChar2Normalized;
+    case Format::R8G8_SNORM:
+            return MTLVertexFormatChar2Normalized;
+
+    case Format::R8G8B8A8_SINT:
+            return MTLVertexFormatChar4;
+    case Format::R8G8B8A8_UINT:
+            return MTLVertexFormatUChar4;
+    case Format::R8G8B8A8_UNORM:
+    case Format::B8G8R8A8_UNORM:
+            return MTLVertexFormatUChar4Normalized;
+    case Format::R8G8B8A8_SNORM:
+            return MTLVertexFormatChar4Normalized;
+    case Format::B8G8R8A8_SRGB:
+    case Format::R8G8B8A8_SRGB:
+            return MTLVertexFormatUChar4;
+
+        // 16 bit
+    case Format::R16_SINT:
+            return MTLVertexFormatShort;
+    case Format::R16_UINT:
+            return MTLVertexFormatUShort;
+    case Format::R16_UNORM:
+            return MTLVertexFormatUShortNormalized;
+    case Format::R16_SNORM:
+            return MTLVertexFormatShortNormalized;
+    case Format::R16_SFLOAT:
+            return MTLVertexFormatHalf;
+
+    case Format::R16G16_SINT:
+            return MTLVertexFormatShort2;
+    case Format::R16G16_UINT:
+            return MTLVertexFormatUShort2;
+    case Format::R16G16_UNORM:
+            return MTLVertexFormatUShort2Normalized;
+    case Format::R16G16_SNORM:
+            return MTLVertexFormatShort2Normalized;
+    case Format::R16G16_SFLOAT:
+            return MTLVertexFormatHalf2;
+
+    case Format::R16G16B16A16_SINT:
+            return MTLVertexFormatShort4;
+    case Format::R16G16B16A16_UINT:
+            return MTLVertexFormatUShort4;
+    case Format::R16G16B16A16_UNORM:
+            return MTLVertexFormatUShort4Normalized;
+    case Format::R16G16B16A16_SNORM:
+            return MTLVertexFormatShort4Normalized;
+    case Format::R16G16B16A16_SFLOAT:
+            return MTLVertexFormatHalf4;
+
+        // 32 bit
+    case Format::R32_SINT:
             return MTLVertexFormatInt;
-        case Format::R32_FLOAT:
+    case Format::R32_UINT:
+            return MTLVertexFormatUInt;
+    case Format::R32_SFLOAT:
             return MTLVertexFormatFloat;
-        default:
-            LOGA(false, "Not supported yet!");
+
+    case Format::R32G32_SINT:
+            return MTLVertexFormatInt2;
+    case Format::R32G32_UINT:
+            return MTLVertexFormatUInt2;
+    case Format::R32G32_SFLOAT:
+            return MTLVertexFormatFloat2;
+
+    case Format::R32G32B32_SFLOAT:
+            return MTLVertexFormatFloat3;
+    case Format::R32G32B32_SINT:
+            return MTLVertexFormatInt3;
+    case Format::R32G32B32_UINT:
+            return MTLVertexFormatUInt3;
+
+    case Format::R32G32B32A32_SINT:
+            return MTLVertexFormatInt4;
+    case Format::R32G32B32A32_UINT:
+            return MTLVertexFormatUInt4;
+    case Format::R32G32B32A32_SFLOAT:
+            return MTLVertexFormatFloat4;
+            
+        // depth-stencil
+    case Format::D32_SFLOAT:
+    case Format::D24_UNORM_S8_UINT:
+    case Format::D16_UNORM:
+    case Format::R11G11B10_SFLOAT:
+    case Format::R10G0B10A2_INT:
+    case Format::BC3_BLOCK_SRGB:
+    case Format::BC3_BLOCK_UNORM:
+    default:
             return MTLVertexFormatInvalid;
     }
+    
 }
 
 MTLCullMode GetMTLCullMode(CullMode mode)
@@ -321,7 +475,8 @@ MTLRenderStages GetMTLRenderStage(ShaderStage stage)
             return MTLRenderStageFragment;
         case ShaderStage::Vertex:
             return MTLRenderStageVertex;
-        case ShaderStage::Tesellation:
+        case ShaderStage::TesellationControl:
+        case ShaderStage::TesellationEval:
         case ShaderStage::Geometry:
             LOGA(false, "Backend -> Not supported yet!");
             return MTLRenderStageVertex;
@@ -447,6 +602,7 @@ uint8 MTLBackend::CreateSwapchain(const SwapchainDesc &desc) {
     layer.device = AS_MTL(m_device, id<MTLDevice>);
     layer.pixelFormat = GetMTLFormat(desc.format);
     layer.maximumDrawableCount = Config.backbufferCount;
+    
     item.layer = AS_VOID(layer);
     item.width = desc.width;
     item.height = desc.height;
@@ -486,23 +642,21 @@ void MTLBackend::DestroySwapchain(uint8 handle) {
 
 void MTLBackend::RecreateSwapchain(const SwapchainRecreateDesc &desc) {
     
-    if (desc.width == 0 || desc.height == 0 || m_frameOnGoing)
+    if (desc.width == 0 || desc.height == 0)
         return;
 
     Join();
     
-    LOGT("Recreating swapchain to new size %d %d", desc.width, desc.height);
     auto& swap = m_swapchains.GetItemR(desc.swapchain);
     swap.width = desc.width;
     swap.height = desc.height;
     CAMetalLayer* layer = AS_MTL(swap.layer, CAMetalLayer*);
     NSWindow* wnd = AS_MTL(swap.window, NSWindow*);
-    CGSize sz;
-    sz.width = desc.width;
-    sz.height = desc.height;
-    layer.drawableSize = sz;
-    layer.contentsScale = wnd.backingScaleFactor;
-    // TODO: vsync.
+    CGSize sz = NSMakeSize(desc.width, desc.height);
+    CGRect rect = NSMakeRect(0, 0, desc.width, desc.height);
+    [layer setDrawableSize:sz];
+    [layer setContentsScale:wnd.backingScaleFactor];
+    // TODO: vsync?
 }
 
 void MTLBackend::SetSwapchainActive(uint8 swp, bool isActive) {
@@ -637,23 +791,38 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     
     uint32 i = 0;
     size_t totalSize = 0;
-    for (const auto& input : shaderDesc.layout.vertexInputs)
-    {
-        vertexDescriptor.attributes[i].format = GetMTLVertexFormat(input.format);
-        vertexDescriptor.attributes[i].offset = input.offset;
-        vertexDescriptor.attributes[i].bufferIndex = 0;
-        totalSize += input.size;
-        i++;
-    }
     
-    if(!shaderDesc.layout.vertexInputs.empty())
+    if(!shaderDesc.customVertexInputs.empty())
+    {
+        for(const auto& input : shaderDesc.customVertexInputs)
+        {
+            vertexDescriptor.attributes[i].format = GetMTLVertexFormat(input.format);
+            vertexDescriptor.attributes[i].offset = input.offset;
+            vertexDescriptor.attributes[i].bufferIndex = 0;
+            totalSize += input.size;
+            i++;
+        }
+    }
+    else
+    {
+        for (const auto& input : shaderDesc.layout.vertexInputs)
+        {
+            vertexDescriptor.attributes[i].format = GetMTLVertexFormat(input.format);
+            vertexDescriptor.attributes[i].offset = input.offset;
+            vertexDescriptor.attributes[i].bufferIndex = 0;
+            totalSize += input.size;
+            i++;
+        }
+        
+    }
+   
+    if(i != 0)
     {
         vertexDescriptor.layouts[0].stride = totalSize;
         vertexDescriptor.layouts[0].stepRate = 1;
         vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
         [pipelineDescriptor setVertexDescriptor:vertexDescriptor];
     }
-  
 
     // Stages
     LINAGX_MAP<ShaderStage, id<MTLLibrary>> libs;
@@ -932,10 +1101,14 @@ void MTLBackend::DestroyResource(uint32 handle) {
 }
 
 uint16 MTLBackend::CreateDescriptorSet(const DescriptorSetDesc &desc) {
+    
+    LOGA(desc.allocationCount > 0, "Backend -> Descriptor set allocation count must be at least 1!");
+    
     MTLDescriptorSet item = {};
     item.isValid = true;
     item.desc = desc;
-  
+    item.bindings.resize(desc.allocationCount);
+    
     auto device = AS_MTL(m_device, id<MTLDevice>);
 
     auto createArgEncoder = [device](MTLBinding& bnd, bool isSecondary, DescriptorType type) {
@@ -963,27 +1136,30 @@ uint16 MTLBackend::CreateDescriptorSet(const DescriptorSetDesc &desc) {
             bnd.argEncoder = AS_VOID(argEncoder);
     };
     
-    for(const auto& binding : desc.bindings)
+    for (uint32 j = 0; j < desc.allocationCount; j++)
     {
-        MTLBinding bnd = {};
-        bnd.lgxBinding = binding;
-        
-        if(binding.unbounded)
+        for(const auto& binding : desc.bindings)
         {
-            if(binding.type == DescriptorType::CombinedImageSampler)
+            MTLBinding bnd = {};
+            bnd.lgxBinding = binding;
+            
+            if(binding.unbounded)
             {
-                createArgEncoder(bnd, false, binding.type);
-                createArgEncoder(bnd, true, binding.type);
+                if(binding.type == DescriptorType::CombinedImageSampler)
+                {
+                    createArgEncoder(bnd, false, binding.type);
+                    createArgEncoder(bnd, true, binding.type);
+                }
+                else if(binding.type != DescriptorType::SSBO)
+                    createArgEncoder(bnd, false, binding.type);
             }
-            else if(binding.type != DescriptorType::SSBO)
-                createArgEncoder(bnd, false, binding.type);
+         
+            
+            item.bindings[j].push_back(bnd);
+
         }
-     
-        
-        item.bindings.push_back(bnd);
-
     }
-
+   
     
     return m_descriptorSets.AddItem(item);
 }
@@ -996,33 +1172,38 @@ void MTLBackend::DestroyDescriptorSet(uint16 handle) {
         return;
     }
     
-    for(const auto& bindingData : item.bindings)
-    {
-        if(bindingData.argBuffer != nullptr)
-        {
-            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
-            [argBuffer release];
-        }
+    for (const auto& setBindings : item.bindings){
         
-        if(bindingData.argBufferSecondary != nullptr)
+        for(const auto& bindingData : setBindings)
         {
-            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBufferSecondary, id<MTLBuffer>);
-            [argBuffer release];
-        }
+            if(bindingData.argBuffer != nullptr)
+            {
+                id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
+                [argBuffer release];
+            }
             
-        if(bindingData.argEncoder != nullptr)
-        {
-            id<MTLArgumentEncoder> argEncoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
-            [argEncoder release];
+            if(bindingData.argBufferSecondary != nullptr)
+            {
+                id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBufferSecondary, id<MTLBuffer>);
+                [argBuffer release];
+            }
+                
+            if(bindingData.argEncoder != nullptr)
+            {
+                id<MTLArgumentEncoder> argEncoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
+                [argEncoder release];
+            }
+            
+            if(bindingData.argEncoderSecondary != nullptr)
+            {
+                id<MTLArgumentEncoder> argEncoder = AS_MTL(bindingData.argEncoderSecondary, id<MTLArgumentEncoder>);
+                [argEncoder release];
+            }
         }
         
-        if(bindingData.argEncoderSecondary != nullptr)
-        {
-            id<MTLArgumentEncoder> argEncoder = AS_MTL(bindingData.argEncoderSecondary, id<MTLArgumentEncoder>);
-            [argEncoder release];
-        }
     }
-
+    
+    
     m_descriptorSets.RemoveItem(handle);
 }
 
@@ -1030,9 +1211,9 @@ void MTLBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc &desc) 
     
     auto& item = m_descriptorSets.GetItemR(desc.setHandle);
     auto device = AS_MTL(m_device, id<MTLDevice>);
-    LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
+    LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
 
-    auto& bindingData = item.bindings[desc.binding];
+    auto& bindingData = item.bindings[desc.setAllocationIndex][desc.binding];
     const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
     LOGA(descriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
     LOGA(bindingData.lgxBinding.type == DescriptorType::UBO || bindingData.lgxBinding.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
@@ -1070,9 +1251,9 @@ void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
     
     auto& item = m_descriptorSets.GetItemR(desc.setHandle);
     auto device = AS_MTL(m_device, id<MTLDevice>);
-    LOGA(desc.binding < static_cast<uint32>(item.bindings.size()), "Backend -> Binding is not valid!");
+    LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
 
-    auto& bindingData = item.bindings[desc.binding];
+    auto& bindingData = item.bindings[desc.setAllocationIndex][desc.binding];
     const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
     const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
     LOGA(txtDescriptorCount <= bindingData.lgxBinding.descriptorCount && smpDescriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
@@ -1611,23 +1792,16 @@ bool MTLBackend::Initialize() {
     auto device = AS_MTL(m_device, id<MTLDevice>);
     GPUInfo.totalCPUVisibleGPUMemorySize = device.hasUnifiedMemory ? 1 : 0;
     
-    // TODO: pixel format support?
-    // const uint32 last = static_cast<uint32>(Format::FORMAT_MAX);
-    // for (uint32 i = 0; i < last; i++)
-    // {
-    //     const Format lgxFormat = static_cast<Format>(i);
-    //     MTLPixelFormat pf = GetMTLFormat(lgxFormat);
-    //
-    // }
-    //
-    // for (auto& f : Config.checkForFormatSupport)
-    // {
-    //     auto it = std::find_if(GPUInfo.supportedImageFormats.begin(), GPUInfo.supportedImageFormats.end(), [&](Format format) { return f == format; });
-    //     if (it == GPUInfo.supportedImageFormats.end())
-    //         LOGE("Backend -> Required format is not supported by the GPU device! %d", static_cast<int>(f));
-    // }
-    
-    // TODO: ?
+    // No runtime support, see: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
+    const uint32 max = static_cast<uint32>(LinaGX::Format::FORMAT_MAX);
+    for(uint32 i = 0; i < max; i++)
+    {
+        const LinaGX::Format fmt = static_cast<LinaGX::Format>(i);
+        LinaGX::FormatSupportInfo inf;
+        inf.format = fmt;
+        GPUInfo.supportedTexture2DFormats.push_back(inf);
+    }
+
     GPUInfo.minConstantBufferOffsetAlignment = 0;
     GPUInfo.minStorageBufferOffsetAlignment  = 0;
     
@@ -1708,7 +1882,6 @@ void MTLBackend::Join() {
         // block.
         while(pfd.reachedSubmits < pfd.submits)
         {
-            
         }
     }
 }
@@ -1719,12 +1892,9 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
     m_currentFrameIndex = frameIndex;
     auto& pfd = m_perFrameData[m_currentFrameIndex];
     
-    m_frameOnGoing = true;
-    
     // Block.
     while(pfd.reachedSubmits < pfd.submits)
     {
-        LOGT("blocking");
     }
     
     for(auto& swp : m_swapchains)
@@ -1739,7 +1909,9 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
         [drawable retain];
         
         if(drawable)
+        {
             swp._currentDrawable = AS_VOID(drawable);
+        }
     }
     
     const uint32 next = m_cmdStreams.GetNextFreeID();
@@ -1768,7 +1940,6 @@ void MTLBackend::Present(const PresentDesc &present) {
 }
 
 void MTLBackend::EndFrame() {
-    m_frameOnGoing = false;
     LOGA((m_submissionPerFrame < Config.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
 }
 
@@ -1852,7 +2023,7 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
         uint32 dynamicOffsetCounter = 0;
         uint32 bindingIndex = 0;
         
-        for(const auto& mtlBinding : set.bindings)
+        for(const auto& mtlBinding : set.bindings[setData.setAllocIndex])
         {
             // This binding of the currently iterated descriptor does not exists in shader's pipeline layout.
             // Break and proceed to next set (we will skip all successive bindings as well).
@@ -1906,7 +2077,7 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                     if(!mtlBinding.lgxBinding.unbounded)
                     {
                         setTexture(&textures[0], bufferID, dcCount, stg);
-                        setSampler(&samplers[0], bufferID + dcCount, dcCount, stg);
+                        setSampler(&samplers[0], bufferID, dcCount, stg);
                     }
                     else
                     {
@@ -2054,6 +2225,7 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         {
             LOGE("Backend -> Texture being used as a depth attachment does not have TF_DepthTexture flag!");
         }
+
     }
 
     if(begin->depthStencilAttachment.useStencil)
@@ -2092,7 +2264,6 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
             passDescriptor.colorAttachments[i].texture = drawable.texture;
             stream.writtenSwapchains.push_back(swpHandle);
             colorAttachmentFormats[i] = swp.format;
-
         }
         else
         {
@@ -2100,14 +2271,14 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
             id<MTLTexture> txt = AS_MTL(txtRes.views[att.viewIndex], id<MTLTexture>);
             passDescriptor.colorAttachments[i].texture = txt;
             colorAttachmentFormats[i] = txtRes.format;
-
+            
             if (!(txtRes.flags & LinaGX::TextureFlags::TF_ColorAttachment))
             {
                 LOGE("Backend -> Texture being used as a color attachment does not have TF_ColorAttachment flag!");
             }
         }
     }
-    
+  
     id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:passDescriptor];
     [encoder retain];
     
@@ -2125,8 +2296,10 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     sc.x = begin->scissors.x;
     sc.y = begin->scissors.y;
     
+    
     [encoder setScissorRect:sc];
     [encoder setViewport:vp];
+
     stream.currentEncoder = AS_VOID(encoder);
     stream.allRenderEncoders.push_back(stream.currentEncoder);
 
@@ -2264,7 +2437,7 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     stream.currentShaderIsCompute = shader.isCompute;
     stream.currentShaderExists = true;
     
-    if(stream.currentEncoder == nullptr)
+    if(stream.currentEncoder == nullptr && stream.currentComputeEncoder == nullptr)
         return;
     
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
@@ -2547,8 +2720,9 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
         const uint32 setIndex = i + cmd->firstSet;
         const auto& set = m_descriptorSets.GetItemR(setHandle);
         MTLBoundDescriptorSet data = {setHandle, true};
+        data.setAllocIndex = cmd->allocationIndex;
         
-        for(const auto& binding : set.bindings)
+        for(const auto& binding : set.bindings[cmd->allocationIndex])
         {
             if(binding.lgxBinding.useDynamicOffset)
                 data.dynamicOffsets.push_back(cmd->dynamicOffsets[dynCtr++]);
@@ -2610,10 +2784,6 @@ void MTLBackend::CMD_Dispatch(uint8 *data, MTLCommandStream &stream) {
 
     // Dispatching the compute command
     [computeEncoder dispatchThreadgroups:threadgroups threadsPerThreadgroup:threadsPerThreadgroup];
-}
-
-void MTLBackend::CMD_ComputeBarrier(uint8 *data, MTLCommandStream &stream) {
-    CMDComputeBarrier* cmd  = reinterpret_cast<CMDComputeBarrier*>(data);
 }
 
 void MTLBackend::CMD_ExecuteSecondaryStream(uint8 *data, MTLCommandStream &stream) {

@@ -105,37 +105,45 @@ namespace LinaGX::Examples
     void Example::CreateMainWindow()
     {
         m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 800, 800, WindowStyle::WindowedApplication);
-        m_window->SetCallbackClose([this]() { Quit(); });
-        m_window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
-            if (newSize.x == 0 || newSize.y == 0)
-                return;
-
-            LGXVector2ui monitor = m_window->GetMonitorSize();
-
-            SwapchainRecreateDesc resizeDesc = {
-                .swapchain    = m_swapchain,
-                .width        = newSize.x,
-                .height       = newSize.y,
-                .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
-            };
-
-            m_lgx->RecreateSwapchain(resizeDesc);
-
-            DestroyPasses(false);
-            CreatePasses(false, 0, 0);
-        });
+        App::RegisterWindowCallbacks(m_window);
+        m_windowX = m_window->GetSize().x;
+        m_windowY = m_window->GetSize().y;
 
         m_swapchain = m_lgx->CreateSwapchain({
             .format       = Format::B8G8R8A8_SRGB,
             .x            = 0,
             .y            = 0,
-            .width        = m_window->GetSize().x,
-            .height       = m_window->GetSize().y,
+            .width        = m_windowX,
+            .height       = m_windowY,
             .window       = m_window->GetWindowHandle(),
             .osHandle     = m_window->GetOSHandle(),
             .isFullscreen = false,
             .vsyncStyle   = {VKVsync::None, DXVsync::None},
         });
+    }
+
+    void Example::OnWindowResized(uint32 w, uint32 h)
+    {
+        if (w  == 0 || h == 0)
+            return;
+
+        LGXVector2ui monitor = m_window->GetMonitorSize();
+
+        SwapchainRecreateDesc resizeDesc = {
+            .swapchain    = m_swapchain,
+            .width        = w,
+            .height       = h,
+            .isFullscreen = w == monitor.x && h == monitor.y,
+        };
+
+        m_lgx->RecreateSwapchain(resizeDesc);
+
+        m_windowX = w;
+        m_windowY = h;
+        
+        DestroyPasses(false);
+        CreatePasses(false, 0, 0);
+      
     }
 
     void Example::SetupStreams()
@@ -964,10 +972,10 @@ namespace LinaGX::Examples
         LOGT("Setting up passes...");
 
         if (customWidth == 0)
-            customWidth = m_window->GetSize().x;
+            customWidth = m_windowX;
 
         if (customHeight == 0)
-            customHeight = m_window->GetSize().y;
+            customHeight = m_windowY;
 
         // Object default & lighting default passes.
         {
@@ -1272,10 +1280,10 @@ namespace LinaGX::Examples
     void Example::BeginPass(uint32 frameIndex, PassType pass, uint32 width, uint32 height, uint32 viewIndex, uint32 depthViewIndex)
     {
         if (width == 0)
-            width = m_window->GetSize().x;
+            width = m_windowX;
 
         if (height == 0)
-            height = m_window->GetSize().y;
+            height = m_windowY;
 
         const auto&        currentFrame = m_pfd[frameIndex];
         const Viewport     viewport     = {.x = 0, .y = 0, .width = width, .height = height, .minDepth = 0.0f, .maxDepth = 1.0f};
@@ -1716,7 +1724,7 @@ namespace LinaGX::Examples
                 .skyColor2  = glm::vec4(0.0f, 0.156f, 0.278f, 1.0f),
                 .lightPos   = m_lightPos,
                 .lightColor = glm::vec4(1.0f, 0.684244f, 0.240f, 0.0f) * 40.0f,
-                .resolution = glm::vec2(m_window->GetSize().x, m_window->GetSize().y),
+                .resolution = glm::vec2(m_windowX, m_windowY),
                 .nearPlane  = NEAR_PLANE,
                 .farPlane   = FAR_PLANE,
             };
@@ -2064,7 +2072,6 @@ namespace LinaGX::Examples
 
     void Example::OnRender()
     {
-
         bool dbgUpdate = false;
 
         uint32 dbgUpdateTxt[2] = {0};
@@ -2139,7 +2146,7 @@ namespace LinaGX::Examples
             }
         }
 
-        if (m_window->GetSize().x == 0 || m_window->GetSize().y == 0)
+        if (m_windowX == 0 || m_windowY == 0)
             return;
 
         // Let LinaGX know we are starting a new frame.

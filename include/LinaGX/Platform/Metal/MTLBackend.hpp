@@ -50,11 +50,12 @@ namespace LinaGX
         uint16             handle  = 0;
         bool               isDirty = false;
         LINAGX_VEC<uint32> dynamicOffsets;
+        uint32 setAllocIndex = 0;
     };
 
     struct MTLBoundConstant
     {
-        void*        data            = nullptr;
+        uint8*        data            = nullptr;
         uint32       offset          = 0;
         uint32       size            = 0;
         uint32       stagesSize      = 0;
@@ -179,7 +180,7 @@ namespace LinaGX
         bool                   isValid = false;
         void*                  buffer  = nullptr;
         DescriptorSetDesc      desc    = {};
-        LINAGX_VEC<MTLBinding> bindings;
+        LINAGX_VEC<LINAGX_VEC<MTLBinding>> bindings;
     };
 
     struct MTLQueue
@@ -272,7 +273,6 @@ namespace LinaGX
         void CMD_BindDescriptorSets(uint8* data, MTLCommandStream& stream);
         void CMD_BindConstants(uint8* data, MTLCommandStream& stream);
         void CMD_Dispatch(uint8* data, MTLCommandStream& stream);
-        void CMD_ComputeBarrier(uint8* data, MTLCommandStream& stream);
         void CMD_ExecuteSecondaryStream(uint8* data, MTLCommandStream& stream);
         void CMD_Barrier(uint8* data, MTLCommandStream& stream);
         void CMD_Debug(uint8* data, MTLCommandStream& stream);
@@ -304,7 +304,6 @@ namespace LinaGX
 
         LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
         std::atomic_flag                           m_submissionFlag;
-        bool                                       m_frameOnGoing = false;
     };
 
 } // namespace LinaGX

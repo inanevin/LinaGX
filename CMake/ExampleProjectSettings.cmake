@@ -10,9 +10,13 @@ if(APPLE)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES 
                       XCODE_GENERATE_SCHEME TRUE
-                      XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME}/$<CONFIGURATION>")
+                      XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME}/$<CONFIGURATION>"
+                      XCODE_ATTRIBUTE_IOS_DEPLOYMENT_TARGET "11.0"
+                      XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "11.0"
+                      )
 
 endif()
+
 
 add_custom_command(
 TARGET ${PROJECT_NAME}

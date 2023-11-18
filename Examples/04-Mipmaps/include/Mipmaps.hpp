@@ -40,6 +40,8 @@ namespace LinaGX
             virtual void Initialize() override;
             virtual void Shutdown() override;
             virtual void OnTick() override;
+            virtual void OnWindowResized(uint32 w, uint32 h) override;
+            virtual void OnRender() override;
         };
 
     } // namespace Examples

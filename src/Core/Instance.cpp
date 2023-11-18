@@ -47,7 +47,7 @@ namespace LinaGX
     {
 #ifdef LINAGX_PLATFORM_APPLE
 
-        if (info.api != BackendAPI::Metal)
+        if (Config.api != BackendAPI::Metal)
         {
             if (Config.errorCallback)
                 Config.errorCallback("Backend API needs to be Metal for Apple platforms!");

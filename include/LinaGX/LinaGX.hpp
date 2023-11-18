@@ -42,10 +42,8 @@ THINGS TO RESEARCH:
 FEATURES TO IMPLEMENT
 
 - metal: resize and exit bugs.
-- metal formats, some api changes?
 - metal descriptor set allocation index.
 - metal mouse input shit
-- o indirect offset size coz
 
 INDIRECT NOTES:
 
@@ -56,6 +54,7 @@ INDIRECT NOTES:
 
 NOTES TO DOCUMENT:
 
+ - Metal no runtime texture format support: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
  - Always use alignment rules for your target graphics backend.
  - Vertex, Fragment and Compute are supported. Geometry is not supported on Metal. Geometry and Tesellation stages are not battle tested, might be problematic.
  - Minimum Vulkan 1.3 is required and GLSL version #450 is required. On Vulkan, devices need to support 1.2. Timeline Semaphores and 1.3. Dynamic Rendering features.

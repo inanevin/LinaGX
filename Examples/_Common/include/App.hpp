@@ -33,16 +33,17 @@ SOFTWARE.
 #include <iostream>
 #include <cstdarg>
 #include <chrono>
-#include <mutex>
+#include <atomic>
 
 namespace LinaGX
 {
     struct InitInfo;
+    class Window;
 
     namespace Examples
     {
         extern std::mutex g_logMtx;
-
+    
         inline void LogError(const char* err, ...)
         {
             std::lock_guard lg(g_logMtx);
@@ -70,16 +71,21 @@ namespace LinaGX
         class App
         {
         public:
-            virtual void Initialize();
+            virtual void Initialize() {};
             virtual void Run();
-            virtual void Shutdown();
-            virtual void OnTick(){};
-            virtual void OnRender(){};
-            virtual void Tick();
-            virtual void Quit();
+            virtual void Shutdown() {};
+            virtual void OnTick() = 0;
+            virtual void OnRender() = 0;
+            void Tick();
 
         protected:
-            bool                                  m_isRunning         = false;
+            
+            void RegisterWindowCallbacks(LinaGX::Window* wnd);
+            virtual void OnWindowResized(uint32 newWidth, uint32 newHeight) {};
+
+        protected:
+            std::atomic<bool>                     m_isRunning         = false;
+            std::mutex                            m_sizeMtx;
             uint64                                m_deltaMicroseconds = 0;
             uint64                                m_framesPerSecond   = 0;
             float                                 m_deltaSeconds      = 0.0f;

@@ -116,6 +116,7 @@ namespace LinaGX
             virtual void Shutdown() override;
             virtual void OnTick() override;
             virtual void OnRender() override;
+            virtual void OnWindowResized(uint32 w, uint32 h);
 
         private:
             void ConfigureInitializeLinaGX();
@@ -179,6 +180,8 @@ namespace LinaGX
             uint32                m_ssaoDataGPU      = 0;
             uint32                m_ssaoNoiseTexture = 0;
             LinaGX::TextureBuffer m_ssaoNoiseBuffer  = {};
+            uint32 m_windowX = 0;
+            uint32 m_windowY = 0;
         };
 
     } // namespace Examples

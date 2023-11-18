@@ -42,6 +42,8 @@ namespace LinaGX::Examples
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
+    uint32 _windowX = 0;
+    uint32 _windowY = 0;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -97,7 +99,9 @@ namespace LinaGX::Examples
         //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Triangle", 0, 0, 800, 600, WindowStyle::WindowedApplication);
-            _window->SetCallbackClose([this]() { Quit(); });
+            App::RegisterWindowCallbacks(_window);
+            _windowX = _window->GetSize().x;
+            _windowY = _window->GetSize().y;
         }
 
         //******************* SHADER CREATION
@@ -147,23 +151,25 @@ namespace LinaGX::Examples
                 .isFullscreen = false,
             });
 
-            // We need to re-create the swapchain (thus it's images) if window size changes!
-            _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
-                LGXVector2ui          monitor    = _window->GetMonitorSize();
-                SwapchainRecreateDesc resizeDesc = {
-                    .swapchain    = _swapchain,
-                    .width        = newSize.x,
-                    .height       = newSize.y,
-                    .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
-                };
-                _lgx->RecreateSwapchain(resizeDesc);
-            });
-
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
                 _pfd[i].stream = _lgx->CreateCommandStream({CommandType::Graphics, 10, 512, 512, 64});
         }
     } // namespace LinaGX::Examples
+
+    void Example::OnWindowResized(uint32 w, uint32 h)
+    {
+        LGXVector2ui          monitor    = _window->GetMonitorSize();
+        SwapchainRecreateDesc resizeDesc = {
+            .swapchain    = _swapchain,
+            .width        = w,
+            .height       = h,
+            .isFullscreen = w== monitor.x && h == monitor.y,
+        };
+        _lgx->RecreateSwapchain(resizeDesc);
+        _windowX = w;
+        _windowY = h;
+    }
 
     void Example::Shutdown()
     {
@@ -190,11 +196,15 @@ namespace LinaGX::Examples
         // Check for window inputs.
         _lgx->TickWindowSystem();
 
+    }
+
+    void Example::OnRender(){
+    
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
-
+        
         auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
-
+        
         // Barrier to Color Attachment
         {
             LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
@@ -208,11 +218,11 @@ namespace LinaGX::Examples
             barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
             barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::ColorAttachment;
         }
-
+        
         // Render pass begin
         {
-            Viewport                          viewport = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-            ScissorsRect                      sc       = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
+            Viewport                          viewport = {.x = 0, .y = 0, .width = _windowX, .height = _windowY, .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect                      sc       = {.x = 0, .y = 0, .width = _windowX, .height = _windowY};
             LinaGX::RenderPassColorAttachment att      = {};
             att.isSwapchain                            = true;
             att.texture                                = static_cast<uint32>(_swapchain);
@@ -223,13 +233,13 @@ namespace LinaGX::Examples
             beginRenderPass->viewport                  = viewport;
             beginRenderPass->scissors                  = sc;
         }
-
+        
         // Set shader
         {
             CMDBindPipeline* bindPipeline = currentFrame.stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram;
         }
-
+        
         // Draw the triangle
         {
             CMDDrawInstanced* drawInstanced       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
@@ -238,12 +248,12 @@ namespace LinaGX::Examples
             drawInstanced->startInstanceLocation  = 0;
             drawInstanced->startVertexLocation    = 0;
         }
-
+        
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
         }
-
+        
         // Barrier to Present
         {
             LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
@@ -257,18 +267,18 @@ namespace LinaGX::Examples
             barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
             barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::Present;
         }
-
+        
         // This does the actual *recording* of every single command stream alive.
         _lgx->CloseCommandStreams(&currentFrame.stream, 1);
-
+        
         // Submit work on gpu.
         _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(CommandType::Graphics), .streams = &currentFrame.stream, .streamCount = 1});
-
+        
         // Present main swapchain.
         _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});
-
+        
         // Let LinaGX know we are finalizing this frame.
         _lgx->EndFrame();
-    }
+}
 
 } // namespace LinaGX::Examples

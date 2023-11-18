@@ -1293,7 +1293,7 @@ namespace LinaGX
 
         LINAGX_VEC<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
-        if (shaderDesc.useCustomVertexInputs)
+        if (!shaderDesc.customVertexInputs.empty())
         {
             uint32 i = 0;
             for (const auto& input : shaderDesc.customVertexInputs)
@@ -2005,6 +2005,8 @@ namespace LinaGX
 
     uint16 DX12Backend::CreateDescriptorSet(const DescriptorSetDesc& desc)
     {
+        LOGA(desc.allocationCount > 0, "Backend -> Descriptor set allocation count must be at least 1!");
+
         DX12DescriptorSet item  = {};
         item.isValid            = true;
         item.setAllocationCount = desc.allocationCount;

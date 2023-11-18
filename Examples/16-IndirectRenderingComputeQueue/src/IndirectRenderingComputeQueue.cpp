@@ -47,6 +47,9 @@ namespace LinaGX::Examples
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
+uint32 _windowX = 0;
+uint32 _windowY = 0;
+
 
     struct Vertex
     {
@@ -230,7 +233,9 @@ namespace LinaGX::Examples
         //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Sponza", 0, 0, 800, 800, WindowStyle::WindowedApplication);
-            _window->SetCallbackClose([this]() { Quit(); });
+            App::RegisterWindowCallbacks(_window);
+            _windowX = _window->GetSize().x;
+            _windowY = _window->GetSize().y;
         }
 
         //******************* DEFAULT SHADER CREATION
@@ -348,28 +353,7 @@ namespace LinaGX::Examples
                 .isFullscreen = false,
             });
 
-            LinaGX::TextureDesc depthDesc = {
-                .format      = Format::D32_SFLOAT,
-                .flags       = LinaGX::TextureFlags::TF_DepthTexture | LinaGX::TextureFlags::TF_Sampled,
-                .width       = _window->GetSize().x,
-                .height      = _window->GetSize().y,
-                .mipLevels   = 1,
-                .arrayLength = 1,
-            };
-
-            _depthTexture = _lgx->CreateTexture(depthDesc);
-
-            // We need to re-create the swapchain (thus it's images) if window size changes!
-            _window->SetCallbackSizeChanged([&](const LGXVector2ui& newSize) {
-                LGXVector2ui          monitor    = _window->GetMonitorSize();
-                SwapchainRecreateDesc resizeDesc = {
-                    .swapchain    = _swapchain,
-                    .width        = newSize.x,
-                    .height       = newSize.y,
-                    .isFullscreen = newSize.x == monitor.x && newSize.y == monitor.y,
-                };
-                _lgx->RecreateSwapchain(resizeDesc);
-            });
+            CreateDepthTexture();
 
             // Create command stream to record draw calls.
             for (uint32 i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -852,6 +836,39 @@ namespace LinaGX::Examples
         }
     }
 
+    void Example::OnWindowResized(uint32 w, uint32 h)
+    {
+        LGXVector2ui          monitor    = _window->GetMonitorSize();
+        SwapchainRecreateDesc resizeDesc = {
+            .swapchain    = _swapchain,
+            .width        = w,
+            .height       = h,
+            .isFullscreen = w == monitor.x && h == monitor.y,
+        };
+        
+        _lgx->RecreateSwapchain(resizeDesc);
+        
+        _windowX = w;
+        _windowY = h;
+        
+        _lgx->DestroyTexture(_depthTexture);
+        CreateDepthTexture();
+    }
+
+    void Example::CreateDepthTexture()
+    {
+        LinaGX::TextureDesc depthDesc = {
+            .format      = Format::D32_SFLOAT,
+            .flags       = LinaGX::TextureFlags::TF_DepthTexture | LinaGX::TextureFlags::TF_Sampled,
+            .width       = _windowX,
+            .height      = _windowY,
+            .mipLevels   = 1,
+            .arrayLength = 1,
+        };
+
+        _depthTexture = _lgx->CreateTexture(depthDesc);
+    }
+
     void Example::Shutdown()
     {
         // First get rid of the window.
@@ -908,6 +925,10 @@ namespace LinaGX::Examples
         // Check for window inputs.
         _lgx->TickWindowSystem();
 
+    }
+
+    void Example::OnRender()
+    {
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
 
@@ -1007,9 +1028,7 @@ namespace LinaGX::Examples
             std::memcpy(currentFrame.uboMapping0, &sceneData, sizeof(GPUSceneData));
         }
 
-        Viewport     viewport = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y, .minDepth = 0.0f, .maxDepth = 1.0f};
-        ScissorsRect sc       = {.x = 0, .y = 0, .width = _window->GetSize().x, .height = _window->GetSize().y};
-
+       
         // Bind for compute
         {
             CMDBindPipeline* bindPipeline = currentFrame.computeStream->AddCommand<CMDBindPipeline>();
@@ -1040,7 +1059,7 @@ namespace LinaGX::Examples
             _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(CommandType::Compute), .streams = &currentFrame.computeStream, .streamCount = 1, .useWait = true, .waitCount = 1, .waitSemaphores = &currentFrame.copySemaphore, .waitValues = &currentFrame.copySemaphoreValue, .useSignal = true, .signalCount = 1, .signalSemaphores = &currentFrame.computeSemaphore, .signalValues = &currentFrame.computeSemaphoreValue});
         }
 
-        // COMPUTE BARRIER HERE
+        // No need for a compute barrier as using queue sync.
         // {
         //     LinaGX::CMDBarrier* barrier               = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
         //     barrier->srcStageFlags                    = LinaGX::PSF_Compute;
@@ -1075,6 +1094,9 @@ namespace LinaGX::Examples
 
         // Render pass 1.
         {
+            Viewport     viewport = {.x = 0, .y = 0, .width = _windowX, .height = _windowY, .minDepth = 0.0f, .maxDepth = 1.0f};
+            ScissorsRect sc       = {.x = 0, .y = 0, .width = _windowX, .height = _windowY};
+
             CMDBeginRenderPass* beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
 
             beginRenderPass->viewport = viewport;
@@ -1088,17 +1110,13 @@ namespace LinaGX::Examples
             colorAttachment.storeOp               = StoreOp::Store;
             beginRenderPass->colorAttachments     = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
             beginRenderPass->colorAttachmentCount = 1;
-
             beginRenderPass->depthStencilAttachment.useDepth     = true;
             beginRenderPass->depthStencilAttachment.depthLoadOp  = LoadOp::Clear;
             beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
             beginRenderPass->depthStencilAttachment.clearDepth   = 1.0f;
             beginRenderPass->depthStencilAttachment.texture      = _depthTexture;
-
             beginRenderPass->depthStencilAttachment.useStencil = false;
 
-            beginRenderPass->viewport = viewport;
-            beginRenderPass->scissors = sc;
         }
 
         // Set shader

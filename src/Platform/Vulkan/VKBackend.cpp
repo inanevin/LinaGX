@@ -1017,7 +1017,7 @@ namespace LinaGX
         LINAGX_VEC<VkVertexInputBindingDescription>   bindingDescs;
         LINAGX_VEC<VkVertexInputAttributeDescription> attDescs;
 
-        if (shaderDesc.useCustomVertexInputs)
+        if (!shaderDesc.customVertexInputs.empty())
         {
             size_t stride = 0;
             for (auto& i : shaderDesc.customVertexInputs)
@@ -1690,6 +1690,8 @@ namespace LinaGX
 
     uint16 VKBackend::CreateDescriptorSet(const DescriptorSetDesc& desc)
     {
+        LOGA(desc.allocationCount > 0, "Backend -> Descriptor set allocation count must be at least 1!");
+
         VKBDescriptorSet item = {};
         item.isValid          = true;
         item.bindings         = desc.bindings;

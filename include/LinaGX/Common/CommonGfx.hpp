@@ -861,8 +861,7 @@ namespace LinaGX
         bool                               drawIndirectEnabled     = false;
         bool                               useCustomPipelineLayout = false; // If false, layout from the reflection info will be auto-generated and used.
         uint16                             customPipelineLayout    = 0;     // If useCustomPipelineLayout is true, set this to the handle of the layout you create with CreatePipelineLayout
-        bool                               useCustomVertexInputs   = false; // If false, vertex inputs from the reflection info will be used.
-        LINAGX_VEC<UserDefinedVertexInput> customVertexInputs      = {};    // If useCustomVertexInputs is true, use this to define your vertex shader inputs.
+        LINAGX_VEC<UserDefinedVertexInput> customVertexInputs      = {};    // If non-empty, use this to define your vertex shader inputs.
         const char*                        debugName               = "LinaGXShader";
     };
 

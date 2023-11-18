@@ -68,7 +68,9 @@ namespace LinaGX::Examples
         //*******************  WINDOW CREATION & CALLBACKS
         {
             _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX Window Creation", 0, 0, 800, 600, WindowStyle::WindowedApplication);
-            _window->SetCallbackClose([this]() { Quit(); });
+            App::RegisterWindowCallbacks(_window);
+            _windowX = _window->GetSize().x;
+            _windowY = _window->GetSize().y;
         }
     }
 
