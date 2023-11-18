@@ -45,9 +45,6 @@ FEATURES TO IMPLEMENT
 - metal formats, some api changes?
 - metal descriptor set allocation index.
 - metal mouse input shit
-- if texture does not have color att. target or depth target but used in render pass att. give error
-- proper format support for all examples.
-- feature support check and abort early on all examples that use explicit features.
 - o indirect offset size coz
 
 INDIRECT NOTES:

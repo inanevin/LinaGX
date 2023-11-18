@@ -3092,6 +3092,11 @@ namespace LinaGX
         {
             const auto& depthStencilTxt = m_textures.GetItemR(begin->depthStencilAttachment.texture);
             depthStencilView            = depthStencilTxt.imgViews[begin->depthStencilAttachment.viewIndex];
+
+            if (!(depthStencilTxt.flags & LinaGX::TextureFlags::TF_DepthTexture) && !(depthStencilTxt.flags & LinaGX::TextureFlags::TF_StencilTexture))
+            {
+                LOGE("Backend -> Texture being used as a depth stencil attachment does not have TF_DepthTexture or TF_StencilTexture flag!");
+            }
         }
 
         LINAGX_VEC<VkRenderingAttachmentInfo> colorAttachments;
@@ -3119,6 +3124,11 @@ namespace LinaGX
                 const auto& txt = m_textures.GetItemR(att.texture);
                 imageViews[i]   = txt.imgViews[att.viewIndex];
                 images[i]       = txt.img;
+
+                if (!(txt.flags & LinaGX::TextureFlags::TF_ColorAttachment))
+                {
+                    LOGE("Backend -> Texture being used as a color attachment does not have TF_ColorAttachment flag!");
+                }
             }
 
             info.sType              = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;

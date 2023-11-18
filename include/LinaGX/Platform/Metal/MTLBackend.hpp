@@ -42,6 +42,7 @@ namespace LinaGX
         uint32            arrayLength = 1;
         LINAGX_VEC<void*> views;
         Format            format;
+        uint32            flags;
     };
 
     struct MTLBoundDescriptorSet

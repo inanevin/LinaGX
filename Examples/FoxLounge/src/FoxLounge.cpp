@@ -76,8 +76,13 @@ namespace LinaGX::Examples
 
         m_lgx = new LinaGX::Instance();
 
-        uint32 supported = m_lgx->VKQueryFeatureSupport(PreferredGPUType::Discrete);
-        m_lgx->Initialize();
+        uint32     supported = m_lgx->VKQueryFeatureSupport(PreferredGPUType::Discrete);
+        const bool success   = m_lgx->Initialize();
+
+        if (!success)
+        {
+            LOGA(false, "Current GPU does not support one of the features required by this example!");
+        }
 
         std::vector<LinaGX::Format> formatSupport = {
             Format::R32G32B32A32_SFLOAT,
@@ -88,10 +93,12 @@ namespace LinaGX::Examples
             Format::B8G8R8A8_UNORM,
         };
 
-        for (const auto& fmt : formatSupport)
+        for (auto fmt : formatSupport)
         {
-            if (m_lgx->GetFormatSupport(fmt).format == Format::UNDEFINED)
-                LOGE("One of the required formats is not supported on this device, faulty program: %d", static_cast<uint32>(fmt));
+            const LinaGX::FormatSupportInfo fsi = m_lgx->GetFormatSupport(fmt);
+
+            if (fsi.format == LinaGX::Format::UNDEFINED)
+                LOGE("Current GPU does not support the formats required by this example!");
         }
     }
 

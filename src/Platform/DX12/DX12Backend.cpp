@@ -3056,6 +3056,11 @@ namespace LinaGX
             {
                 auto& txt = m_textures.GetItemR(att.texture);
 
+                if (!(txt.desc.flags & LinaGX::TextureFlags::TF_ColorAttachment))
+                {
+                    LOGE("Backend -> Texture being used as a color attachment does not have TF_ColorAttachment flag!");
+                }
+
                 CD3DX12_CLEAR_VALUE cv;
                 cv.Format   = GetDXFormat(txt.desc.format);
                 cv.Color[0] = att.clearColor.x;
@@ -3078,6 +3083,11 @@ namespace LinaGX
             D3D12_RENDER_PASS_ENDING_ACCESS      stencilEnd{GetDXStoreOp(begin->depthStencilAttachment.stencilStoreOp), {}};
             D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.dsvs[begin->depthStencilAttachment.viewIndex].GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
             stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
+
+            if (!(depthTxt.desc.flags & LinaGX::TextureFlags::TF_DepthTexture) && !(depthTxt.desc.flags & LinaGX::TextureFlags::TF_StencilTexture))
+            {
+                LOGE("Backend -> Texture being used as a depth stencil attachment does not have TF_DepthTexture or TF_StencilTexture flag!");
+            }
         }
         else
             stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), NULL, D3D12_RENDER_PASS_FLAG_NONE);

@@ -773,6 +773,7 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
     item.isValid = true;
     item.arrayLength = desc.arrayLength;
     item.format = desc.format;
+    item.flags = desc.flags;
     
     auto device = AS_MTL(m_device, id<MTLDevice>);
     
@@ -2048,6 +2049,11 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         id<MTLTexture> depth = AS_MTL(txtRes.views[begin->depthStencilAttachment.viewIndex], id<MTLTexture>);
         passDescriptor.depthAttachment.texture = depth;
         depthFormat = txtRes.format;
+
+        if (!(txtRes.flags & LinaGX::TextureFlags::TF_DepthTexture))
+        {
+            LOGE("Backend -> Texture being used as a depth attachment does not have TF_DepthTexture flag!");
+        }
     }
 
     if(begin->depthStencilAttachment.useStencil)
@@ -2061,6 +2067,11 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         id<MTLTexture> stencil = AS_MTL(txtRes.views[begin->depthStencilAttachment.viewIndex], id<MTLTexture>);
         passDescriptor.stencilAttachment.texture = stencil;
         stencilFormat = txtRes.format;
+
+        if (!(txtRes.flags & LinaGX::TextureFlags::TF_StencilTexture))
+        {
+            LOGE("Backend -> Texture being used as a stencil attachment does not have TF_StencilTexture flag!");
+        }
     }
     
     LINAGX_VEC<Format> colorAttachmentFormats;
@@ -2089,6 +2100,11 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
             id<MTLTexture> txt = AS_MTL(txtRes.views[att.viewIndex], id<MTLTexture>);
             passDescriptor.colorAttachments[i].texture = txt;
             colorAttachmentFormats[i] = txtRes.format;
+
+            if (!(txtRes.flags & LinaGX::TextureFlags::TF_ColorAttachment))
+            {
+                LOGE("Backend -> Texture being used as a color attachment does not have TF_ColorAttachment flag!");
+            }
         }
     }
     

@@ -82,6 +82,16 @@ namespace LinaGX::Examples
 
             _lgx = new LinaGX::Instance();
             _lgx->Initialize();
+
+            std::vector<LinaGX::Format> formatSupportCheck = {LinaGX::Format::B8G8R8A8_UNORM};
+
+            for (auto fmt : formatSupportCheck)
+            {
+                const LinaGX::FormatSupportInfo fsi = _lgx->GetFormatSupport(fmt);
+
+                if (fsi.format == LinaGX::Format::UNDEFINED)
+                    LOGE("Current GPU does not support the formats required by this example!");
+            }
         }
 
         //*******************  WINDOW CREATION & CALLBACKS

@@ -192,7 +192,7 @@ namespace LinaGX::Examples
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
@@ -208,8 +208,23 @@ namespace LinaGX::Examples
             LinaGX::Config.infoCallback                      = LogInfo;
             LinaGX::Config.vulkanConfig.enableVulkanFeatures = LinaGX::VulkanFeatureFlags::VKF_Bindless | LinaGX::VulkanFeatureFlags::VKF_UpdateAfterBind | LinaGX::VulkanFeatureFlags::VKF_MultiDrawIndirect;
 
-            _lgx = new LinaGX::Instance();
-            _lgx->Initialize();
+            _lgx               = new LinaGX::Instance();
+            const bool success = _lgx->Initialize();
+
+            if (!success)
+            {
+                LOGA(false, "Current GPU does not support one of the features required by this example!");
+            }
+
+            std::vector<LinaGX::Format> formatSupportCheck = {LinaGX::Format::B8G8R8A8_UNORM, LinaGX::Format::R8G8B8A8_UNORM, LinaGX::Format::R8G8B8A8_SRGB, LinaGX::Format::D32_SFLOAT};
+
+            for (auto fmt : formatSupportCheck)
+            {
+                const LinaGX::FormatSupportInfo fsi = _lgx->GetFormatSupport(fmt);
+
+                if (fsi.format == LinaGX::Format::UNDEFINED)
+                    LOGE("Current GPU does not support the formats required by this example!");
+            }
         }
 
         //*******************  WINDOW CREATION & CALLBACKS
@@ -703,7 +718,7 @@ namespace LinaGX::Examples
             DescriptorBinding set0Binding = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::UBO,
-                .stages          = {ShaderStage::Vertex},
+                .stages          = {ShaderStage::Vertex, ShaderStage::Fragment},
             };
 
             DescriptorSetDesc set0Desc = {
@@ -726,7 +741,7 @@ namespace LinaGX::Examples
             DescriptorBinding set1Binding0 = {
                 .descriptorCount = 1,
                 .type            = DescriptorType::SSBO,
-                .stages          = {ShaderStage::Vertex},
+                .stages          = {ShaderStage::Vertex, ShaderStage::Fragment},
             };
 
             DescriptorBinding set1Binding1 = {
@@ -1026,17 +1041,17 @@ namespace LinaGX::Examples
         }
 
         // COMPUTE BARRIER HERE
-        {
-            LinaGX::CMDBarrier* barrier               = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
-            barrier->srcStageFlags                    = LinaGX::PSF_Compute;
-            barrier->dstStageFlags                    = LinaGX::PSF_DrawIndirect;
-            barrier->memoryBarrierCount               = 1;
-            barrier->memoryBarriers                   = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::MemBarrier>(sizeof(LinaGX::MemBarrier));
-            barrier->memoryBarriers[0].srcAccessFlags = LinaGX::AF_ShaderWrite;
-            barrier->memoryBarriers[0].dstAccessFlags = LinaGX::AF_IndirectCommandRead;
-        }
+        // {
+        //     LinaGX::CMDBarrier* barrier               = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
+        //     barrier->srcStageFlags                    = LinaGX::PSF_Compute;
+        //     barrier->dstStageFlags                    = LinaGX::PSF_DrawIndirect;
+        //     barrier->memoryBarrierCount               = 1;
+        //     barrier->memoryBarriers                   = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::MemBarrier>(sizeof(LinaGX::MemBarrier));
+        //     barrier->memoryBarriers[0].srcAccessFlags = LinaGX::AF_ShaderWrite;
+        //     barrier->memoryBarriers[0].dstAccessFlags = LinaGX::AF_IndirectCommandRead;
+        // }
 
-        // Barrier to Color Attachment RT and Swapchain
+        // Swapchain to Color Attachment, depth texture to Depth Attachment
         {
             LinaGX::CMDBarrier* barrier  = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
             barrier->srcStageFlags       = LinaGX::PSF_TopOfPipe;
@@ -1128,11 +1143,11 @@ namespace LinaGX::Examples
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
         }
 
-        // Barrier to Present
+        // Swapchain to Present, depth to Shader Read.
         {
             LinaGX::CMDBarrier* barrier  = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
-            barrier->srcStageFlags       = LinaGX::PSF_ColorAttachment;
-            barrier->dstStageFlags       = LinaGX::PSF_BottomOfPipe;
+            barrier->srcStageFlags       = LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment;
+            barrier->dstStageFlags       = LinaGX::PSF_FragmentShader;
             barrier->textureBarrierCount = 2;
             barrier->textureBarriers     = currentFrame.stream->EmplaceAuxMemorySizeOnly<LinaGX::TextureBarrier>(sizeof(LinaGX::TextureBarrier) * 2);
 
@@ -1141,6 +1156,7 @@ namespace LinaGX::Examples
             barrier->textureBarriers[0].isSwapchain    = true;
             barrier->textureBarriers[0].texture        = static_cast<uint32>(_swapchain);
             barrier->textureBarriers[0].toState        = LinaGX::TextureBarrierState::Present;
+
             barrier->textureBarriers[1].srcAccessFlags = AF_DepthStencilAttachmentRead;
             barrier->textureBarriers[1].dstAccessFlags = LinaGX::AF_ShaderRead;
             barrier->textureBarriers[1].isSwapchain    = false;

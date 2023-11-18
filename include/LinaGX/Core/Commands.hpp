@@ -204,14 +204,12 @@ namespace LinaGX
         uint32 indirectBuffer;
         uint32 indirectBufferOffset;
         uint32 count;
-        uint32 stride;
 
         inline void Init()
         {
             indirectBuffer       = 0;
             indirectBufferOffset = 0;
             count                = 0;
-            stride               = 0;
         }
     };
 
