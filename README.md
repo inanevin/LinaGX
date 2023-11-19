@@ -1,4 +1,4 @@
-![image](https://github.com/inanevin/LinaGX/assets/3519379/07ec4d5c-b5a1-4cbf-ab4c-5723957a289c)
+
 <br/>
 <p align="center">
   <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084496-3065e44f-9399-48a5-b14e-cdb720370a00.png">
