@@ -39,6 +39,8 @@ namespace LinaGX::Examples
 
     LinaGX::Instance* _lgx    = nullptr;
     Window*           _window = nullptr;
+uint32 _windowX = 0;
+uint32 _windowY = 0;
 
     void Example::Initialize()
     {

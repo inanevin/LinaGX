@@ -19,7 +19,7 @@
 #  2. The MIT License, found at <http://opensource.org/licenses/MIT>.
 #
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.6)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -29,7 +29,7 @@ if (${CMAKE_VERSION} VERSION_GREATER "3.0.1")
 endif()
 
 project(SPIRV-Cross LANGUAGES CXX C)
-enable_testing()
+## enable_testing()
 
 include(GNUInstallDirs)
 
@@ -459,7 +459,7 @@ if (SPIRV_CROSS_CLI)
 			spirv-cross-util
 			spirv-cross-core)
 
-	if (SPIRV_CROSS_ENABLE_TESTS)
+	if (SPIRV_CROSS_ENABLE_TESTS AND FALSE)
 		# Set up tests, using only the simplest modes of the test_shaders
 		# script.  You have to invoke the script manually to:
 		#  - Update the reference files

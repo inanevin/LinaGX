@@ -13,6 +13,12 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# Following modifications are made to the dependency libraries CMake projects:
+# SPIRV-CROSS -> remove enable_testing() and disable if(SPIRV_CROSS_ENABLE_TESTS) (AND FALSE)
+# SPIRV-CROSS -> CMake version bumped to 3.6.
+# glm -> CMake version bumped to 3.6. (main CMakeLists.txt, glm/CMakeLists.txt, CMake/glmconfig.cmake)
+# Trust me, keeping this log is easier than managing fancy submodules.
+
 if(WIN32)
 
 # DX12
@@ -63,6 +69,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC OGLCompiler)
 target_link_libraries(${PROJECT_NAME} PUBLIC OSDependent)
 target_link_libraries(${PROJECT_NAME} PUBLIC SPIRV)
 message("LinaGX -> glslang has been linked.")
+
 
 
 add_subdirectory(Dependencies/SPIRV-Cross)
