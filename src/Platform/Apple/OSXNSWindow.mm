@@ -34,6 +34,7 @@ SOFTWARE.
 
 @implementation CustomView
 std::function<void(int, int)> mouseMovedCallback;
+std::function<void(int, LinaGX::InputAction)> mouseCallback;
 
 - (void)updateTrackingAreas {
     [super updateTrackingAreas];
@@ -48,6 +49,10 @@ std::function<void(int, int)> mouseMovedCallback;
 
 - (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback {
    mouseMovedCallback = callback;
+}
+
+- (void)setMouseCallback:(std::function<void(int, LinaGX::InputAction action)>)callback {
+   mouseCallback = callback;
 }
 
 - (void)mouseMoved:(NSEvent *)event
@@ -76,6 +81,17 @@ std::function<void(int, int)> mouseMovedCallback;
     NSPoint loc = event.locationInWindow;
     mouseMovedCallback(loc.x, loc.y);
     [super rightMouseDragged:event];
+}
+
+- (void)mouseDown:(NSEvent *)event
+{
+    mouseCallback(static_cast<int>(event.buttonNumber), LinaGX::InputAction::Pressed);
+    [super otherMouseDown:event];
+}
+
+- (void)mouseUp:(NSEvent *)theEvent {
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
+    [super mouseUp:theEvent];
 }
 
 @end
@@ -158,7 +174,6 @@ std::function<void()> windowClosedCallback;
 @implementation CustomNSWindow
 
 std::function<void(int, LinaGX::InputAction)> keyCallback;
-std::function<void(int, LinaGX::InputAction)> mouseCallback;
 std::function<void()> mouseEnteredCallback;
 std::function<void()> mouseExitedCallback;
 std::function<void(int)> mouseWheelCallback;
@@ -166,10 +181,6 @@ std::function<void()> mouseDraggedCallback;
 
 - (void)setKeyCallback:(std::function<void(int, LinaGX::InputAction action)>)callback {
     keyCallback = callback;
-}
-
-- (void)setMouseCallback:(std::function<void(int, LinaGX::InputAction action)>)callback {
-   mouseCallback = callback;
 }
 
 - (void)setMouseEnteredCallback:(std::function<void()>)callback {
@@ -188,43 +199,10 @@ std::function<void()> mouseDraggedCallback;
    mouseDraggedCallback = callback;
 }
 
-- (void)mouseDown:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Pressed);
-    [super mouseDown:theEvent];
-}
-
 - (void)mouseDragged:(NSEvent *)event
 {
     mouseDraggedCallback();
     [super mouseDragged:event];
-}
-- (void)rightMouseDown:(NSEvent *)event
-{
-    mouseCallback(static_cast<int>(event.buttonNumber), LinaGX::InputAction::Pressed);
-    [super rightMouseDown:event];
-}
-
-- (void)otherMouseDown:(NSEvent *)event
-{
-    mouseCallback(static_cast<int>(event.buttonNumber), LinaGX::InputAction::Pressed);
-    [super otherMouseDown:event];
-}
-
-- (void)rightMouseUp:(NSEvent *)event
-{
-    mouseCallback(static_cast<int>(event.buttonNumber), LinaGX::InputAction::Released);
-    [super rightMouseUp:event];
-}
-
-- (void)otherMouseUp:(NSEvent *)event
-{
-    mouseCallback(static_cast<int>(event.buttonNumber), LinaGX::InputAction::Released);
-    [super otherMouseUp:event];
-}
-
-- (void)mouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
-    [super mouseUp:theEvent];
 }
 
 - (void)keyDown:(NSEvent *)theEvent {

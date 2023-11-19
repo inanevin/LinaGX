@@ -75,6 +75,7 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     
     std::function<void(int, LinaGX::InputAction action)> mouseCallback = [this](int keyCode, LinaGX::InputAction action) {
         
+        
         if(m_style != LinaGX::WindowStyle::WindowedApplication && keyCode == 0)
         {
             if(action == LinaGX::InputAction::Pressed && m_dragRect.IsPointInside(m_mousePosition))
@@ -87,9 +88,9 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
         }
         
         m_input->WindowFeedMouseButton(keyCode, action);
-
         if(m_cbMouse)
             m_cbMouse(keyCode, action);
+     
     };
     
     std::function<void(unsigned int, unsigned int)> mouseMovedCallback = [this](unsigned int x, unsigned int y) {
@@ -187,11 +188,11 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     m_nsView = static_cast<void*>(wndContent);
     [wndContent setWantsLayer:YES];
     [wndContent setMouseMovedCallback:mouseMovedCallback];
+    [wndContent setMouseCallback:mouseCallback];
     [wnd setContentView:wndContent];
     
     // Window events.
     [wnd setKeyCallback:keyCallback];
-    [wnd setMouseCallback:mouseCallback];
     [wnd setMouseEnteredCallback:mouseEnteredCallback];
     [wnd setMouseExitedCallback:mouseExitedCallback];
     [wnd setMouseWheelCallback:mouseWheelCallback];
