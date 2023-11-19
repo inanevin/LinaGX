@@ -26,7 +26,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "IndirectRenderingComputeQueue.hpp"
+/*
+
+Example: BindlessIndirectComputeQueue
+
+Example rendering 2 GLTF models, avacado and a duck. However avacado is culled from the GPU side using a compute shader.
+Rendering is done indirectly, compute shader interrupts the indirect command buffer and sets the instance count of the avacado to 0.
+Also, texture bindings are done in a bindless manner.
+
+Demonstrates:
+
+- Everything from previous examples.
+- Running compute shaders.
+- Indirect buffers and indirect argument buffers.
+- Bindless textures & descriptor sets.
+
+*/
+
+#include "BindlessIndirectComputeQueue.hpp"
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
 #include "LinaGX/Core/InputMappings.hpp"
@@ -47,9 +64,8 @@ namespace LinaGX::Examples
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
-uint32 _windowX = 0;
-uint32 _windowY = 0;
-
+    uint32            _windowX   = 0;
+    uint32            _windowY   = 0;
 
     struct Vertex
     {
@@ -845,12 +861,12 @@ uint32 _windowY = 0;
             .height       = h,
             .isFullscreen = w == monitor.x && h == monitor.y,
         };
-        
+
         _lgx->RecreateSwapchain(resizeDesc);
-        
+
         _windowX = w;
         _windowY = h;
-        
+
         _lgx->DestroyTexture(_depthTexture);
         CreateDepthTexture();
     }
@@ -924,7 +940,6 @@ uint32 _windowY = 0;
     {
         // Check for window inputs.
         _lgx->TickWindowSystem();
-
     }
 
     void Example::OnRender()
@@ -1028,7 +1043,6 @@ uint32 _windowY = 0;
             std::memcpy(currentFrame.uboMapping0, &sceneData, sizeof(GPUSceneData));
         }
 
-       
         // Bind for compute
         {
             CMDBindPipeline* bindPipeline = currentFrame.computeStream->AddCommand<CMDBindPipeline>();
@@ -1103,20 +1117,19 @@ uint32 _windowY = 0;
             beginRenderPass->scissors = sc;
 
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor            = {0.8f, 0.8f, 0.8f, 1.0f};
-            colorAttachment.texture               = static_cast<uint32>(_swapchain);
-            colorAttachment.isSwapchain           = true;
-            colorAttachment.loadOp                = LoadOp::Clear;
-            colorAttachment.storeOp               = StoreOp::Store;
-            beginRenderPass->colorAttachments     = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
-            beginRenderPass->colorAttachmentCount = 1;
+            colorAttachment.clearColor                           = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.texture                              = static_cast<uint32>(_swapchain);
+            colorAttachment.isSwapchain                          = true;
+            colorAttachment.loadOp                               = LoadOp::Clear;
+            colorAttachment.storeOp                              = StoreOp::Store;
+            beginRenderPass->colorAttachments                    = currentFrame.stream->EmplaceAuxMemory<RenderPassColorAttachment>(colorAttachment);
+            beginRenderPass->colorAttachmentCount                = 1;
             beginRenderPass->depthStencilAttachment.useDepth     = true;
             beginRenderPass->depthStencilAttachment.depthLoadOp  = LoadOp::Clear;
             beginRenderPass->depthStencilAttachment.depthStoreOp = StoreOp::Store;
             beginRenderPass->depthStencilAttachment.clearDepth   = 1.0f;
             beginRenderPass->depthStencilAttachment.texture      = _depthTexture;
-            beginRenderPass->depthStencilAttachment.useStencil = false;
-
+            beginRenderPass->depthStencilAttachment.useStencil   = false;
         }
 
         // Set shader

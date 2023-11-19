@@ -404,6 +404,9 @@ namespace LinaGX
         Mitchell
     };
 
+    /// <summary>
+    /// Equivalent to Vulkan pipeline stage flag bits.
+    /// </summary>
     enum PipelineStageFlags
     {
         PSF_TopOfPipe       = 0x00000001,
@@ -422,6 +425,9 @@ namespace LinaGX
         PSF_AllCommands     = 0x00010000,
     };
 
+    /// <summary>
+    /// Equivalent to Vulkan access flag bits.
+    /// </summary>
     enum AccessFlags
     {
         AF_IndirectCommandRead         = 0x00000001,

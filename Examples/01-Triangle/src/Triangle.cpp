@@ -26,11 +26,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+
+Example: Triangle
+
+Simple example drawing a UV triangle in the screen with hardcoded vertices in the shader.
+
+Demonstrates:
+- Window creation.
+- Shader compilation & pipeline creation.
+- Swapchain creation & handling resizing.
+- Render passes and drawing.
+- Frame submission and presentation.
+
+*/
+
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
+#include "Triangle.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "Triangle.hpp"
 
 namespace LinaGX::Examples
 {
@@ -42,8 +57,8 @@ namespace LinaGX::Examples
     LinaGX::Instance* _lgx       = nullptr;
     uint8             _swapchain = 0;
     Window*           _window    = nullptr;
-    uint32 _windowX = 0;
-    uint32 _windowY = 0;
+    uint32            _windowX   = 0;
+    uint32            _windowY   = 0;
 
     // Shaders.
     uint16 _shaderProgram = 0;
@@ -81,12 +96,10 @@ namespace LinaGX::Examples
             LinaGX::Config.logLevel        = LogLevel::Verbose;
             LinaGX::Config.errorCallback   = LogError;
             LinaGX::Config.infoCallback    = LogInfo;
-
             _lgx = new LinaGX::Instance();
             _lgx->Initialize();
 
             std::vector<LinaGX::Format> formatSupportCheck = {LinaGX::Format::B8G8R8A8_UNORM};
-
             for (auto fmt : formatSupportCheck)
             {
                 const LinaGX::FormatSupportInfo fsi = _lgx->GetFormatSupport(fmt);
@@ -114,13 +127,13 @@ namespace LinaGX::Examples
             ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
             std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
             _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
+
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
             // Create shader program with vertex & fragment stages.
             LinaGX::ShaderColorAttachment colorAttachment = {
                 .format = Format::B8G8R8A8_UNORM,
             };
-
             ShaderDesc shaderDesc = {
                 .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
                 .colorAttachments = {colorAttachment},
@@ -164,7 +177,7 @@ namespace LinaGX::Examples
             .swapchain    = _swapchain,
             .width        = w,
             .height       = h,
-            .isFullscreen = w== monitor.x && h == monitor.y,
+            .isFullscreen = w == monitor.x && h == monitor.y,
         };
         _lgx->RecreateSwapchain(resizeDesc);
         _windowX = w;
@@ -188,23 +201,21 @@ namespace LinaGX::Examples
 
         // Terminate renderer & shutdown app.
         delete _lgx;
-        App::Shutdown();
     }
 
     void Example::OnTick()
     {
         // Check for window inputs.
         _lgx->TickWindowSystem();
-
     }
 
-    void Example::OnRender(){
-    
+    void Example::OnRender()
+    {
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
-        
+
         auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
-        
+
         // Barrier to Color Attachment
         {
             LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
@@ -218,7 +229,7 @@ namespace LinaGX::Examples
             barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
             barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::ColorAttachment;
         }
-        
+
         // Render pass begin
         {
             Viewport                          viewport = {.x = 0, .y = 0, .width = _windowX, .height = _windowY, .minDepth = 0.0f, .maxDepth = 1.0f};
@@ -233,13 +244,13 @@ namespace LinaGX::Examples
             beginRenderPass->viewport                  = viewport;
             beginRenderPass->scissors                  = sc;
         }
-        
+
         // Set shader
         {
             CMDBindPipeline* bindPipeline = currentFrame.stream->AddCommand<CMDBindPipeline>();
             bindPipeline->shader          = _shaderProgram;
         }
-        
+
         // Draw the triangle
         {
             CMDDrawInstanced* drawInstanced       = currentFrame.stream->AddCommand<CMDDrawInstanced>();
@@ -248,12 +259,12 @@ namespace LinaGX::Examples
             drawInstanced->startInstanceLocation  = 0;
             drawInstanced->startVertexLocation    = 0;
         }
-        
+
         // End render pass
         {
             CMDEndRenderPass* end = currentFrame.stream->AddCommand<CMDEndRenderPass>();
         }
-        
+
         // Barrier to Present
         {
             LinaGX::CMDBarrier* barrier              = currentFrame.stream->AddCommand<LinaGX::CMDBarrier>();
@@ -267,18 +278,18 @@ namespace LinaGX::Examples
             barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
             barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::Present;
         }
-        
+
         // This does the actual *recording* of every single command stream alive.
         _lgx->CloseCommandStreams(&currentFrame.stream, 1);
-        
+
         // Submit work on gpu.
         _lgx->SubmitCommandStreams({.targetQueue = _lgx->GetPrimaryQueue(CommandType::Graphics), .streams = &currentFrame.stream, .streamCount = 1});
-        
+
         // Present main swapchain.
         _lgx->Present({.swapchains = &_swapchain, .swapchainCount = 1});
-        
+
         // Let LinaGX know we are finalizing this frame.
         _lgx->EndFrame();
-}
+    }
 
 } // namespace LinaGX::Examples

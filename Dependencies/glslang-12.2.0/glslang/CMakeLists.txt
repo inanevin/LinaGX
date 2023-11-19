@@ -51,7 +51,6 @@ add_library(GenericCodeGen STATIC
     GenericCodeGen/CodeGen.cpp
     GenericCodeGen/Link.cpp)
 set_property(TARGET GenericCodeGen PROPERTY POSITION_INDEPENDENT_CODE ON)
-set_property(TARGET GenericCodeGen PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
 
 ################################################################################
 # MachineIndependent
@@ -166,7 +165,6 @@ set(GLSLANG_HEADERS
 
 add_library(glslang ${LIB_TYPE} ${BISON_GLSLParser_OUTPUT_SOURCE} ${GLSLANG_SOURCES} ${GLSLANG_HEADERS})
 set_target_properties(glslang PROPERTIES
-    FOLDER LinaGXProject/Dependencies/glslang
     POSITION_INDEPENDENT_CODE ON
     VERSION   "${GLSLANG_VERSION}"
     SOVERSION "${GLSLANG_VERSION_MAJOR}")

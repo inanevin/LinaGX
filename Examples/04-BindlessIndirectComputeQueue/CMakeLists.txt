@@ -13,7 +13,7 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 3.8)
-project(10-RenderTarget)
+project(04-BindlessIndirectComputeQueue)
 
 #--------------------------------------------------------------------
 # Set sources
@@ -22,22 +22,23 @@ project(10-RenderTarget)
 if(WIN32)
 set(SOURCES 
 src/Main.cpp
-src/RenderTarget.cpp
+src/BindlessIndirectComputeQueue.cpp
 )
 endif()
 
 if(APPLE)
 set(SOURCES 
 src/Main.mm
-src/RenderTarget.cpp
+src/BindlessIndirectComputeQueue.cpp
 )
 endif()
 
 set(HEADERS
 include/Main.hpp
-include/RenderTarget.hpp
+include/BindlessIndirectComputeQueue.hpp
 Resources/Shaders/frag.glsl
 Resources/Shaders/vert.glsl
+Resources/Shaders/compute.glsl
 )
 
 #--------------------------------------------------------------------

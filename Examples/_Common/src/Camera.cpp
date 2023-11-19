@@ -65,16 +65,22 @@ namespace LinaGX::Examples
             m_mainWindow->ConfineMouseToCenter();
             m_controlsEnabled = true;
         }
-        
-        //m_controlsEnabled = true;
+
+        // m_controlsEnabled = true;
         if (m_controlsEnabled)
         {
             // Calc rot.
             auto md = m_lgx->GetInput().GetMouseDelta();
-            
-            md.x = std::clamp(md.x, -2, 2);
-            md.y = std::clamp(md.y, -2, 2);
-            
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+            const int clampAmt = 10;
+#else
+            const int clampAmt = 3;
+#endif
+
+            md.x = std::clamp(md.x, -clampAmt, clampAmt);
+            md.y = std::clamp(md.y, -clampAmt, clampAmt);
+
             m_targetX -= md.y * dt * ROTATE_AMT;
             m_targetY -= md.x * dt * ROTATE_AMT;
             m_angleX           = LinaGX::Lerp(m_angleX, m_targetX, dt * ROTATE_SPEED);
@@ -99,7 +105,6 @@ namespace LinaGX::Examples
             const glm::vec3 rightVec   = m_rotation * glm::vec3(1.0f, 0.0f, 0.0f);
             m_position += moveY * dt * glm::normalize(forwardVec) * MOVE_SPEED;
             m_position += moveX * dt * glm::normalize(rightVec) * MOVE_SPEED;
-
         }
 
         // Produce matrices.

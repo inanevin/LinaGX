@@ -26,7 +26,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "Mipmaps.hpp"
+#include "Main.hpp"
+#include "RenderTargetsGLTF.hpp"
 
 using namespace LinaGX::Examples;
 

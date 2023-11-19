@@ -26,20 +26,42 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+
+Example: FoxLounge
+
+A complete example demonstrating a simple renderer workflow with:
+
+- Everything from previous examples.
+- Deferred PBR rendering.
+- Point lights.
+- Shadows.
+- Realtime generated IBL cubemap with Irradiance, prefilter and BRDF steps.
+- SSAO.
+- Simple post-processing.
+- Using Input API for camera.
+- And possibly many more tiny little stuff.
+
+This example is the most comprehensive one, and normally it's not sensible to do such a rendering pipeline with just couple of classes :)
+But for the sake of keeping everythint together, here it is. It's main purpose is to show that LinaGX's abstraction is capable enough to pull a scene like this
+under couple thousand LOC, which could very well be put down to hundreds with a proper architecture.
+
+*/
+
 #include "App.hpp"
 #include "FoxLounge.hpp"
 #include "ThreadPool.hpp"
-
+#include "LinaGX/Common/CommonData.hpp"
+#include "LinaGX/Core/InputMappings.hpp"
 #include <iostream>
 #include <cstdarg>
 #include <filesystem>
-#include "LinaGX/Common/CommonData.hpp"
-#include "LinaGX/Core/InputMappings.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <chrono>
 #include <random>
+
 namespace LinaGX::Examples
 {
 
@@ -124,7 +146,7 @@ namespace LinaGX::Examples
 
     void Example::OnWindowResized(uint32 w, uint32 h)
     {
-        if (w  == 0 || h == 0)
+        if (w == 0 || h == 0)
             return;
 
         LGXVector2ui monitor = m_window->GetMonitorSize();
@@ -140,10 +162,9 @@ namespace LinaGX::Examples
 
         m_windowX = w;
         m_windowY = h;
-        
+
         DestroyPasses(false);
         CreatePasses(false, 0, 0);
-      
     }
 
     void Example::SetupStreams()
@@ -1323,8 +1344,6 @@ namespace LinaGX::Examples
     void Example::Initialize()
     {
         App::Initialize();
-
-        // Per frame data, we'll use 0 for our init operations.
 
         // Config init.
         {

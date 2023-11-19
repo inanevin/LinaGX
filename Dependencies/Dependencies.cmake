@@ -50,7 +50,6 @@ target_link_libraries(${PROJECT_NAME}
 endif()
 
 if(APPLE)
-
 target_link_libraries(${PROJECT_NAME}
 PUBLIC "-framework Metal"
 PUBLIC "-framework MetalKit"
@@ -68,8 +67,16 @@ target_link_libraries(${PROJECT_NAME} PUBLIC MachineIndependent)
 target_link_libraries(${PROJECT_NAME} PUBLIC OGLCompiler)
 target_link_libraries(${PROJECT_NAME} PUBLIC OSDependent)
 target_link_libraries(${PROJECT_NAME} PUBLIC SPIRV)
-message("LinaGX -> glslang has been linked.")
+set_property(TARGET GenericCodeGen PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET glslang-default-resource-limits PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET glslang PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET MachineIndependent PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET OGLCompiler PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET OSDependent PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET SPIRV PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
+set_property(TARGET HLSL PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
 
+message("LinaGX -> glslang has been linked.")
 
 
 add_subdirectory(Dependencies/SPIRV-Cross)
@@ -80,6 +87,15 @@ target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-hlsl)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-msl)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-reflect)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-util)
+set_property(TARGET spirv-cross PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-c PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-core PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-glsl PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-hlsl PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-msl PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-reflect PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-util PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-cpp PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
 message("LinaGX -> spirv-cross has been linked.")
 
 target_compile_definitions(GenericCodeGen PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAGX_ITERATOR_DEBUG_LEVEL})

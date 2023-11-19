@@ -35,10 +35,6 @@ namespace LinaGX::Examples
 {
     std::mutex g_logMtx;
 
-    void App::Initialize()
-    {
-    }
-
     void App::Run()
     {
         m_isRunning = true;
@@ -84,13 +80,10 @@ namespace LinaGX::Examples
         }
     }
 
-    void App::Quit()
+    void App::RegisterWindowCallbacks(LinaGX::Window* wnd)
     {
-        m_isRunning = false;
-    }
-
-    void App::Shutdown()
-    {
+        wnd->SetCallbackClose([this]() { m_isRunning = false; });
+        wnd->SetCallbackSizeChanged([this](const LinaGX::LGXVector2ui& newSize) { OnWindowResized(newSize.x, newSize.y); });
     }
 
 } // namespace LinaGX::Examples

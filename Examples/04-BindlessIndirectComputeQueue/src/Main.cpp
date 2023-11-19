@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 #include "Main.hpp"
-#include "RenderTarget.hpp"
+#include "BindlessIndirectComputeQueue.hpp"
 
 using namespace LinaGX::Examples;
 

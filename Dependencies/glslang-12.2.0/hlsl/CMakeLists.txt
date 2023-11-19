@@ -39,7 +39,6 @@
 
 add_library(HLSL ${LIB_TYPE} "stub.cpp")
 set_target_properties(HLSL PROPERTIES
-    FOLDER LinaGXProject/Dependencies/glslang
     POSITION_INDEPENDENT_CODE ON
     VERSION   "${GLSLANG_VERSION}"
     SOVERSION "${GLSLANG_VERSION_MAJOR}")

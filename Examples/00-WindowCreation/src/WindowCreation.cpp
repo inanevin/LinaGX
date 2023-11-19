@@ -26,21 +26,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+
+Example: Window Creation
+
+Most basic example using LinaGX. It demonstrates how to create an empty app window. Nothing is rendered on the window.
+Note: Since nothing is rendered, we do not use StartFrame() and EndFrame() from LinaGX API.
+
+*/
+
 #include "App.hpp"
 #include "LinaGX/LinaGX.hpp"
+#include "WindowCreation.hpp"
 #include <iostream>
 #include <cstdarg>
-#include "WindowCreation.hpp"
 
 namespace LinaGX::Examples
 {
 
 #define MAIN_WINDOW_ID 0
 
-    LinaGX::Instance* _lgx    = nullptr;
-    Window*           _window = nullptr;
-uint32 _windowX = 0;
-uint32 _windowY = 0;
+    LinaGX::Instance* _lgx     = nullptr;
+    Window*           _window  = nullptr;
+    uint32            _windowX = 0;
+    uint32            _windowY = 0;
 
     void Example::Initialize()
     {
@@ -54,14 +63,14 @@ uint32 _windowY = 0;
             api = BackendAPI::Metal;
 #endif
 
-            LinaGX::Config.api                                    = api;
-            LinaGX::Config.gpu                                    = PreferredGPUType::Integrated;
-            LinaGX::Config.framesInFlight                         = 2;
-            LinaGX::Config.backbufferCount                        = 2;
-            LinaGX::Config.gpuLimits                              = {};
-            LinaGX::Config.logLevel                               = LogLevel::Verbose;
-            LinaGX::Config.errorCallback                          = LogError;
-            LinaGX::Config.infoCallback                           = LogInfo;
+            LinaGX::Config.api             = api;
+            LinaGX::Config.gpu             = PreferredGPUType::Integrated;
+            LinaGX::Config.framesInFlight  = 2;
+            LinaGX::Config.backbufferCount = 2;
+            LinaGX::Config.gpuLimits       = {};
+            LinaGX::Config.logLevel        = LogLevel::Verbose;
+            LinaGX::Config.errorCallback   = LogError;
+            LinaGX::Config.infoCallback    = LogInfo;
 
             _lgx = new LinaGX::Instance();
             _lgx->Initialize();
@@ -81,14 +90,15 @@ uint32 _windowY = 0;
         // First get rid of the window.
         _lgx->GetWindowManager().DestroyApplicationWindow(MAIN_WINDOW_ID);
 
-        // Terminate renderer & shutdown app.
+        // Get rid of LGX.
         delete _lgx;
-        App::Shutdown();
     }
 
     void Example::OnTick()
     {
         // Update window & input systems.
+        // Windows require frequent ticks to handle custom resizing & drag operations (if window is not using native style) as well as confinement operations.
+        // Also input system requires ticks to mutate input state.
         _lgx->TickWindowSystem();
     }
 

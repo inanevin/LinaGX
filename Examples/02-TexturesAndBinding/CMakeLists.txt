@@ -13,7 +13,7 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 3.8)
-project(16-IndirectRenderingComputeQueue)
+project(02-TexturesAndBinding)
 
 #--------------------------------------------------------------------
 # Set sources
@@ -22,23 +22,22 @@ project(16-IndirectRenderingComputeQueue)
 if(WIN32)
 set(SOURCES 
 src/Main.cpp
-src/IndirectRenderingComputeQueue.cpp
+src/TexturesAndBinding.cpp
 )
 endif()
 
 if(APPLE)
 set(SOURCES 
 src/Main.mm
-src/IndirectRenderingComputeQueue.cpp
+src/TexturesAndBinding.cpp
 )
 endif()
 
 set(HEADERS
 include/Main.hpp
-include/IndirectRenderingComputeQueue.hpp
+include/TexturesAndBinding.hpp
 Resources/Shaders/frag.glsl
 Resources/Shaders/vert.glsl
-Resources/Shaders/compute.glsl
 )
 
 #--------------------------------------------------------------------
@@ -74,6 +73,7 @@ set_target_properties(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} 
 PUBLIC LinaGX::ExamplesCommon
 )
+
 
 #--------------------------------------------------------------------
 # Folder Structuring 

@@ -13,7 +13,7 @@
 # and limitations under the License.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 3.8)
-project(04-Mipmaps)
+project(03-RenderTargetsGLTF)
 
 #--------------------------------------------------------------------
 # Set sources
@@ -22,20 +22,20 @@ project(04-Mipmaps)
 if(WIN32)
 set(SOURCES 
 src/Main.cpp
-src/Mipmaps.cpp
+src/RenderTargetsGLTF.cpp
 )
 endif()
 
 if(APPLE)
 set(SOURCES 
 src/Main.mm
-src/Mipmaps.cpp
+src/RenderTargetsGLTF.cpp
 )
 endif()
 
 set(HEADERS
 include/Main.hpp
-include/Mipmaps.hpp
+include/RenderTargetsGLTF.hpp
 Resources/Shaders/frag.glsl
 Resources/Shaders/vert.glsl
 )
@@ -73,7 +73,6 @@ set_target_properties(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} 
 PUBLIC LinaGX::ExamplesCommon
 )
-
 
 #--------------------------------------------------------------------
 # Folder Structuring 

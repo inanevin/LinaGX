@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 add_library(OSDependent STATIC ossource.cpp ../osinclude.h)
-set_property(TARGET OSDependent PROPERTY FOLDER LinaGXProject/Dependencies/glslang)
 set_property(TARGET OSDependent PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # Link pthread
