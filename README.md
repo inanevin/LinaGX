@@ -1,9 +1,8 @@
 <br/>
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/3519379/173690417-be2e171d-3f08-4afc-bb48-252b2316f140.png">
+  <img src="https://github.com/inanevin/LinaGX/assets/3519379/7aa81d2b-9a9b-4ef8-8a29-375a555adb31">
 </p>
 <br/>
-
 <div align="center">
   
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) 
@@ -15,190 +14,174 @@
   
 </div>
 
+LinaGX is a cross-platform graphics abstraction library that seamlessly integrates Vulkan, DirectX12 and Metal. It's primary purpose is to streamline graphics development process by offering a unified API that mirrors the best functionalities of modern graphics APIs. LinaGX is more than a simple abstraction layer, as it also simplifies challenges such as cross-platform shader compilation, queue management, work submission and syncronization, meanwhile providing framework functionalities for window management, input processing, as well as image and GLTF loading.
 
-LinaVG is a 2D vector graphics library providing low-level functionality to draw variety of anti-aliased convex shapes & lines, along with traditional and Signed-Distance-Field (SDF) text rendering. LinaVG also provides rich styling options including gradients, outlines, drop shadows, varying thickness, filled & non-filled shapes, text alignment/spacing and many more!
+<p align="center">
+  <img src="https://github.com/inanevin/LinaGX/assets/3519379/26e7ebe4-2925-43a3-8039-ebf303fb8c5a" alt="Hello">
+  <br>
+  <small><em>Screenshot from one of the examples, FoxLounge.</em></small>
+</p>
 
-![image](https://user-images.githubusercontent.com/3519379/173692019-f624a50f-5ae5-41e2-bed2-8a8e1b2c9f47.png)
+LinaGX streamlines the creation of realtime rendering applications, providing an all-in-one toolkit that eliminates the need for additional libraries. Experienced graphics programmers will find it extremely easy to develop, offering simplicity alongside the option for detailed control and verbosity. For beginners, LinaGX is a practical gateway into graphics programming, though a basic understanding of modern graphics APIs is beneficial to quickly grasp its concepts.
 
-LinaVG does not provide a "rendering" functionality on its own. It generates buffers according to your draw calls and sends them back to a custom backend you determine in batches of optimized buffers.
+LinaGX is primarily aimed for desktop platforms: Windows and MacOS. It can also be used for mobile platforms, however mobile platform support is not tested and maintained. LinaGX is originally developed for and used in [Lina Engine](https://github.com/inanevin/LinaEngine), however it's completely decoupled from it and can be used as a standalone library.
 
-That being said, the example project provides an example OpenGL backend you can basically copy and paste. Also [Lina Engine](https://github.com/inanevin/LinaEngine) uses LinaVG and have examples for custom DirectX12 backend. Please check [Wiki](https://github.com/inanevin/LinaVG/wiki) for more details.
+This repository contains LinaGX source code and a couple of example projects demonstrating the flexibilty of the API to develop graphics code ranging from a simple triangle all the way to a deferred PBR renderer.
 
-# What
+# Feature Highlights
 
-LinaVG's purpose is to provide you with an easy way to do low-level anti-aliased shape, line and text rendering. It does not provide any window management or input functionality, and it's not a GUI library. It assumes your application already has a graphics rendering backend and an application loop setup. 
+- **Common API:** Unified API that brings key features from Vulkan and DX12 together, aimed at choosing the most flexible ways to program graphics code. For example, resource binding is handled with Descriptor Sets, meanwhile queue syncronization API is similar to how DX12 works.
+- **Shader Cross-compilation:** Write shaders in GLSL, LinaGX compiles them into SPIRV for Vulkan, IDxc Blob for DX12, and MSL for Metal, with support for serialization and reuse.
+- **Shader Reflection and Pipeline Automation:** Offers an option for manual pipeline layout and vertex input definition, or automated creation using shader reflection info from SPIRV-Cross.
+- **Render Loops:** Manages image acquisition, synchronization with image and presentation semaphores, work submission, and buffering for multiple frames-in-flight internally.
+- **Command Streams:** Use Command Stream API to simply record commands into a stream object & dump them into work submission anytime you want. 
+- **Queue Management and User Semaphores:** Enables creation of multiple device queues with internal management of physical queues, complemented by custom user semaphores for synchronizing CPU and GPU work.
+- **Swapchains:** Simplifies swapchain creation and management, including resize operations and presentation handling.
+- **Resources:** Facilitates easy creation of CPU/GPU resources and transfer operations over copy queues, handling any necessary staging buffers, particularly for texture copying.
+- **Utilities:** Provides utilities for loading textures, generating mipmaps and loading/parsing GLTF models. 
+- **Windowing and Input:** Supports creation of multiple application windows in native or borderless styles, along with comprehensive input callbacks and state polling/querying.
+  
+# Platform Support & Min Specs
 
-With that in mind, you can use LinaVG to build both retained and immediate mode GUI applications/libraries.
+**Source code is tested with compilers:**
+- MSVC 14.36.xxx
+- Clang 17.0.1
 
-LinaVG was initially made for [Lina Engine](https://www.github.com/inanevin/LinaEngine), however this library is completely decoupled from it. You can use LinaVG in your own projects with minimal dependencies. 
+**Vulkan:**
+- Supported on Windows and Android.
+- Target devices minimum Vulkan version: 1.3
+- Minimum GLSL version for development: 450
+- If enabling custom features, the minimum requirements of such features apply.
 
-# Thread-safety
+**DX12:**
+- Supported on Windows.
+- Target devices minimum feature level: D3D_FEATURE_LEVEL_11_0
+- Minimum shader model SM6_0
 
-LinaVG is thread-safe as long as the [Threading](https://github.com/inanevin/LinaVG/wiki/13-Threading) guidelines are followed. Only functions that are not thread-safe at the moment are those used for loading fonts, which require wrapping around a mutex.
+**Metal:**
+- Supported on MacOS and iOS devices.
 
-# Features
+# API Basic Examples
 
-![lina](https://user-images.githubusercontent.com/3519379/173691256-289869b6-7fa9-462b-b2ef-28d6680c7bdd.gif)
+More examples and documentation can be found in [wiki](https://github.com/inanevin/LinaGX/wiki).
 
+### Initializing LinaGX
 
-## Shapes
+```cpp
+LinaGX::Config.api             = BackendAPI::Vulkan;
+LinaGX::Config.gpu             = PreferredGPUType::Discrete;
+LinaGX::Config.framesInFlight  = FRAMES_IN_FLIGHT;
+LinaGX::Config.backbufferCount = BACK_BUFFER;
+LinaGX::Config.gpuLimits       = {};
+LinaGX::Config.logLevel        = LogLevel::Verbose;
+LinaGX::Config.errorCallback   = LogError;
+LinaGX::Config.infoCallback    = LogInfo;
+_lgx                           = new LinaGX::Instance();
+_lgx->Initialize();
+```
 
-* Rectangle, triangle, ngon, circle, half-circle, arcs, user-defined convex shapes
-* All shapes can be filled & non-filled
-* Flat colors, vertical/horizontal/radial gradients
-* Customizable thickness
-* Textures, custom UV offsets, custom UV tiling
-* Shape rounding, only rounding particular corners if desired
-* Custom rotation
+### Resource and Texture Creation
 
-## Outlines
+```cpp
+ResourceDesc bufferDesc = ResourceDesc{
+    .size          = vertexBufferSize,
+    .typeHintFlags = TH_VertexBuffer,
+    .heapType      = ResourceHeap::GPUOnly,
+    .debugName     = "VertexBufferGPU",
+};
+_vertexBufferGPU     = _lgx->CreateResource(bufferDesc);
 
-* Inner outlines, outer outlines & both
-* Customizable outline thickness
-* Flat colors, vertical/horizontal/radial gradients
-* Textures, custom UV offsets, custom UV tiling
+TextureDesc desc = {
+    .format      = Format::R8G8B8A8_UNORM,
+    .flags       = LinaGX::TextureFlags::TF_CopyDest | LinaGX::TextureFlags::TF_Sampled,
+    .width       = loadedTextureData.width,
+    .height      = loadedTextureData.height,
+    .mipLevels   = static_cast<uint32>(txtData1.size()),
+    .arrayLength = 2,
+    .debugName   = "Lina Logo",
+};
+_textureGPU = _lgx->CreateTexture(desc);
+```
 
-## AA
+### Recording Commands
 
-* Vector-based anti-aliasing borders
-* Framebuffer scaled AA thickness
-* User-defined AA multipliers
+```cpp
+CMDBindVertexBuffers* bind = currentFrame.stream->AddCommand<CMDBindVertexBuffers>();
+bind->slot                 = 0;
+bind->resource             = _vertexBufferGPU;
+bind->vertexSize           = sizeof(Vertex);
+bind->offset               = 0;
+```
+### Work Submission
 
-## Lines
+```cpp
+SubmitDesc submit = {
+    .targetQueue      = _lgx->GetPrimaryQueue(CommandType::Transfer),
+    .streams          = &currentFrame.copyStream,
+    .streamCount      = 1,
+    .useWait          = false,
+    .useSignal        = true,
+    .signalCount      = 1,
+    .signalSemaphores = &currentFrame.copySemaphore,
+    .signalValues     = &currentFrame.copySemaphoreValue,
+};
+_lgx->SubmitCommandStreams(submit);
+```
 
-* Single lines
-* Multi lines
-* Bezier curves
-* Line caps: Left, right & both
-* Customizable line cap rounding
-* Line Joints: Vertex Average, Miter, Bevel, Bevel Round
-* All outline options apply to lines as well.
-* Custom rotation only on single lines
+# Example Projects
 
-## Fonts
+## [00-WindowCreation](https://github.com/inanevin/LinaGX/tree/master/Examples/00-WindowCreation)
 
-* FreeType font loading
-* SDF fonts
-* Font atlases, atlas merging
-* Custom glyph-ranges
-* Unicode support
+Demonstrates how to create an simple app window using LinaGX windowing API. NOthing is rendered on the window, absolute starters.
 
-## Texts
+## [01-Triangle](https://github.com/inanevin/LinaGX/tree/master/Examples/01-Triangle)
 
-* Traditional anti-aliased bitmap glyph rendering
-* Flat colors, vertical/horizontal gradients
-* Drop shadows, customizable drop shadow color, customizable offsets.
-* Character spacing
-* Line spacing
-* Word-wrapping
-* Text alignment: Left, right & center
-* Custom rotation
+A simple UV triangle demonstrating shader cross-compilation, swapchains, render passes, frame submission and presentation.
 
-## SDF
+![Triangle](https://github.com/inanevin/LinaGX/assets/3519379/b5adb7fa-9ff0-4697-a97e-1bdac9ea5071)
 
-* All text options apply to SDF texts.
-* SDF thickness
-* SDF softness
-* SDF outlines
+## [02-TexturesAndBinding](https://github.com/inanevin/LinaGX/tree/master/Examples/02-TexturesAndBinding)
 
-## Utility
+Building on top of the previous examples, introduces transfer streams for copying data to GPU using copy queues, vertex & index buffers, descriptor sets, texture loading utilities and texture transfers.
 
-* Custom draw orders, z-sorting
-* Rect clipping
-* Exposed configs, such as; garbage collection intervals, buffer reserves, AA params, line joint limits, texture flipping, debug functionality
+![TexturesAndBinding](https://github.com/inanevin/LinaGX/assets/3519379/bee0fcd7-4200-466c-bc73-bd833d3cb4c5)
 
+## [03-RenderTargetsGLTF](https://github.com/inanevin/LinaGX/tree/master/Examples/03-RenderTargetsGLTF)
+
+Building on top of the previous examples, introduces GLTF loading, skinning, and multiple render targets.
+
+![RenderTargetsGLTF](https://github.com/inanevin/LinaGX/assets/3519379/85af5b92-ca4d-46ae-b9d1-107aa6e67bd2)
+
+## [04-BindlessIndirectComputeQueue](https://github.com/inanevin/LinaGX/tree/master/Examples/04-BindlessIndirectComputeQueue)
+
+Simple scene demonstrating usage of compute shaders, explicit compute queue and syncronization, as well as bindless textures and indirect rendering.
+
+![BindlessIndirect](https://github.com/inanevin/LinaGX/assets/3519379/c1743253-f326-47d6-a948-4b30d1391634)
+
+## [05-FoxLounge](https://github.com/inanevin/LinaGX/tree/master/Examples/05-FoxLounge)
+
+A complete, comprehensive example, showing the flexibility and power of LinaGX, by providing a deferred PBR renderer, with point lights, shadow mapping, realtime IBL creation with irradiance, BRDF and prefilter steps, SSAO, bloom and other post-processing.
+
+![FoxLounge2](https://github.com/inanevin/LinaGX/assets/3519379/4074f8d6-fdd1-4870-a6e9-853065d8500b)
 
 # Installation
 
-Download a release from [Releases](https://github.com/inanevin/LinaVG/releases). The zip file will contain pre-built binaries for LinaVG and FreeType. 
+Download a release from [Releases](https://github.com/inanevin/LinaGX/releases).
 
-If you want to use text drawing functionalities:
+Recommended way of using LinaGX is to link it using CMake within your application. If you'd like to pre-complie yourself, you can still do so via CMake, but you also have to pre-compile the dependency libraries, such as SPIRV-Cross and glslang.
 
-- Your application first needs to link against & include FreeType.
-- Then link against & include LinaVG.
-- ```#define LINAVG_TEXT_SUPPORT``` before including ```<LinaVG.hpp>```. 
-
-If you don't want to use text drawing:
-
-- You can directly link against and include LinaVG, omit FreeType. Don't define text support macro.
-
-The pre-built binaries and LinaVG core do not support any kind of rendering backend. You are expected to provide your own backend. You can of course make use of the example OpenGL backend given in the Example project.
-
-Note: LinaVG requires C++ 17 features.
-
-# Demo Application
-
-You can download this whole repository and generate the project files using CMake to run the example application, demonstrating all capabilities of LinaVG.
+CMake project offers only a single option, and it is to enable building of examples which are disabled by default. Use ```LINAGX_BUILD_EXAMPLES``` option.
 
 ```shell
-
-# Clone repo
-git clone https://github.com/inanevin/LinaVG
-
-# Create target dir & cd
-mkdir build_x64
-cd build_x64
-
-# Build LinaVG w/ examples & text support
-cmake ../ -DLINAVG_TEXT_SUPPORT=ON -DLINAVG_BUILD_EXAMPLES=ON -G "Visual Studio 17 2022" -A "x64"
-
-# After the project files are generated, you can build the project via
-cmake --build . --target ALL_BUILD
-
+cmake DLINAGX_BUILD_EXAMPLES=ON
 ```
 
-CMake build process downloads the pre-built dependencies during configuration. If you choose to build & run the demo application using another method, remember to get the required dependency binaries from [Lina Dependencies](https://github.com/inanevin/LinaDependencies/tree/linavg) repository.
-
-# Quick Demonstration
-
-Below is a bare-minimum implementation steps for drawing with LinaVG. As said in the home page, it's assumed that your application already has a graphics rendering backend setup and running, of course along with a window with a valid context.
-```cpp
-
-// Include LinaVG
-#include "LinaVG.hpp"
-
-// Initialize LinaVG
-LinaVG::Initialize();
-
-// Your application loop
-while (m_applicationRunning)
-{
-
-    // Let LinaVG know that we are starting to render.
-    LinaVG::StartFrame();
-
-    // Setup style, give a gradient color from red to blue.
-    StyleOptions style;
-    style.isFilled      = true;
-    style.color.start = Vec4(1, 0, 0, 1);
-    style.color.end   = Vec4(0, 0, 1, 1);
-
-    // Draw a 200x200 rectangle starting from 300, 300.
-    const Vec2 min = Vec2(300, 300);
-    const Vec2 max = Vec2(500, 500);
-    LinaVG::DrawRect(min, max, style);
-
-    // Finally, flush all the buffers and render to screen.
-    LinaVG::Render();
-
-    // Let LinaVG know that we are finishing this frame
-    LinaVG::EndFrame();
-}
-
-// Terminate LinaVG before exiting your application.
-LinaVG::Terminate();
-
-```
-
-And that's basically it! Now you should have this on your screen, easy peasy.
-
-![1](https://user-images.githubusercontent.com/3519379/173247621-4f38cbe2-308f-4cd7-aa9f-8da150d83780.png)
-
-There are a lot more to LinaVG in regards to usage, configuration, other shapes/lines/texts and styling. Check out the rest of the Wiki or the example application to learn about them all.
+Or tick it on if you are using CMake GUI.
 
 # License
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 [LICENSE.MD](https://github.com/inanevin/LinaVG/blob/master/LICENSE)
 
 # Contributing
@@ -209,3 +192,4 @@ Any contributions and PR are welcome.
 
 You can join [Lina Engine's Discord channel](https://discord.gg/QYeTkEtRMB) to talk about the Lina Project.
 [![Lina Discord](https://badgen.net/discord/members/QYeTkEtRMB)](https://discord.gg/QYeTkEtRMB)
+
