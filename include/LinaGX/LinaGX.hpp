@@ -34,10 +34,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
 
-THINGS TO RESEARCH:
-
-- gl_InstanceIndex and alike and their support.
-
 INDIRECT NOTES:
 
 - Need to use IndexedIndirectCommand or IndirectCommand structure.
