@@ -170,13 +170,13 @@ Download a release from [Releases](https://github.com/inanevin/LinaGX/releases).
 
 Recommended way of using LinaGX is to link it using CMake within your application. If you'd like to pre-complie yourself, you can still do so via CMake, but you also have to pre-compile the dependency libraries, such as SPIRV-Cross and glslang.
 
-CMake project offers only a single option, and it is to enable building of examples which are disabled by default. Use ```LINAGX_BUILD_EXAMPLES``` option.
+Example projects are disabled by default. Use ```LINAGX_BUILD_EXAMPLES``` option to enable them during CMake generation.
 
 ```shell
 cmake DLINAGX_BUILD_EXAMPLES=ON
 ```
 
-Or tick it on if you are using CMake GUI.
+By default, LinaGX builds for both Vulkan and DX12 on Windows for runtime switching between graphics APIs. If this is not required for your use case, you can use ```LINAGX_DISABLE_VK``` or ```LINAGX_DISABLE_DX12``` to disable one of the graphics backends. Using both options will fail CMake project generation.
 
 # [License (BSD 2-clause)](http://opensource.org/licenses/BSD-2-Clause)
 
