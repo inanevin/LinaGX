@@ -165,7 +165,7 @@ namespace LinaGX::Examples
 
         //*******************  WINDOW CREATION & CALLBACKS
         {
-            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX GLTF Render Target", 0, 0, 800, 800, WindowStyle::WindowedApplication);
+            _window = _lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX RenderTargetsGLTF", 0, 0, 800, 800, WindowStyle::WindowedApplication);
             App::RegisterWindowCallbacks(_window);
             _windowX = _window->GetSize().x;
             _windowY = _window->GetSize().y;
@@ -918,7 +918,7 @@ namespace LinaGX::Examples
             beginRenderPass->scissors = sc;
 
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor            = {0.5f, 0.5f, 0.5f, 1.0f};
+            colorAttachment.clearColor            = {167.0f / 255.0f, 49.0f / 255.0f, 105.0f / 255.0f, 1.0f};
             colorAttachment.texture               = currentFrame.renderTargetColor;
             colorAttachment.isSwapchain           = false;
             colorAttachment.loadOp                = LoadOp::Clear;
@@ -1024,7 +1024,7 @@ namespace LinaGX::Examples
         {
             CMDBeginRenderPass*       beginRenderPass = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             RenderPassColorAttachment colorAttachment;
-            colorAttachment.clearColor                         = {0.8f, 0.8f, 0.8f, 1.0f};
+            colorAttachment.clearColor                         = {32.0f / 255.0f, 17.0f / 255.0f, 39.0f / 255.0f, 1.0f};
             colorAttachment.texture                            = static_cast<uint32>(_swapchain);
             colorAttachment.isSwapchain                        = true;
             colorAttachment.loadOp                             = LoadOp::Clear;

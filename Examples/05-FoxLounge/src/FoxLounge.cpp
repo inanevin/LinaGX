@@ -126,7 +126,7 @@ namespace LinaGX::Examples
 
     void Example::CreateMainWindow()
     {
-        m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX SSBO", 0, 0, 800, 800, WindowStyle::WindowedApplication);
+        m_window = m_lgx->GetWindowManager().CreateApplicationWindow(MAIN_WINDOW_ID, "LinaGX FoxLounge", 0, 0, 800, 800, WindowStyle::WindowedApplication);
         App::RegisterWindowCallbacks(m_window);
         m_windowX = m_window->GetSize().x;
         m_windowY = m_window->GetSize().y;

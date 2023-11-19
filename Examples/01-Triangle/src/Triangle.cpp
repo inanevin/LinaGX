@@ -96,7 +96,7 @@ namespace LinaGX::Examples
             LinaGX::Config.logLevel        = LogLevel::Verbose;
             LinaGX::Config.errorCallback   = LogError;
             LinaGX::Config.infoCallback    = LogInfo;
-            _lgx = new LinaGX::Instance();
+            _lgx                           = new LinaGX::Instance();
             _lgx->Initialize();
 
             std::vector<LinaGX::Format> formatSupportCheck = {LinaGX::Format::B8G8R8A8_UNORM};
@@ -237,7 +237,7 @@ namespace LinaGX::Examples
             LinaGX::RenderPassColorAttachment att      = {};
             att.isSwapchain                            = true;
             att.texture                                = static_cast<uint32>(_swapchain);
-            att.clearColor                             = {0.3f, 0.3f, 0.3f, 1.0f};
+            att.clearColor                             = {32.0f / 255.0f, 17.0f / 255.0f, 39.0f / 255.0f, 1.0f};
             CMDBeginRenderPass* beginRenderPass        = currentFrame.stream->AddCommand<CMDBeginRenderPass>();
             beginRenderPass->colorAttachmentCount      = 1;
             beginRenderPass->colorAttachments          = currentFrame.stream->EmplaceAuxMemory<LinaGX::RenderPassColorAttachment>(att);
