@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -104,8 +104,10 @@ namespace LinaGX::Examples
 
         m_lgx = new LinaGX::Instance();
 
-        uint32     supported = m_lgx->VKQueryFeatureSupport(PreferredGPUType::Discrete);
-        const bool success   = m_lgx->Initialize();
+        // You can check supported features from the supported flag.
+        uint32 supported = m_lgx->VKQueryFeatureSupport(PreferredGPUType::Discrete);
+
+        const bool success = m_lgx->Initialize();
 
         if (!success)
         {
@@ -646,6 +648,7 @@ namespace LinaGX::Examples
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
         m_samplers.push_back(m_lgx->CreateSampler(depthSampler));
         m_samplers.push_back(m_lgx->CreateSampler(clampSampler));
+
     }
 
     void Example::SetupGlobalDescriptorSet()

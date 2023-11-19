@@ -280,7 +280,7 @@ namespace LinaGX
         uint32 VKQueryFeatureSupport(PreferredGPUType gpuType);
 
         /// <summary>
-        /// If you are using LinaGX as Windowing and Input system, make sure to call this function to after yu poll all events from the operating system before your update loop (or however you want to handle input polling).
+        /// If you are using LinaGX as Windowing and Input system, make sure to call this function to after you poll all events from the operating system before your update loop (or however you want to handle input polling).
         /// </summary>
         void TickWindowSystem()
         {

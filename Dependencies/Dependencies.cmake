@@ -39,42 +39,45 @@
 
 if(WIN32)
 
-# DX12
-target_link_libraries(${PROJECT_NAME} 
-	PRIVATE d3d12.lib
-	PRIVATE dxgi.lib
-	PRIVATE dxguid.lib
-)
+	# DX12
+	if(NOT LINAGX_DISABLE_DX12)
+		target_link_libraries(${PROJECT_NAME} 
+			PRIVATE d3d12.lib
+			PRIVATE dxgi.lib
+			PRIVATE dxguid.lib
+		)
 
-include(Dependencies/dxc/link.cmake)
-include(Dependencies/nvapi/link.cmake)
-include(Dependencies/pix/link.cmake)
-link_dxc()
-link_nvapi()
-link_pix()
+		include(Dependencies/dxc/link.cmake)
+		include(Dependencies/nvapi/link.cmake)
+		include(Dependencies/pix/link.cmake)
+		link_dxc()
+		link_nvapi()
+		link_pix()
+	endif()
 
+	if(NOT LINAGX_DISABLE_VK)
+		find_package(Vulkan REQUIRED FATAL_ERROR)
 
-find_package(Vulkan REQUIRED FATAL_ERROR)
+		target_link_libraries(${PROJECT_NAME} 
+			PRIVATE Vulkan::Vulkan
+		)
+	endif()
 
-target_link_libraries(${PROJECT_NAME} 
-	PRIVATE Vulkan::Vulkan
-)
-
-target_link_libraries(${PROJECT_NAME} 
-	PUBLIC user32.lib
-	PUBLIC Shcore.lib
-)
+	target_link_libraries(${PROJECT_NAME} 
+		PUBLIC user32.lib
+		PUBLIC Shcore.lib
+	)
 
 endif()
 
 if(APPLE)
-target_link_libraries(${PROJECT_NAME}
-PUBLIC "-framework Metal"
-PUBLIC "-framework MetalKit"
-PUBLIC "-framework AppKit"
-PUBLIC "-framework Foundation"
-PUBLIC "-framework QuartzCore"
-)
+	target_link_libraries(${PROJECT_NAME}
+		PUBLIC "-framework Metal"
+		PUBLIC "-framework MetalKit"
+		PUBLIC "-framework AppKit"
+		PUBLIC "-framework Foundation"
+		PUBLIC "-framework QuartzCore"
+	)
 endif()
 
 add_subdirectory(Dependencies/glslang-12.2.0)

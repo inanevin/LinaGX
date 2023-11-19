@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -33,9 +33,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #pragma once
-
-#ifndef LINAGX_Backend_HPP
-#define LINAGX_Backend_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
 
@@ -93,5 +90,3 @@ namespace LinaGX
         static Backend* CreateBackend();
     };
 } // namespace LinaGX
-
-#endif

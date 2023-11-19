@@ -35,8 +35,15 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Core/Backend.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
+
+#ifndef LINAGX_DISABLE_DX12
 #include "LinaGX/Platform/DX12/DX12Backend.hpp"
+#endif
+
+#ifndef LINAGX_DISABLE_VK
 #include "LinaGX/Platform/Vulkan/VKBackend.hpp"
+#endif
+
 #endif
 
 #ifdef LINAGX_PLATFORM_APPLE
@@ -49,10 +56,23 @@ namespace LinaGX
     {
         
 #ifdef LINAGX_PLATFORM_WINDOWS
-        if(Config.api == BackendAPI::Vulkan)
+
+        if (Config.api == BackendAPI::Vulkan)
+        {
+#ifndef LINAGX_DISABLE_VK
             return new VKBackend();
+#else
+            return nullptr;
+#endif
+        }
         else if (Config.api == BackendAPI::DX12)
+        {
+#ifndef LINAGX_DISABLE_DX12
             return new DX12Backend();
+#else
+            return nullptr;
+#endif
+        }
 #endif
 
 #ifdef LINAGX_PLATFORM_APPLE

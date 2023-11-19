@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -39,7 +39,9 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Common/Math.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
+#ifndef LINAGX_DISABLE_VK
 #include "LinaGX/Platform/Vulkan/VKBackend.hpp"
+#endif
 #endif
 
 namespace LinaGX
@@ -55,10 +57,29 @@ namespace LinaGX
 
         if (Config.api != BackendAPI::Metal)
         {
-            if (Config.errorCallback)
-                Config.errorCallback("Backend API needs to be Metal for Apple platforms!");
+            LOGE("Backend API needs to be Metal for Apple platforms!");
             return false;
         }
+#endif
+
+#ifdef LINAGX_PLATFORM_WINDOWS
+
+#ifdef LINAGX_DISABLE_DX12
+        if (Config.api == BackendAPI::DX12)
+        {
+            LOGE("Trying to use DX12 but it's disabled by project configuration!");
+            return false;
+        }
+#endif
+
+#ifdef LINAGX_DISABLE_VK
+        if (Config.api == BackendAPI::Vulkan)
+        {
+            LOGE("Trying to use Vulkan but it's disabled by project configuration!");
+            return false;
+        }
+#endif
+
 #endif
 
         m_backend = Backend::CreateBackend();
@@ -370,7 +391,11 @@ namespace LinaGX
     uint32 Instance::VKQueryFeatureSupport(PreferredGPUType gpuType)
     {
 #ifdef LINAGX_PLATFORM_WINDOWS
+#ifndef LINAGX_DISABLE_VK
         return VKBackend::QueryFeatureSupport(gpuType);
+#else
+        return 0;
+#endif
 #endif
         return 0;
     }

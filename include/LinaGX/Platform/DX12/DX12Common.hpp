@@ -37,7 +37,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Platform/DX12/SDK/d3dx12.h"
 #include "LinaGX/Platform/DX12/SDK/d3d12shader.h"
-#include <dxc/dxcapi.h>
+#include <dxcapi/dxcapi.h>
 #include <dxgi1_6.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
