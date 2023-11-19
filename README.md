@@ -15,7 +15,8 @@
   
 </div>
 
-LinaGX is a cross-platform graphics abstraction library that seamlessly integrates Vulkan, DirectX12 and Metal. It's primary purpose is to streamline graphics development process by offering a unified API that mirrors the best functionalities of modern graphics APIs. LinaGX is more than a simple abstraction layer, as it also simplifies challenges such as cross-platform shader compilation, queue management, work submission and syncronization, meanwhile providing framework functionalities for window management, input processing, as well as image and GLTF loading.
+LinaGX is a cross-platform rendering library that seamlessly integrates Vulkan, DirectX12 and Metal. It accelerates development by offering a unified API that simplifies cross-platform shader compilation, queue management, work submission and synchronization, meanwhile offering extra capabilities such as window management, input, as well as image and GLTF loading.
+
 
 <p align="center">
   <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084408-9056eee4-9f3a-460a-bdea-46759bdd6c05.png">
@@ -23,11 +24,9 @@ LinaGX is a cross-platform graphics abstraction library that seamlessly integrat
   <small><em>Screenshot from one of the examples, FoxLounge.</em></small>
 </p>
 
-LinaGX streamlines the creation of realtime rendering applications, providing an all-in-one toolkit that eliminates the need for additional libraries. Experienced graphics programmers will find it extremely easy to develop, offering simplicity alongside the option for detailed control and verbosity. For beginners, LinaGX is a practical gateway into graphics programming, though a basic understanding of modern graphics APIs is beneficial to quickly grasp its concepts.
+LinaGX is primarily aimed for desktop development on Windows and MacOS, however Vulkan and Metal backend makes it possible to use it for mobile platforms, eventhough mobile support is not officially tested and maintained.
 
-LinaGX is primarily aimed for desktop platforms: Windows and MacOS. It can also be used for mobile platforms, however mobile platform support is not tested and maintained. LinaGX is originally developed for and used in [Lina Engine](https://github.com/inanevin/LinaEngine), however it's completely decoupled from it and can be used as a standalone library.
-
-This repository contains LinaGX source code and a couple of example projects demonstrating the flexibilty of the API to develop graphics code ranging from a simple triangle all the way to a deferred PBR renderer.
+LinaGX is originally developed for and used in [Lina Engine](https://github.com/inanevin/LinaEngine), however it's completely decoupled from it and can be used as a standalone library.
 
 # Feature Highlights
 
@@ -179,11 +178,34 @@ cmake DLINAGX_BUILD_EXAMPLES=ON
 
 Or tick it on if you are using CMake GUI.
 
-# License
+# [License (BSD 2-clause)](http://opensource.org/licenses/BSD-2-Clause)
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+<a href="http://opensource.org/licenses/BSD-2-Clause" target="_blank">
+<img align="right" src="https://opensource.org/wp-content/uploads/2022/10/osi-badge-dark.svg" width="100" height="130">
+</a>
 
-[LICENSE.MD](https://github.com/inanevin/LinaVG/blob/master/LICENSE)
+	Copyright 2023 Inan Evin
+	
+	Redistribution and use in source and binary forms, with or without modification,
+	are permitted provided that the following conditions are met:
+	
+	   1. Redistributions of source code must retain the above copyright notice, this
+	      list of conditions and the following disclaimer.
+	
+	   2. Redistributions in binary form must reproduce the above copyright notice,
+	      this list of conditions and the following disclaimer in the documentation
+	      and/or other materials provided with the distribution.
+	
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+	IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+	INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+	BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+	DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+	OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+	OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+	OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Contributing
 
