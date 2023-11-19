@@ -1,10 +1,11 @@
+![image](https://github.com/inanevin/LinaGX/assets/3519379/07ec4d5c-b5a1-4cbf-ab4c-5723957a289c)
 <br/>
 <p align="center">
-  <img src="https://github.com/inanevin/LinaGX/assets/3519379/7aa81d2b-9a9b-4ef8-8a29-375a555adb31">
+  <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084496-3065e44f-9399-48a5-b14e-cdb720370a00.png">
 </p>
 <br/>
 <div align="center">
-  
+
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/inanevin) 
 [![Lina Discord](https://badgen.net/discord/members/QYeTkEtRMB)](https://discord.gg/QYeTkEtRMB)
@@ -17,7 +18,7 @@
 LinaGX is a cross-platform graphics abstraction library that seamlessly integrates Vulkan, DirectX12 and Metal. It's primary purpose is to streamline graphics development process by offering a unified API that mirrors the best functionalities of modern graphics APIs. LinaGX is more than a simple abstraction layer, as it also simplifies challenges such as cross-platform shader compilation, queue management, work submission and syncronization, meanwhile providing framework functionalities for window management, input processing, as well as image and GLTF loading.
 
 <p align="center">
-  <img src="https://github.com/inanevin/LinaGX/assets/3519379/26e7ebe4-2925-43a3-8039-ebf303fb8c5a" alt="Hello">
+  <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084408-9056eee4-9f3a-460a-bdea-46759bdd6c05.png">
   <br>
   <small><em>Screenshot from one of the examples, FoxLounge.</em></small>
 </p>
@@ -138,13 +139,13 @@ Demonstrates how to create an simple app window using LinaGX windowing API. NOth
 
 A simple UV triangle demonstrating shader cross-compilation, swapchains, render passes, frame submission and presentation.
 
-![Triangle](https://github.com/inanevin/LinaGX/assets/3519379/b5adb7fa-9ff0-4697-a97e-1bdac9ea5071)
+![Triangle](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084531-b4df4e6a-6d77-4cf6-b4cf-5b42d79004c3.png)
 
 ## [02-TexturesAndBinding](https://github.com/inanevin/LinaGX/tree/master/Examples/02-TexturesAndBinding)
 
 Building on top of the previous examples, introduces transfer streams for copying data to GPU using copy queues, vertex & index buffers, descriptor sets, texture loading utilities and texture transfers.
 
-![TexturesAndBinding](https://github.com/inanevin/LinaGX/assets/3519379/bee0fcd7-4200-466c-bc73-bd833d3cb4c5)
+![TexturesAndBinding](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084535-49e2c0e3-013f-4381-af45-1920ea237028.png)
 
 ## [03-RenderTargetsGLTF](https://github.com/inanevin/LinaGX/tree/master/Examples/03-RenderTargetsGLTF)
 
@@ -156,13 +157,13 @@ Building on top of the previous examples, introduces GLTF loading, skinning, and
 
 Simple scene demonstrating usage of compute shaders, explicit compute queue and syncronization, as well as bindless textures and indirect rendering.
 
-![BindlessIndirect](https://github.com/inanevin/LinaGX/assets/3519379/c1743253-f326-47d6-a948-4b30d1391634)
+![BindlessIndirect](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084540-f32f8789-7a04-4b70-97d8-e868653678c9.png)
 
 ## [05-FoxLounge](https://github.com/inanevin/LinaGX/tree/master/Examples/05-FoxLounge)
 
 A complete, comprehensive example, showing the flexibility and power of LinaGX, by providing a deferred PBR renderer, with point lights, shadow mapping, realtime IBL creation with irradiance, BRDF and prefilter steps, SSAO, bloom and other post-processing.
 
-![Alt Text](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084118-7b640d2d-c505-4528-a37e-af1e5362e34e.gif)
+![FoxLounge2](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084578-02aab616-a10f-4d92-a17b-030a38609068.png)
 
 # Installation
 
