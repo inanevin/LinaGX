@@ -150,7 +150,7 @@ Building on top of the previous examples, introduces transfer streams for copyin
 
 Building on top of the previous examples, introduces GLTF loading, skinning, and multiple render targets.
 
-![RenderTargetsGLTF](https://github.com/inanevin/LinaGX/assets/3519379/85af5b92-ca4d-46ae-b9d1-107aa6e67bd2)
+![RenderTargetsGLTF](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084118-7b640d2d-c505-4528-a37e-af1e5362e34e.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20231119%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20231119T190934Z&X-Amz-Expires=300&X-Amz-Signature=26b0c1e5a715bbf3d173c400693418bb4fde44f14db874ebdf3040d5ff7f1fe8&X-Amz-SignedHeaders=host&actor_id=3519379&key_id=0&repo_id=655905592)
 
 ## [04-BindlessIndirectComputeQueue](https://github.com/inanevin/LinaGX/tree/master/Examples/04-BindlessIndirectComputeQueue)
 
@@ -162,7 +162,7 @@ Simple scene demonstrating usage of compute shaders, explicit compute queue and 
 
 A complete, comprehensive example, showing the flexibility and power of LinaGX, by providing a deferred PBR renderer, with point lights, shadow mapping, realtime IBL creation with irradiance, BRDF and prefilter steps, SSAO, bloom and other post-processing.
 
-![ezgif com-crop](https://github.com/inanevin/LinaGX/assets/3519379/7b640d2d-c505-4528-a37e-af1e5362e34e)
+![Alt Text](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084118-7b640d2d-c505-4528-a37e-af1e5362e34e.gif)
 
 # Installation
 
