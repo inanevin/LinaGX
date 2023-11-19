@@ -162,7 +162,7 @@ Simple scene demonstrating usage of compute shaders, explicit compute queue and 
 
 A complete, comprehensive example, showing the flexibility and power of LinaGX, by providing a deferred PBR renderer, with point lights, shadow mapping, realtime IBL creation with irradiance, BRDF and prefilter steps, SSAO, bloom and other post-processing.
 
-![FoxLounge2](https://github.com/inanevin/LinaGX/assets/3519379/4074f8d6-fdd1-4870-a6e9-853065d8500b)
+![ezgif com-crop](https://github.com/inanevin/LinaGX/assets/3519379/7b640d2d-c505-4528-a37e-af1e5362e34e)
 
 # Installation
 
