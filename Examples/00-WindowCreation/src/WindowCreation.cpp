@@ -64,7 +64,7 @@ namespace LinaGX::Examples
 #endif
 
             LinaGX::Config.api             = api;
-            LinaGX::Config.gpu             = PreferredGPUType::Integrated;
+            LinaGX::Config.gpu             = PreferredGPUType::Discrete;
             LinaGX::Config.framesInFlight  = 2;
             LinaGX::Config.backbufferCount = 2;
             LinaGX::Config.gpuLimits       = {};

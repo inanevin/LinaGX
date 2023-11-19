@@ -212,14 +212,14 @@ namespace LinaGX::Examples
 
         //******************* CONFIGURATION & INITIALIZATION
         {
-            BackendAPI api = BackendAPI::DX12;
+            BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
             api = BackendAPI::Metal;
 #endif
 
             LinaGX::Config.api                               = api;
-            LinaGX::Config.gpu                               = PreferredGPUType::Integrated;
+            LinaGX::Config.gpu                               = PreferredGPUType::Discrete;
             LinaGX::Config.framesInFlight                    = FRAMES_IN_FLIGHT;
             LinaGX::Config.backbufferCount                   = BACK_BUFFER;
             LinaGX::Config.gpuLimits                         = {};
