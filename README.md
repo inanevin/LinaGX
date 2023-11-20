@@ -29,7 +29,7 @@ LinaGX is originally developed for and used in [Lina Engine](https://github.com/
 
 # Feature Highlights
 
-- **API**:
+- **API**
   - Unified cross-platform API bringing the key features from modern graphics backends.
   - Supports both compile-time and runtime selection of graphics backends.
 
