@@ -29,17 +29,40 @@ LinaGX is originally developed for and used in [Lina Engine](https://github.com/
 
 # Feature Highlights
 
-- **Common API:** Unified API that brings key features from Vulkan and DX12 together, aimed at choosing the most flexible ways to program graphics code. For example, resource binding is handled with Descriptor Sets, meanwhile queue syncronization API is similar to how DX12 works.
-- **Shader Cross-compilation:** Write shaders in GLSL, LinaGX compiles them into SPIRV for Vulkan, IDxc Blob for DX12, and MSL for Metal, with support for serialization and reuse.
-- **Shader Reflection and Pipeline Automation:** Offers an option for manual pipeline layout and vertex input definition, or automated creation using shader reflection info from SPIRV-Cross.
-- **Render Loops:** Manages image acquisition, synchronization with image and presentation semaphores, work submission, and buffering for multiple frames-in-flight internally.
-- **Command Streams:** Use Command Stream API to simply record commands into a stream object & dump them into work submission anytime you want. 
-- **Queue Management and User Semaphores:** Enables creation of multiple device queues with internal management of physical queues, complemented by custom user semaphores for synchronizing CPU and GPU work.
-- **Swapchains:** Simplifies swapchain creation and management, including resize operations and presentation handling.
-- **Resources:** Facilitates easy creation of CPU/GPU resources and transfer operations over copy queues, handling any necessary staging buffers, particularly for texture copying.
-- **Utilities:** Provides utilities for loading textures, generating mipmaps and loading/parsing GLTF models. 
-- **Windowing and Input:** Supports creation of multiple application windows in native or borderless styles, along with comprehensive input callbacks and state polling/querying.
-  
+- **API**:
+  - Unified cross-platform API bringing the key features from modern graphics backends.
+  - Supports both compile-time and runtime selection of graphics backends.
+
+- **Shaders**:
+  - Write shaders in GLSL, LinaGX cross-compiles to SPIRV, IDxC or MSL depending on the platform, with serialization support.
+  - Shader reflection through SPIRV-Cross.
+  - Automatic pipeline/root signature creation through reflection info, or possibility to manually define the layout.
+
+- **Render Loop**
+  - Internally manages image acquisition, image and presentation semaphores and synchronization.
+  - Hides the details of buffering multiple frames-in-flight from the user.
+  - Extremely simple API to submit GPU work and perform presentation.
+ 
+- **Commands**
+  - Easy to use Command Stream API for recording gpu work.
+
+- **Queues**
+  - Enables creation of multiple device queues with internal management of physical queues.
+  - Multi-threaded work submission on queues, complemented by custom user semaphores for explicit CPU/GPU synchronization.
+
+- **Swapchain**
+  - Simplifies creation and management of swapchains & presentation, including handling of resize operations.
+
+- **Resources**
+  - Easy creation of CPU/GPU resources, automatic handling of any intermediate buffers.
+
+- **Utilities**
+  - Texture loading, CPU mipmap generation and GLTF loading/parsing utilities.
+ 
+- **Windowing and Input**
+  - Window API for creating multiple application windows in native or custom styles.
+  - Input callbacks and state polling.
+
 # Platform Support & Min Specs
 
 **Source code is tested with compilers:**
