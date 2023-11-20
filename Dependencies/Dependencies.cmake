@@ -34,6 +34,7 @@
 # Following modifications are made to the dependency libraries CMake projects:
 # SPIRV-CROSS -> remove enable_testing() and disable if(SPIRV_CROSS_ENABLE_TESTS) (AND FALSE)
 # SPIRV-CROSS -> CMake version bumped to 3.6.
+# SPIRV-CROSS -> Comment out options CPP and CLI and TESTS
 # glm -> CMake version bumped to 3.6. (main CMakeLists.txt, glm/CMakeLists.txt, CMake/glmconfig.cmake)
 # Trust me, keeping this log is easier than managing fancy submodules.
 
@@ -108,15 +109,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-hlsl)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-msl)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-reflect)
 target_link_libraries(${PROJECT_NAME} PUBLIC spirv-cross-util)
-set_property(TARGET spirv-cross PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-c PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-core PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-glsl PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-hlsl PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-msl PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-reflect PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-util PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
-set_property(TARGET spirv-cross-cpp PROPERTY FOLDER LinaGXProject/Dependencies/spvc)
+set_property(TARGET spirv-cross-c PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
+set_property(TARGET spirv-cross-core PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
+set_property(TARGET spirv-cross-glsl PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
+set_property(TARGET spirv-cross-hlsl PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
+set_property(TARGET spirv-cross-msl PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
+set_property(TARGET spirv-cross-reflect PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
+set_property(TARGET spirv-cross-util PROPERTY FOLDER LinaGXProject/Dependencies/spirv-cross)
 message("LinaGX -> spirv-cross has been linked.")
 
 target_compile_definitions(GenericCodeGen PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAGX_ITERATOR_DEBUG_LEVEL})
