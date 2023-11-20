@@ -50,7 +50,7 @@ LinaGX is originally developed for and used in [Lina Engine](https://github.com/
   - Enables creation of multiple device queues with internal management of physical queues.
   - Multi-threaded work submission on queues, complemented by custom user semaphores for explicit CPU/GPU synchronization.
 
-- **Swapchain**
+- **Swapchains**
   - Simplifies creation and management of swapchains & presentation, including handling of resize operations.
 
 - **Resources**
