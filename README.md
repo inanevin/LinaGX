@@ -33,7 +33,7 @@ LinaGX is originally developed for and used in [Lina Engine](https://github.com/
   - Unified cross-platform API bringing the key features from modern graphics backends.
   - Supports both compile-time and runtime selection of graphics backends.
 
-- **Shaders**:
+- **Shaders**
   - Write shaders in GLSL, LinaGX cross-compiles to SPIRV, IDxC or MSL depending on the platform, with serialization support.
   - Shader reflection through SPIRV-Cross.
   - Automatic pipeline/root signature creation through reflection info, or possibility to manually define the layout.
