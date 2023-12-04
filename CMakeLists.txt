@@ -39,6 +39,10 @@ set(CMAKE_CXX_STANDARD 17)
 # Options & Definitions
 #--------------------------------------------------------------------
 
+if(NOT DEFINED LINAGX_ITERATOR_DEBUG_LEVEL)
+set(LINAGX_ITERATOR_DEBUG_LEVEL 0)
+endif()
+
 option(LINAGX_BUILD_EXAMPLES "Builds example projects." OFF)
 
 if(WIN32)
@@ -46,11 +50,6 @@ if(WIN32)
 	option(LINAGX_DISABLE_VK "Disables Vulkan backend." OFF)
 endif()
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-set(CMAKE_SUPPRESS_REGENERATION true)
-set(LINAGX_ITERATOR_DEBUG_LEVEL 0)
 set(LINAGX_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(MSVC)
@@ -210,9 +209,13 @@ endif()
 # Create project
 #--------------------------------------------------------------------
 
+if(NOT DEFINED LINAGX_FOLDER_BASE)
+set(LINAGX_FOLDER_BASE LinaGXProject)
+endif()
+
 add_library(${PROJECT_NAME} ${LinaGX_SOURCES} ${LinaGX_HEADERS} ${LinaGX_PLATFORM_SOURCES} ${LinaGX_PLATFORM_HEADERS} ${LinaGX_API_SOURCES} ${LinaGX_API_HEADERS})
 add_library(Lina::GX ALIAS ${PROJECT_NAME})
-set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject)
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER ${LINAGX_FOLDER_BASE})
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
 #--------------------------------------------------------------------
@@ -244,6 +247,14 @@ if(LINAGX_BUILD_EXAMPLES)
 	add_subdirectory(Examples/04-BindlessIndirectComputeQueue)
 	add_subdirectory(Examples/05-FoxLounge)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
+endif()
+
+## Copy windows dlls
+if(WIN32)
+add_custom_command(
+TARGET ${PROJECT_NAME}
+POST_BUILD
+COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/bin/" "${LINAGX_RUNTIME_OUTPUT_DIRECTORY}")
 endif()
 
 if(MSVC_IDE OR APPLE)
