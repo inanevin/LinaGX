@@ -1736,10 +1736,6 @@ uint8 MTLBackend::GetPrimaryQueue(CommandType type) {
 
 bool MTLBackend::Initialize() {
         
-    
-    NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
-        NSLog(@"Current directory: %@", currentDirectory);
-    
     NSArray<id<MTLDevice>> *availableDevices = MTLCopyAllDevices();
     id<MTLDevice> selectedDevice = nil;
 
