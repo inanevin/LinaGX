@@ -330,8 +330,8 @@ void OSXWindow::SetSize(const LinaGX::LGXVector2ui &size) {
 
 void OSXWindow::CenterPositionToCurrentMonitor() { 
     const auto& mi = GetMonitorInfoFromWindow();
-    const int32 x = mi.workTopLeft.x + mi.size.x - m_size.x / 2;
-    const int32 y = mi.workTopLeft.y + mi.size.y - m_size.y / 2;
+    const int32 x = (mi.size.x / 2) - (m_size.x / 2);
+    const int32 y = (mi.size.y / 2) - (m_size.y / 2);
     const LGXVector2i newPos = {x, y};
     SetPosition(newPos);
 }
@@ -398,8 +398,8 @@ MonitorInfo OSXWindow::GetMonitorInfoFromWindow() {
     // 2. Monitor Work Area Size
     // On macOS, the work area is generally the full screen size minus menu bar.
     NSRect visibleFrame = [screen visibleFrame];
-    info.workArea.x = visibleFrame.size.width;
-    info.workArea.y = visibleFrame.size.height;
+    info.workSize.x = visibleFrame.size.width;
+    info.workSize.y = visibleFrame.size.height;
 
     // 3. Monitor Work Area Top Left
     info.workTopLeft.x = visibleFrame.origin.x;
@@ -419,7 +419,7 @@ MonitorInfo OSXWindow::GetMonitorInfoFromWindow() {
 }
 
 LGXVector2ui OSXWindow::GetMonitorWorkArea() {
-    return GetMonitorInfoFromWindow().workArea;
+    return GetMonitorInfoFromWindow().workSize;
 }
 
 LGXVector2ui OSXWindow::GetMonitorSize() {

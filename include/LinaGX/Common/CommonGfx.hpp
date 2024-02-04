@@ -741,7 +741,7 @@ namespace LinaGX
         float        dpiScale      = 0.0f;
         uint32       dpi           = 0;
         LGXVector2ui size          = {};
-        LGXVector2ui workArea      = {};
+        LGXVector2ui workSize      = {};
         LGXVector2i  workTopLeft   = {};
     };
 
