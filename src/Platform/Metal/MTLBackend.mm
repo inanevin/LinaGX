@@ -1754,6 +1754,8 @@ bool MTLBackend::Initialize() {
         break;  // Found a device that meets our criteria
     }
     
+    [availableDevices release];
+    
     if(selectedDevice == nil)
         selectedDevice = MTLCreateSystemDefaultDevice();
     
