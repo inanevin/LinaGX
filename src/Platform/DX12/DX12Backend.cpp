@@ -3464,7 +3464,7 @@ namespace LinaGX
             const uint32             targetSetIndex = i + cmd->firstSet;
             const DX12DescriptorSet& set            = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]);
             DX12BoundDescriptorSet   data           = {cmd->descriptorSetHandles[i], true};
-            data.setAllocIndex                      = cmd->allocationIndex;
+            data.setAllocIndex                      = cmd->allocationIndices[i];
 
             for (const auto& b : set.bindings[cmd->allocationIndices[i]])
             {
