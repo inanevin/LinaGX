@@ -3466,7 +3466,7 @@ namespace LinaGX
             DX12BoundDescriptorSet   data           = {cmd->descriptorSetHandles[i], true};
             data.setAllocIndex                      = cmd->allocationIndex;
 
-            for (const auto& b : set.bindings[cmd->allocationIndex])
+            for (const auto& b : set.bindings[cmd->allocationIndices[i]])
             {
                 if (b.lgxBinding.useDynamicOffset)
                     data.boundDynamicOffsets.push_back(cmd->dynamicOffsets[dynamicOffsetCounter++]);

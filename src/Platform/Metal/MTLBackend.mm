@@ -2726,7 +2726,7 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
         MTLBoundDescriptorSet data = {setHandle, true};
         data.setAllocIndex = cmd->allocationIndex;
         
-        for(const auto& binding : set.bindings[cmd->allocationIndex])
+        for(const auto& binding : set.bindings[cmd->allocationIndices[i]])
         {
             if(binding.lgxBinding.useDynamicOffset)
                 data.dynamicOffsets.push_back(cmd->dynamicOffsets[dynCtr++]);
