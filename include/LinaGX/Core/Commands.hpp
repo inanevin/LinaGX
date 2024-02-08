@@ -330,7 +330,7 @@ namespace LinaGX
     struct CMDBindDescriptorSets
     {
         uint32                     firstSet;
-        uint32                     allocationIndices;
+        uint32*                     allocationIndices;
         uint32                     setCount;
         uint16*                    descriptorSetHandles;
         bool                       isCompute;
