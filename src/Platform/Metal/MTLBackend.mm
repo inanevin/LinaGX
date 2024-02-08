@@ -2724,9 +2724,9 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
         const uint32 setIndex = i + cmd->firstSet;
         const auto& set = m_descriptorSets.GetItemR(setHandle);
         MTLBoundDescriptorSet data = {setHandle, true};
-        data.setAllocIndex = cmd->allocationIndices[i];
+        data.setAllocIndex = cmd->allocationIndices == nullptr ? 0 : cmd->allocationIndices[i];
         
-        for(const auto& binding : set.bindings[cmd->allocationIndices[i]])
+        for(const auto& binding : set.bindings[data.setAllocIndex])
         {
             if(binding.lgxBinding.useDynamicOffset)
                 data.dynamicOffsets.push_back(cmd->dynamicOffsets[dynCtr++]);

@@ -3463,7 +3463,7 @@ namespace LinaGX
         sets.resize(cmd->setCount);
 
         for (uint32 i = 0; i < cmd->setCount; i++)
-            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).sets[cmd->allocationIndices[i]];
+            sets[i] = m_descriptorSets.GetItemR(cmd->descriptorSetHandles[i]).sets[cmd->allocationIndices == nullptr ? 0 : cmd->allocationIndices[i]];
 
         vkCmdBindDescriptorSets(buffer, cmd->isCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, layout, cmd->firstSet, cmd->setCount, sets.data(), cmd->dynamicOffsetCount, cmd->dynamicOffsets);
     }
