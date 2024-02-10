@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -2100,7 +2100,7 @@ namespace LinaGX
                     if (bindingData.lgxBinding.type == DescriptorType::UBO && descriptorCount == 1)
                     {
                         DescriptorHandle handle = {};
-                        handle.SetGPUHandle(res.allocation->GetResource()->GetGPUVirtualAddress());
+                        handle.SetGPUHandle(GetGPUResource(res)->GetGPUVirtualAddress());
                         binding.gpuPointer.SetCPUHandle(handle.GetCPUHandle());
                         binding.gpuPointer.SetGPUHandle(handle.GetGPUHandle());
                         return;
@@ -3566,7 +3566,7 @@ namespace LinaGX
         {
             const auto& barrier  = cmd->resourceBarriers[i];
             auto&       res      = m_resources.GetItemR(barrier.resource);
-            auto        dxRes    = res.cpuVisibleResource.Get() != nullptr ? res.cpuVisibleResource.Get() : res.allocation->GetResource();
+            auto        dxRes    = GetGPUResource(res);
             auto        newState = GetDXResourceBarrierState(barrier.toState);
 
             // Will decay to common & promoted on first usage.

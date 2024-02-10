@@ -795,7 +795,7 @@ namespace LinaGX
         {
             const auto& mi = GetMonitorInfoFromWindow();
             SetPosition({mi.workTopLeft.x, mi.workTopLeft.y});
-            SetSize({mi.workArea.x, mi.workArea.y});
+            SetSize({mi.workSize.x, mi.workSize.y});
         }
     }
 
@@ -830,7 +830,7 @@ namespace LinaGX
         HRESULT temp2 = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
 
         info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
-        info.workArea      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
+        info.workSize      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
         info.workTopLeft   = {static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
         info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
         info.monitorHandle = static_cast<void*>(monitor);

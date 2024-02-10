@@ -115,7 +115,7 @@ namespace LinaGX
 
                 MonitorInfo data;
                 data.size        = LGXVector2ui{static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
-                data.workArea    = LGXVector2ui{static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
+                data.workSize    = LGXVector2ui{static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
                 data.workTopLeft = LGXVector2i{static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
                 data.isPrimary   = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
                 data.dpi         = dpiX;
