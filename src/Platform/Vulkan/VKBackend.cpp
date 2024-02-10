@@ -1703,12 +1703,18 @@ namespace LinaGX
         item.bindings         = desc.bindings;
         item.layout           = CreateDescriptorSetLayout(desc);
 
+        LINAGX_VEC< VkDescriptorSetLayout> layouts;
+        layouts.resize(desc.allocationCount);
+
+        for (int32 i = 0; i < desc.allocationCount; i++)
+            layouts[i] = item.layout;
+
         VkDescriptorSetAllocateInfo allocInfo = {};
         allocInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.pNext                       = nullptr;
         allocInfo.descriptorPool              = m_descriptorPool;
         allocInfo.descriptorSetCount          = desc.allocationCount;
-        allocInfo.pSetLayouts                 = &item.layout;
+        allocInfo.pSetLayouts                 = layouts.data(),
         item.sets                             = new VkDescriptorSet[desc.allocationCount];
 
         VkResult res  = vkAllocateDescriptorSets(m_device, &allocInfo, item.sets);
@@ -2320,7 +2326,8 @@ namespace LinaGX
 
         if (Config.vulkanConfig.enableValidationLayers)
         {
-            severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+            // severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+            severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
             builder.set_debug_callback(VkDebugCallback);
             builder.set_debug_messenger_severity(severity);
             builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
