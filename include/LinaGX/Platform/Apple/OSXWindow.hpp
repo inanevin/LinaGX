@@ -69,9 +69,6 @@ namespace LinaGX
         virtual void         Maximize() override;
         virtual void         Minimize() override;
         virtual void         Restore() override;
-        virtual MonitorInfo  GetMonitorInfoFromWindow() override;
-        virtual LGXVector2ui GetMonitorWorkArea() override;
-        virtual LGXVector2ui GetMonitorSize() override;
         virtual bool         GetIsMaximized() override;
         virtual bool         GetIsMinimized() override;
         virtual void         ConfineMouse() override;
@@ -106,6 +103,7 @@ namespace LinaGX
         uint32 ConvertYInt(uint32 desiredY);
         void CalculateDPI();
         uint32 GetStyle(WindowStyle style);
+        void CalculateMonitorInfo();
 
     private:
         bool         m_titleChangeRequested = false;

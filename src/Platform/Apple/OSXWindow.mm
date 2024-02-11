@@ -162,6 +162,7 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     
     std::function<void()> screenChangedCallback = [this]() {
         CalculateDPI();
+        CalculateMonitorInfo();
     };
     
     std::function<void()> windowClosedCallback = [this]() {
@@ -206,6 +207,7 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     [wnd setAcceptsMouseMovedEvents:YES];
     
     CalculateDPI();
+    CalculateMonitorInfo();
     BringToFront();
     SetVisible(true);
     SetTitle(m_title);
@@ -381,51 +383,6 @@ void OSXWindow::Restore() {
     }
 }
 
-MonitorInfo OSXWindow::GetMonitorInfoFromWindow() {
-    NSWindow* window = static_cast<NSWindow*>(m_nsWindow);
-
-    // Initialize your MonitorInfo struct
-    MonitorInfo info;
-
-    // Get the screen that the window is on
-    NSScreen *screen = [window screen];
-
-    // 1. Monitor Size
-    NSRect screenFrame = [screen frame];
-    info.size.x = screenFrame.size.width;
-    info.size.y = screenFrame.size.height;
-
-    // 2. Monitor Work Area Size
-    // On macOS, the work area is generally the full screen size minus menu bar.
-    NSRect visibleFrame = [screen visibleFrame];
-    info.workSize.x = visibleFrame.size.width;
-    info.workSize.y = visibleFrame.size.height;
-
-    // 3. Monitor Work Area Top Left
-    info.workTopLeft.x = visibleFrame.origin.x;
-    info.workTopLeft.y = visibleFrame.origin.y;
-
-    // 4. DPI and 5. DPI Scale
-    // This assumes the screen is retina. You might have to add more logic for non-retina screens.
-    CGFloat dpi = 72.0 * [screen backingScaleFactor];
-    info.dpi = dpi;
-    info.dpiScale = [screen backingScaleFactor];
-
-    // 6. Is Monitor Primary
-    // Assuming the primary screen is the first one in the array
-    info.isPrimary = (screen == [[NSScreen screens] objectAtIndex:0]);
-
-    return info;
-}
-
-LGXVector2ui OSXWindow::GetMonitorWorkArea() {
-    return GetMonitorInfoFromWindow().workSize;
-}
-
-LGXVector2ui OSXWindow::GetMonitorSize() {
-    return GetMonitorInfoFromWindow().size;
-}
-
 bool OSXWindow::GetIsMaximized() { 
     NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
     return [wnd isZoomed];
@@ -496,6 +453,44 @@ void OSXWindow::CalculateDPI()
     m_dpi = dpi * scaleFactor;
     m_dpiScale = scaleFactor;
        
+}
+
+void OSXWindow::CalculateMonitorInfo()
+{
+    NSWindow* window = static_cast<NSWindow*>(m_nsWindow);
+
+    // Initialize your MonitorInfo struct
+    MonitorInfo info;
+
+    // Get the screen that the window is on
+    NSScreen *screen = [window screen];
+
+    // 1. Monitor Size
+    NSRect screenFrame = [screen frame];
+    info.size.x = screenFrame.size.width;
+    info.size.y = screenFrame.size.height;
+
+    // 2. Monitor Work Area Size
+    // On macOS, the work area is generally the full screen size minus menu bar.
+    NSRect visibleFrame = [screen visibleFrame];
+    info.workSize.x = visibleFrame.size.width;
+    info.workSize.y = visibleFrame.size.height;
+
+    // 3. Monitor Work Area Top Left
+    info.workTopLeft.x = visibleFrame.origin.x;
+    info.workTopLeft.y = visibleFrame.origin.y;
+
+    // 4. DPI and 5. DPI Scale
+    // This assumes the screen is retina. You might have to add more logic for non-retina screens.
+    CGFloat dpi = 72.0 * [screen backingScaleFactor];
+    info.dpi = dpi;
+    info.dpiScale = [screen backingScaleFactor];
+
+    // 6. Is Monitor Primary
+    // Assuming the primary screen is the first one in the array
+    info.isPrimary = (screen == [[NSScreen screens] objectAtIndex:0]);
+
+    m_monitorInfo = info;
 }
 
 uint32 OSXWindow::GetStyle(WindowStyle style)

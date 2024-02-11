@@ -112,21 +112,6 @@ namespace LinaGX
         virtual void Restore() = 0;
 
         /// <summary>
-        ///
-        /// </summary>
-        virtual MonitorInfo GetMonitorInfoFromWindow() = 0;
-
-        /// <summary>
-        /// Work area is the monitor area excluding the taskbar.
-        /// </summary>
-        virtual LGXVector2ui GetMonitorWorkArea() = 0;
-
-        /// <summary>
-        ///
-        /// </summary>
-        virtual LGXVector2ui GetMonitorSize() = 0;
-
-        /// <summary>
         /// HWND in Windows, NSWindow in MacOS.
         /// </summary>
         /// <returns></returns>
@@ -340,6 +325,24 @@ namespace LinaGX
         {
             return m_input;
         }
+        
+        
+        inline MonitorInfo GetMonitorInfoFromWindow()
+        {
+            return m_monitorInfo;
+        }
+
+         
+        inline LGXVector2ui GetMonitorWorkSize()
+        {
+            return m_monitorInfo.workSize;
+        }
+
+      
+        inline LGXVector2ui GetMonitorSize()
+        {
+            return m_monitorInfo.size;
+        }
 
     protected:
         friend class WindowManager;
@@ -382,5 +385,6 @@ namespace LinaGX
         CursorType               m_cursorType    = CursorType::Default;
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
         WindowStyle              m_style = WindowStyle::WindowedApplication;
+        MonitorInfo m_monitorInfo = {};
     };
 } // namespace LinaGX
