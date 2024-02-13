@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -167,14 +167,19 @@ namespace LinaGX
         auto handleMouseMove = [](Win32Window* win32Window, uint32 xPos, uint32 yPos) {
             const LGXVector2ui mp        = {xPos, yPos};
             win32Window->m_mousePosition = mp;
-            win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition);
+            win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition, win32Window);
 
             if (win32Window->m_cbMouseMove)
-                win32Window->m_cbMouseMove(win32Window->m_mousePosition);
+                win32Window->m_cbMouseMove(win32Window->m_mousePosition, win32Window);
         };
 
         switch (msg)
         {
+        case WM_DISPLAYCHANGE:
+        {
+            win32Window->CalculateMonitorInfo();
+            break;
+        }
         case WM_NCACTIVATE: {
 
             if (!composition_enabled())
@@ -259,6 +264,7 @@ namespace LinaGX
         case WM_DPICHANGED: {
             const uint32 dpi = static_cast<uint32>((short)LOWORD(lParam));
             win32Window->OnDPIChanged(dpi);
+            win32Window->CalculateMonitorInfo();
             break;
         }
         case WM_ACTIVATEAPP: {
@@ -375,9 +381,9 @@ namespace LinaGX
 
             auto delta = GET_WHEEL_DELTA_WPARAM(wParam);
             if (win32Window->m_cbMouseWheel)
-                win32Window->m_cbMouseWheel(static_cast<int32>(delta));
+                win32Window->m_cbMouseWheel(static_cast<int32>(delta), win32Window);
 
-            win32Window->m_input->WindowFeedMouseWheel(static_cast<int32>(delta));
+            win32Window->m_input->WindowFeedMouseWheel(static_cast<int32>(delta), win32Window);
 
             break;
         }
@@ -391,54 +397,54 @@ namespace LinaGX
             bool repeated = elapsed.count() < 250000000;
 
             if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
+                win32Window->m_cbMouse(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed, win32Window);
 
-            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed, win32Window);
 
             break;
         }
         case WM_RBUTTONDOWN: {
 
             if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Pressed);
+                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Pressed, win32Window);
 
-            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Pressed);
+            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Pressed, win32Window);
 
             break;
         }
         case WM_MBUTTONDOWN: {
 
             if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_MBUTTON, InputAction::Pressed);
+                win32Window->m_cbMouse(VK_MBUTTON, InputAction::Pressed, win32Window);
 
-            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Pressed);
+            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Pressed, win32Window);
 
             break;
         }
         case WM_LBUTTONUP: {
 
             if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Released);
+                win32Window->m_cbMouse(VK_LBUTTON, InputAction::Released, win32Window);
 
-            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Released);
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Released, win32Window);
 
             break;
         }
         case WM_RBUTTONUP: {
 
             if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released);
+                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released, win32Window);
 
-            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Released);
+            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Released, win32Window);
 
             break;
         }
         case WM_MBUTTONUP: {
 
             if (win32Window->m_cbMouse)
-                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released);
+                win32Window->m_cbMouse(VK_RBUTTON, InputAction::Released, win32Window);
 
-            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Released);
+            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Released, win32Window);
 
             break;
         }
@@ -514,6 +520,7 @@ namespace LinaGX
         m_restoreSize = m_trueSize;
         m_restorePos  = m_position;
         m_isVisible   = true;
+        CalculateMonitorInfo();
         SetFocus(m_hwnd);
         BringToFront();
         SetStyle(style);
@@ -610,6 +617,28 @@ namespace LinaGX
     {
         m_dpi      = GetDpiForWindow(m_hwnd);
         m_dpiScale = m_dpi / 96.0f;
+    }
+
+    void Win32Window::CalculateMonitorInfo()
+    {
+        MonitorInfo info;
+
+        HMONITOR      monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
+        MONITORINFOEX monitorInfo;
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        GetMonitorInfo(monitor, &monitorInfo);
+
+        UINT    dpiX, dpiY;
+        HRESULT temp2 = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+
+        info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
+        info.workSize      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
+        info.workTopLeft   = {static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
+        info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+        info.monitorHandle = static_cast<void*>(monitor);
+        info.dpi           = dpiX;
+        info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
+        m_monitorInfo      = info;
     }
 
     void Win32Window::Close()
@@ -815,52 +844,6 @@ namespace LinaGX
             SetPosition(m_restorePos);
             SetSize(m_restoreSize);
         }
-    }
-
-    MonitorInfo Win32Window::GetMonitorInfoFromWindow()
-    {
-        MonitorInfo info;
-
-        HMONITOR      monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
-        MONITORINFOEX monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(monitor, &monitorInfo);
-
-        UINT    dpiX, dpiY;
-        HRESULT temp2 = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
-
-        info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
-        info.workSize      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
-        info.workTopLeft   = {static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
-        info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-        info.monitorHandle = static_cast<void*>(monitor);
-        info.dpi           = dpiX;
-        info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
-        return info;
-    }
-
-    LGXVector2ui Win32Window::GetMonitorWorkArea()
-    {
-        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(hMonitor, &monitorInfo);
-        LGXVector2ui ret;
-        ret.x = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
-        ret.y = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
-        return ret;
-    }
-
-    LGXVector2ui Win32Window::GetMonitorSize()
-    {
-        HMONITOR    hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(hMonitor, &monitorInfo);
-        LGXVector2ui ret;
-        ret.x = monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left;
-        ret.y = monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top;
-        return ret;
     }
 
     bool Win32Window::GetIsMaximized()

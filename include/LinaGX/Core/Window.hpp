@@ -327,19 +327,19 @@ namespace LinaGX
         }
         
         
-        inline MonitorInfo GetMonitorInfoFromWindow()
+        inline const MonitorInfo& GetMonitorInfoFromWindow() const
         {
             return m_monitorInfo;
         }
 
          
-        inline LGXVector2ui GetMonitorWorkSize()
+        inline const LGXVector2ui& GetMonitorWorkSize() const
         {
             return m_monitorInfo.workSize;
         }
 
       
-        inline LGXVector2ui GetMonitorSize()
+        inline const LGXVector2ui& GetMonitorSize() const
         {
             return m_monitorInfo.size;
         }
