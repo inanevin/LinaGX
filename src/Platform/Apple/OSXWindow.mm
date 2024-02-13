@@ -93,17 +93,17 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
                 m_lmDownForDrag = false;
         }
         
-        m_input->WindowFeedMouseButton(keyCode, action);
+        m_input->WindowFeedMouseButton(keyCode, action, this);
         if(m_cbMouse)
-            m_cbMouse(keyCode, action);
+            m_cbMouse(keyCode, action, this);
      
     };
     
     std::function<void(unsigned int, unsigned int)> mouseMovedCallback = [this](unsigned int x, unsigned int y) {
         m_mousePosition = {x, m_size.y - y};
-        m_input->WindowFeedMousePosition(m_mousePosition);
+        m_input->WindowFeedMousePosition(m_mousePosition, this);
         if(m_cbMouseMove)
-            m_cbMouseMove(m_mousePosition);
+            m_cbMouseMove(m_mousePosition, this);
     };
     
     std::function<void()> mouseEnteredCallback = [this]() {
@@ -123,7 +123,7 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     std::function<void(int)> mouseWheelCallback = [this](int f) {
 
         if(m_cbMouseWheel)
-            m_cbMouseWheel(f);
+            m_cbMouseWheel(f, this);
     };
     
     std::function<void(int, int)> windowMovedCallback = [this](int x, int y) {
@@ -157,7 +157,7 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
         if(!cond)
             m_isHovered = false;
 
-        m_input->WindowFeedMouseWheel(cond);
+        m_input->WindowFeedMouseWheel(cond, this);
     };
     
     std::function<void()> screenChangedCallback = [this]() {

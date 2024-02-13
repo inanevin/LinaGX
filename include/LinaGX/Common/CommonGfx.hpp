@@ -1002,15 +1002,15 @@ namespace LinaGX
 
     class Window;
 
-    typedef std::function<void()>                                    CallbackNoArg;
-    typedef std::function<void(const LGXVector2i&)>                  CallbackPosChanged;
-    typedef std::function<void(const LGXVector2ui&)>                 CallbackMouseMove;
-    typedef std::function<void(const LGXVector2ui&)>                 CallbackSizeChanged;
-    typedef std::function<void(uint32, int32, InputAction)>          CallbackKey;
-    typedef std::function<void(uint32, InputAction)>                 CallbackMouse;
-    typedef std::function<void(int32)>                               CallbackMouseWheel;
-    typedef std::function<void(bool)>                                CallbackFocus;
-    typedef std::function<void()>                                    CallbackHoverBegin;
-    typedef std::function<void()>                                    CallbackHoverEnd;
+    typedef std::function<void()>                                               CallbackNoArg;
+    typedef std::function<void(const LGXVector2i&)>                             CallbackPosChanged;
+    typedef std::function<void(const LGXVector2ui&, Window*)>                   CallbackMouseMove;
+    typedef std::function<void(const LGXVector2ui&)>                            CallbackSizeChanged;
+    typedef std::function<void(uint32, int32, InputAction, Window*)>            CallbackKey;
+    typedef std::function<void(uint32, InputAction, Window*)>                   CallbackMouse;
+    typedef std::function<void(int32, Window*)>                                 CallbackMouseWheel;
+    typedef std::function<void(bool)>                                           CallbackFocus;
+    typedef std::function<void()>                                               CallbackHoverBegin;
+    typedef std::function<void()>                                               CallbackHoverEnd;
 
 } // namespace LinaGX

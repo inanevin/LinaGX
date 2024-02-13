@@ -176,10 +176,10 @@ namespace LinaGX
         void Tick();
         void EndFrame();
         void WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window);
-        void WindowFeedMouseButton(uint32 button, InputAction action);
-        void WindowFeedMousePosition(const LGXVector2ui& pos);
+        void WindowFeedMouseButton(uint32 button, InputAction action, Window* window);
+        void WindowFeedMousePosition(const LGXVector2ui& pos, Window* window);
         void WindowFeedActivateApp(bool activate);
-        void WindowFeedMouseWheel(int32 delta);
+        void WindowFeedMouseWheel(int32 delta, Window* window);
         void WindowFeedDelta(int32 deltaX, int32 deltaY);
 
     private:

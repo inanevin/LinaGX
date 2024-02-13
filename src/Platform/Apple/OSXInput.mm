@@ -180,14 +180,14 @@ namespace LinaGX
     void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window)
     {
         if (m_cbKey)
-            m_cbKey(key, scanCode, action);
+            m_cbKey(key, scanCode, action, window);
     }
 
-    void Input::WindowFeedMouseButton(uint32 button, InputAction action)
+    void Input::WindowFeedMouseButton(uint32 button, InputAction action, Window* window)
     {
         m_globalMouseStates[button] = action == InputAction::Released ? false : true;
         if (m_cbMouse)
-            m_cbMouse(button, action);
+            m_cbMouse(button, action, window);
     }
 
     void Input::WindowFeedActivateApp(bool activate)
@@ -195,17 +195,17 @@ namespace LinaGX
         m_appActive = activate;
     }
 
-    void Input::WindowFeedMouseWheel(int32 delta)
+    void Input::WindowFeedMouseWheel(int32 delta, Window* window)
     {
         m_mouseScroll = delta;
 
         if (m_cbMouseWheel)
-            m_cbMouseWheel(delta);
+            m_cbMouseWheel(delta, window);
     }
 
-    void Input::WindowFeedMousePosition(const LGXVector2ui& pos)
+    void Input::WindowFeedMousePosition(const LGXVector2ui& pos, Window* window)
     {
         if (m_cbMouseMove)
-            m_cbMouseMove(pos);
+            m_cbMouseMove(pos, window);
     }
 } // namespace LinaGX
