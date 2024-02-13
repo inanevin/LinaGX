@@ -180,7 +180,7 @@ namespace LinaGX
     void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window)
     {
         if (m_cbKey)
-            m_cbKey(key, scanCode, action, window);
+            m_cbKey(key, scanCode, action);
     }
 
     void Input::WindowFeedMouseButton(uint32 button, InputAction action)
