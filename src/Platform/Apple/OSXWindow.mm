@@ -74,8 +74,8 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     std::function<void(int, LinaGX::InputAction action)> keyCallback = [this](int keyCode, LinaGX::InputAction action) {
         m_input->WindowFeedKey(keyCode, keyCode, action, this);
         
-        if(m_cbKey)
-            m_cbKey(keyCode, keyCode, action, this);
+        for(auto* l : m_listeners)
+            l->OnWindowKey(keyCode, keyCode, action);
         
     };
     
@@ -94,44 +94,43 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
         }
         
         m_input->WindowFeedMouseButton(keyCode, action, this);
-        if(m_cbMouse)
-            m_cbMouse(keyCode, action, this);
+        
+        for(auto* l : m_listeners)
+            l->OnWindowMouse(keyCode, action);
      
     };
     
     std::function<void(unsigned int, unsigned int)> mouseMovedCallback = [this](unsigned int x, unsigned int y) {
         m_mousePosition = {x, m_size.y - y};
         m_input->WindowFeedMousePosition(m_mousePosition, this);
-        if(m_cbMouseMove)
-            m_cbMouseMove(m_mousePosition, this);
+        for(auto* l : m_listeners)
+            l->OnWindowMouseMove(m_mousePosition);
     };
     
     std::function<void()> mouseEnteredCallback = [this]() {
         m_isHovered = true;
-        if(m_cbHoverBegin)
-            m_cbHoverBegin();
+        for(auto* l : m_listeners)
+            l->OnWindowHoverBegin();
     };
     
     
     std::function<void()> mouseExitedCallback = [this]() {
         m_isHovered = false;
-        
-        if(m_cbHoverEnd)
-            m_cbHoverEnd();
+        for(auto* l : m_listeners)
+            l->OnWindowHoverEnd();
     };
     
     std::function<void(int)> mouseWheelCallback = [this](int f) {
-
-        if(m_cbMouseWheel)
-            m_cbMouseWheel(f, this);
+        for(auto* l : m_listeners)
+            l->OnWindowMouseWheel(f);
     };
     
     std::function<void(int, int)> windowMovedCallback = [this](int x, int y) {
         m_position.x = x;
         m_position.y = ConvertYInt(y);
 
-        if(m_cbPosChanged)
-            m_cbPosChanged(m_position);
+        for(auto* l : m_listeners)
+            l->OnWindowPosChanged(m_position);
     };
     
     std::function<void(unsigned int, unsigned int)> windowResizedCallback = [this](unsigned int x, unsigned int y) {
@@ -139,8 +138,8 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
         m_size.x = x;
         m_size.y = y;
 
-        if(m_cbSizeChanged)
-            m_cbSizeChanged(m_size);
+        for(auto* l : m_listeners)
+            l->OnWindowSizeChanged(m_size);
     };
     
     std::function<void(bool)> setFocusCallback = [this](bool cond) {
@@ -149,8 +148,8 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
             m_isHovered = false;
 
         m_hasFocus = cond;
-        if(m_cbFocus)
-            m_cbFocus(cond);
+        for(auto* l : m_listeners)
+            l->OnWindowFocus(cond);
     };
     
     std::function<void(bool)> appActivateCallback = [this](bool cond) {
@@ -166,8 +165,8 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     };
     
     std::function<void()> windowClosedCallback = [this]() {
-        if(m_cbClose)
-            m_cbClose();
+        for(auto* l : m_listeners)
+            l->OnWindowClose();
     };
     
     std::function<void()> mouseDraggedCallback = [this]() {
@@ -397,8 +396,8 @@ void OSXWindow::Close() {
     NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
     [wnd close];
     
-    if(m_cbClose)
-        m_cbClose();
+    for(auto* l : m_listeners)
+        l->OnWindowClose();
 }
 
 float OSXWindow::ConvertY(float targetY)

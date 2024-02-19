@@ -41,6 +41,30 @@ namespace LinaGX
 {
     class WindowManager;
     class Input;
+    class Window;
+
+    class WindowListener
+    {
+    public:
+        
+        WindowListener() = default;
+        virtual ~WindowListener() = default;
+        
+        virtual void OnWindowClose() {};
+        virtual void OnWindowPosChanged(const LGXVector2i&) {};
+        virtual void OnWindowSizeChanged(const LGXVector2ui&) {};
+        virtual void OnWindowKey(uint32 keycode, int32 scancode, InputAction inputAction) {};
+        virtual void OnWindowMouse(uint32 button, InputAction inputAction) {};
+        virtual void OnWindowMouseWheel(int32 delta) {};
+        virtual void OnWindowMouseMove(const LGXVector2ui&) {};
+        virtual void OnWindowFocus(bool gainedFocus) {};
+        virtual void OnWindowHoverBegin() {};
+        virtual void OnWindowHoverEnd() {};
+        
+    protected:
+        friend class Window;
+        Window* m_window = nullptr;
+    };
 
     class Window
     {
@@ -164,86 +188,6 @@ namespace LinaGX
         /// </summary>
         virtual void SetMouseVisible(bool visible) = 0;
 
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackClose(CallbackNoArg&& cb)
-        {
-            m_cbClose = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackPositionChanged(CallbackPosChanged&& cb)
-        {
-            m_cbPosChanged = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackSizeChanged(CallbackSizeChanged&& cb)
-        {
-            m_cbSizeChanged = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackKey(CallbackKey&& cb)
-        {
-            m_cbKey = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackMouse(CallbackMouse&& cb)
-        {
-            m_cbMouse = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackMouseWheel(CallbackMouseWheel&& cb)
-        {
-            m_cbMouseWheel = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
-        {
-            m_cbMouseMove = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackFocus(CallbackFocus&& cb)
-        {
-            m_cbFocus = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackHoverBegin(CallbackHoverBegin&& cb)
-        {
-            m_cbHoverBegin = cb;
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        inline void SetCallbackHoverEnd(CallbackHoverEnd&& cb)
-        {
-            m_cbHoverEnd = cb;
-        }
-
         inline const LGXVector2i& GetPosition() const
         {
             return m_position;
@@ -331,17 +275,28 @@ namespace LinaGX
         {
             return m_monitorInfo;
         }
-
          
         inline const LGXVector2ui& GetMonitorWorkSize() const
         {
             return m_monitorInfo.workSize;
         }
-
       
         inline const LGXVector2ui& GetMonitorSize() const
         {
             return m_monitorInfo.size;
+        }
+        
+        inline void AddListener(WindowListener* listener)
+        {
+            m_listeners.push_back(listener);
+            listener->m_window = this;
+        }
+        
+        inline void RemoveListener(WindowListener* listener)
+        {
+            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](WindowListener* list) -> bool {return list == listener;});
+            listener->m_window = nullptr;
+            m_listeners.erase(it);
         }
 
     protected:
@@ -353,18 +308,6 @@ namespace LinaGX
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) = 0;
         virtual void Destroy()                                                                                                                        = 0;
         virtual void Tick()                                                                                                                           = 0;
-
-    protected:
-        CallbackNoArg       m_cbClose       = nullptr;
-        CallbackPosChanged  m_cbPosChanged  = nullptr;
-        CallbackSizeChanged m_cbSizeChanged = nullptr;
-        CallbackKey         m_cbKey         = nullptr;
-        CallbackMouse       m_cbMouse       = nullptr;
-        CallbackMouseWheel  m_cbMouseWheel  = nullptr;
-        CallbackMouseMove   m_cbMouseMove   = nullptr;
-        CallbackFocus       m_cbFocus       = nullptr;
-        CallbackHoverBegin  m_cbHoverBegin  = nullptr;
-        CallbackHoverEnd    m_cbHoverEnd    = nullptr;
 
     protected:
         LINAGX_STRINGID          m_sid   = 0;
@@ -386,5 +329,7 @@ namespace LinaGX
         LINAGX_VEC<LGXVector2ui> m_sizeRequests;
         WindowStyle              m_style = WindowStyle::WindowedApplication;
         MonitorInfo m_monitorInfo = {};
+        LINAGX_VEC<WindowListener*> m_listeners;
     };
+
 } // namespace LinaGX

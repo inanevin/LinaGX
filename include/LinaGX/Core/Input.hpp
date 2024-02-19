@@ -51,6 +51,19 @@ namespace LinaGX
     class OSXWindow;
 #endif
 
+    class InputListener
+    {
+    public:
+        
+        InputListener() = default;
+        virtual ~InputListener() = default;
+        
+        virtual void OnKey(uint32 keycode, int32 scancode, LinaGX::InputAction action, LinaGX::Window* window) {};
+        virtual void OnMouse(uint32 button, LinaGX::InputAction action, LinaGX::Window* window) {};
+        virtual void OnMouseMove(const LinaGX::LGXVector2ui& pos, LinaGX::Window* window) {};
+        virtual void OnMouseWheel(int32 delta, LinaGX::Window* window) {};
+    };
+
     class Input
     {
     public:
@@ -128,36 +141,15 @@ namespace LinaGX
             return m_mouseScroll;
         }
 
-        /// <summary>
-        /// Set to receive callbacks on key presses and releases.
-        /// </summary>
-        inline void SetCallbackKey(CallbackKey&& cb)
+        inline void AddListener(InputListener* listener)
         {
-            m_cbKey = cb;
+            m_listeners.push_back(listener);
         }
-
-        /// <summary>
-        /// Set to receive callbacks on mouse presses and releases.
-        /// </summary>
-        inline void SetCallbackMouse(CallbackMouse&& cb)
+        
+        inline void RemoveListener(InputListener* listener)
         {
-            m_cbMouse = cb;
-        }
-
-        /// <summary>
-        /// Set to receive callbacks on mouse wheel.
-        /// </summary>
-        inline void SetCallbackMouseWheel(CallbackMouseWheel&& cb)
-        {
-            m_cbMouseWheel = cb;
-        }
-
-        /// <summary>
-        /// Set to receive callbacks on mouse motion.
-        /// </summary>
-        inline void SetCallbackMouseMove(CallbackMouseMove&& cb)
-        {
-            m_cbMouseMove = cb;
+            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool {return list == listener;});
+            m_listeners.erase(it);
         }
 
     private:
@@ -196,12 +188,10 @@ namespace LinaGX
         bool        m_previousStates[256]               = {0};
         LGXVector2i m_mousePosTrackingClick             = {};
 
-        CallbackKey              m_cbKey        = nullptr;
-        CallbackMouse            m_cbMouse      = nullptr;
-        CallbackMouseWheel       m_cbMouseWheel = nullptr;
-        CallbackMouseMove        m_cbMouseMove  = nullptr;
+       
         LINAGX_MAP<uint32, bool> m_globalMouseStates;
         LINAGX_MAP<uint32, bool> m_globalPrevMouseStates;
         bool                     m_receivedDelta = false;
+        LINAGX_VEC<InputListener*> m_listeners;
     };
 } // namespace LinaGX

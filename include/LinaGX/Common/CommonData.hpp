@@ -120,6 +120,10 @@ namespace LinaGX
 #define LINAGX_VEC std::vector
 #endif
 
+#ifndef LINAGX_FIND_IF
+#define LINAGX_FIND_IF std::find_if
+#endif
+
 #ifndef LINAGX_QUEUE
 #define LINAGX_QUEUE std::queue
 #endif
