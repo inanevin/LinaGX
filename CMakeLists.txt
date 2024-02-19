@@ -225,7 +225,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MAJOR=1)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MINOR=0)
-target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_PATCH=0)
+target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_PATCH=2)
 
 if(LINAGX_DISABLE_DX12)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_DISABLE_DX12=1)
