@@ -121,6 +121,8 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
     };
     
     std::function<void(int)> mouseWheelCallback = [this](int f) {
+        m_input->WindowFeedMouseWheel(f, this);
+
         for(auto* l : m_listeners)
             l->OnWindowMouseWheel(f);
     };
@@ -156,7 +158,6 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
         if(!cond)
             m_isHovered = false;
 
-        m_input->WindowFeedMouseWheel(cond, this);
     };
     
     std::function<void()> screenChangedCallback = [this]() {
