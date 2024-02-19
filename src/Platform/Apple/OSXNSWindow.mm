@@ -44,13 +44,15 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
 - (void)updateTrackingAreas {
     [super updateTrackingAreas];
     
-    NSTrackingAreaOptions options = (NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow);
+    NSTrackingAreaOptions options = (NSTrackingActiveAlways |NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingMouseMoved);
+    
     NSTrackingArea *trackingArea = [[NSTrackingArea alloc] initWithRect:[self bounds]
                                                                  options:options
                                                                    owner:self
                                                                 userInfo:nil];
     [self addTrackingArea:trackingArea];
 }
+
 
 - (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback {
    mouseMovedCallback = callback;
@@ -172,6 +174,7 @@ std::function<void()> windowClosedCallback;
 {
     windowClosedCallback();
 }
+
 
 @end
 
