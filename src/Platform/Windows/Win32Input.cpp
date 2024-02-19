@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -198,14 +198,14 @@ namespace LinaGX
 
     void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window)
     {
-        if (m_cbKey)
-            m_cbKey(key, scanCode, action, window);
+        for (auto* l : m_listeners)
+            l->OnKey(key, scanCode, action, window);
     }
 
     void Input::WindowFeedMouseButton(uint32 button, InputAction action, Window* window)
     {
-        if (m_cbMouse)
-            m_cbMouse(button, action, window);
+        for (auto* l : m_listeners)
+            l->OnMouse(button, action, window);
     }
 
     void Input::WindowFeedActivateApp(bool activate)
@@ -217,8 +217,8 @@ namespace LinaGX
     {
         m_mouseScroll = delta;
 
-        if (m_cbMouseWheel)
-            m_cbMouseWheel(delta, window);
+        for (auto* l : m_listeners)
+            l->OnMouseWheel(delta, window);
     }
 
     void Input::WindowFeedDelta(int32 deltaX, int32 deltaY)
@@ -230,7 +230,7 @@ namespace LinaGX
 
     void Input::WindowFeedMousePosition(const LGXVector2ui& pos, Window* window)
     {
-        if (m_cbMouseMove)
-            m_cbMouseMove(pos, window);
+        for (auto* l : m_listeners)
+            l->OnMouseMove(pos, window);
     }
 } // namespace LinaGX
