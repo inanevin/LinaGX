@@ -60,7 +60,7 @@ namespace LinaGX
         
         virtual void OnKey(uint32 keycode, int32 scancode, LinaGX::InputAction action, LinaGX::Window* window) {};
         virtual void OnMouse(uint32 button, LinaGX::InputAction action, LinaGX::Window* window) {};
-        virtual void OnMouseMove(const LinaGX::LGXVector2ui& pos, LinaGX::Window* window) {};
+        virtual void OnMouseMove(const LinaGX::LGXVector2& pos, LinaGX::Window* window) {};
         virtual void OnMouseWheel(int32 delta, LinaGX::Window* window) {};
     };
 
@@ -120,7 +120,7 @@ namespace LinaGX
         /// <summary>
         /// Absolute mouse position across all monitors, OS-space.
         /// </summary>
-        inline LGXVector2i GetMousePositionAbs()
+        inline LGXVector2 GetMousePositionAbs()
         {
             return m_currentMousePositionAbs;
         }
@@ -128,7 +128,7 @@ namespace LinaGX
         /// <summary>
         /// Delta-motion of the mouse.
         /// </summary>
-        inline LGXVector2i GetMouseDelta()
+        inline LGXVector2 GetMouseDelta()
         {
             return m_mouseDelta;
         }
@@ -169,7 +169,7 @@ namespace LinaGX
         void EndFrame();
         void WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window);
         void WindowFeedMouseButton(uint32 button, InputAction action, Window* window);
-        void WindowFeedMousePosition(const LGXVector2ui& pos, Window* window);
+        void WindowFeedMousePosition(const LGXVector2& pos, Window* window);
         void WindowFeedActivateApp(bool activate);
         void WindowFeedMouseWheel(int32 delta, Window* window);
         void WindowFeedDelta(int32 deltaX, int32 deltaY);
@@ -180,13 +180,13 @@ namespace LinaGX
         int         m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
         int         m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
         bool        m_appActive                         = true;
-        LGXVector2i m_currentMousePositionAbs           = {0, 0};
-        LGXVector2i m_previousMousePosition             = {0, 0};
-        LGXVector2i m_mouseDelta                        = {0, 0};
+        LGXVector2  m_currentMousePositionAbs           = {0, 0};
+        LGXVector2  m_previousMousePosition             = {0, 0};
+        LGXVector2  m_mouseDelta                        = {0, 0};
         int32       m_mouseScroll                       = 0;
         bool        m_currentStates[256]                = {0};
         bool        m_previousStates[256]               = {0};
-        LGXVector2i m_mousePosTrackingClick             = {};
+        LGXVector2  m_mousePosTrackingClick             = {};
 
        
         LINAGX_MAP<uint32, bool> m_globalMouseStates;

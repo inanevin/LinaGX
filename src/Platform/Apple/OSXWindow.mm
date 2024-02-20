@@ -100,8 +100,8 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
      
     };
     
-    std::function<void(unsigned int, unsigned int)> mouseMovedCallback = [this](unsigned int x, unsigned int y) {
-        m_mousePosition = {x, m_size.y - y};
+    std::function<void(float, float)> mouseMovedCallback = [this](float x, float y) {
+        m_mousePosition = {x, static_cast<float>(m_size.y) - y};
         m_input->WindowFeedMousePosition(m_mousePosition, this);
         for(auto* l : m_listeners)
             l->OnWindowMouseMove(m_mousePosition);
@@ -174,9 +174,9 @@ bool OSXWindow::Create(LINAGX_STRINGID sid, const char *title, LinaGX::int32 x, 
        
         if(m_lmDownForDrag)
         {
-            const LGXVector2i absMouse = m_input->GetMousePositionAbs();
-            const LGXVector2i p = {absMouse.x - static_cast<int32>(m_lmDragDelta.x), absMouse.y - static_cast<int32>(m_lmDragDelta.y)};
-           SetPosition(p);
+            const LGXVector2 absMouse = m_input->GetMousePositionAbs();
+            const LGXVector2 p = {absMouse.x - m_lmDragDelta.x, absMouse.y - m_lmDragDelta.y};
+            SetPosition(LGXVector2i{static_cast<int32>(p.x), static_cast<int32>(p.y)});
         }
     };
     
@@ -248,12 +248,12 @@ void OSXWindow::Tick() {
              const LGXRectui region = m_confineStyle == MouseConfineStyle::Window ? fullRect : m_confineRegion;
     
              const auto& abs = m_input->GetMousePositionAbs();
-             const LGXVector2i regionStartAbs = {static_cast<int32>(region.pos.x) + m_position.x, static_cast<int32>(region.pos.y) + m_position.y};
-             const LGXVector2i regionEndAbs = {regionStartAbs.x + static_cast<int32>(region.size.x), regionStartAbs.y + static_cast<int32>(region.size.y)};
+             const LGXVector2 regionStartAbs = {static_cast<float>(region.pos.x) + m_position.x, static_cast<float>(region.pos.y) + m_position.y};
+             const LGXVector2 regionEndAbs = {regionStartAbs.x + static_cast<float>(region.size.x), regionStartAbs.y + static_cast<float>(region.size.y)};
     
              if(abs.x > regionEndAbs.x || abs.x < regionStartAbs.x || abs.y > regionEndAbs.y || abs.y < regionStartAbs.y)
              {
-                 LGXVector2i closestBorderPoint = {std::clamp(abs.x, regionStartAbs.x, regionEndAbs.x), std::clamp(abs.y, regionStartAbs.y, regionEndAbs.y)};
+                 LGXVector2 closestBorderPoint = {std::clamp(abs.x, regionStartAbs.x, regionEndAbs.x), std::clamp(abs.y, regionStartAbs.y, regionEndAbs.y)};
                  CGPoint point;
                  point.x = closestBorderPoint.x;
                  point.y = closestBorderPoint.y;

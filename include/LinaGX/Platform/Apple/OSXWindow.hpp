@@ -111,7 +111,7 @@ namespace LinaGX
         void* m_nsWindow = nullptr;
         void* m_nsView = nullptr;
         bool m_lmDownForDrag = false;
-        LGXVector2ui m_lmDragDelta = {};
+        LGXVector2 m_lmDragDelta = {};
         LGXRectui m_confineRegion = {};
         MouseConfineStyle m_confineStyle = MouseConfineStyle::None;
     };

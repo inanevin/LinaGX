@@ -160,8 +160,11 @@ namespace LinaGX
 
     void Input::Tick()
     {
-        CGGetLastMouseDelta(&m_mouseDelta.x, &m_mouseDelta.y);
-        NSPoint point = [NSEvent mouseLocation]; 
+        int32 mdx = 0, mdy = 0;
+        CGGetLastMouseDelta(&mdx, &mdy);
+        m_mouseDelta.x = static_cast<float>(mdx);
+        m_mouseDelta.y = static_cast<float>(mdy);
+        NSPoint point = [NSEvent mouseLocation];
         m_previousMousePosition     = m_currentMousePositionAbs;
         m_currentMousePositionAbs.x = point.x;
         m_currentMousePositionAbs.y = [[NSScreen mainScreen] frame].size.height - point.y;
@@ -203,7 +206,7 @@ namespace LinaGX
             l->OnMouseWheel(delta, window);
     }
 
-    void Input::WindowFeedMousePosition(const LGXVector2ui& pos, Window* window)
+    void Input::WindowFeedMousePosition(const LGXVector2& pos, Window* window)
     {
         for(auto* l : m_listeners)
             l->OnMouseMove(pos, window);

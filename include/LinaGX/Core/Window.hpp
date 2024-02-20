@@ -56,7 +56,7 @@ namespace LinaGX
         virtual void OnWindowKey(uint32 keycode, int32 scancode, InputAction inputAction) {};
         virtual void OnWindowMouse(uint32 button, InputAction inputAction) {};
         virtual void OnWindowMouseWheel(int32 delta) {};
-        virtual void OnWindowMouseMove(const LGXVector2ui&) {};
+        virtual void OnWindowMouseMove(const LGXVector2&) {};
         virtual void OnWindowFocus(bool gainedFocus) {};
         virtual void OnWindowHoverBegin() {};
         virtual void OnWindowHoverEnd() {};
@@ -213,7 +213,7 @@ namespace LinaGX
             return m_dpi;
         }
 
-        inline const LGXVector2ui GetMousePosition() const
+        inline const LGXVector2 GetMousePosition() const
         {
             return m_mousePosition;
         }
@@ -316,7 +316,7 @@ namespace LinaGX
         LGXVector2i              m_position;
         LGXVector2ui             m_size;
         LGXVector2ui             m_trueSize;
-        LGXVector2ui             m_mousePosition = {};
+        LGXVector2               m_mousePosition = {};
         LGXRectui                m_dragRect;
         uint32                   m_dpi           = 0;
         float                    m_dpiScale      = 0.0f;

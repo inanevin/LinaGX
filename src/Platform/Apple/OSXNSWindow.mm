@@ -38,7 +38,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 @implementation CustomView
-std::function<void(int, int)> mouseMovedCallback;
+std::function<void(float, float)> mouseMovedCallback;
 std::function<void(int, LinaGX::InputAction)> mouseCallback;
 
 - (void)updateTrackingAreas {
@@ -54,7 +54,7 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
 }
 
 
-- (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback {
+- (void)setMouseMovedCallback:(std::function<void(float, float)>)callback {
    mouseMovedCallback = callback;
 }
 

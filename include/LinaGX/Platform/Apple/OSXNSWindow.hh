@@ -45,7 +45,7 @@ namespace LinaGX
 }
 
 @interface CustomView : NSView
-- (void)setMouseMovedCallback:(std::function<void(unsigned int, unsigned int)>)callback;
+- (void)setMouseMovedCallback:(std::function<void(float, float)>)callback;
 - (void)setMouseCallback:(std::function<void(int, LinaGX::InputAction action)>)callback;
 @end
 

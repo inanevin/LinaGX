@@ -80,6 +80,11 @@ namespace LinaGX
         {
             return p.x > pos.x && p.x < pos.x + size.x && p.y > pos.y && p.y < pos.y + size.y;
         }
+        
+        bool IsPointInside(const LGXVector2& p) const
+        {
+            return p.x > static_cast<float>(pos.x) && p.x < static_cast<float>(pos.x + size.x) && p.y > static_cast<float>(pos.y) && p.y < static_cast<float>(pos.y + size.y);
+        }
     };
 
 } // namespace LinaGX
