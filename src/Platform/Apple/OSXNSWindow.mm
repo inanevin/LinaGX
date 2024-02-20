@@ -50,6 +50,8 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
                                                                  options:options
                                                                    owner:self
                                                                 userInfo:nil];
+    
+    
     [self addTrackingArea:trackingArea];
 }
 
@@ -64,28 +66,28 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
 
 - (void)mouseMoved:(NSEvent *)event
 {
-    NSPoint loc = event.locationInWindow;
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
     mouseMovedCallback(loc.x, loc.y);
     [super mouseMoved:event];
 }
 
 - (void)mouseDragged:(NSEvent *)event
 {
-    NSPoint loc = event.locationInWindow;
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
     mouseMovedCallback(loc.x, loc.y);
     [super mouseDragged:event];
 }
 
 - (void)otherMouseDragged:(NSEvent *)event
 {
-    NSPoint loc = event.locationInWindow;
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
     mouseMovedCallback(loc.x, loc.y);
     [super otherMouseDragged:event];
 }
 
 - (void)rightMouseDragged:(NSEvent *)event
 {
-    NSPoint loc = event.locationInWindow;
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
     mouseMovedCallback(loc.x, loc.y);
     [super rightMouseDragged:event];
 }
