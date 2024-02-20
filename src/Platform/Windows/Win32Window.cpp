@@ -164,8 +164,8 @@ namespace LinaGX
         if (win32Window == nullptr)
             return DefWindowProcA(hwnd, msg, wParam, lParam);
 
-        auto handleMouseMove = [](Win32Window* win32Window, uint32 xPos, uint32 yPos) {
-            const LGXVector2ui mp        = {xPos, yPos};
+        auto handleMouseMove = [](Win32Window* win32Window, float xPos, float yPos) {
+            const LGXVector2 mp        = {xPos, yPos};
             win32Window->m_mousePosition = mp;
             win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition, win32Window);
 
@@ -366,8 +366,8 @@ namespace LinaGX
             break;
         }
         case WM_MOUSEMOVE: {
-            uint32 xPos = static_cast<uint32>(GET_X_LPARAM(lParam));
-            uint32 yPos = static_cast<uint32>(GET_Y_LPARAM(lParam));
+            float xPos = static_cast<float>(GET_X_LPARAM(lParam));
+            float yPos = static_cast<float>(GET_Y_LPARAM(lParam));
             handleMouseMove(win32Window, xPos, yPos);
             return 0;
         }

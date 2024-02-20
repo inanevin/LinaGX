@@ -181,8 +181,8 @@ namespace LinaGX
         POINT point;
         GetCursorPos(&point);
         m_previousMousePosition     = m_currentMousePositionAbs;
-        m_currentMousePositionAbs.x = point.x;
-        m_currentMousePositionAbs.y = point.y;
+        m_currentMousePositionAbs.x = static_cast<float>(point.x);
+        m_currentMousePositionAbs.y = static_cast<float>(point.y);
         if (!m_receivedDelta)
             m_mouseDelta = {};
         m_receivedDelta = false;
@@ -228,7 +228,7 @@ namespace LinaGX
         m_receivedDelta = true;
     }
 
-    void Input::WindowFeedMousePosition(const LGXVector2ui& pos, Window* window)
+    void Input::WindowFeedMousePosition(const LGXVector2& pos, Window* window)
     {
         for (auto* l : m_listeners)
             l->OnMouseMove(pos, window);
