@@ -131,7 +131,7 @@ namespace LinaGX
 
             int retVal = 0;
 
-            if (mipData.bytesPerPixel == 4)
+            if (mipData.bytesPerPixel == 4 || mipData.bytesPerPixel == 1)
                 retVal = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
             else
                 stbir_resize_uint16_generic((uint16*)lastPixels, lastWidth, lastHeight, 0, (uint16*)mipData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);

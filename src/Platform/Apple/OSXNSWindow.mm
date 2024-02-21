@@ -240,5 +240,13 @@ std::function<void()> mouseDraggedCallback;
     [super scrollWheel:event];
 }
 
+- (BOOL)canBecomeMainWindow {
+    return YES;
+}
+
+- (BOOL)canBecomeKeyWindow {
+    return YES;
+}
+
 @end
 
