@@ -38,10 +38,44 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-    uint16 Input::GetCharacterMask(wchar_t ch)
+
+    namespace
     {
-        uint16       mask    = 0;
-        const uint32 keycode = GetKeycode(ch);
+        wchar_t GetCharacterFromKey(uint32 key)
+        {
+            wchar_t ch = 0;
+            BYTE    keyboardState[256];
+
+            // Get the current keyboard state
+            if (!GetKeyboardState(keyboardState))
+            {
+                return ch;
+            }
+
+            // Set the keyboard state to a known state
+            // memset(keyboardState, 0, sizeof(keyboardState));
+
+            // Map the virtual keycode to a scan code
+            UINT scanCode = MapVirtualKeyEx(key, MAPVK_VK_TO_VSC, GetKeyboardLayout(0));
+
+            // Convert the scan code to a character
+            WCHAR unicodeChar[2] = {0};
+            int   result         = ToUnicodeEx(key, scanCode, keyboardState, unicodeChar, 2, 0, GetKeyboardLayout(0));
+
+            // If the conversion is successful and the character is a printable character
+            if (result == 1)
+            {
+                ch = unicodeChar[0];
+            }
+
+            return ch;
+        }
+    } // namespace
+
+    void Input::GetCharacterInfoFromKeycode(uint32 keycode, wchar_t& outWChar, uint16& outMask)
+    {
+        wchar_t ch   = GetCharacterFromKey(keycode);
+        uint16  mask = 0;
 
         if (ch == L' ')
             mask |= Whitespace;
@@ -74,42 +108,8 @@ namespace LinaGX
         if (mask & (Letter | Number | Whitespace | Separator | Symbol))
             mask |= Printable;
 
-        return mask;
-    }
-
-    uint32 Input::GetKeycode(char32_t c)
-    {
-        return VkKeyScanExW(static_cast<WCHAR>(c), GetKeyboardLayout(0));
-    }
-
-    wchar_t Input::GetCharacterFromKey(uint32 key)
-    {
-        wchar_t ch = 0;
-        BYTE    keyboardState[256];
-
-        // Get the current keyboard state
-        if (!GetKeyboardState(keyboardState))
-        {
-            return ch;
-        }
-
-        // Set the keyboard state to a known state
-        // memset(keyboardState, 0, sizeof(keyboardState));
-
-        // Map the virtual keycode to a scan code
-        UINT scanCode = MapVirtualKeyEx(key, MAPVK_VK_TO_VSC, GetKeyboardLayout(0));
-
-        // Convert the scan code to a character
-        WCHAR unicodeChar[2] = {0};
-        int   result         = ToUnicodeEx(key, scanCode, keyboardState, unicodeChar, 2, 0, GetKeyboardLayout(0));
-
-        // If the conversion is successful and the character is a printable character
-        if (result == 1)
-        {
-            ch = unicodeChar[0];
-        }
-
-        return ch;
+        outWChar = ch;
+        outMask  = mask;
     }
 
     bool Input::IsControlPressed()
