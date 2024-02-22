@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -99,6 +99,28 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
 }
 
 - (void)mouseUp:(NSEvent *)theEvent {
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
+    [super mouseUp:theEvent];
+}
+
+- (void)rightMouseDown:(NSEvent *)event
+{
+    mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
+    [super otherMouseDown:event];
+}
+
+- (void)rightMouseUp:(NSEvent *)theEvent {
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
+    [super mouseUp:theEvent];
+}
+
+- (void)otherMouseDown:(NSEvent *)event
+{
+    mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
+    [super otherMouseDown:event];
+}
+
+- (void)otherMouseUp:(NSEvent *)theEvent {
     mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
     [super mouseUp:theEvent];
 }
