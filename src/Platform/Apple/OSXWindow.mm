@@ -82,7 +82,6 @@ namespace LinaGX
     
         std::function<void(int, LinaGX::InputAction action)> mouseCallback = [this](int keyCode, LinaGX::InputAction action) {
             
-            
             if(m_style != LinaGX::WindowStyle::WindowedApplication && keyCode == 0)
             {
                 if(action == LinaGX::InputAction::Pressed && m_dragRect.IsPointInside(m_mousePosition))

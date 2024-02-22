@@ -94,7 +94,7 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
 
 - (void)mouseDown:(NSEvent *)event
 {
-    mouseCallback(static_cast<int>(event.buttonNumber), LinaGX::InputAction::Pressed);
+    mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
     [super otherMouseDown:event];
 }
 
@@ -216,7 +216,7 @@ std::function<void()> mouseDraggedCallback;
 }
 
 - (void)keyDown:(NSEvent *)theEvent {
-    keyCallback(theEvent.keyCode, LinaGX::InputAction::Pressed);
+    keyCallback(theEvent.keyCode, theEvent.isARepeat ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
 }
 
 - (void)keyUp:(NSEvent *)theEvent {

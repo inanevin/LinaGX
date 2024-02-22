@@ -78,6 +78,7 @@ if(APPLE)
 		PUBLIC "-framework AppKit"
 		PUBLIC "-framework Foundation"
 		PUBLIC "-framework QuartzCore"
+		PUBLIC "-framework Carbon"
 	)
 endif()
 

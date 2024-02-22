@@ -68,25 +68,15 @@ namespace LinaGX
     {
     public:
         /// <summary>
-        /// Returns 16 bit unsigned integer representing LinaGX::CharacterMask for the given wide-character.
+        /// Fills character info, wide-character representation of the keycode and 16 bit unsigned integer representing LinaGX::CharacterMask.
         /// </summary>
-        uint16 GetCharacterMask(wchar_t ch);
-
-        /// <summary>
-        /// 32-bit unsigned integer code for the given 32-bit character.
-        /// </summary>
-        uint32 GetKeycode(char32_t c);
-
-        /// <summary>
-        /// Tries to find the wide-character representation of the given keycode.
-        /// </summary>
-        wchar_t GetCharacterFromKey(uint32 key);
-
+        void GetCharacterInfoFromKeycode(uint32 keycode, wchar_t& outWChar, uint16& outMask);
+     
         /// <summary>
         /// This is NOT only CTRL keys, it's all "control" keys, e.g. CTRLs, ALTs, TAB and CAPSLOCK.
         /// </summary>
         bool IsControlPressed();
-
+        
         /// <summary>
         /// True if given key is pressed.
         /// </summary>

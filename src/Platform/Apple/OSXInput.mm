@@ -41,58 +41,94 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-    uint16 Input::GetCharacterMask(wchar_t ch)
+    
+namespace
+{
+    NSString* GetCharacterFromKey(uint32 key)
     {
-        uint16       mask    = 0;
-        const uint32 keycode = GetKeycode(ch);
+        TISInputSourceRef currentKeyboard = TISCopyCurrentKeyboardInputSource();
+        CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData);
+        
+            const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
+        
+        // Get the current modifier key state
+        UInt32 modifierKeyState = GetCurrentKeyModifiers();
+        
+        UInt32 keysDown = 0;
+        UniChar characters[4];
+        UniCharCount realLength;
+        
+        UCKeyTranslate(keyboardLayout,
+                        key,
+                        kUCKeyActionDown,
+                        modifierKeyState >> 8,
+                        LMGetKbdType(),
+                        kUCKeyTranslateNoDeadKeysBit,
+                        &keysDown,
+                        sizeof(characters) / sizeof(characters[0]),
+                        &realLength,
+                        characters);
+        
+        CFRelease(currentKeyboard);
+        
+        NSString* nsString = (realLength > 0) ? [NSString stringWithCharacters:characters length:1] : nil;
+        if (nsString == nil || [nsString length] == 0) {
+            return nil;
+        }
+        
+        return nsString;
+        // unichar uniChar = [nsString characterAtIndex:0];
+        // if (CFStringIsSurrogateHighCharacter(uniChar) || CFStringIsSurrogateLowCharacter(uniChar)) {
+        //     return L'?'; // Placeholder for surrogate pairs.
+        // }
+        // return (wchar_t)uniChar;
+    }
+}
 
+    void Input::GetCharacterInfoFromKeycode(uint32 keycode, wchar_t &outWChar, uint16 &outMask)
+    {
+        NSString* characterString = GetCharacterFromKey(keycode);
+        unichar uniChar = [characterString characterAtIndex:0];
+        if (CFStringIsSurrogateHighCharacter(uniChar) || CFStringIsSurrogateLowCharacter(uniChar)) {
+            return; // Placeholder for surrogate pairs.
+        }
+        wchar_t ch = (wchar_t)uniChar;
+        uint16 mask = 0;
+        
         if (ch == L' ')
             mask |= Whitespace;
         else
         {
-            if (iswalnum(ch))
-            {
-                if (keycode >= '0' && keycode <= '9')
-                    mask |= Number;
-                else
-                    mask |= Letter;
-            }
-            else if (iswpunct(ch))
-            {
-                mask |= Symbol;
+            if ([characterString rangeOfCharacterFromSet:[NSCharacterSet whitespaceCharacterSet]].location != NSNotFound) {
+                    mask |= Whitespace;
+                } else if ([characterString rangeOfCharacterFromSet:[NSCharacterSet alphanumericCharacterSet]].location != NSNotFound) {
+                    if ([characterString rangeOfCharacterFromSet:[NSCharacterSet decimalDigitCharacterSet]].location != NSNotFound)
+                        mask |= Number;
+                    else
+                        mask |= Letter;
+                } else if ([characterString rangeOfCharacterFromSet:[NSCharacterSet punctuationCharacterSet]].location != NSNotFound) {
+                    mask |= Symbol;
 
-                if (ch == '-' || ch == '+' || ch == '*' || ch == '/')
-                    mask |= Operator;
+                    if ([@[@"-", @"+", @"*", @"/"] containsObject:characterString])
+                        mask |= Operator;
 
-                if (ch == L'-' || ch == L'+')
-                    mask |= Sign;
-            }
-            else
-                mask |= Control;
+                    if ([@[@"-", @"+"] containsObject:characterString])
+                        mask |= Sign;
+                } else {
+                    mask |= Control;
+                }
         }
 
-        if (ch == L'.')
+        if (ch == L'.' || ch == L',')
             mask |= Separator;
 
         if (mask & (Letter | Number | Whitespace | Separator | Symbol))
             mask |= Printable;
-
-
-        return mask;
+        
+        outMask = mask;
+        outWChar = ch;
     }
 
-    uint32 Input::GetKeycode(char32_t c)
-    {
-        LOGA(false, "Not implemented on macOS!");
-        return 0;
-    }
-
-    wchar_t Input::GetCharacterFromKey(uint32 key)
-    {
-        wchar_t ch = 0;
-        LOGA(false, "Not implemented on macOS!");
-        return ch;
-    }
 
     bool Input::IsControlPressed()
     {
