@@ -69,6 +69,12 @@ namespace LinaGX
     class Window
     {
     public:
+        
+        /// <summary>
+        /// Helper that returns primary screen's information.
+        /// </summary>
+        static MonitorInfo GetPrimaryMonitorInfo();
+        
         /// <summary>
         /// Check WindowStyle enumeration for descriptions of different styles.
         /// </summary>

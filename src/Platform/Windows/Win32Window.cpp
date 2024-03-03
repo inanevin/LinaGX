@@ -615,11 +615,12 @@ namespace LinaGX
         m_dpiScale = m_dpi / 96.0f;
     }
 
-    void Win32Window::CalculateMonitorInfo()
+namespace
+{
+    MonitorInfo GetMonitorInfo(HMONITOR monitor)
     {
         MonitorInfo info;
-
-        HMONITOR      monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
+        
         MONITORINFOEX monitorInfo;
         monitorInfo.cbSize = sizeof(monitorInfo);
         GetMonitorInfo(monitor, &monitorInfo);
@@ -634,7 +635,21 @@ namespace LinaGX
         info.monitorHandle = static_cast<void*>(monitor);
         info.dpi           = dpiX;
         info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
-        m_monitorInfo      = info;
+        return info;
+    }
+}
+
+    MonitorInfo Window::GetPrimaryMonitorInfo()
+    {
+        const POINT ptZero = { 0, 0 };
+        HMONITOR monitor  = MonitorFromPoint(ptZero, MONITOR_DEFAULTTOPRIMARY);
+        return GetMonitorInfo(monitor);
+    }
+
+    void Win32Window::CalculateMonitorInfo()
+    {
+        HMONITOR      monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
+        m_monitorInfo = GetMonitorInfo(monitor);
     }
 
     void Win32Window::Close()

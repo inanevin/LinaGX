@@ -461,6 +461,31 @@ namespace LinaGX
         m_dpiScale = scaleFactor;
         
     }
+
+    MonitorInfo Window::GetPrimaryMonitorInfo()
+    {
+        MonitorInfo info;
+        
+        NSScreen *screen = [[NSScreen screens] objectAtIndex:0];
+        
+        NSRect screenFrame = [screen frame];
+        info.size.x = screenFrame.size.width;
+        info.size.y = screenFrame.size.height;
+        
+        NSRect visibleFrame = [screen visibleFrame];
+        info.workSize.x = visibleFrame.size.width;
+        info.workSize.y = visibleFrame.size.height;
+        
+        info.workTopLeft.x = visibleFrame.origin.x;
+        info.workTopLeft.y = visibleFrame.origin.y;
+        
+        CGFloat dpi = 72.0 * [screen backingScaleFactor];
+        info.dpi = dpi;
+        info.dpiScale = [screen backingScaleFactor];
+        
+        info.isPrimary = true;
+        return info;
+    }
     
     void OSXWindow::CalculateMonitorInfo()
     {
@@ -472,29 +497,21 @@ namespace LinaGX
         // Get the screen that the window is on
         NSScreen *screen = [window screen];
         
-        // 1. Monitor Size
         NSRect screenFrame = [screen frame];
         info.size.x = screenFrame.size.width;
         info.size.y = screenFrame.size.height;
         
-        // 2. Monitor Work Area Size
-        // On macOS, the work area is generally the full screen size minus menu bar.
         NSRect visibleFrame = [screen visibleFrame];
         info.workSize.x = visibleFrame.size.width;
         info.workSize.y = visibleFrame.size.height;
         
-        // 3. Monitor Work Area Top Left
         info.workTopLeft.x = visibleFrame.origin.x;
         info.workTopLeft.y = visibleFrame.origin.y;
         
-        // 4. DPI and 5. DPI Scale
-        // This assumes the screen is retina. You might have to add more logic for non-retina screens.
         CGFloat dpi = 72.0 * [screen backingScaleFactor];
         info.dpi = dpi;
         info.dpiScale = [screen backingScaleFactor];
         
-        // 6. Is Monitor Primary
-        // Assuming the primary screen is the first one in the array
         info.isPrimary = (screen == [[NSScreen screens] objectAtIndex:0]);
         
         m_monitorInfo = info;
