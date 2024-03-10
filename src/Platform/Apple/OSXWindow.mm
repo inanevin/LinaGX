@@ -462,59 +462,42 @@ namespace LinaGX
         
     }
 
-    MonitorInfo Window::GetPrimaryMonitorInfo()
+namespace{
+    MonitorInfo GetMonitorInfo(NSScreen* screen)
     {
         MonitorInfo info;
-        
-        NSScreen *screen = [[NSScreen screens] objectAtIndex:0];
-        
         NSRect screenFrame = [screen frame];
         info.size.x = screenFrame.size.width;
         info.size.y = screenFrame.size.height;
         
         NSRect visibleFrame = [screen visibleFrame];
+        CGFloat bottomBarHeight = visibleFrame.origin.y;
+        CGFloat topBarHeight = screenFrame.size.height - bottomBarHeight - visibleFrame.size.height;
         info.workSize.x = visibleFrame.size.width;
         info.workSize.y = visibleFrame.size.height;
-        
         info.workTopLeft.x = visibleFrame.origin.x;
-        info.workTopLeft.y = visibleFrame.origin.y;
-        
-        CGFloat dpi = 72.0 * [screen backingScaleFactor];
-        info.dpi = dpi;
-        info.dpiScale = [screen backingScaleFactor];
-        
-        info.isPrimary = true;
-        return info;
-    }
-    
-    void OSXWindow::CalculateMonitorInfo()
-    {
-        NSWindow* window = static_cast<NSWindow*>(m_nsWindow);
-        
-        // Initialize your MonitorInfo struct
-        MonitorInfo info;
-        
-        // Get the screen that the window is on
-        NSScreen *screen = [window screen];
-        
-        NSRect screenFrame = [screen frame];
-        info.size.x = screenFrame.size.width;
-        info.size.y = screenFrame.size.height;
-        
-        NSRect visibleFrame = [screen visibleFrame];
-        info.workSize.x = visibleFrame.size.width;
-        info.workSize.y = visibleFrame.size.height;
-        
-        info.workTopLeft.x = visibleFrame.origin.x;
-        info.workTopLeft.y = visibleFrame.origin.y;
+        info.workTopLeft.y = topBarHeight;
         
         CGFloat dpi = 72.0 * [screen backingScaleFactor];
         info.dpi = dpi;
         info.dpiScale = [screen backingScaleFactor];
         
         info.isPrimary = (screen == [[NSScreen screens] objectAtIndex:0]);
-        
-        m_monitorInfo = info;
+        return info;
+    }
+}
+
+    MonitorInfo Window::GetPrimaryMonitorInfo()
+    {
+        NSScreen *screen = [[NSScreen screens] objectAtIndex:0];
+        return GetMonitorInfo(screen);
+    }
+    
+    void OSXWindow::CalculateMonitorInfo()
+    {
+        NSWindow* window = static_cast<NSWindow*>(m_nsWindow);
+        NSScreen *screen = [window screen];
+        m_monitorInfo = GetMonitorInfo(screen);
     }
     
     uint32 OSXWindow::GetStyle(WindowStyle style)
