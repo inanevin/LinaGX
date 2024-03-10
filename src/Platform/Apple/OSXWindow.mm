@@ -510,7 +510,7 @@ namespace{
         }
         else if(style == WindowStyle::Borderless || style == WindowStyle::BorderlessAlpha || style == WindowStyle::BorderlessApplication)
         {
-            nsStyle = NSWindowStyleMaskBorderless;
+            nsStyle = NSWindowStyleMaskBorderless | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
         }
         else if(style == WindowStyle::BorderlessFullscreen)
         {
