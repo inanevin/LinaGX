@@ -142,6 +142,7 @@ namespace
 
         int keyState = CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, keycode) ? 1 : 0;
         m_currentStates[keycode] = keyState;
+    
         return keyState == 1;
     }
 
@@ -170,8 +171,7 @@ namespace
         if (!m_appActive)
             return false;
         
-        int keyState = m_globalMouseStates[button] ? 1 : 0;
-        m_currentStates[button] = keyState;
+        int keyState = m_currentMouseStates[button];
         return keyState == 1;
     }
 
@@ -180,18 +180,16 @@ namespace
         if (!m_appActive)
             return false;
 
-        int keyState = m_globalMouseStates[button];
-
-        return keyState == 1 && m_globalPrevMouseStates[button] == 0;
+        int keyState = m_currentMouseStates[button];
+        return keyState == 1 && m_prevMouseStates[button] == 0;
     }
     bool Input::GetMouseButtonUp(int button)
     {
         if (!m_appActive)
             return false;
 
-        int keyState = m_globalMouseStates[button];
-
-        return keyState == 0 && m_globalPrevMouseStates[button] == 1;
+        int keyState = m_currentMouseStates[button];
+        return keyState == 0 && m_prevMouseStates[button] == 1;
     }
 
     void Input::Tick()
@@ -208,11 +206,11 @@ namespace
 
     void Input::EndFrame()
     {
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i < NUM_KEY_STATES; i++)
             m_previousStates[i] = m_currentStates[i];
         
-        for(int i = 0; i < 8; i++)
-            m_globalPrevMouseStates[i] = m_globalMouseStates[i];
+        for (int i = 0; i < NUM_MOUSE_STATES; i++)
+            m_prevMouseStates[i] = m_currentMouseStates[i];
     }
 
 
@@ -224,7 +222,7 @@ namespace
 
     void Input::WindowFeedMouseButton(uint32 button, InputAction action, Window* window)
     {
-        m_globalMouseStates[button] = action == InputAction::Released ? false : true;
+        m_currentMouseStates[button] = action == InputAction::Released ? false : true;
         for(auto* l : m_listeners)
             l->OnMouse(button, action, window);
     }

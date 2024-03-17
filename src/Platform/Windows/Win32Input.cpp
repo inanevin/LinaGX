@@ -192,7 +192,7 @@ namespace LinaGX
 
     void Input::EndFrame()
     {
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i < NUM_KEY_STATES; i++)
             m_previousStates[i] = m_currentStates[i];
     }
 

@@ -40,8 +40,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace LinaGX
 {
 
-#define NUM_KEY_STATES   380
-#define NUM_MOUSE_STATES 8
+#define NUM_KEY_STATES   256
+#define NUM_MOUSE_STATES 12
 
     class Window;
 
@@ -165,22 +165,20 @@ namespace LinaGX
         void WindowFeedDelta(int32 deltaX, int32 deltaY);
 
     private:
-        int         m_keyStatesDown[NUM_KEY_STATES]     = {0};
-        int         m_keyStatesUp[NUM_KEY_STATES]       = {0};
-        int         m_mouseStatesDown[NUM_MOUSE_STATES] = {0};
-        int         m_mouseStatesUp[NUM_MOUSE_STATES]   = {0};
+       
         bool        m_appActive                         = true;
         LGXVector2  m_currentMousePositionAbs           = {0, 0};
         LGXVector2  m_previousMousePosition             = {0, 0};
         LGXVector2  m_mouseDelta                        = {0, 0};
         int32       m_mouseScroll                       = 0;
-        bool        m_currentStates[256]                = {0};
-        bool        m_previousStates[256]               = {0};
+    
         LGXVector2  m_mousePosTrackingClick             = {};
 
+        bool m_currentMouseStates[NUM_MOUSE_STATES];
+        bool m_prevMouseStates[NUM_MOUSE_STATES];
+        bool        m_currentStates[NUM_KEY_STATES]                = {0};
+        bool        m_previousStates[NUM_KEY_STATES]               = {0};
        
-        LINAGX_MAP<uint32, bool> m_globalMouseStates;
-        LINAGX_MAP<uint32, bool> m_globalPrevMouseStates;
         bool                     m_receivedDelta = false;
         LINAGX_VEC<InputListener*> m_listeners;
     };
