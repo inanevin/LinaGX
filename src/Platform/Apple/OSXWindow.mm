@@ -82,8 +82,6 @@ namespace LinaGX
     
         std::function<void(int, LinaGX::InputAction action)> mouseCallback = [this](int keyCode, LinaGX::InputAction action) {
             
-            LOGT("INAN MOUSE CB %d", (uint32)action);
-            
             if(m_style != LinaGX::WindowStyle::WindowedApplication && keyCode == 0)
             {
                 if(action == LinaGX::InputAction::Pressed && m_dragRect.IsPointInside(m_mousePosition))
@@ -104,7 +102,6 @@ namespace LinaGX
         };
         
         std::function<void(float, float)> mouseMovedCallback = [this](float x, float y) {
-            LOGT("INAN MOUSE MOVED");
 
             NSWindow* window = static_cast<NSWindow*>(m_nsWindow);
             CGFloat titleBarHeight = NSHeight(window.frame) - NSHeight([window contentRectForFrameRect:window.frame]);
