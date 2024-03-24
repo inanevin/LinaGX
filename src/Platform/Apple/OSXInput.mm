@@ -171,8 +171,10 @@ namespace
         if (!m_appActive)
             return false;
         
-        int keyState = m_currentMouseStates[button];
-        return keyState == 1;
+        CGMouseButton but = (CGMouseButton)button;
+        bool isActive = CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, but);;
+        m_currentMouseStates[button] = isActive;
+        return isActive;
     }
 
     bool Input::GetMouseButtonDown(int button)
@@ -180,7 +182,7 @@ namespace
         if (!m_appActive)
             return false;
 
-        int keyState = m_currentMouseStates[button];
+        int keyState = GetMouseButton(button);
         return keyState == 1 && m_prevMouseStates[button] == 0;
     }
     bool Input::GetMouseButtonUp(int button)
@@ -188,7 +190,7 @@ namespace
         if (!m_appActive)
             return false;
 
-        int keyState = m_currentMouseStates[button];
+        int keyState =  GetMouseButton(button);
         return keyState == 0 && m_prevMouseStates[button] == 1;
     }
 
@@ -222,7 +224,8 @@ namespace
 
     void Input::WindowFeedMouseButton(uint32 button, InputAction action, Window* window)
     {
-        m_currentMouseStates[button] = action == InputAction::Released ? false : true;
+        // m_currentMouseStates[button] = action == InputAction::Released ? false : true;
+        
         for(auto* l : m_listeners)
             l->OnMouse(button, action, window);
     }
