@@ -374,8 +374,7 @@ namespace LinaGX
     
     void OSXWindow::BringToFront() {
         NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
-        [wnd orderFrontRegardless];
-        // [wnd makeKeyAndOrderFront:nil];
+        [wnd makeKeyAndOrderFront:nil];
     }
     
     void OSXWindow::SetAlpha(float alpha) {
@@ -530,9 +529,13 @@ namespace{
         {
             nsStyle = NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskTitled;
         }
-        else if(style == WindowStyle::Borderless || style == WindowStyle::BorderlessAlpha || style == WindowStyle::BorderlessApplication)
+        else if(style == WindowStyle::Borderless || style == WindowStyle::BorderlessApplication)
         {
             nsStyle = NSWindowStyleMaskBorderless | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
+        }
+        else if(style == WindowStyle::BorderlessAlpha)
+        {
+            nsStyle = NSWindowStyleMaskBorderless;
         }
         else if(style == WindowStyle::BorderlessFullscreen)
         {
