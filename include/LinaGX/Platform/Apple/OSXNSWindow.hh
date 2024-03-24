@@ -44,23 +44,43 @@ namespace LinaGX
     class OSXWindow;
 }
 
-@interface CustomView : NSView
+@interface CustomView : NSView {
+    std::function<void(float, float)> mouseMovedCallback;
+    std::function<void(int, LinaGX::InputAction)> mouseCallback;
+}
 - (void)setMouseMovedCallback:(std::function<void(float, float)>)callback;
 - (void)setMouseCallback:(std::function<void(int, LinaGX::InputAction action)>)callback;
 @end
 
-@interface CustomWindowDelegate : NSObject <NSWindowDelegate>
+@interface CustomWindowDelegate : NSObject <NSWindowDelegate> {
+    std::function<void(int, int)> windowMovedCallback;
+    std::function<void(unsigned int, unsigned int)> windowResizedCallback;
+    std::function<void(bool)> setFocusCallback;
+    std::function<void(bool)> setMainCallback;
+    std::function<void(bool)> appActivateCallback;
+    std::function<void()> screenChangedCallback;
+    std::function<void()> windowClosedCallback;
+}
+
 - (void)setWindowMovedCallback:(std::function<void(int, int)>)callback;
 - (void)setWindowResizedCallback:(std::function<void(unsigned int, unsigned int)>)callback;
 - (void)setFocusCallback:(std::function<void(bool)>)callback;
+- (void)setMainCallback:(std::function<void(bool)>)callback;
 - (void)setAppActivateCallback:(std::function<void(bool)>)callback;
 - (void)setScreenChangedCallback:(std::function<void()>)callback;
 - (void)setWindowClosedCallback:(std::function<void()>)callback;
+
 @end
 
 
 
-@interface CustomNSWindow : NSWindow
+@interface CustomNSWindow : NSWindow {
+    std::function<void(int, LinaGX::InputAction)> keyCallback;
+    std::function<void()> mouseEnteredCallback;
+    std::function<void()> mouseExitedCallback;
+    std::function<void(int)> mouseWheelCallback;
+    std::function<void()> mouseDraggedCallback;
+}
 @property (assign) LinaGX::Input* input;
 @property (assign) LinaGX::OSXWindow* window;
 - (void)setKeyCallback:(std::function<void(int, LinaGX::InputAction action)>)callback;

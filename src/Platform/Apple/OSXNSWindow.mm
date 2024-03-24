@@ -38,8 +38,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 @implementation CustomView
-std::function<void(float, float)> mouseMovedCallback;
-std::function<void(int, LinaGX::InputAction)> mouseCallback;
+
 
 - (void)updateTrackingAreas {
     [super updateTrackingAreas];
@@ -129,12 +128,6 @@ std::function<void(int, LinaGX::InputAction)> mouseCallback;
 
 
 @implementation CustomWindowDelegate
-std::function<void(int, int)> windowMovedCallback;
-std::function<void(unsigned int, unsigned int)> windowResizedCallback;
-std::function<void(bool)> setFocusCallback;
-std::function<void(bool)> appActivateCallback;
-std::function<void()> screenChangedCallback;
-std::function<void()> windowClosedCallback;
 
 - (void)setWindowMovedCallback:(std::function<void(int, int)>)callback {
     windowMovedCallback = callback;
@@ -146,6 +139,10 @@ std::function<void()> windowClosedCallback;
 
 - (void)setFocusCallback:(std::function<void(bool focus)>)callback {
     setFocusCallback = callback;
+}
+
+- (void)setMainCallback:(std::function<void(bool focus)>)callback {
+    setMainCallback = callback;
 }
 
 - (void)setAppActivateCallback:(std::function<void(bool focus)>)callback {
@@ -172,12 +169,25 @@ std::function<void()> windowClosedCallback;
     windowResizedCallback(static_cast<unsigned int>(frame.size.width), static_cast<unsigned int>(frame.size.height));
 }
 
+- (void)windowDidBecomeMain:(NSNotification *)notification
+{
+    NSWindow *window = (NSWindow *)[notification object];
+    setMainCallback(true);
+}
+
+- (void)windowDidResignMain:(NSNotification *)notification
+{
+    NSWindow *window = (NSWindow *)[notification object];
+    setMainCallback(false);
+}
+
 - (void)windowDidBecomeKey:(NSNotification *)notification {
+    NSWindow *window = (NSWindow *)[notification object];
     setFocusCallback(true);
-    
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification {
+    NSWindow *window = (NSWindow *)[notification object];
     setFocusCallback(false);
 }
 
@@ -204,12 +214,6 @@ std::function<void()> windowClosedCallback;
 
 
 @implementation CustomNSWindow
-
-std::function<void(int, LinaGX::InputAction)> keyCallback;
-std::function<void()> mouseEnteredCallback;
-std::function<void()> mouseExitedCallback;
-std::function<void(int)> mouseWheelCallback;
-std::function<void()> mouseDraggedCallback;
 
 - (void)setKeyCallback:(std::function<void(int, LinaGX::InputAction action)>)callback {
     keyCallback = callback;

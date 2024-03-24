@@ -104,6 +104,10 @@ namespace LinaGX
         void CalculateDPI();
         uint32 GetStyle(WindowStyle style);
         void CalculateMonitorInfo();
+        
+        void CallbackWindowClosed();
+        void CallbackSetMain(bool isMain);
+        void CallbackSetFocus(bool isFocused);
 
     private:
         bool         m_titleChangeRequested = false;

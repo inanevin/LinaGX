@@ -60,18 +60,18 @@ namespace LinaGX
                                                                   backing:NSBackingStoreBuffered
                                                                     defer:NO];
         
-        [wnd retain];
-        
         if (!wnd) {
             LOGE("Window -> Failed creating the window!");
             return false;
         }
         
+        [wnd retain];
+
         m_nsWindow = static_cast<void*>(wnd);
         
         [wnd setInput:m_input];
         [wnd setWindow:this];
-        
+      
         std::function<void(int, LinaGX::InputAction action)> keyCallback = [this](int keyCode, LinaGX::InputAction action) {
             m_input->WindowFeedKey(keyCode, keyCode, action, this);
             
@@ -81,6 +81,8 @@ namespace LinaGX
         };
     
         std::function<void(int, LinaGX::InputAction action)> mouseCallback = [this](int keyCode, LinaGX::InputAction action) {
+            
+            LOGT("INAN MOUSE CB %d", (uint32)action);
             
             if(m_style != LinaGX::WindowStyle::WindowedApplication && keyCode == 0)
             {
@@ -93,6 +95,7 @@ namespace LinaGX
                     m_lmDownForDrag = false;
             }
             
+            
             m_input->WindowFeedMouseButton(keyCode, action, this);
             
             for(auto* l : m_listeners)
@@ -101,10 +104,12 @@ namespace LinaGX
         };
         
         std::function<void(float, float)> mouseMovedCallback = [this](float x, float y) {
-            
+            LOGT("INAN MOUSE MOVED");
+
             NSWindow* window = static_cast<NSWindow*>(m_nsWindow);
             CGFloat titleBarHeight = NSHeight(window.frame) - NSHeight([window contentRectForFrameRect:window.frame]);
-            
+            // LOGT("FEEDING MOUSE TO WINDOW %p", (void*)this);
+
             // TODO: Figure this 2px offset...
             m_mousePosition = {x, static_cast<float>(m_size.y) - y - 2.0f};
             m_input->WindowFeedMousePosition(m_mousePosition, this);
@@ -151,12 +156,23 @@ namespace LinaGX
         
         std::function<void(bool)> setFocusCallback = [this](bool cond) {
             
+            NSWindow* nsw = static_cast<NSWindow*>(m_nsWindow);
+            id<NSWindowDelegate> del = [nsw delegate];
+            CustomWindowDelegate* delp = static_cast<CustomWindowDelegate*>(del);
             if(!cond)
                 m_isHovered = false;
             
             m_hasFocus = cond;
             for(auto* l : m_listeners)
                 l->OnWindowFocus(cond);
+        };
+        
+        std::function<void(bool)> setMainCallback = [this](bool cond) {
+            
+            NSWindow* nsw = static_cast<NSWindow*>(m_nsWindow);
+            id<NSWindowDelegate> del = [nsw delegate];
+            CustomWindowDelegate* delp = static_cast<CustomWindowDelegate*>(del);
+            
         };
     
         std::function<void(bool)> appActivateCallback = [this](bool cond) {
@@ -187,14 +203,16 @@ namespace LinaGX
     
         // Winndow delegate events.
         CustomWindowDelegate * wndDelegate = [[CustomWindowDelegate alloc] init];
+        [wndDelegate retain];
         [wndDelegate setWindowMovedCallback:windowMovedCallback];
         [wndDelegate setWindowResizedCallback:windowResizedCallback];
         [wndDelegate setFocusCallback:setFocusCallback];
+        [wndDelegate setMainCallback:setMainCallback];
         [wndDelegate setAppActivateCallback:appActivateCallback];
         [wndDelegate setScreenChangedCallback:screenChangedCallback];
         [wndDelegate setWindowClosedCallback:windowClosedCallback];
         [wnd setDelegate:wndDelegate];
-        
+
         CustomView* wndContent = [[CustomView alloc] init];
         [wndContent retain];
         m_nsView = static_cast<void*>(wndContent);
@@ -212,6 +230,9 @@ namespace LinaGX
         [wnd setMouseDraggedCallback:mouseDraggedCallback];
         [wnd setAcceptsMouseMovedEvents:YES];
         
+        if(parent == nullptr)
+            [wnd makeMainWindow];
+        
         CalculateDPI();
         CalculateMonitorInfo();
         BringToFront();
@@ -224,6 +245,9 @@ namespace LinaGX
     void OSXWindow::Destroy()
     {
         NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
+        id<NSWindowDelegate> delegate = [wnd delegate];
+        CustomWindowDelegate* del = static_cast<CustomWindowDelegate*>(delegate);
+        [del release];
         CustomView* view = static_cast<CustomView*>(m_nsView);
         [view release];
         [wnd close];
@@ -353,7 +377,8 @@ namespace LinaGX
     
     void OSXWindow::BringToFront() {
         NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
-        [wnd makeKeyAndOrderFront:nil];
+        [wnd orderFrontRegardless];
+        // [wnd makeKeyAndOrderFront:nil];
     }
     
     void OSXWindow::SetAlpha(float alpha) {
