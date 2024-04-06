@@ -190,12 +190,7 @@ namespace LinaGX
         
         std::function<void()> mouseDraggedCallback = [this]() {
             
-            if(m_lmDownForDrag)
-            {
-                const LGXVector2 absMouse = m_input->GetMousePositionAbs();
-                const LGXVector2 p = {absMouse.x - m_lmDragDelta.x, absMouse.y - m_lmDragDelta.y};
-                SetPosition(LGXVector2i{static_cast<int32>(p.x), static_cast<int32>(p.y)});
-            }
+           
         };
     
         // Winndow delegate events.
@@ -253,6 +248,13 @@ namespace LinaGX
     }
 
     void OSXWindow::Tick() {
+        
+        if(m_lmDownForDrag)
+        {
+            const LGXVector2 absMouse = m_input->GetMousePositionAbs();
+            const LGXVector2 p = {absMouse.x - m_lmDragDelta.x, absMouse.y - m_lmDragDelta.y};
+            SetPosition(LGXVector2i{static_cast<int32>(p.x), static_cast<int32>(p.y)});
+        }
         
         if(!m_sizeRequests.empty())
         {

@@ -41,21 +41,26 @@ namespace LinaGX::Examples
         m_prevTime       = std::chrono::high_resolution_clock::now();
     }
 
+    void App::OnWindowClose()
+    {
+        m_isRunning.store(false);
+        [NSApp terminate:nil];
+    }
+
+    void App::OnWindowSizeChanged(const LGXVector2ui& newSize)
+    {
+        std::lock_guard<std::mutex> lg(m_sizeMtx);
+        OnWindowResized(newSize.x, newSize.y);
+    }
+
     void App::RegisterWindowCallbacks(LinaGX::Window *wnd)
     {
-        wnd->SetCallbackClose([this](){
-            m_isRunning.store(false);
-            [NSApp terminate:nil];
-        });
-        
-        wnd->SetCallbackSizeChanged([this](const LGXVector2ui& newSize){
-            std::lock_guard<std::mutex> lg(m_sizeMtx);
-            OnWindowResized(newSize.x, newSize.y);
-        });
+        wnd->AddListener(this);
     }
 
     void App::Tick()
     {
+       
         // MacOS display link is running on separate thread that'll call window resized events.
         std::lock_guard<std::mutex> lg(m_sizeMtx);
         
@@ -69,8 +74,11 @@ namespace LinaGX::Examples
         m_deltaSeconds      = static_cast<float>(m_deltaMicroseconds) / 1000000.0f;
         m_elapsedSeconds    += m_deltaSeconds;
         
-        OnTick();
-        OnRender();
+        @autoreleasepool {
+            OnTick();
+            OnRender();
+        }
+       
         
         static uint64 fpsCounter = 0;
         fpsCounter += m_deltaMicroseconds;

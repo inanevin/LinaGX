@@ -36,6 +36,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #define APP_HPP
 
 #include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Core/Window.hpp"
 #include <iostream>
 #include <cstdarg>
 #include <chrono>
@@ -43,7 +44,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-    struct InitInfo;
     class Window;
 
     namespace Examples
@@ -74,7 +74,7 @@ namespace LinaGX
             va_end(args);
         }
 
-        class App
+        class App : public LinaGX::WindowListener
         {
         public:
             virtual void Initialize() {};
@@ -83,6 +83,9 @@ namespace LinaGX
             virtual void OnTick() = 0;
             virtual void OnRender() = 0;
             void Tick();
+            
+            virtual void OnWindowClose() override;
+            virtual void OnWindowSizeChanged(const LGXVector2ui&) override;
 
         protected:
             

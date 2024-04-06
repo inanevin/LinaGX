@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 
-#include "IndirectRenderingComputeQueue.hpp"
+#include "BindlessIndirectComputeQueue.hpp"
 
 using namespace LinaGX::Examples;
 

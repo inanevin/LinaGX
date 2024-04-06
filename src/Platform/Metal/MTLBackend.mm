@@ -731,7 +731,8 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         
         [lib release];
         [computeFunc release];
-        		
+        [src release];
+        [computeDesc release];
         return m_shaders.AddItem(item);
 
     }
@@ -896,6 +897,12 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         [libs[stg] release];
     }
     
+    [pipelineDescriptor release];
+    [vertexDescriptor release];
+    [frontStencil release];
+    [backStencil release];
+    [depthStencilDescriptor release];
+    
     return m_shaders.AddItem(item);
 }
 
@@ -1032,7 +1039,8 @@ uint32 MTLBackend::CreateSampler(const SamplerDesc &desc) {
     [sampler retain];
     item.ptr = AS_VOID(sampler);
 
-
+    [samplerDesc release];
+    
     return m_samplers.AddItem(item);
 }
 
@@ -1134,13 +1142,17 @@ uint16 MTLBackend::CreateDescriptorSet(const DescriptorSetDesc &desc) {
         bufferDescriptor.access = MTLArgumentAccessReadWrite;
         [argDescriptors addObject:bufferDescriptor];
         id<MTLArgumentEncoder> argEncoder = [device newArgumentEncoderWithArguments:argDescriptors];
-        [argEncoder retain];
+        // [argEncoder retain];
         
         if(isSecondary)
             bnd.argEncoderSecondary = AS_VOID(argEncoder);
         else
             bnd.argEncoder = AS_VOID(argEncoder);
+        
+        [bufferDescriptor release];
+        [argDescriptors release];
     };
+    
     
     for (uint32 j = 0; j < desc.allocationCount; j++)
     {
@@ -1241,7 +1253,6 @@ void MTLBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc &desc) 
         id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * descriptorCount options:0];
         [argBuffer retain];
         bindingData.argBuffer = AS_VOID(argBuffer);
-        
         id<MTLArgumentEncoder> encoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
         
         for(uint32 i = 0; i < descriptorCount; i++)
@@ -1945,6 +1956,15 @@ void MTLBackend::Present(const PresentDesc &present) {
 
 void MTLBackend::EndFrame() {
     LOGA((m_submissionPerFrame < Config.gpuLimits.maxSubmitsPerFrame), "Backend -> Exceeded maximum submissions per frame! Please increase the limit.");
+    
+    for(auto& swp : m_swapchains)
+    {
+        if(!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)
+            continue;
+        
+        id<MTLDrawable> drawable = static_cast<id<MTLDrawable>>(swp._currentDrawable);
+        [drawable release];
+    }
 }
 
 
@@ -2525,6 +2545,7 @@ void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) 
         [buf retain];
         stream.indirectCommandBuffer = AS_VOID(buf);
         stream.indirectCommandBufferMaxCommands = cmd->count*2;
+        [descriptor release];
     }
    
     id<MTLIndirectCommandBuffer> indCmd = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);
@@ -2575,6 +2596,7 @@ void MTLBackend::CMD_DrawIndirect(uint8 *data, MTLCommandStream &stream) {
         [buf retain];
         stream.indirectCommandBuffer = AS_VOID(buf);
         stream.indirectCommandBufferMaxCommands = cmd->count*2;
+        [descriptor release];
     }
    
     id<MTLIndirectCommandBuffer> indCmd = AS_MTL(stream.indirectCommandBuffer, id<MTLIndirectCommandBuffer>);

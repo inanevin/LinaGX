@@ -84,8 +84,8 @@ namespace LinaGX::Examples
             const int clampAmt = 3;
 #endif
 
-            md.x = std::clamp(md.x, -clampAmt, clampAmt);
-            md.y = std::clamp(md.y, -clampAmt, clampAmt);
+            md.x = std::clamp((int)md.x, -clampAmt, clampAmt);
+            md.y = std::clamp((int)md.y, -clampAmt, clampAmt);
 
             m_targetX -= md.y * dt * ROTATE_AMT;
             m_targetY -= md.x * dt * ROTATE_AMT;
