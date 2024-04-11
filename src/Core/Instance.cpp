@@ -284,8 +284,20 @@ namespace LinaGX
         return m_backend->CreateShader(shaderDesc);
     }
 
+    uint16 Instance::CreateShaderMT(const ShaderDesc& shaderDesc)
+    {
+        std::lock_guard<std::mutex> grd(m_shaderMtx);
+        return m_backend->CreateShader(shaderDesc);
+    }
+
     void Instance::DestroyShader(uint16 handle)
     {
+        m_backend->DestroyShader(handle);
+    }
+
+    void Instance::DestroyShaderMT(uint16 handle)
+    {
+        std::lock_guard<std::mutex> grd(m_shaderMtx);
         m_backend->DestroyShader(handle);
     }
 
@@ -308,8 +320,20 @@ namespace LinaGX
         return m_backend->CreateTexture(desc);
     }
 
+    uint32 Instance::CreateTextureMT(const TextureDesc &desc)
+    {
+        std::lock_guard<std::mutex> grd(m_textureMtx);
+        return m_backend->CreateTexture(desc);
+    }
+
     void Instance::DestroyTexture(uint32 handle)
     {
+        m_backend->DestroyTexture(handle);
+    }
+
+    void Instance::DestroyTextureMT(uint32 handle)
+    {
+        std::lock_guard<std::mutex> grd(m_textureMtx);
         m_backend->DestroyTexture(handle);
     }
 
@@ -328,8 +352,20 @@ namespace LinaGX
         return m_backend->CreateResource(desc);
     }
 
+    uint32 Instance::CreateResourceMT(const ResourceDesc& desc)
+    {
+        std::lock_guard<std::mutex> grd(m_resourceMtx);
+        return m_backend->CreateResource(desc);
+    }
+
     void Instance::DestroyResource(uint32 handle)
     {
+        m_backend->DestroyResource(handle);
+    }
+
+    void Instance::DestroyResourceMT(uint32 handle)
+    {
+        std::lock_guard<std::mutex> grd(m_resourceMtx);
         m_backend->DestroyResource(handle);
     }
 

@@ -71,4 +71,14 @@ namespace LinaGX
     /// </summary>
     LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace, uint32 requestLevels = 0);
 
+    /// <summary>
+    /// Resizes the given texture buffer to target. You are responsible for creating the pixels for out buffer!
+    /// </summary>
+    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace);
+
+    /// <summary>
+    /// Writes the data from writeData into targetBuffer starting from the given position.
+    /// </summary>
+    LINAGX_API void WriteToBuffer(const TextureBuffer& targetBuffer, const TextureBuffer& writeData, uint32 positionX, uint32 positionY);
+
 } // namespace LinaGX

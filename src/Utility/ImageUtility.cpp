@@ -134,12 +134,44 @@ namespace LinaGX
             if (mipData.bytesPerPixel == 4 || mipData.bytesPerPixel == 1)
                 retVal = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
             else
-                stbir_resize_uint16_generic((uint16*)lastPixels, lastWidth, lastHeight, 0, (uint16*)mipData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+                retVal = stbir_resize_uint16_generic((uint16*)lastPixels, lastWidth, lastHeight, 0, (uint16*)mipData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
 
             lastWidth  = width;
             lastHeight = height;
             lastPixels = mipData.pixels;
             outMipData.push_back(mipData);
         }
+    }
+
+    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace)
+    {
+        const uint32  channels    = static_cast<int>(channelMask) + 1;
+        int retVal = 0;
+        const stbir_colorspace cs = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
+
+        if(sourceData.bytesPerPixel == 4 || sourceData.bytesPerPixel == 1)
+            retVal = stbir_resize_uint8_generic(sourceData.pixels, sourceData.width, sourceData.height, 0, outData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+        else
+            retVal = stbir_resize_uint16_generic((uint16*)sourceData.pixels, sourceData.width, sourceData.height, 0, (uint16*)outData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+        
+        return retVal == 1;
+    }
+
+    LINAGX_API void WriteToBuffer(const TextureBuffer& targetBuffer, const TextureBuffer& writeData, uint32 positionX, uint32 positionY)
+    {
+        if(positionX > targetBuffer.width || positionY > targetBuffer.height)
+            return;
+        
+        const uint32 writeWidth = std::min(writeData.width, targetBuffer.width - positionX);
+        const uint32 writeHeight = std::min(writeData.height, targetBuffer.height - positionY);
+        
+         for (uint32 y = 0; y < writeHeight; ++y) {
+             
+             uint8* targetPixel = targetBuffer.pixels + ((positionY + y) * targetBuffer.width + positionX) * targetBuffer.bytesPerPixel;
+             const uint8* writePixel = writeData.pixels + (y * writeData.width) * writeData.bytesPerPixel;
+             LINAGX_MEMCPY(targetPixel, writePixel, writeWidth * targetBuffer.bytesPerPixel);
+             
+         }
+        
     }
 } // namespace LinaGX
