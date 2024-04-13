@@ -227,7 +227,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
    mouseExitedCallback = callback;
 }
 
-- (void)setMouseWheelCallback:(std::function<void(int)>)callback {
+- (void)setMouseWheelCallback:(std::function<void(float)>)callback {
    mouseWheelCallback = callback;
 }
 
@@ -262,7 +262,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (void)scrollWheel:(NSEvent *)event
 {
-    mouseWheelCallback(static_cast<int>(event.deltaY));
+    mouseWheelCallback(static_cast<float>(event.scrollingDeltaY));
     [super scrollWheel:event];
 }
 

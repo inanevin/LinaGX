@@ -127,9 +127,8 @@ namespace LinaGX
                 l->OnWindowHoverEnd();
         };
         
-        std::function<void(int)> mouseWheelCallback = [this](int f) {
+        std::function<void(float)> mouseWheelCallback = [this](float f) {
             m_input->WindowFeedMouseWheel(f, this);
-            
             for(auto* l : m_listeners)
                 l->OnWindowMouseWheel(f);
         };

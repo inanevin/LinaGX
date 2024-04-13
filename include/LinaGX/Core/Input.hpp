@@ -61,7 +61,7 @@ namespace LinaGX
         virtual void OnKey(uint32 keycode, int32 scancode, LinaGX::InputAction action, LinaGX::Window* window) {};
         virtual void OnMouse(uint32 button, LinaGX::InputAction action, LinaGX::Window* window) {};
         virtual void OnMouseMove(const LinaGX::LGXVector2& pos, LinaGX::Window* window) {};
-        virtual void OnMouseWheel(int32 delta, LinaGX::Window* window) {};
+        virtual void OnMouseWheel(float delta, LinaGX::Window* window) {};
     };
 
     class Input
@@ -126,7 +126,7 @@ namespace LinaGX
         /// <summary>
         /// Mouse middle scroll value.
         /// </summary>
-        inline int32 GetMouseScroll()
+        inline float GetMouseScroll()
         {
             return m_mouseScroll;
         }
@@ -161,7 +161,7 @@ namespace LinaGX
         void WindowFeedMouseButton(uint32 button, InputAction action, Window* window);
         void WindowFeedMousePosition(const LGXVector2& pos, Window* window);
         void WindowFeedActivateApp(bool activate);
-        void WindowFeedMouseWheel(int32 delta, Window* window);
+        void WindowFeedMouseWheel(float delta, Window* window);
         void WindowFeedDelta(int32 deltaX, int32 deltaY);
 
     private:
@@ -170,7 +170,7 @@ namespace LinaGX
         LGXVector2  m_currentMousePositionAbs           = {0, 0};
         LGXVector2  m_previousMousePosition             = {0, 0};
         LGXVector2  m_mouseDelta                        = {0, 0};
-        int32       m_mouseScroll                       = 0;
+        float       m_mouseScroll                       = 0.0f;
     
         LGXVector2  m_mousePosTrackingClick             = {};
 

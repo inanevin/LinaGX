@@ -55,7 +55,7 @@ namespace LinaGX
         virtual void OnWindowSizeChanged(const LGXVector2ui&) {};
         virtual void OnWindowKey(uint32 keycode, int32 scancode, InputAction inputAction) {};
         virtual void OnWindowMouse(uint32 button, InputAction inputAction) {};
-        virtual void OnWindowMouseWheel(int32 delta) {};
+        virtual void OnWindowMouseWheel(float delta) {};
         virtual void OnWindowMouseMove(const LGXVector2&) {};
         virtual void OnWindowFocus(bool gainedFocus) {};
         virtual void OnWindowHoverBegin() {};

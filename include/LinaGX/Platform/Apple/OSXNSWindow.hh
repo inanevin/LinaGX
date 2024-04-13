@@ -78,7 +78,7 @@ namespace LinaGX
     std::function<void(int, LinaGX::InputAction)> keyCallback;
     std::function<void()> mouseEnteredCallback;
     std::function<void()> mouseExitedCallback;
-    std::function<void(int)> mouseWheelCallback;
+    std::function<void(float)> mouseWheelCallback;
     std::function<void()> mouseDraggedCallback;
 }
 @property (assign) LinaGX::Input* input;
@@ -86,7 +86,7 @@ namespace LinaGX
 - (void)setKeyCallback:(std::function<void(int, LinaGX::InputAction action)>)callback;
 - (void)setMouseEnteredCallback:(std::function<void()>)callback;
 - (void)setMouseExitedCallback:(std::function<void()>)callback;
-- (void)setMouseWheelCallback:(std::function<void(int)>)callback;
+- (void)setMouseWheelCallback:(std::function<void(float)>)callback;
 - (void)setMouseDraggedCallback:(std::function<void()>)callback;
 
 @end
