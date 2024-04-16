@@ -262,7 +262,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (void)scrollWheel:(NSEvent *)event
 {
-    mouseWheelCallback(static_cast<float>(event.scrollingDeltaY));
+    if(event.momentumPhase == NSEventPhaseNone)
+        mouseWheelCallback(static_cast<float>(event.scrollingDeltaY));
     [super scrollWheel:event];
 }
 
