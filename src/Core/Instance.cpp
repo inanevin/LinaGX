@@ -46,6 +46,9 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
+
+#define LGX_CONDITIONAL_LOCK(condition, mtx) auto conditionalScope = condition ? std::unique_lock<std::mutex>(mtx) : std::unique_lock<std::mutex>()
+
     Instance::~Instance()
     {
         Shutdown();
@@ -161,11 +164,13 @@ namespace LinaGX
 
     uint16 Instance::CreateUserSemaphore()
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateUserSemaphore();
     }
 
     void Instance::DestroyUserSemaphore(uint16 handle)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyUserSemaphore(handle);
     }
 
@@ -176,16 +181,19 @@ namespace LinaGX
 
     uint8 Instance::CreateSwapchain(const SwapchainDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateSwapchain(desc);
     }
 
     void Instance::DestroySwapchain(uint8 handle)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroySwapchain(handle);
     }
 
     void Instance::RecreateSwapchain(const SwapchainRecreateDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->RecreateSwapchain(desc);
     }
 
@@ -281,28 +289,19 @@ namespace LinaGX
 
     uint16 Instance::CreateShader(const ShaderDesc& shaderDesc)
     {
-        return m_backend->CreateShader(shaderDesc);
-    }
-
-    uint16 Instance::CreateShaderMT(const ShaderDesc& shaderDesc)
-    {
-        std::lock_guard<std::mutex> grd(m_shaderMtx);
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateShader(shaderDesc);
     }
 
     void Instance::DestroyShader(uint16 handle)
     {
-        m_backend->DestroyShader(handle);
-    }
-
-    void Instance::DestroyShaderMT(uint16 handle)
-    {
-        std::lock_guard<std::mutex> grd(m_shaderMtx);
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyShader(handle);
     }
 
     CommandStream* Instance::CreateCommandStream(const CommandStreamDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         const uint32   strHandle = m_backend->CreateCommandStream(desc);
         CommandStream* stream    = new CommandStream(m_backend, desc, strHandle);
         m_backend->SetCommandStreamImpl(strHandle, stream);
@@ -312,60 +311,43 @@ namespace LinaGX
 
     void Instance::DestroyCommandStream(CommandStream* stream)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         delete stream;
     }
 
     uint32 Instance::CreateTexture(const TextureDesc& desc)
     {
-        return m_backend->CreateTexture(desc);
-    }
-
-    uint32 Instance::CreateTextureMT(const TextureDesc &desc)
-    {
-        std::lock_guard<std::mutex> grd(m_textureMtx);
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateTexture(desc);
     }
 
     void Instance::DestroyTexture(uint32 handle)
     {
-        m_backend->DestroyTexture(handle);
-    }
-
-    void Instance::DestroyTextureMT(uint32 handle)
-    {
-        std::lock_guard<std::mutex> grd(m_textureMtx);
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyTexture(handle);
     }
 
     uint32 Instance::CreateSampler(const SamplerDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateSampler(desc);
     }
 
     void Instance::DestroySampler(uint32 handle)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroySampler(handle);
     }
 
     uint32 Instance::CreateResource(const ResourceDesc& desc)
     {
-        return m_backend->CreateResource(desc);
-    }
-
-    uint32 Instance::CreateResourceMT(const ResourceDesc& desc)
-    {
-        std::lock_guard<std::mutex> grd(m_resourceMtx);
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateResource(desc);
     }
 
     void Instance::DestroyResource(uint32 handle)
     {
-        m_backend->DestroyResource(handle);
-    }
-
-    void Instance::DestroyResourceMT(uint32 handle)
-    {
-        std::lock_guard<std::mutex> grd(m_resourceMtx);
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyResource(handle);
     }
 
@@ -381,11 +363,13 @@ namespace LinaGX
 
     uint16 Instance::CreateDescriptorSet(const DescriptorSetDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateDescriptorSet(desc);
     }
 
     void Instance::DestroyDescriptorSet(uint16 handle)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyDescriptorSet(handle);
     }
 
@@ -401,21 +385,25 @@ namespace LinaGX
 
     uint16 Instance::CreatePipelineLayout(const PipelineLayoutDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreatePipelineLayout(desc);
     }
 
     void Instance::DestroyPipelineLayout(uint16 layout)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyPipelineLayout(layout);
     }
 
     uint8 Instance::CreateQueue(const QueueDesc& desc)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         return m_backend->CreateQueue(desc);
     }
 
     void Instance::DestroyQueue(uint8 queue)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->DestroyQueue(queue);
     }
 

@@ -152,14 +152,12 @@ namespace LinaGX
         /// Creates a shader pipeline state object.
         /// </summary>
         uint16 CreateShader(const ShaderDesc& shaderDesc);
-        uint16 CreateShaderMT(const ShaderDesc& shaderDesc);
 
         /// <summary>
         /// Make sure all frames-in-flight operations are complete prior.
         /// </summary>
         /// <param name="handle"></param>
         void DestroyShader(uint16 handle);
-        void DestroyShaderMT(uint16 handle);
 
         /// <summary>
         /// Create a command stream, which are LinaGX representations of CommandBuffers (VK) or CommandLists (DX12). Use them to record all GPU operations.
@@ -177,13 +175,11 @@ namespace LinaGX
         /// Create a texture resource on the GPU.
         /// </summary>
         uint32 CreateTexture(const TextureDesc& desc);
-        uint32 CreateTextureMT(const TextureDesc& desc);
 
         /// <summary>
         /// Make sure all frames-in-flight operations are complete prior.
         /// </summary>
         void DestroyTexture(uint32 handle);
-        void DestroyTextureMT(uint32 handle);
 
         /// <summary>
         /// Create a sampler resource on the GPU.
@@ -200,13 +196,11 @@ namespace LinaGX
         /// Create a resource on the GPU, you can use ResourceDesc to customize memory and allocation behaviors.
         /// </summary>
         uint32 CreateResource(const ResourceDesc& desc);
-        uint32 CreateResourceMT(const ResourceDesc& desc);
 
         /// <summary>
         /// Make sure all frames-in-flight operations are complete prior.
         /// </summary>
         void DestroyResource(uint32 handle);
-        void DestroyResourceMT(uint32 handle);
 
         /// <summary>
         /// Map a GPU resource to given CPU pointer to write data to GPU from CPU.
@@ -331,9 +325,7 @@ namespace LinaGX
         WindowManager m_windowManager;
         Input         m_input;
         uint32        m_currentFrameIndex = 0;
-        std::mutex m_textureMtx;
-        std::mutex m_resourceMtx;
-        std::mutex m_shaderMtx;
+        std::mutex m_globalMtx;
 
         LINAGX_VEC<CommandStream*> m_commandStreams;
     };

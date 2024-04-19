@@ -500,7 +500,7 @@ namespace LinaGX
         if (!glslang_shader_parse(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            log               = log.substr(0, 1000);
+            log               = log.substr(0, 3000);
             LOGE("GLSL2SPV -> Parsing failed %s", log.c_str());
             LOGA(false,"");
             return false;

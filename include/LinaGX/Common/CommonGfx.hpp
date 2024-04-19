@@ -732,6 +732,7 @@ namespace LinaGX
         LogCallback         errorCallback   = nullptr;
         LogCallback         infoCallback    = nullptr;
         LogLevel            logLevel        = LogLevel::Normal;
+        bool mutexLockCreationDeletion = false;
     };
 
     struct MonitorInfo
