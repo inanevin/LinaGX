@@ -160,31 +160,51 @@ Demonstrates how to create an simple app window using LinaGX windowing API. NOth
 
 A simple UV triangle demonstrating shader cross-compilation, swapchains, render passes, frame submission and presentation.
 
+<div align="center">
+
 ![Triangle](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084531-b4df4e6a-6d77-4cf6-b4cf-5b42d79004c3.png)
+
+</div>
 
 ## [02-TexturesAndBinding](https://github.com/inanevin/LinaGX/tree/master/Examples/02-TexturesAndBinding)
 
 Building on top of the previous examples, introduces transfer streams for copying data to GPU using copy queues, vertex & index buffers, descriptor sets, texture loading utilities and texture transfers.
 
+<div align="center">
+
 ![TexturesAndBinding](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084535-49e2c0e3-013f-4381-af45-1920ea237028.png)
+
+</div>
 
 ## [03-RenderTargetsGLTF](https://github.com/inanevin/LinaGX/tree/master/Examples/03-RenderTargetsGLTF)
 
 Building on top of the previous examples, introduces GLTF loading, skinning, and multiple render targets.
 
-![RenderTargetsGLTF](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084118-7b640d2d-c505-4528-a37e-af1e5362e34e.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20231119%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20231119T190934Z&X-Amz-Expires=300&X-Amz-Signature=26b0c1e5a715bbf3d173c400693418bb4fde44f14db874ebdf3040d5ff7f1fe8&X-Amz-SignedHeaders=host&actor_id=3519379&key_id=0&repo_id=655905592)
+<div align="center">
+
+![RenderTargetsGLTF](https://i.imgur.com/DDTZnRF.png)
+
+</div>
 
 ## [04-BindlessIndirectComputeQueue](https://github.com/inanevin/LinaGX/tree/master/Examples/04-BindlessIndirectComputeQueue)
 
 Simple scene demonstrating usage of compute shaders, explicit compute queue and syncronization, as well as bindless textures and indirect rendering.
 
+<div align="center">
+
 ![BindlessIndirect](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084540-f32f8789-7a04-4b70-97d8-e868653678c9.png)
+
+</div>
 
 ## [05-FoxLounge](https://github.com/inanevin/LinaGX/tree/master/Examples/05-FoxLounge)
 
 A complete, comprehensive example, showing the flexibility and power of LinaGX, by providing a deferred PBR renderer, with point lights, shadow mapping, realtime IBL creation with irradiance, BRDF and prefilter steps, SSAO, bloom and other post-processing.
 
+<div align="center">
+
 ![FoxLounge2](https://github-production-user-asset-6210df.s3.amazonaws.com/3519379/284084578-02aab616-a10f-4d92-a17b-030a38609068.png)
+
+</div>
 
 # Installation
 
