@@ -497,6 +497,7 @@ namespace LinaGX
             LOGA(false,"");
             return false;
         }
+        
         if (!glslang_shader_parse(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);

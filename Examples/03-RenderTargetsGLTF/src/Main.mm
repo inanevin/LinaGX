@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 
-#include "RenderTarget.hpp"
+#include "RenderTargetsGLTF.hpp"
 
 using namespace LinaGX::Examples;
 
