@@ -2,8 +2,8 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
 layout(location = 0) in vec2 inUV;
-layout(location = 1) flat in uint inDrawID;
 layout(location = 0) out vec4 FragColor;
+layout(location = 1) flat in int inID;
 
 
 layout(set = 0, binding = 0) uniform SceneData
@@ -71,7 +71,7 @@ Material1 AsMaterial1(uint startIndex)
 
 void main()
 {
-	Material1 mat = AsMaterial1(indirectArguments.args[inDrawID].materialByteIndex);
+	Material1 mat = AsMaterial1(indirectArguments.args[inID].materialByteIndex);
 	vec4 albedo = texture(textures[mat.albedoIndex], inUV);
 	FragColor = albedo * mat.baseColor * mat.tint;
 	// FragColor = vec4(0,0,1,1);

@@ -1,5 +1,5 @@
 #version 460
- 
+
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 uv;
 layout(location = 2) in vec3 normal;
@@ -9,7 +9,7 @@ layout(location = 5) in vec4 inBoneIndices;
 layout(location = 6) in vec4 inBoneWeights;
 
 layout(location = 0) out vec2 outUV;
-layout(location = 1) flat out uint outDrawID;
+layout(location = 1) flat out int outID;
 
 layout(set = 0, binding = 0) uniform SceneData
 {
@@ -39,7 +39,7 @@ layout(set = 1, binding = 1) readonly buffer IndirectArgumentsData
 } indirectArguments;
 
 void main() {
-    outDrawID = gl_DrawID;
-    gl_Position = scene.viewProj * objectData.objects[indirectArguments.args[outDrawID].objectID].modelMatrix * vec4(inPosition, 1.0);
+    outID = gl_BaseInstance;
+    gl_Position = scene.viewProj * objectData.objects[indirectArguments.args[outID].objectID].modelMatrix * vec4(inPosition, 1.0);
     outUV = vec2(uv.x, uv.y);
 }
