@@ -487,19 +487,36 @@ namespace LinaGX
         TF_Cubemap               = 1 << 8,
     };
 
-    struct IndexedIndirectCommand
+    struct DX12IndexedIndirectCommand
     {
         uint32 LGX_DrawID            = 0;
         uint32 indexCountPerInstance = 0;
         uint32 instanceCount         = 0;
         uint32 startIndexLocation    = 0;
-        uint32 baseVertexLocation    = 0;
+        int32 baseVertexLocation    = 0;
+        uint32 startInstanceLocation = 0;
+    };
+    
+    struct DX12IndirectCommand
+    {
+        uint32 LGX_DrawID    = 0;
+        uint32 vertexCount   = 0;
+        uint32 instanceCount = 0;
+        uint32 vertexStart   = 0;
+        uint32 baseInstance  = 0;
+    };
+
+    struct IndexedIndirectCommand
+    {
+        uint32 indexCountPerInstance = 0;
+        uint32 instanceCount         = 0;
+        uint32 startIndexLocation    = 0;
+        int32 baseVertexLocation    = 0;
         uint32 startInstanceLocation = 0;
     };
 
     struct IndirectCommand
     {
-        uint32 LGX_DrawID    = 0;
         uint32 vertexCount   = 0;
         uint32 instanceCount = 0;
         uint32 vertexStart   = 0;

@@ -956,9 +956,9 @@ namespace LinaGX::Examples
 
         auto& currentFrame = _pfd[_lgx->GetCurrentFrameIndex()];
 
-        LINAGX_VEC<IndexedIndirectCommand> indirectCommands;
         LINAGX_VEC<ConstantsData>          indirectArguments;
 
+        uint32 cmdCount = 0;
         // Copy indirect buffer.
         {
             for (const auto& obj : _objects)
@@ -966,21 +966,14 @@ namespace LinaGX::Examples
                 for (const auto& mesh : obj.meshes)
                 {
                     uint32                 ic  = static_cast<uint32>(mesh.indices.size()) / (mesh.indexType == IndexType::Uint16 ? sizeof(uint16) : sizeof(uint32));
-                    IndexedIndirectCommand cmd = IndexedIndirectCommand{
-                        .LGX_DrawID            = static_cast<uint32>(indirectCommands.size()),
-                        .indexCountPerInstance = ic,
-                        .instanceCount         = 1,
-                        .startIndexLocation    = mesh.indexOffset,
-                        .baseVertexLocation    = mesh.vertexOffset,
-                        .startInstanceLocation = 0,
-                    };
-
-                    indirectCommands.push_back(cmd);
+                
+                    _lgx->BufferIndexedIndirectCommandData(currentFrame.indirectBufferMapping, _lgx->GetIndexedIndirectCommandSize() * cmdCount, cmdCount, ic, 1, mesh.indexOffset, mesh.vertexOffset, 0);
+                    cmdCount++;
+                    
                     ConstantsData data = {.index = obj.constants.index, .materialByteIndex = obj.constants.materialByteIndex};
                     indirectArguments.push_back(data);
                 }
             }
-            std::memcpy(currentFrame.indirectBufferMapping, indirectCommands.data(), sizeof(IndexedIndirectCommand) * indirectCommands.size());
             std::memcpy(currentFrame.indirectArgsMapping, indirectArguments.data(), sizeof(ConstantsData) * indirectArguments.size());
 
             CMDCopyResource* copyRes = currentFrame.copyStream->AddCommand<CMDCopyResource>();
@@ -1068,7 +1061,7 @@ namespace LinaGX::Examples
         // Dispatch compute work.
         {
             CMDDispatch* dispatch = currentFrame.computeStream->AddCommand<CMDDispatch>();
-            dispatch->groupSizeX  = (static_cast<uint32>(indirectCommands.size()) / 226) + 1;
+            dispatch->groupSizeX  = (cmdCount / 226) + 1;
             dispatch->groupSizeY  = 1;
             dispatch->groupSizeZ  = 1;
         }
@@ -1171,7 +1164,7 @@ namespace LinaGX::Examples
         // Indirect draw call.
         {
             CMDDrawIndexedIndirect* indirect = currentFrame.stream->AddCommand<CMDDrawIndexedIndirect>();
-            indirect->count                  = static_cast<uint32>(indirectCommands.size());
+            indirect->count                  = cmdCount;
             indirect->indirectBuffer         = currentFrame.indirectBufferGPU;
             indirect->indirectBufferOffset   = 0;
         }

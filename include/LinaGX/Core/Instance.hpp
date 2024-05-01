@@ -281,6 +281,34 @@ namespace LinaGX
         uint32 VKQueryFeatureSupport(PreferredGPUType gpuType);
 
         /// <summary>
+        /// Use below to buffer data into an indexed indirect command buffer.
+        /// </summary>
+        /// <param name="gpuType"></param>
+        /// <returns></returns>
+        void BufferIndexedIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance);
+        
+        /// <summary>
+        /// Use below to buffer data into an indirect command buffer.
+        /// </summary>
+        /// <param name="gpuType"></param>
+        /// <returns></returns>
+        void BufferIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 vertexCount, uint32 instanceCount, uint32 vertexOffset, uint32 firstInstance);
+        
+        /// <summary>
+        /// Use below to fetch the size of the indexed indirect command struct for the current API.
+        /// </summary>
+        /// <param name="gpuType"></param>
+        /// <returns></returns>
+        size_t GetIndexedIndirectCommandSize();
+        
+        /// <summary>
+        /// Use below to fetch the size of the indirect command struct for the current API.
+        /// </summary>
+        /// <param name="gpuType"></param>
+        /// <returns></returns>
+        size_t GetIndirectCommandSize();
+        
+        /// <summary>
         /// If you are using LinaGX as Windowing and Input system, make sure to call this function to after you poll all events from the operating system before your update loop (or however you want to handle input polling).
         /// </summary>
         void TickWindowSystem()

@@ -424,4 +424,74 @@ namespace LinaGX
         return 0;
     }
 
+    void Instance::BufferIndexedIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance)
+    {
+        if(Config.api == BackendAPI::DX12)
+        {
+            DX12IndexedIndirectCommand cmd = {
+                .LGX_DrawID = drawID,
+                .indexCountPerInstance = indexCount,
+                .instanceCount = instanceCount,
+                .startIndexLocation = firstIndex,
+                .baseVertexLocation = vertexOffset,
+                .startInstanceLocation = firstInstance,
+            };
+            
+            LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(DX12IndexedIndirectCommand));
+            return;
+        }
+        
+        IndexedIndirectCommand cmd = {
+            .indexCountPerInstance = indexCount,
+            .instanceCount = instanceCount,
+            .startIndexLocation = firstIndex,
+            .baseVertexLocation = vertexOffset,
+            .startInstanceLocation = firstInstance,
+        };
+        
+        LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(IndexedIndirectCommand));
+
+    }
+
+    void Instance::BufferIndirectCommandData(uint8 *buffer, size_t padding, uint32 drawID, uint32 vertexCount, uint32 instanceCount, uint32 vertexOffset, uint32 firstInstance)
+    {
+        if(Config.api == BackendAPI::DX12)
+        {
+            DX12IndirectCommand cmd = {
+                .LGX_DrawID = drawID,
+                .vertexCount   = vertexCount,
+                .instanceCount = instanceCount,
+                .vertexStart   = vertexOffset,
+                .baseInstance  = firstInstance,
+            };
+            
+            LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(DX12IndirectCommand));
+            return;
+        }
+        
+        IndirectCommand cmd = {
+            .vertexCount   = vertexCount,
+            .instanceCount = instanceCount,
+            .vertexStart   = vertexOffset,
+            .baseInstance  = firstInstance,
+        };
+        
+        LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(IndirectCommand));
+    }
+
+    size_t Instance::GetIndexedIndirectCommandSize()
+    {
+        if(Config.api == BackendAPI::DX12)
+            return sizeof(DX12IndexedIndirectCommand);
+        
+        return sizeof(IndexedIndirectCommand);
+    }
+
+    size_t Instance::GetIndirectCommandSize()
+    {
+        if(Config.api == BackendAPI::DX12)
+            return sizeof(DX12IndirectCommand);
+        
+        return sizeof(IndirectCommand);
+    }
 } // namespace LinaGX

@@ -444,33 +444,56 @@ namespace LinaGX
         LINAGX_STRING fullShaderStr = "";
         GetShaderTextWithIncludes(fullShaderStr, pShader, includePath);
 
+        auto replace = [&fullShaderStr](const LINAGX_STRING& search, const LINAGX_STRING& replace) -> bool {
+            size_t pos = 0;
+            
+            bool found = false;
+            
+            while((pos = fullShaderStr.find(search, pos)) != LINAGX_STRING::npos)
+            {
+                fullShaderStr.replace(pos, search.length(), replace);
+                pos += replace.length();
+                found = true;
+            }
+            
+            return found;
+        };
+        
         // gl_DrawID is not supported in HLSL/MSL, so we will replace it with our custom cbuffer at post processing
         // But we need to have the identifier generated in HLSL from SPV.
         if (targetAPI == BackendAPI::DX12 || targetAPI == BackendAPI::Metal)
         {
-            const LINAGX_STRING searchString  = "gl_DrawID";
-            const LINAGX_STRING replaceString = "LGX_GET_DRAW_ID()";
-            size_t              pos           = 0;
-            while ((pos = fullShaderStr.find(searchString, pos)) != std::string::npos)
+            if(replace("LGX_DRAW_ID", "LGX_GET_DRAW_ID()"))
             {
-                fullShaderStr.replace(pos, searchString.length(), replaceString);
-                pos += replaceString.length();
                 outLayout.hasGLDrawID = true;
-            }
+                const LINAGX_STRING constDecl  = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
+                size_t              versionPos = fullShaderStr.find("#version");
 
-            const LINAGX_STRING constDecl  = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
-            size_t              versionPos = fullShaderStr.find("#version");
-
-            if (versionPos != std::string::npos)
-            {
-                // The #version directive ends at the end of the line it is on, so we need to find that.
-                size_t endOfVersionLinePos = fullShaderStr.find("\n", versionPos);
-                if (endOfVersionLinePos != std::string::npos)
+                if (versionPos != std::string::npos)
                 {
-                    fullShaderStr.insert(endOfVersionLinePos + 1, constDecl);
+                    // The #version directive ends at the end of the line it is on, so we need to find that.
+                    size_t endOfVersionLinePos = fullShaderStr.find("\n", versionPos);
+                    if (endOfVersionLinePos != std::string::npos)
+                    {
+                        fullShaderStr.insert(endOfVersionLinePos + 1, constDecl);
+                    }
                 }
             }
         }
+    
+        if(targetAPI == BackendAPI::Vulkan || targetAPI == BackendAPI::Metal)
+        {
+            replace("LGX_DEFINE_INDEXED_INDIRECT;", "struct LGXIndexedIndirectCommand\n{\n uint indexCount;\n uint instanceCount;\n uint firstIndex;\n int vertexOffset;\n uint firstInstance;\n};\n");
+            replace("LGX_DEFINE_INDIRECT;", "struct LGXIndirectCommand\n{\n uint vertexCount;\n uint instanceCount;\n uint startVertex;\n uint baseInstance;\n};\n");
+        }
+        else
+        {
+            replace("LGX_DEFINE_INDEXED_INDIRECT;", "struct LGXIndexedIndirectCommand\n{\n uint LGX_DrawID;\n uint indexCount;\n uint instanceCount;\n uint firstIndex;\n int vertexOffset;\n uint firstInstance;\n};\n");
+            replace("LGX_DEFINE_INDIRECT;", "struct LGXIndirectCommand\n{\n uint LGX_DrawID;\n uint vertexCount;\n uint instanceCount;\n uint startVertex;\n uint baseInstance;\n};\n");
+        }
+        
+        replace("LGX_INDEXED_INDIRECT_CMD", "LGXIndexedIndirectCommand");
+        replace("LGX_INDIRECT_CMD", "LGXIndirectCommand");
 
         glslang_stage_t stage = GetStage(stg);
 

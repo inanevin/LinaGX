@@ -39,7 +39,7 @@ layout(set = 1, binding = 1) readonly buffer IndirectArgumentsData
 } indirectArguments;
 
 void main() {
-    outDrawID = gl_DrawID;
+    outDrawID = LGX_DRAW_ID;
     gl_Position = scene.viewProj * objectData.objects[indirectArguments.args[outDrawID].objectID].modelMatrix * vec4(inPosition, 1.0);
     outUV = vec2(uv.x, uv.y);
 }
