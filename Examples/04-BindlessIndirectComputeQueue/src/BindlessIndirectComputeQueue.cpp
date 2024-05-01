@@ -232,7 +232,6 @@ namespace LinaGX::Examples
             LinaGX::Config.logLevel                          = LogLevel::Verbose;
             LinaGX::Config.errorCallback                     = LogError;
             LinaGX::Config.infoCallback                      = LogInfo;
-            LinaGX::Config.dx12Config.shaderModel = 68;
             LinaGX::Config.vulkanConfig.enableVulkanFeatures = LinaGX::VulkanFeatureFlags::VKF_Bindless | LinaGX::VulkanFeatureFlags::VKF_UpdateAfterBind | LinaGX::VulkanFeatureFlags::VKF_MultiDrawIndirect;
 
             _lgx               = new LinaGX::Instance();
@@ -968,11 +967,12 @@ namespace LinaGX::Examples
                 {
                     uint32                 ic  = static_cast<uint32>(mesh.indices.size()) / (mesh.indexType == IndexType::Uint16 ? sizeof(uint16) : sizeof(uint32));
                     IndexedIndirectCommand cmd = IndexedIndirectCommand{
+                        .LGX_DrawID            = static_cast<uint32>(indirectCommands.size()),
                         .indexCountPerInstance = ic,
                         .instanceCount         = 1,
                         .startIndexLocation    = mesh.indexOffset,
                         .baseVertexLocation    = mesh.vertexOffset,
-                        .startInstanceLocation = static_cast<uint32>(indirectCommands.size()),
+                        .startInstanceLocation = 0,
                     };
 
                     indirectCommands.push_back(cmd);

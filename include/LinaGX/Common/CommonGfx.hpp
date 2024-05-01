@@ -489,6 +489,7 @@ namespace LinaGX
 
     struct IndexedIndirectCommand
     {
+        uint32 LGX_DrawID            = 0;
         uint32 indexCountPerInstance = 0;
         uint32 instanceCount         = 0;
         uint32 startIndexLocation    = 0;
@@ -498,6 +499,7 @@ namespace LinaGX
 
     struct IndirectCommand
     {
+        uint32 LGX_DrawID    = 0;
         uint32 vertexCount   = 0;
         uint32 instanceCount = 0;
         uint32 vertexStart   = 0;
@@ -581,6 +583,8 @@ namespace LinaGX
         uint32                                 constantsSet     = 0;
         uint32                                 constantsBinding = 0;
         uint32                                 totalDescriptors = 0;
+        bool                                   hasGLDrawID      = false;
+        uint32                                 drawIDBinding    = 0;
     };
 
     struct Viewport
@@ -708,7 +712,6 @@ namespace LinaGX
         bool enableDebugLayers            = true;
         bool enableShaderDebugInformation = true;
         bool serializeShaderDebugSymbols  = false;
-        uint32 shaderModel = 60; // SM6_0
     };
 
     struct MetalConfiguration

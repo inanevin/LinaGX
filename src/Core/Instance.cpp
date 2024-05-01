@@ -235,6 +235,29 @@ namespace LinaGX
             {
                 LINAGX_STRING hlsl = "";
 
+                // gl_DrawID is not supported in HLSL
+                // we need to add a custom constant buffer declaration.
+                if (stage == ShaderStage::Vertex && outLayout.hasGLDrawID)
+                {
+                    uint32 maxBinding = 0;
+
+                    for (const auto& dcSetLayout : outLayout.descriptorSetLayouts)
+                    {
+                        for (const auto& binding : dcSetLayout.bindings)
+                        {
+                            if (binding.type == DescriptorType::UBO)
+                                maxBinding++;
+                        }
+
+                        break;
+                    }
+
+                    outLayout.drawIDBinding = maxBinding;
+
+                    hlsl = "\n cbuffer DrawIDBuffer : register(b" + LINAGX_TOSTRING(outLayout.drawIDBinding);
+                    hlsl += +") \n  {\n uint LGX_DRAW_ID; \n }; \n";
+                }
+
                 hlsl += outHLSLs[stage];
 
                 if (!m_backend->CompileShader(stage, hlsl, blob))

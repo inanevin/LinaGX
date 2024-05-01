@@ -2553,11 +2553,17 @@ void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) 
     const auto& indexRes = m_resources.GetItemR(stream.currentIndexBuffer);
     id<MTLBuffer> indexBuf = AS_MTL(indexRes.ptr, id<MTLBuffer>);
     
+    // LGXDrawID is fed into the Nth element so offset by it.
     for(int32 i = 0; i < cmd->count; i++)
     {
+        if(shader.layout.hasGLDrawID)
+        {
+            const int32 drawId = i;
+            [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:shader.layout.drawIDBinding];
+        }
+        
         auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
-        size_t offset = cmd->indirectBufferOffset + sizeof(IndexedIndirectCommand) * i;
-        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset: offset];
+        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:sizeof(IndexedIndirectCommand) * i + sizeof(uint32)];
     }
 }
 
@@ -2598,10 +2604,17 @@ void MTLBackend::CMD_DrawIndirect(uint8 *data, MTLCommandStream &stream) {
     const auto& indexRes = m_resources.GetItemR(stream.currentIndexBuffer);
     id<MTLBuffer> indexBuf = AS_MTL(indexRes.ptr, id<MTLBuffer>);
     
+    // LGXDrawID is fed into the Nth element so offset by it.
     for(int32 i = 0; i < cmd->count; i++)
     {
+        if(shader.layout.hasGLDrawID)
+        {
+            const int32 drawId = i;
+            [encoder setVertexBytes:&drawId length:sizeof(uint32) atIndex:shader.layout.drawIDBinding];
+        }
+        
         auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
-        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:cmd->indirectBufferOffset + sizeof(IndirectCommand) * i];
+        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:sizeof(IndexedIndirectCommand) * i + sizeof(uint32)];
     }
 }
 
