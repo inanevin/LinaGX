@@ -1252,7 +1252,7 @@ namespace LinaGX
                     D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
                     commandSignatureDesc.pArgumentDescs               = argumentDescs;
                     commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
-                    commandSignatureDesc.ByteStride                   = sizeof(IndexedIndirectCommand);
+                    commandSignatureDesc.ByteStride                   = sizeof(DX12IndexedIndirectCommand);
 
                     ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectIndexedSig)));
 
@@ -1266,7 +1266,7 @@ namespace LinaGX
                     D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
                     commandSignatureDesc2.pArgumentDescs               = argumentDescs2;
                     commandSignatureDesc2.NumArgumentDescs             = _countof(argumentDescs2);
-                    commandSignatureDesc2.ByteStride                   = sizeof(IndirectCommand);
+                    commandSignatureDesc2.ByteStride                   = sizeof(DX12IndirectCommand);
 
                     ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectDrawSig)));
                 }

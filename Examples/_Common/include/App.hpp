@@ -41,6 +41,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstdarg>
 #include <chrono>
 #include <atomic>
+#include <mutex>
 
 namespace LinaGX
 {

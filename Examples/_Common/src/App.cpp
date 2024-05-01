@@ -88,8 +88,17 @@ namespace LinaGX::Examples
 
     void App::RegisterWindowCallbacks(LinaGX::Window* wnd)
     {
-        wnd->SetCallbackClose([this]() { m_isRunning = false; });
-        wnd->SetCallbackSizeChanged([this](const LinaGX::LGXVector2ui& newSize) { OnWindowResized(newSize.x, newSize.y); });
+        m_window = wnd;
+        m_window->AddListener(this);
     }
 
+    void App::OnWindowClose()
+    {
+        m_isRunning = false;
+    }
+
+    void App::OnWindowSizeChanged(const LinaGX::LGXVector2ui& newSize)
+    {
+         OnWindowResized(newSize.x, newSize.y); 
+    }
 } // namespace LinaGX::Examples

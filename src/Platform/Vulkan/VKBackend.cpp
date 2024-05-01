@@ -3288,11 +3288,11 @@ namespace LinaGX
         auto&                   indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
 
         if (m_supportsMultiDrawIndirect)
-            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + cmd->indirectBufferOffset, cmd->count, sizeof(IndexedIndirectCommand));
+            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, cmd->indirectBufferOffset, cmd->count, sizeof(IndexedIndirectCommand));
         else
         {
             for (uint32 i = 0; i < cmd->count; i++)
-                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + cmd->indirectBufferOffset + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
+                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, cmd->indirectBufferOffset + sizeof(IndexedIndirectCommand) * i, 1, sizeof(IndexedIndirectCommand));
         }
     }
 
@@ -3303,11 +3303,11 @@ namespace LinaGX
         auto&            indBuffer = m_resources.GetItemR(cmd->indirectBuffer);
 
         if (m_supportsMultiDrawIndirect)
-            vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32), cmd->count, sizeof(IndirectCommand));
+            vkCmdDrawIndirect(buffer, indBuffer.buffer, cmd->indirectBufferOffset, cmd->count, sizeof(IndirectCommand));
         else
         {
             for (uint32 i = 0; i < cmd->count; i++)
-                vkCmdDrawIndexedIndirect(buffer, indBuffer.buffer, sizeof(uint32) + sizeof(IndirectCommand) * i, 1, sizeof(IndirectCommand));
+                vkCmdDrawIndirect(buffer, indBuffer.buffer, cmd->indirectBufferOffset + sizeof(IndirectCommand) * i, 1, sizeof(IndirectCommand));
         }
     }
 

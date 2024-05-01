@@ -463,10 +463,10 @@ namespace LinaGX
         // But we need to have the identifier generated in HLSL from SPV.
         if (targetAPI == BackendAPI::DX12 || targetAPI == BackendAPI::Metal)
         {
-            if(replace("LGX_DRAW_ID", "LGX_GET_DRAW_ID()"))
+            if (replace("LGX_DRAW_ID", "LGX_GET_DRAW_ID()"))
             {
                 outLayout.hasGLDrawID = true;
-                const LINAGX_STRING constDecl  = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
+                const LINAGX_STRING constDecl = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
                 size_t              versionPos = fullShaderStr.find("#version");
 
                 if (versionPos != std::string::npos)
@@ -480,6 +480,9 @@ namespace LinaGX
                 }
             }
         }
+        else
+            replace("LGX_DRAW_ID", "gl_DrawID");
+
     
         if(targetAPI == BackendAPI::Vulkan || targetAPI == BackendAPI::Metal)
         {

@@ -213,7 +213,7 @@ namespace LinaGX
         m_appActive = activate;
     }
 
-    void Input::WindowFeedMouseWheel(int32 delta, Window* window)
+    void Input::WindowFeedMouseWheel(float delta, Window* window)
     {
         m_mouseScroll = delta;
 

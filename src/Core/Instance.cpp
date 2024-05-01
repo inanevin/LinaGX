@@ -426,72 +426,67 @@ namespace LinaGX
 
     void Instance::BufferIndexedIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance)
     {
-        if(Config.api == BackendAPI::DX12)
+        if (Config.api == BackendAPI::DX12)
         {
-            DX12IndexedIndirectCommand cmd = {
-                .LGX_DrawID = drawID,
-                .indexCountPerInstance = indexCount,
-                .instanceCount = instanceCount,
-                .startIndexLocation = firstIndex,
-                .baseVertexLocation = vertexOffset,
-                .startInstanceLocation = firstInstance,
-            };
-            
+            DX12IndexedIndirectCommand cmd = {};
+            cmd.LGX_DrawID                 = drawID;
+            cmd.indexCountPerInstance      = indexCount;
+            cmd.instanceCount              = instanceCount;
+            cmd.startIndexLocation         = firstIndex;
+            cmd.baseVertexLocation         = vertexOffset;
+            cmd.startInstanceLocation      = firstInstance;
+
             LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(DX12IndexedIndirectCommand));
             return;
         }
-        
-        IndexedIndirectCommand cmd = {
-            .indexCountPerInstance = indexCount,
-            .instanceCount = instanceCount,
-            .startIndexLocation = firstIndex,
-            .baseVertexLocation = vertexOffset,
-            .startInstanceLocation = firstInstance,
-        };
-        
-        LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(IndexedIndirectCommand));
 
+        IndexedIndirectCommand cmd = {};
+        cmd.indexCountPerInstance  = indexCount;
+        cmd.instanceCount          = instanceCount;
+        cmd.startIndexLocation     = firstIndex;
+        cmd.baseVertexLocation     = vertexOffset;
+        cmd.startInstanceLocation  = firstInstance;
+
+        LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(IndexedIndirectCommand));
     }
 
-    void Instance::BufferIndirectCommandData(uint8 *buffer, size_t padding, uint32 drawID, uint32 vertexCount, uint32 instanceCount, uint32 vertexOffset, uint32 firstInstance)
+    void Instance::BufferIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 vertexCount, uint32 instanceCount, uint32 vertexOffset, uint32 firstInstance)
     {
-        if(Config.api == BackendAPI::DX12)
+        if (Config.api == BackendAPI::DX12)
         {
-            DX12IndirectCommand cmd = {
-                .LGX_DrawID = drawID,
-                .vertexCount   = vertexCount,
-                .instanceCount = instanceCount,
-                .vertexStart   = vertexOffset,
-                .baseInstance  = firstInstance,
-            };
-            
+            DX12IndirectCommand cmd = {};
+            cmd.LGX_DrawID          = drawID;
+            cmd.vertexCount         = vertexCount,
+            cmd.instanceCount       = instanceCount,
+            cmd.vertexStart         = vertexOffset,
+            cmd.baseInstance        = firstInstance,
+
             LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(DX12IndirectCommand));
             return;
         }
-        
-        IndirectCommand cmd = {
-            .vertexCount   = vertexCount,
-            .instanceCount = instanceCount,
-            .vertexStart   = vertexOffset,
-            .baseInstance  = firstInstance,
-        };
-        
+
+        IndirectCommand cmd = {};
+        cmd.vertexCount     = vertexCount,
+        cmd.instanceCount   = instanceCount,
+        cmd.vertexStart     = vertexOffset,
+        cmd.baseInstance    = firstInstance,
+
         LINAGX_MEMCPY(buffer + padding, &cmd, sizeof(IndirectCommand));
     }
 
     size_t Instance::GetIndexedIndirectCommandSize()
     {
-        if(Config.api == BackendAPI::DX12)
+        if (Config.api == BackendAPI::DX12)
             return sizeof(DX12IndexedIndirectCommand);
-        
+
         return sizeof(IndexedIndirectCommand);
     }
 
     size_t Instance::GetIndirectCommandSize()
     {
-        if(Config.api == BackendAPI::DX12)
+        if (Config.api == BackendAPI::DX12)
             return sizeof(DX12IndirectCommand);
-        
+
         return sizeof(IndirectCommand);
     }
 } // namespace LinaGX
