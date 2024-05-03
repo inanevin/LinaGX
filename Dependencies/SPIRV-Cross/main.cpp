@@ -677,6 +677,9 @@ struct CLIArguments
 	bool msl_check_discarded_frag_stores = false;
 	bool msl_sample_dref_lod_array_as_grad = false;
 	bool msl_runtime_array_rich_descriptor = false;
+	bool msl_replace_recursive_inputs = false;
+	bool msl_readwrite_texture_fences = true;
+	bool msl_agx_manual_cube_grad_fixup = false;
 	const char *msl_combined_sampler_suffix = nullptr;
 	bool glsl_emit_push_constant_as_ubo = false;
 	bool glsl_emit_ubo_as_plain_uniforms = false;
@@ -867,6 +870,7 @@ static void print_help_msl()
 	                "\t\tUses same values as Metal MTLArgumentBuffersTier enumeration (0 = Tier1, 1 = Tier2).\n"
 	                "\t\tNOTE: Setting this value no longer enables msl-argument-buffers implicitly.\n"
 	                "\t[--msl-runtime-array-rich-descriptor]:\n\t\tWhen declaring a runtime array of SSBOs, declare an array of {ptr, len} pairs to support OpArrayLength.\n"
+	                "\t[--msl-replace-recursive-inputs]:\n\t\tWorks around a Metal 3.1 regression bug, which causes an infinite recursion crash during Metal's analysis of an entry point input structure that itself contains internal recursion.\n"
 	                "\t[--msl-texture-buffer-native]:\n\t\tEnable native support for texel buffers. Otherwise, it is emulated as a normal texture.\n"
 	                "\t[--msl-framebuffer-fetch]:\n\t\tImplement subpass inputs with frame buffer fetch.\n"
 	                "\t\tEmits [[color(N)]] inputs in fragment stage.\n"
@@ -956,6 +960,14 @@ static void print_help_msl()
 	                "\t\tSome Metal devices have a bug where the level() argument to\n"
 	                "\t\tdepth2d_array<T>::sample_compare() in a fragment shader is biased by some\n"
 	                "\t\tunknown amount. This prevents the bias from being added.\n"
+	                "\t[--msl-no-readwrite-texture-fences]:\n\t\tDo not insert fences before each read of a\n"
+	                "\t\tread_write texture. MSL does not guarantee coherence between writes and later reads\n"
+	                "\t\tof read_write textures. If you don't rely on this, you can disable this for a\n"
+	                "\t\tpossible performance improvement.\n"
+	                "\t[--msl-agx-manual-cube-grad-fixup]:\n\t\tManually transform cube texture gradients.\n"
+	                "\t\tAll released Apple Silicon GPUs to date ignore one of the three partial derivatives\n"
+	                "\t\tbased on the selected major axis, and expect the remaining derivatives to be\n"
+	                "\t\tpartially transformed. This fixup gives correct results on Apple Silicon.\n"
 	                "\t[--msl-combined-sampler-suffix <suffix>]:\n\t\tUses a custom suffix for combined samplers.\n");
 	// clang-format on
 }
@@ -1233,6 +1245,9 @@ static string compile_iteration(const CLIArguments &args, std::vector<uint32_t> 
 		msl_opts.sample_dref_lod_array_as_grad = args.msl_sample_dref_lod_array_as_grad;
 		msl_opts.ios_support_base_vertex_instance = true;
 		msl_opts.runtime_array_rich_descriptor = args.msl_runtime_array_rich_descriptor;
+		msl_opts.replace_recursive_inputs = args.msl_replace_recursive_inputs;
+		msl_opts.readwrite_texture_fences = args.msl_readwrite_texture_fences;
+		msl_opts.agx_manual_cube_grad_fixup = args.msl_agx_manual_cube_grad_fixup;
 		msl_comp->set_msl_options(msl_opts);
 		for (auto &v : args.msl_discrete_descriptor_sets)
 			msl_comp->add_discrete_descriptor_set(v);
@@ -1787,11 +1802,15 @@ static int main_inner(int argc, char *argv[])
 	cbs.add("--msl-check-discarded-frag-stores", [&args](CLIParser &) { args.msl_check_discarded_frag_stores = true; });
 	cbs.add("--msl-sample-dref-lod-array-as-grad",
 	        [&args](CLIParser &) { args.msl_sample_dref_lod_array_as_grad = true; });
+	cbs.add("--msl-no-readwrite-texture-fences", [&args](CLIParser &) { args.msl_readwrite_texture_fences = false; });
+	cbs.add("--msl-agx-manual-cube-grad-fixup", [&args](CLIParser &) { args.msl_agx_manual_cube_grad_fixup = true; });
 	cbs.add("--msl-combined-sampler-suffix", [&args](CLIParser &parser) {
 		args.msl_combined_sampler_suffix = parser.next_string();
 	});
 	cbs.add("--msl-runtime-array-rich-descriptor",
 	        [&args](CLIParser &) { args.msl_runtime_array_rich_descriptor = true; });
+	cbs.add("--msl-replace-recursive-inputs",
+	        [&args](CLIParser &) { args.msl_replace_recursive_inputs = true; });
 	cbs.add("--extension", [&args](CLIParser &parser) { args.extensions.push_back(parser.next_string()); });
 	cbs.add("--rename-entry-point", [&args](CLIParser &parser) {
 		auto old_name = parser.next_string();

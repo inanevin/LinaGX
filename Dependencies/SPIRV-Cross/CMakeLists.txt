@@ -29,20 +29,20 @@ if (${CMAKE_VERSION} VERSION_GREATER "3.0.1")
 endif()
 
 project(SPIRV-Cross LANGUAGES CXX C)
-## enable_testing()
+enable_testing()
 
 include(GNUInstallDirs)
 
 option(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS "Instead of throwing exceptions assert" OFF)
 option(SPIRV_CROSS_SHARED "Build the C API as a single shared library." OFF)
 option(SPIRV_CROSS_STATIC "Build the C and C++ API as static libraries." ON)
-## option(SPIRV_CROSS_CLI "Build the CLI binary. Requires SPIRV_CROSS_STATIC." ON)
-## option(SPIRV_CROSS_ENABLE_TESTS "Enable SPIRV-Cross tests." ON)
+option(SPIRV_CROSS_CLI "Build the CLI binary. Requires SPIRV_CROSS_STATIC." ON)
+option(SPIRV_CROSS_ENABLE_TESTS "Enable SPIRV-Cross tests." ON)
 
 option(SPIRV_CROSS_ENABLE_GLSL "Enable GLSL support." ON)
 option(SPIRV_CROSS_ENABLE_HLSL "Enable HLSL target support." ON)
 option(SPIRV_CROSS_ENABLE_MSL "Enable MSL target support." ON)
-## option(SPIRV_CROSS_ENABLE_CPP "Enable C++ target support." ON)
+option(SPIRV_CROSS_ENABLE_CPP "Enable C++ target support." ON)
 option(SPIRV_CROSS_ENABLE_REFLECT "Enable JSON reflection target support." ON)
 option(SPIRV_CROSS_ENABLE_C_API "Enable C API wrapper support in static library." ON)
 option(SPIRV_CROSS_ENABLE_UTIL "Enable util module support." ON)
@@ -77,7 +77,7 @@ set(spirv-cross-build-version "unknown")
 find_package(Git)
 if (GIT_FOUND)
 	execute_process(
-		COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+		COMMAND ${GIT_EXECUTABLE} describe --always --tags --dirty=+
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		OUTPUT_VARIABLE spirv-cross-build-version
 		ERROR_QUIET
@@ -243,7 +243,7 @@ set(spirv-cross-util-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/spirv_cross_util.hpp)
 
 set(spirv-cross-abi-major 0)
-set(spirv-cross-abi-minor 57)
+set(spirv-cross-abi-minor 59)
 set(spirv-cross-abi-patch 0)
 set(SPIRV_CROSS_VERSION ${spirv-cross-abi-major}.${spirv-cross-abi-minor}.${spirv-cross-abi-patch})
 
@@ -459,13 +459,25 @@ if (SPIRV_CROSS_CLI)
 			spirv-cross-util
 			spirv-cross-core)
 
-	if (SPIRV_CROSS_ENABLE_TESTS AND FALSE)
+	if (SPIRV_CROSS_ENABLE_TESTS)
 		# Set up tests, using only the simplest modes of the test_shaders
 		# script.  You have to invoke the script manually to:
 		#  - Update the reference files
 		#  - Get cycle counts from malisc
 		#  - Keep failing outputs
-		find_package(PythonInterp)
+		if (${CMAKE_VERSION} VERSION_GREATER "3.12")
+			find_package(Python3)
+			if (${PYTHON3_FOUND})
+				set(PYTHONINTERP_FOUND ON)
+				set(PYTHON_VERSION_MAJOR 3)
+				set(PYTHON_EXECUTABLE ${Python3_EXECUTABLE})
+			else()
+				set(PYTHONINTERP_FOUND OFF)
+			endif()
+		else()
+			find_package(PythonInterp)
+		endif()
+
 		find_program(spirv-cross-glslang NAMES glslangValidator
 				PATHS ${CMAKE_CURRENT_SOURCE_DIR}/external/glslang-build/output/bin
 				NO_DEFAULT_PATH)

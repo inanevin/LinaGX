@@ -929,6 +929,7 @@ namespace LinaGX
                 arguments.push_back(DXC_ARG_DEBUG);
                 arguments.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
                 arguments.push_back(DXC_ARG_PREFER_FLOW_CONTROL);
+                arguments.push_back(L"-Qembed_debug");
             }
             else
             {
@@ -3183,8 +3184,8 @@ namespace LinaGX
                 // Render Pass 2, before binding anyshaders, wants to bind descriptor sets.
                 // In such cases, param might not be null, so we still need to make sure the layout matches.
                 bool layoutMatches = true;
-                if (binding.lgxBinding.unbounded && param->elementSize != 0)
-                    layoutMatches = false;
+                //if (binding.lgxBinding.unbounded && param->elementSize != 0)
+                //    layoutMatches = false;
 
                 if (!binding.lgxBinding.unbounded && param->elementSize != binding.lgxBinding.descriptorCount)
                     layoutMatches = false;
