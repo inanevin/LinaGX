@@ -64,7 +64,7 @@ include/WindowCreation.hpp
 # Create executable project
 #--------------------------------------------------------------------
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER ${LINAGX_FOLDER_BASE}/Examples)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ExampleProjectSettings.cmake)
 

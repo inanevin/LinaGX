@@ -133,3 +133,9 @@ target_compile_definitions(spirv-cross-hlsl PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAG
 target_compile_definitions(spirv-cross-msl PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAGX_ITERATOR_DEBUG_LEVEL})
 target_compile_definitions(spirv-cross-reflect PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAGX_ITERATOR_DEBUG_LEVEL})
 target_compile_definitions(spirv-cross-util PUBLIC _ITERATOR_DEBUG_LEVEL=${LINAGX_ITERATOR_DEBUG_LEVEL})
+
+if(MSVC)
+target_compile_options(SPIRV PRIVATE /W0)
+else()
+target_compile_options(SPIRV PRIVATE -w)
+endif()

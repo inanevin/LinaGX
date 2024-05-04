@@ -31,7 +31,7 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER ${LINAGX_FOLDER_BASE}/Examples)
 set(LINAGX_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME}/$<CONFIGURATION>/)
 message(${LINAGX_RUNTIME_OUTPUT_DIRECTORY})
 
