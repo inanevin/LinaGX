@@ -165,7 +165,7 @@ namespace LinaGX
             return DefWindowProcA(hwnd, msg, wParam, lParam);
 
         auto handleMouseMove = [](Win32Window* win32Window, float xPos, float yPos) {
-            const LGXVector2 mp        = {xPos, yPos};
+            const LGXVector2 mp          = {xPos, yPos};
             win32Window->m_mousePosition = mp;
             win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition, win32Window);
 
@@ -200,6 +200,9 @@ namespace LinaGX
                 // auto res = HandleNonClientArea(win32Window->m_hwnd, lParam, win32Window->m_dragRect, msg, wParam, true);
                 auto res = HandleNonclientHitTest2(win32Window, lParam, POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)},
                                                    hwnd);
+
+                win32Window->m_hittestOwnsCursor = res != HTCLIENT;
+
                 if (res == HTCLIENT)
                     win32Window->SetCursorType(win32Window->m_cursorType);
                 return res;
@@ -380,10 +383,10 @@ namespace LinaGX
 
             auto delta = GET_WHEEL_DELTA_WPARAM(wParam);
 
-            win32Window->m_input->WindowFeedMouseWheel(static_cast<int32>(delta), win32Window);
+            win32Window->m_input->WindowFeedMouseWheel(static_cast<float>(delta), win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouseWheel(static_cast<int32>(delta));
+                l->OnWindowMouseWheel(static_cast<float>(delta));
 
             break;
         }
@@ -615,41 +618,41 @@ namespace LinaGX
         m_dpiScale = m_dpi / 96.0f;
     }
 
-namespace
-{
-    MonitorInfo GetMonitorInfo(HMONITOR monitor)
+    namespace
     {
-        MonitorInfo info;
-        
-        MONITORINFOEX monitorInfo;
-        monitorInfo.cbSize = sizeof(monitorInfo);
-        GetMonitorInfo(monitor, &monitorInfo);
+        MonitorInfo GetMonitorInfo(HMONITOR monitor)
+        {
+            MonitorInfo info;
 
-        UINT    dpiX, dpiY;
-        HRESULT temp2 = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+            MONITORINFOEX monitorInfo;
+            monitorInfo.cbSize = sizeof(monitorInfo);
+            GetMonitorInfo(monitor, &monitorInfo);
 
-        info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
-        info.workSize      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
-        info.workTopLeft   = {static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
-        info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-        info.monitorHandle = static_cast<void*>(monitor);
-        info.dpi           = dpiX;
-        info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
-        return info;
-    }
-}
+            UINT    dpiX, dpiY;
+            HRESULT temp2 = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+
+            info.size          = {static_cast<uint32>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left), static_cast<uint32>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top)};
+            info.workSize      = {static_cast<uint32>(monitorInfo.rcWork.right - monitorInfo.rcWork.left), static_cast<uint32>(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top)};
+            info.workTopLeft   = {static_cast<int32>(monitorInfo.rcWork.left), static_cast<int32>(monitorInfo.rcWork.top)};
+            info.isPrimary     = (monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+            info.monitorHandle = static_cast<void*>(monitor);
+            info.dpi           = dpiX;
+            info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
+            return info;
+        }
+    } // namespace
 
     MonitorInfo Window::GetPrimaryMonitorInfo()
     {
-        const POINT ptZero = { 0, 0 };
-        HMONITOR monitor  = MonitorFromPoint(ptZero, MONITOR_DEFAULTTOPRIMARY);
+        const POINT ptZero  = {0, 0};
+        HMONITOR    monitor = MonitorFromPoint(ptZero, MONITOR_DEFAULTTOPRIMARY);
         return GetMonitorInfo(monitor);
     }
 
     void Win32Window::CalculateMonitorInfo()
     {
-        HMONITOR      monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
-        m_monitorInfo = GetMonitorInfo(monitor);
+        HMONITOR monitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTOPRIMARY);
+        m_monitorInfo    = GetMonitorInfo(monitor);
     }
 
     void Win32Window::Close()
@@ -718,6 +721,9 @@ namespace
 
     void Win32Window::SetCursorType(CursorType type)
     {
+        if (m_hittestOwnsCursor)
+            return;
+
         m_cursorType = type;
 
         HCURSOR cursor = NULL;

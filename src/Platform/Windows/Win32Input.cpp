@@ -223,8 +223,8 @@ namespace LinaGX
 
     void Input::WindowFeedDelta(int32 deltaX, int32 deltaY)
     {
-        m_mouseDelta.x  = deltaX;
-        m_mouseDelta.y  = deltaY;
+        m_mouseDelta.x  = static_cast<float>(deltaX);
+        m_mouseDelta.y  = static_cast<float>(deltaY);
         m_receivedDelta = true;
     }
 
