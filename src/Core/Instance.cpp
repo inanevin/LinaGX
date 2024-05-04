@@ -353,11 +353,13 @@ namespace LinaGX
 
     void Instance::MapResource(uint32 resource, uint8*& ptr)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->MapResource(resource, ptr);
     }
 
     void Instance::UnmapResource(uint32 resource)
     {
+        LGX_CONDITIONAL_LOCK(Config.mutexLockCreationDeletion, m_globalMtx);
         m_backend->UnmapResource(resource);
     }
 

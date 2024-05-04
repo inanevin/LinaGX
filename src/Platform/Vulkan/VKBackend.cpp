@@ -2491,11 +2491,12 @@ namespace LinaGX
         shaderDrawParamsFeature.pNext                = nullptr;
         shaderDrawParamsFeature.shaderDrawParameters = VK_TRUE;
 
+        VkPhysicalDeviceMultiDrawFeaturesEXT mt;
+        mt.sType     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT;
+        mt.multiDraw = true;
+
         if (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_MultiDrawIndirect)
         {
-            VkPhysicalDeviceMultiDrawFeaturesEXT mt;
-            mt.sType     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT;
-            mt.multiDraw = true;
             deviceBuilder.add_pNext(&mt);
         }
 
