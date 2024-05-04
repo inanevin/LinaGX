@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -541,7 +541,7 @@ namespace LinaGX
             else
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
-        case LinaGX::TextureBarrierState::ShaderRead: 
+        case LinaGX::TextureBarrierState::ShaderRead:
             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         case LinaGX::TextureBarrierState::DepthRead:
             return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
@@ -1703,10 +1703,10 @@ namespace LinaGX
         item.bindings         = desc.bindings;
         item.layout           = CreateDescriptorSetLayout(desc);
 
-        LINAGX_VEC< VkDescriptorSetLayout> layouts;
+        LINAGX_VEC<VkDescriptorSetLayout> layouts;
         layouts.resize(desc.allocationCount);
 
-        for (int32 i = 0; i < desc.allocationCount; i++)
+        for (uint32 i = 0; i < desc.allocationCount; i++)
             layouts[i] = item.layout;
 
         VkDescriptorSetAllocateInfo allocInfo = {};
@@ -3067,7 +3067,21 @@ namespace LinaGX
 
             swaps.push_back(swp.ptr);
             imageIndices.push_back(swp._imageIndex);
-            waitSemaphores.push_back(m_queues.GetItemR(swp._submittedQueue).pfd[m_currentFrameIndex].submitSemaphoreBuffer[swp._submittedSemaphoreIndex]);
+
+            auto* smp = m_queues.GetItemR(swp._submittedQueue).pfd[m_currentFrameIndex].submitSemaphoreBuffer[swp._submittedSemaphoreIndex];
+
+            bool found = false;
+            for (auto* sem : waitSemaphores)
+            {
+                if (sem == smp)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                waitSemaphores.push_back(smp);
         }
 
         if (swaps.empty())
