@@ -68,7 +68,7 @@ include/ThreadPool.hpp
 #--------------------------------------------------------------------
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 add_library(LinaGX::ExamplesCommon ALIAS ${PROJECT_NAME})
-set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER LinaGXProject/Examples)
+set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER ${LINAGX_FOLDER_BASE}/Examples)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ProjectSettings.cmake)
 
