@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -46,35 +46,32 @@ namespace LinaGX
     class WindowListener
     {
     public:
-        
-        WindowListener() = default;
+        WindowListener()          = default;
         virtual ~WindowListener() = default;
-        
-        virtual void OnWindowClose() {};
-        virtual void OnWindowPosChanged(const LGXVector2i&) {};
-        virtual void OnWindowSizeChanged(const LGXVector2ui&) {};
-        virtual void OnWindowKey(uint32 keycode, int32 scancode, InputAction inputAction) {};
-        virtual void OnWindowMouse(uint32 button, InputAction inputAction) {};
-        virtual void OnWindowMouseWheel(float delta) {};
-        virtual void OnWindowMouseMove(const LGXVector2&) {};
-        virtual void OnWindowFocus(bool gainedFocus) {};
-        virtual void OnWindowHoverBegin() {};
-        virtual void OnWindowHoverEnd() {};
-        
+
+        virtual void OnWindowClose(Window* window){};
+        virtual void OnWindowPosChanged(Window* window, const LGXVector2i&){};
+        virtual void OnWindowSizeChanged(Window* window, const LGXVector2ui&){};
+        virtual void OnWindowKey(Window* window, uint32 keycode, int32 scancode, InputAction inputAction){};
+        virtual void OnWindowMouse(Window* window, uint32 button, InputAction inputAction){};
+        virtual void OnWindowMouseWheel(Window* window, float delta){};
+        virtual void OnWindowMouseMove(Window* window, const LGXVector2&){};
+        virtual void OnWindowFocus(Window* window, bool gainedFocus){};
+        virtual void OnWindowHoverBegin(Window* window){};
+        virtual void OnWindowHoverEnd(Window* window){};
+
     protected:
         friend class Window;
-        Window* m_window = nullptr;
     };
 
     class Window
     {
     public:
-        
         /// <summary>
         /// Helper that returns primary screen's information.
         /// </summary>
         static MonitorInfo GetPrimaryMonitorInfo();
-        
+
         /// <summary>
         /// Check WindowStyle enumeration for descriptions of different styles.
         /// </summary>
@@ -275,33 +272,30 @@ namespace LinaGX
         {
             return m_input;
         }
-        
-        
+
         inline const MonitorInfo& GetMonitorInfoFromWindow() const
         {
             return m_monitorInfo;
         }
-         
+
         inline const LGXVector2ui& GetMonitorWorkSize() const
         {
             return m_monitorInfo.workSize;
         }
-      
+
         inline const LGXVector2ui& GetMonitorSize() const
         {
             return m_monitorInfo.size;
         }
-        
+
         inline void AddListener(WindowListener* listener)
         {
             m_listeners.push_back(listener);
-            listener->m_window = this;
         }
-        
+
         inline void RemoveListener(WindowListener* listener)
         {
-            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](WindowListener* list) -> bool {return list == listener;});
-            listener->m_window = nullptr;
+            auto it            = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](WindowListener* list) -> bool { return list == listener; });
             m_listeners.erase(it);
         }
 
@@ -316,25 +310,25 @@ namespace LinaGX
         virtual void Tick()                                                                                                                           = 0;
 
     protected:
-        LINAGX_STRINGID          m_sid   = 0;
-        Input*                   m_input = nullptr;
-        LINAGX_STRING            m_title = "";
-        LGXVector2i              m_position;
-        LGXVector2ui             m_size;
-        LGXVector2ui             m_trueSize;
-        LGXVector2               m_mousePosition = {};
-        LGXRectui                m_dragRect;
-        uint32                   m_dpi           = 0;
-        float                    m_dpiScale      = 0.0f;
-        bool                     m_isVisible     = true;
-        bool                     m_isTransparent = false;
-        float                    m_alpha         = 0.0f;
-        bool                     m_hasFocus      = true;
-        bool                     m_isHovered     = false;
-        CursorType               m_cursorType    = CursorType::Default;
-        LINAGX_VEC<LGXVector2ui> m_sizeRequests;
-        WindowStyle              m_style = WindowStyle::WindowedApplication;
-        MonitorInfo m_monitorInfo = {};
+        LINAGX_STRINGID             m_sid   = 0;
+        Input*                      m_input = nullptr;
+        LINAGX_STRING               m_title = "";
+        LGXVector2i                 m_position;
+        LGXVector2ui                m_size;
+        LGXVector2ui                m_trueSize;
+        LGXVector2                  m_mousePosition = {};
+        LGXRectui                   m_dragRect;
+        uint32                      m_dpi           = 0;
+        float                       m_dpiScale      = 0.0f;
+        bool                        m_isVisible     = true;
+        bool                        m_isTransparent = false;
+        float                       m_alpha         = 0.0f;
+        bool                        m_hasFocus      = true;
+        bool                        m_isHovered     = false;
+        CursorType                  m_cursorType    = CursorType::Default;
+        LINAGX_VEC<LGXVector2ui>    m_sizeRequests;
+        WindowStyle                 m_style       = WindowStyle::WindowedApplication;
+        MonitorInfo                 m_monitorInfo = {};
         LINAGX_VEC<WindowListener*> m_listeners;
     };
 

@@ -170,7 +170,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMousePosition(win32Window->m_mousePosition, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouseMove(win32Window->m_mousePosition);
+                l->OnWindowMouseMove(win32Window, win32Window->m_mousePosition);
         };
 
         switch (msg)
@@ -191,7 +191,7 @@ namespace LinaGX
         }
         case WM_CLOSE: {
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowClose();
+                l->OnWindowClose(win32Window);
             return 0;
         }
         case WM_NCHITTEST: {
@@ -226,7 +226,7 @@ namespace LinaGX
             if (!win32Window->m_markedDestroy)
             {
                 for (auto* l : win32Window->m_listeners)
-                    l->OnWindowFocus(false);
+                    l->OnWindowFocus(win32Window, false);
                 win32Window->m_hasFocus = false;
             }
 
@@ -234,7 +234,7 @@ namespace LinaGX
         }
         case WM_SETFOCUS: {
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowFocus(true);
+                l->OnWindowFocus(win32Window, true);
 
             win32Window->m_hasFocus = true;
 
@@ -289,7 +289,7 @@ namespace LinaGX
             win32Window->m_position = mp;
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowPosChanged(win32Window->m_position);
+                l->OnWindowPosChanged(win32Window, win32Window->m_position);
 
             break;
         }
@@ -318,7 +318,7 @@ namespace LinaGX
             }
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowSizeChanged(win32Window->m_size);
+                l->OnWindowSizeChanged(win32Window, win32Window->m_size);
 
             break;
         }
@@ -345,7 +345,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedKey(key, static_cast<int32>(scanCode), action, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowKey(key, static_cast<int32>(scanCode), action);
+                l->OnWindowKey(win32Window, key, static_cast<int32>(scanCode), action);
 
             break;
         }
@@ -364,7 +364,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedKey(key, static_cast<uint32>(scanCode), InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowKey(key, static_cast<uint32>(scanCode), InputAction::Released);
+                l->OnWindowKey(win32Window, key, static_cast<uint32>(scanCode), InputAction::Released);
 
             break;
         }
@@ -386,7 +386,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseWheel(static_cast<float>(delta), win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouseWheel(static_cast<float>(delta));
+                l->OnWindowMouseWheel(win32Window, static_cast<float>(delta));
 
             break;
         }
@@ -402,7 +402,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
+                l->OnWindowMouse(win32Window, VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
 
             break;
         }
@@ -411,7 +411,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Pressed, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(VK_RBUTTON, InputAction::Pressed);
+                l->OnWindowMouse(win32Window, VK_RBUTTON, InputAction::Pressed);
 
             break;
         }
@@ -420,7 +420,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Pressed, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(VK_MBUTTON, InputAction::Pressed);
+                l->OnWindowMouse(win32Window, VK_MBUTTON, InputAction::Pressed);
             break;
         }
         case WM_LBUTTONUP: {
@@ -428,7 +428,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(VK_LBUTTON, InputAction::Released);
+                l->OnWindowMouse(win32Window, VK_LBUTTON, InputAction::Released);
             break;
         }
         case WM_RBUTTONUP: {
@@ -436,7 +436,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(VK_RBUTTON, InputAction::Released);
+                l->OnWindowMouse(win32Window, VK_RBUTTON, InputAction::Released);
             break;
         }
         case WM_MBUTTONUP: {
@@ -444,7 +444,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(VK_RBUTTON, InputAction::Released);
+                l->OnWindowMouse(win32Window, VK_RBUTTON, InputAction::Released);
 
             break;
         }
@@ -564,13 +564,13 @@ namespace LinaGX
             m_isHovered = true;
 
             for (auto* l : m_listeners)
-                l->OnWindowHoverBegin();
+                l->OnWindowHoverBegin(this);
         }
         else if (m_isHovered && !isInside)
         {
             m_isHovered = false;
             for (auto* l : m_listeners)
-                l->OnWindowHoverEnd();
+                l->OnWindowHoverEnd(this);
         }
 
         if (m_hasFocus && m_confineStyle != ConfineStyle::None)
@@ -658,7 +658,7 @@ namespace LinaGX
     void Win32Window::Close()
     {
         for (auto* l : m_listeners)
-            l->OnWindowClose();
+            l->OnWindowClose(this);
 
         CloseWindow(m_hwnd);
     }
