@@ -375,8 +375,8 @@ namespace LinaGX
             return 0;
         }
         case WM_NCMOUSEMOVE: {
-            if (win32Window->m_style == WindowStyle::BorderlessApplication)
-                handleMouseMove(win32Window, 0, 0);
+            // if (win32Window->m_style == WindowStyle::BorderlessApplication)
+            //     handleMouseMove(win32Window, 0, 0);
             break;
         }
         case WM_MOUSEWHEEL: {

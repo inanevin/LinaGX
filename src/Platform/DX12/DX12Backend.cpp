@@ -55,7 +55,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace LinaGX
 {
-#ifdef LINAGX_DEBUG
+#ifdef _DEBUG
 #define NAME_DX12_OBJECT_CSTR(x, NAME)       \
     auto wcharConverted = CharToWChar(NAME); \
     x->SetName(wcharConverted);              \
@@ -990,15 +990,12 @@ namespace LinaGX
                 outBlob.size    = code->GetBufferSize();
                 outBlob.ptr     = new uint8[sz];
                 LINAGX_MEMCPY(outBlob.ptr, code->GetBufferPointer(), outBlob.size);
-                code->Release();
             }
             else
             {
                 LOGE("Backend -> Failed compiling IDXC blob!");
                 throw;
             }
-
-            sourceBlob->Release();
         }
         catch (HrException e)
         {
@@ -2600,6 +2597,8 @@ namespace LinaGX
             DX12_THROW(e, "Backend -> Exception when pre-initializating renderer! %s", e.what());
         }
 
+        LOGT("Backend -> DX12 backend initialization complete. ");
+
         return true;
     }
 
@@ -3184,8 +3183,8 @@ namespace LinaGX
                 // Render Pass 2, before binding anyshaders, wants to bind descriptor sets.
                 // In such cases, param might not be null, so we still need to make sure the layout matches.
                 bool layoutMatches = true;
-                //if (binding.lgxBinding.unbounded && param->elementSize != 0)
-                //    layoutMatches = false;
+                // if (binding.lgxBinding.unbounded && param->elementSize != 0)
+                //     layoutMatches = false;
 
                 if (!binding.lgxBinding.unbounded && param->elementSize != binding.lgxBinding.descriptorCount)
                     layoutMatches = false;

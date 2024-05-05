@@ -54,7 +54,7 @@ namespace LinaGX
 #define pfn_vkBeginDebugUtilLabelEXT     g_vkCmdBeginDebugUtilsLabelEXT
 #define pfn_vkEndDebugUtilLabelEXT       g_vkCmdEndDebugUtilsLabelEXT
 
-#ifdef LINAGX_DEBUG
+#ifdef _DEBUG
 #define VK_NAME_OBJECT(namedObject, objType, name, structName)                                     \
     VkDebugUtilsObjectNameInfoEXT structName = {};                                                 \
     structName.sType                         = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; \
@@ -73,9 +73,9 @@ namespace LinaGX
     pfn_vkEndDebugUtilLabelEXT(cmd);
 
 #else
-#define VK_NAME_OBJECT(namedObject, name, structName)
+#define VK_NAME_OBJECT(namedObject, objType, name, structName)
 #define VK_CMD_BEGIN_LABEL(cmd, label)
-#define VK_CMD_END_LABEL(cmd, label)
+#define VK_CMD_END_LABEL(cmd)
 #endif
 
 #define LGX_VK_MAJOR 1
@@ -2832,6 +2832,7 @@ namespace LinaGX
             BACKEND_BIND_COMMANDS(VKBackend);
         }
 
+        LOGT("Backend -> Vulkan backend initialization complete. ");
         return true;
     }
 
