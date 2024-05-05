@@ -1224,7 +1224,7 @@ namespace LinaGX
                         if (bindingData.descriptorCount == 0)
                         {
                             mslb.count                   = 0;
-                            mslb.msl_texture             = bufferID;
+                            mslb.msl_sampler           = bufferID;
                             bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                         }
