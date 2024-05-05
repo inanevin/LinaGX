@@ -76,7 +76,7 @@ namespace LinaGX
             m_input->WindowFeedKey(keyCode, keyCode, action, this);
             
             for(auto* l : m_listeners)
-                l->OnWindowKey(keyCode, keyCode, action);
+                l->OnWindowKey(this, keyCode, keyCode, action);
             
         };
     
@@ -97,7 +97,7 @@ namespace LinaGX
             m_input->WindowFeedMouseButton(keyCode, action, this);
             
             for(auto* l : m_listeners)
-                l->OnWindowMouse(keyCode, action);
+                l->OnWindowMouse(this, keyCode, action);
             
         };
         
@@ -111,26 +111,26 @@ namespace LinaGX
             m_mousePosition = {x, static_cast<float>(m_size.y) - y - 2.0f};
             m_input->WindowFeedMousePosition(m_mousePosition, this);
             for(auto* l : m_listeners)
-                l->OnWindowMouseMove(m_mousePosition);
+                l->OnWindowMouseMove(this, m_mousePosition);
         };
         
         std::function<void()> mouseEnteredCallback = [this]() {
             m_isHovered = true;
             for(auto* l : m_listeners)
-                l->OnWindowHoverBegin();
+                l->OnWindowHoverBegin(this);
         };
     
     
         std::function<void()> mouseExitedCallback = [this]() {
             m_isHovered = false;
             for(auto* l : m_listeners)
-                l->OnWindowHoverEnd();
+                l->OnWindowHoverEnd(this);
         };
         
         std::function<void(float)> mouseWheelCallback = [this](float f) {
             m_input->WindowFeedMouseWheel(f, this);
             for(auto* l : m_listeners)
-                l->OnWindowMouseWheel(f);
+                l->OnWindowMouseWheel(this, f);
         };
         
         std::function<void(int, int)> windowMovedCallback = [this](int x, int y) {
@@ -138,7 +138,7 @@ namespace LinaGX
             m_position.y = ConvertYInt(y);
             
             for(auto* l : m_listeners)
-                l->OnWindowPosChanged(m_position);
+                l->OnWindowPosChanged(this, m_position);
         };
         
         std::function<void(unsigned int, unsigned int)> windowResizedCallback = [this](unsigned int x, unsigned int y) {
@@ -147,7 +147,7 @@ namespace LinaGX
             m_size.y = y;
             
             for(auto* l : m_listeners)
-                l->OnWindowSizeChanged(m_size);
+                l->OnWindowSizeChanged(this, m_size);
         };
         
         std::function<void(bool)> setFocusCallback = [this](bool cond) {
@@ -160,7 +160,7 @@ namespace LinaGX
             
             m_hasFocus = cond;
             for(auto* l : m_listeners)
-                l->OnWindowFocus(cond);
+                l->OnWindowFocus(this, cond);
         };
         
         std::function<void(bool)> setMainCallback = [this](bool cond) {
@@ -184,7 +184,7 @@ namespace LinaGX
         
         std::function<void()> windowClosedCallback = [this]() {
             for(auto* l : m_listeners)
-                l->OnWindowClose();
+                l->OnWindowClose(this);
         };
         
         std::function<void()> mouseDraggedCallback = [this]() {
@@ -427,7 +427,7 @@ namespace LinaGX
         [wnd close];
         
         for(auto* l : m_listeners)
-            l->OnWindowClose();
+            l->OnWindowClose(this);
     }
     
     float OSXWindow::ConvertY(float targetY)
