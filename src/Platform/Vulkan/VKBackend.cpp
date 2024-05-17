@@ -1181,10 +1181,10 @@ namespace LinaGX
         raster.polygonMode                                   = GetVKPolygonMode(shaderDesc.polygonMode);
         raster.cullMode                                      = GetVKCullMode(shaderDesc.cullMode);
         raster.frontFace                                     = GetVKFrontFace(shaderDesc.frontFace);
-        raster.depthBiasEnable                               = VK_FALSE;
-        raster.depthBiasConstantFactor                       = 0.0f;
-        raster.depthBiasClamp                                = 0.0f;
-        raster.depthBiasSlopeFactor                          = 0.0f;
+        raster.depthBiasEnable                               = shaderDesc.depthBiasEnable ? VK_TRUE : VK_FALSE;
+        raster.depthBiasConstantFactor                       = shaderDesc.depthBiasConstant;
+        raster.depthBiasClamp                                = shaderDesc.depthBiasClamp;
+        raster.depthBiasSlopeFactor                          = shaderDesc.depthBiasSlope;
         raster.lineWidth                                     = 1.0f;
         VkPipelineMultisampleStateCreateInfo msaa            = VkPipelineMultisampleStateCreateInfo{};
         msaa.sType                                           = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;

@@ -1383,6 +1383,9 @@ namespace LinaGX
         psoDesc.RasterizerState.FillMode              = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode              = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise = shaderDesc.frontFace == FrontFace::CCW;
+        psoDesc.RasterizerState.DepthBias             = static_cast<uint32>(shaderDesc.depthBiasConstant);
+        psoDesc.RasterizerState.DepthBiasClamp        = shaderDesc.depthBiasClamp;
+        psoDesc.RasterizerState.SlopeScaledDepthBias  = shaderDesc.depthBiasSlope;
         psoDesc.DSVFormat                             = GetDXFormat(shaderDesc.depthStencilDesc.depthStencilAttachmentFormat);
 
         for (const auto& [stg, blob] : shaderDesc.stages)

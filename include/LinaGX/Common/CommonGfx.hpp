@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -493,10 +493,10 @@ namespace LinaGX
         uint32 indexCountPerInstance = 0;
         uint32 instanceCount         = 0;
         uint32 startIndexLocation    = 0;
-        int32 baseVertexLocation    = 0;
+        int32  baseVertexLocation    = 0;
         uint32 startInstanceLocation = 0;
     };
-    
+
     struct DX12IndirectCommand
     {
         uint32 LGX_DrawID    = 0;
@@ -511,7 +511,7 @@ namespace LinaGX
         uint32 indexCountPerInstance = 0;
         uint32 instanceCount         = 0;
         uint32 startIndexLocation    = 0;
-        int32 baseVertexLocation    = 0;
+        int32  baseVertexLocation    = 0;
         uint32 startInstanceLocation = 0;
     };
 
@@ -737,19 +737,19 @@ namespace LinaGX
 
     struct Configuration
     {
-        BackendAPI          api             = BackendAPI::Vulkan;
-        PreferredGPUType    gpu             = PreferredGPUType::Discrete;
-        const char*         appName         = "LinaGX App";
-        uint32              framesInFlight  = 2;
-        uint32              backbufferCount = 2;
-        GPULimits           gpuLimits       = {};
-        VulkanConfiguration vulkanConfig    = {};
-        DX12Configuration   dx12Config      = {};
-        MetalConfiguration  mtlConfig       = {};
-        LogCallback         errorCallback   = nullptr;
-        LogCallback         infoCallback    = nullptr;
-        LogLevel            logLevel        = LogLevel::Normal;
-        bool mutexLockCreationDeletion = false;
+        BackendAPI          api                       = BackendAPI::Vulkan;
+        PreferredGPUType    gpu                       = PreferredGPUType::Discrete;
+        const char*         appName                   = "LinaGX App";
+        uint32              framesInFlight            = 2;
+        uint32              backbufferCount           = 2;
+        GPULimits           gpuLimits                 = {};
+        VulkanConfiguration vulkanConfig              = {};
+        DX12Configuration   dx12Config                = {};
+        MetalConfiguration  mtlConfig                 = {};
+        LogCallback         errorCallback             = nullptr;
+        LogCallback         infoCallback              = nullptr;
+        LogLevel            logLevel                  = LogLevel::Normal;
+        bool                mutexLockCreationDeletion = false;
     };
 
     struct MonitorInfo
@@ -887,6 +887,10 @@ namespace LinaGX
         Topology                           topology                = Topology::TriangleList;
         bool                               blendLogicOpEnabled     = false;
         LogicOp                            blendLogicOp            = LogicOp::Copy;
+        bool                               depthBiasEnable         = false;
+        float                              depthBiasConstant       = 0.0f;
+        float                              depthBiasClamp          = 0.0f;
+        float                              depthBiasSlope          = 0.0f;
         bool                               alphaToCoverage         = false;
         bool                               drawIndirectEnabled     = false;
         bool                               useCustomPipelineLayout = false; // If false, layout from the reflection info will be auto-generated and used.
@@ -1020,15 +1024,15 @@ namespace LinaGX
 
     class Window;
 
-    typedef std::function<void()>                                               CallbackNoArg;
-    typedef std::function<void(const LGXVector2i&)>                             CallbackPosChanged;
-    typedef std::function<void(const LGXVector2ui&, Window*)>                   CallbackMouseMove;
-    typedef std::function<void(const LGXVector2ui&)>                            CallbackSizeChanged;
-    typedef std::function<void(uint32, int32, InputAction, Window*)>            CallbackKey;
-    typedef std::function<void(uint32, InputAction, Window*)>                   CallbackMouse;
-    typedef std::function<void(int32, Window*)>                                 CallbackMouseWheel;
-    typedef std::function<void(bool)>                                           CallbackFocus;
-    typedef std::function<void()>                                               CallbackHoverBegin;
-    typedef std::function<void()>                                               CallbackHoverEnd;
+    typedef std::function<void()>                                    CallbackNoArg;
+    typedef std::function<void(const LGXVector2i&)>                  CallbackPosChanged;
+    typedef std::function<void(const LGXVector2ui&, Window*)>        CallbackMouseMove;
+    typedef std::function<void(const LGXVector2ui&)>                 CallbackSizeChanged;
+    typedef std::function<void(uint32, int32, InputAction, Window*)> CallbackKey;
+    typedef std::function<void(uint32, InputAction, Window*)>        CallbackMouse;
+    typedef std::function<void(int32, Window*)>                      CallbackMouseWheel;
+    typedef std::function<void(bool)>                                CallbackFocus;
+    typedef std::function<void()>                                    CallbackHoverBegin;
+    typedef std::function<void()>                                    CallbackHoverEnd;
 
 } // namespace LinaGX
