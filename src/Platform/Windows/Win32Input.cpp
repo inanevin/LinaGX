@@ -183,11 +183,11 @@ namespace LinaGX
         m_previousMousePosition     = m_currentMousePositionAbs;
         m_currentMousePositionAbs.x = static_cast<float>(point.x);
         m_currentMousePositionAbs.y = static_cast<float>(point.y);
-        if (!m_receivedDelta)
-            m_mouseDelta = {};
-        m_receivedDelta = false;
-        // m_mouseDelta.x              = m_currentMousePositionAbs.x - m_previousMousePosition.x;
-        // m_mouseDelta.y              = m_currentMousePositionAbs.y - m_previousMousePosition.y;
+        // if (!m_receivedDelta)
+        //     m_mouseDelta = {};
+        // m_receivedDelta = false;
+        m_mouseDelta.x  = m_currentMousePositionAbs.x - m_previousMousePosition.x;
+        m_mouseDelta.y  = m_currentMousePositionAbs.y - m_previousMousePosition.y;
     }
 
     void Input::EndFrame()
@@ -223,9 +223,9 @@ namespace LinaGX
 
     void Input::WindowFeedDelta(int32 deltaX, int32 deltaY)
     {
-        m_mouseDelta.x  = static_cast<float>(deltaX);
-        m_mouseDelta.y  = static_cast<float>(deltaY);
-        m_receivedDelta = true;
+       // m_mouseDelta.x  = static_cast<float>(deltaX);
+       // m_mouseDelta.y  = static_cast<float>(deltaY);
+       // m_receivedDelta = true;
     }
 
     void Input::WindowFeedMousePosition(const LGXVector2& pos, Window* window)

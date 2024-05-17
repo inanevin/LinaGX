@@ -42,12 +42,15 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <chrono>
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
+
+/* RAW INPUT
 #ifndef HID_USAGE_PAGE_GENERIC
 #define HID_USAGE_PAGE_GENERIC ((USHORT)0x01)
 #endif
 #ifndef HID_USAGE_GENERIC_MOUSE
 #define HID_USAGE_GENERIC_MOUSE ((USHORT)0x02)
 #endif
+ */
 
 namespace LinaGX
 {
@@ -237,14 +240,12 @@ namespace LinaGX
                 l->OnWindowFocus(win32Window, true);
 
             win32Window->m_hasFocus = true;
-
             break;
         }
         case WM_INPUT: {
 
             if (win32Window->m_hasFocus)
             {
-
                 UINT        dwSize = sizeof(RAWINPUT);
                 static BYTE lpb[sizeof(RAWINPUT)];
 
@@ -260,7 +261,7 @@ namespace LinaGX
                 }
             }
 
-            break;
+            return 0;
         }
         case WM_DPICHANGED: {
             const uint32 dpi = static_cast<uint32>((short)LOWORD(lParam));
@@ -526,12 +527,14 @@ namespace LinaGX
         SetStyle(style);
         SetVisible(true);
 
+        /*
         RAWINPUTDEVICE Rid[1];
         Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
         Rid[0].usUsage     = HID_USAGE_GENERIC_MOUSE;
         Rid[0].dwFlags     = RIDEV_INPUTSINK;
         Rid[0].hwndTarget  = m_hwnd;
         RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
+        */
 
         return true;
     }

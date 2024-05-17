@@ -1383,7 +1383,7 @@ namespace LinaGX
         psoDesc.RasterizerState.FillMode              = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode              = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise = shaderDesc.frontFace == FrontFace::CCW;
-        psoDesc.DSVFormat                             = (shaderDesc.depthStencilDesc.depthWrite || shaderDesc.depthStencilDesc.stencilEnabled) ? GetDXFormat(shaderDesc.depthStencilDesc.depthStencilAttachmentFormat) : DXGI_FORMAT_UNKNOWN;
+        psoDesc.DSVFormat                             = GetDXFormat(shaderDesc.depthStencilDesc.depthStencilAttachmentFormat);
 
         for (const auto& [stg, blob] : shaderDesc.stages)
         {

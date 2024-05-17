@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -38,7 +38,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>
 #include <shellscalingapi.h>
-#else
 
 #endif
 
@@ -63,6 +62,7 @@ namespace LinaGX
         }
 
         m_windows[sid] = win;
+
         return win;
     }
 

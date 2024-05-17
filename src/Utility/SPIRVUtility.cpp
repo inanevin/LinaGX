@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -446,27 +446,27 @@ namespace LinaGX
 
         auto replace = [&fullShaderStr](const LINAGX_STRING& search, const LINAGX_STRING& replace) -> bool {
             size_t pos = 0;
-            
+
             bool found = false;
-            
-            while((pos = fullShaderStr.find(search, pos)) != LINAGX_STRING::npos)
+
+            while ((pos = fullShaderStr.find(search, pos)) != LINAGX_STRING::npos)
             {
                 fullShaderStr.replace(pos, search.length(), replace);
                 pos += replace.length();
                 found = true;
             }
-            
+
             return found;
         };
-        
+
         // gl_DrawID is not supported in HLSL/MSL, so we will replace it with our custom cbuffer at post processing
         // But we need to have the identifier generated in HLSL from SPV.
         if (targetAPI == BackendAPI::DX12 || targetAPI == BackendAPI::Metal)
         {
             if (replace("LGX_DRAW_ID", "LGX_GET_DRAW_ID()"))
             {
-                outLayout.hasGLDrawID = true;
-                const LINAGX_STRING constDecl = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
+                outLayout.hasGLDrawID          = true;
+                const LINAGX_STRING constDecl  = "\nint LGX_GET_DRAW_ID() { return 0; } \n";
                 size_t              versionPos = fullShaderStr.find("#version");
 
                 if (versionPos != std::string::npos)
@@ -483,8 +483,7 @@ namespace LinaGX
         else
             replace("LGX_DRAW_ID", "gl_DrawID");
 
-    
-        if(targetAPI == BackendAPI::Vulkan || targetAPI == BackendAPI::Metal)
+        if (targetAPI == BackendAPI::Vulkan || targetAPI == BackendAPI::Metal)
         {
             replace("LGX_DEFINE_INDEXED_INDIRECT;", "struct LGXIndexedIndirectCommand\n{\n uint indexCount;\n uint instanceCount;\n uint firstIndex;\n int vertexOffset;\n uint firstInstance;\n};\n");
             replace("LGX_DEFINE_INDIRECT;", "struct LGXIndirectCommand\n{\n uint vertexCount;\n uint instanceCount;\n uint startVertex;\n uint baseInstance;\n};\n");
@@ -494,9 +493,17 @@ namespace LinaGX
             replace("LGX_DEFINE_INDEXED_INDIRECT;", "struct LGXIndexedIndirectCommand\n{\n uint LGX_DrawID;\n uint indexCount;\n uint instanceCount;\n uint firstIndex;\n int vertexOffset;\n uint firstInstance;\n};\n");
             replace("LGX_DEFINE_INDIRECT;", "struct LGXIndirectCommand\n{\n uint LGX_DrawID;\n uint vertexCount;\n uint instanceCount;\n uint startVertex;\n uint baseInstance;\n};\n");
         }
-        
+
         replace("LGX_INDEXED_INDIRECT_CMD", "LGXIndexedIndirectCommand");
         replace("LGX_INDIRECT_CMD", "LGXIndirectCommand");
+
+        size_t versionPos = fullShaderStr.find("#version");
+        size_t endOfVersionLinePos = fullShaderStr.find("\n", versionPos);
+
+        if (Config.api == BackendAPI::DX12)
+            fullShaderStr.insert(endOfVersionLinePos + 1, "\n#define LGX_COMPILE_HLSL\n");
+        else if (Config.api == BackendAPI::Metal)
+            fullShaderStr.insert(endOfVersionLinePos + 1, "\n#define LGX_COMPILE_MSL\n");
 
         glslang_stage_t stage = GetStage(stg);
 
@@ -520,16 +527,16 @@ namespace LinaGX
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
             log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Preprocess failed %s", log.c_str());
-            LOGA(false,"");
+            LOGA(false, "");
             return false;
         }
-        
+
         if (!glslang_shader_parse(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
             log               = log.substr(0, 3000);
             LOGE("GLSL2SPV -> Parsing failed %s", log.c_str());
-            LOGA(false,"");
+            LOGA(false, "");
             return false;
         }
 
