@@ -134,6 +134,9 @@ namespace LinaGX
         LINAGX_VEC<Format> colorAttachmentFormats;
         Format             depthFormat;
         Format             stencilFormat;
+        float depthBias = 0.0f;
+        float depthSlope = 0.0f;
+        float depthClamp = 0.0f;
     };
 
     struct MTLFence

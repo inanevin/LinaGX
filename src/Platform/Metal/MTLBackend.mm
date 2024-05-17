@@ -771,8 +771,11 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     depthStencilDescriptor.depthCompareFunction = GetMTLCompareOp(depthStencilDesc.depthCompare);
     depthStencilDescriptor.frontFaceStencil = frontStencil;
     depthStencilDescriptor.backFaceStencil = backStencil;
-    pipelineDescriptor.depthAttachmentPixelFormat = depthStencilDesc.depthWrite ? GetMTLFormat(depthStencilDesc.depthStencilAttachmentFormat) : MTLPixelFormatInvalid;
-    item.depthFormat = depthStencilDesc.depthWrite ? depthStencilDesc.depthStencilAttachmentFormat : Format::UNDEFINED;
+    pipelineDescriptor.depthAttachmentPixelFormat = GetMTLFormat(depthStencilDesc.depthStencilAttachmentFormat);
+    item.depthFormat = depthStencilDesc.depthTest ? depthStencilDesc.depthStencilAttachmentFormat : Format::UNDEFINED;
+    item.depthBias = shaderDesc.depthBiasConstant;
+    item.depthSlope = shaderDesc.depthBiasSlope;
+    item.depthClamp = shaderDesc.depthBiasClamp;
 
     const uint32 colorAttachments = static_cast<uint32>(shaderDesc.colorAttachments.size());
     for(uint32 i = 0; i < colorAttachments; i++)
@@ -883,7 +886,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         LOGE("Backend -> Error creating shader! %s", cString);
     }
     
-    if(depthStencilDesc.depthWrite)
+    if(depthStencilDesc.depthTest)
     {
         id<MTLDepthStencilState> dsso = [device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
         [dsso retain];
@@ -2270,6 +2273,8 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         }
     }
     
+
+    
     LINAGX_VEC<Format> colorAttachmentFormats;
     colorAttachmentFormats.resize(begin->colorAttachmentCount);
     
@@ -2357,7 +2362,7 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
     
     if(stream.containsDelayedVtxBind)
     {
-        stream.containsDelayedVtxBind = false;
+        // stream.containsDelayedVtxBind = false;
         CMD_BindVertexBuffers((uint8*)(&stream.delayedVtxBind), stream);
     }
     
@@ -2466,6 +2471,8 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     id<MTLComputeCommandEncoder> computeEncoder = AS_MTL(stream.currentComputeEncoder, id<MTLComputeCommandEncoder>);
+    
+    [encoder setDepthBias:shader.depthBias slopeScale:shader.depthSlope clamp:shader.depthClamp];
     
     if(shader.isCompute)
     {
