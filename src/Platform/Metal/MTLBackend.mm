@@ -1691,7 +1691,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         
         str.currentShader = 0;
         str.currentEncoder =  str.currentBlitEncoder = str.currentComputeEncoder = str.currentBuffer = nullptr;
-        str.containsDelayedVtxBind = false;
+        str.lastVertexBind.Init();
         str.currentRenderPassUseDepth = false;
         str.currentEncoderDepthStencil = nullptr;
         str.currentShaderExists = false;
@@ -2360,12 +2360,11 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         }
     }
     
-    if(stream.containsDelayedVtxBind)
+    if(stream.lastVertexBind.vertexSize != 0)
     {
-        // stream.containsDelayedVtxBind = false;
-        CMD_BindVertexBuffers((uint8*)(&stream.delayedVtxBind), stream);
+        CMD_BindVertexBuffers((uint8*)(&stream.lastVertexBind), stream);
     }
-    
+
     if(stream.lastDebugLabel.compare("") != 0)
     {
         NSString *debugNSString = [NSString stringWithUTF8String:stream.lastDebugLabel.c_str()];
@@ -2570,7 +2569,7 @@ void MTLBackend::CMD_DrawIndexedIndirect(uint8 *data, MTLCommandStream &stream) 
         }
         
         auto indexBufferType = stream.indexBufferType == 0 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
-        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:sizeof(IndexedIndirectCommand) * i];
+        [encoder drawIndexedPrimitives:GetMTLPrimitive(shader.topology) indexType:indexBufferType indexBuffer:indexBuf indexBufferOffset:0 indirectBuffer:indirectBuffer indirectBufferOffset:cmd->indirectBufferOffset +  sizeof(IndexedIndirectCommand) * i];
     }
 }
 
@@ -2628,11 +2627,10 @@ void MTLBackend::CMD_DrawIndirect(uint8 *data, MTLCommandStream &stream) {
 
 void MTLBackend::CMD_BindVertexBuffers(uint8 *data, MTLCommandStream &stream) {
     CMDBindVertexBuffers* cmd      = reinterpret_cast<CMDBindVertexBuffers*>(data);
+    stream.lastVertexBind = *cmd;
     
     if(stream.currentEncoder == nullptr)
     {
-        stream.containsDelayedVtxBind = true;
-        stream.delayedVtxBind = *cmd;
         return;
     }
     

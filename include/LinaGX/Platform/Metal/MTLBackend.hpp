@@ -93,8 +93,7 @@ namespace LinaGX
         LINAGX_MAP<uint32, uint64>                intermediateResources;
         LINAGX_MAP<uint32, uint16>                boundDescriptorSets;
         LINAGX_MAP<uint32, MTLBoundDescriptorSet> boundSets;
-        bool                                      containsDelayedVtxBind = false;
-        CMDBindVertexBuffers                      delayedVtxBind;
+        CMDBindVertexBuffers                      lastVertexBind;
         MTLBoundConstant                          boundConstants;
         LINAGX_STRING                             lastDebugLabel = "";
         CommandStream*                            streamImpl     = nullptr;
