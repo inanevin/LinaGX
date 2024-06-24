@@ -160,10 +160,14 @@ namespace LinaGX::Examples
                 .format          = Format::B8G8R8A8_UNORM,
                 .blendAttachment = {},
             };
+            
+            LinaGX::ShaderDepthStencilDesc depthStencil;
+            depthStencil.depthStencilAttachmentFormat = LinaGX::Format::UNDEFINED;
 
             ShaderDesc shaderDesc = {
                 .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
                 .colorAttachments = {colorAttachment},
+                .depthStencilDesc = depthStencil,
                 .layout           = outLayout,
                 .polygonMode      = PolygonMode::Fill,
                 .cullMode         = CullMode::None,
@@ -516,7 +520,7 @@ namespace LinaGX::Examples
             bindTxt->layoutSource          = LinaGX::DescriptorSetsLayoutSource::LastBoundShader;
         }
 
-        // Draw the triangle
+        // Draw the quad
         {
             CMDDrawIndexedInstanced* drawIndexed = currentFrame.stream->AddCommand<CMDDrawIndexedInstanced>();
             drawIndexed->baseVertexLocation      = 0;

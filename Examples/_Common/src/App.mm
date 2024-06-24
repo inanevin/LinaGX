@@ -41,13 +41,13 @@ namespace LinaGX::Examples
         m_prevTime       = std::chrono::high_resolution_clock::now();
     }
 
-    void App::OnWindowClose()
+    void App::OnWindowClose(Window* window)
     {
         m_isRunning.store(false);
         [NSApp terminate:nil];
     }
 
-    void App::OnWindowSizeChanged(const LGXVector2ui& newSize)
+    void App::OnWindowSizeChanged(Window* window, const LGXVector2ui& newSize)
     {
         std::lock_guard<std::mutex> lg(m_sizeMtx);
         OnWindowResized(newSize.x, newSize.y);

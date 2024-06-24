@@ -54,6 +54,20 @@ namespace LinaGX::Examples
         m_mainWindow = m_lgx->GetWindowManager().GetWindow(0);
         m_initialRot = m_rotation;
         now          = std::chrono::high_resolution_clock::now();
+        m_mainWindow->AddListener(this);
+    }
+
+    void Camera::OnWindowMouse(Window *window, uint32 button, InputAction inputAction)
+    {
+        if(button != LINAGX_MOUSE_0)
+            return;
+        
+        if(inputAction != InputAction::Pressed)
+            return;
+        
+        m_mainWindow->SetMouseVisible(false);
+        m_mainWindow->ConfineMouseToCenter();
+        m_controlsEnabled = true;
     }
 
     void Camera::Tick(float dt)
@@ -63,13 +77,6 @@ namespace LinaGX::Examples
             m_controlsEnabled = false;
             m_mainWindow->SetMouseVisible(true);
             m_mainWindow->FreeMouse();
-        }
-
-        if (m_lgx->GetInput().GetMouseButton(LINAGX_MOUSE_0) && !m_controlsEnabled)
-        {
-            m_mainWindow->SetMouseVisible(false);
-            m_mainWindow->ConfineMouseToCenter();
-            m_controlsEnabled = true;
         }
 
         // m_controlsEnabled = true;

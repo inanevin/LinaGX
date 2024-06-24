@@ -219,6 +219,7 @@ namespace LinaGX::Examples
 
             shaderDesc.colorAttachments[0].format  = Format::B8G8R8A8_UNORM;
             shaderDesc.depthStencilDesc.depthWrite = false;
+            shaderDesc.depthStencilDesc.depthStencilAttachmentFormat = Format::UNDEFINED;
             _shaderProgramFinalPass                = _lgx->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
@@ -245,11 +246,7 @@ namespace LinaGX::Examples
             };
 
             ShaderDepthStencilDesc depthStencilDesc = {
-                .depthStencilAttachmentFormat = Format::D32_SFLOAT,
-                .depthWrite                   = false,
-                .depthTest                    = true,
-                .depthCompare                 = CompareOp::Less,
-                .stencilEnabled               = false,
+                .depthStencilAttachmentFormat = Format::UNDEFINED,
             };
 
             // Create shader program with vertex & fragment stages.
@@ -805,6 +802,19 @@ namespace LinaGX::Examples
 
     void Example::OnRender()
     {
+        TextureDesc desc = {
+            .format    = Format::R8G8B8A8_SRGB,
+            .flags     = LinaGX::TextureFlags::TF_Sampled | LinaGX::TextureFlags::TF_CopyDest | LinaGX::TextureFlags::TF_ColorAttachment,
+            .width     = _window->GetSize().x,
+            .height    = _window->GetSize().y,
+            .mipLevels = 1,
+            .debugName = "LinaGXRTTexture",
+        };
+
+        uint32 dummy = _lgx->CreateResource({.size = 100});
+        
+        _lgx->DestroyResource(dummy);
+        
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
 

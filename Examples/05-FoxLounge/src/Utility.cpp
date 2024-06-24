@@ -478,7 +478,7 @@ namespace LinaGX::Examples
         colorAttachments.resize(attachmentCount, att);
 
         ShaderDepthStencilDesc depthStencilDesc = {
-            .depthStencilAttachmentFormat = Format::D32_SFLOAT,
+            .depthStencilAttachmentFormat = depthWrite ? Format::D32_SFLOAT : Format::UNDEFINED,
             .depthWrite                   = depthWrite,
             .depthTest                    = true,
             .depthCompare                 = depthCompare,

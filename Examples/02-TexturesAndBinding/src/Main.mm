@@ -27,7 +27,7 @@ SOFTWARE.
 */
 
 
-#include "Mipmaps.hpp"
+#include "TexturesAndBinding.hpp"
 
 using namespace LinaGX::Examples;
 

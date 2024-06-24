@@ -85,8 +85,8 @@ namespace LinaGX
             virtual void OnRender() = 0;
             void Tick();
             
-            virtual void OnWindowClose() override;
-            virtual void OnWindowSizeChanged(const LGXVector2ui&) override;
+            virtual void OnWindowClose(Window* window) override;
+            virtual void OnWindowSizeChanged(Window* window, const LGXVector2ui&) override;
 
         protected:
             

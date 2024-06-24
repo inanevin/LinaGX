@@ -47,12 +47,13 @@ namespace LinaGX
 #define NEAR_PLANE 0.1f
 #define FOV        90.0f
 
-        class Camera
+        class Camera : public LinaGX::WindowListener
         {
         public:
             Camera()  = default;
             ~Camera() = default;
 
+            virtual void OnWindowMouse(Window* window, uint32 button, InputAction inputAction) override;
             void Initialize(LinaGX::Instance* lgx);
             void Tick(float dt);
 
