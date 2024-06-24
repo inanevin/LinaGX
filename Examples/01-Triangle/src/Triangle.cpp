@@ -140,9 +140,14 @@ namespace LinaGX::Examples
             LinaGX::ShaderColorAttachment colorAttachment = {
                 .format = Format::B8G8R8A8_UNORM,
             };
+            
+            LinaGX::ShaderDepthStencilDesc depthStencil;
+            depthStencil.depthStencilAttachmentFormat = LinaGX::Format::UNDEFINED;
+            
             ShaderDesc shaderDesc = {
                 .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
                 .colorAttachments = {colorAttachment},
+                .depthStencilDesc = depthStencil,
                 .layout           = outLayout,
                 .polygonMode      = PolygonMode::Fill,
                 .cullMode         = CullMode::None,
