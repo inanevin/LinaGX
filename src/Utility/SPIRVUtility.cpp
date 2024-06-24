@@ -852,15 +852,26 @@ namespace LinaGX
                 targetBinding.type          = DescriptorType::SeparateSampler;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
-                if (type.array_size_literal[0])
-                {
-                    if (type.array[0] != 1)
-                        targetBinding.descriptorCount = type.array[0];
-                    else
+                if (!type.array.empty()) {
+                    // Check if the array size is a literal constant
+                    if (type.array_size_literal[0]) {
+                        // If the array size is known and greater than 1, set the descriptor count to the size
+                        if (type.array[0] != 1) {
+                            targetBinding.descriptorCount = type.array[0];
+                        } else {
+                            // If the array size is 1, set the descriptor count to 1 (since it's still a valid size)
+                            targetBinding.descriptorCount = 1;
+                        }
+                    } else {
+                        // If the array size is not a literal (e.g., it might be a specialization constant), handle it appropriately
+                        // Here we assume if not literal, it is an unbounded array, set the descriptor count to 0
                         targetBinding.descriptorCount = 0;
+                    }
+                } else {
+                    // If type is not an array, set the descriptor count to 1
+                    targetBinding.descriptorCount = 1;
                 }
-                else if (type.array.size() > 0)
-                    targetBinding.descriptorCount = type.array[0];
+
 
                 outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 1 : targetBinding.descriptorCount;
             }
@@ -886,21 +897,26 @@ namespace LinaGX
                 targetBinding.type          = DescriptorType::SeparateImage;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
-                if (type.array_size_literal[0])
-                {
-                    if (type.array[0] != 1)
-                        targetBinding.descriptorCount = type.array[0];
-                    else
+                if (!type.array.empty()) {
+                    // Check if the array size is a literal constant
+                    if (type.array_size_literal[0]) {
+                        // If the array size is known and greater than 1, set the descriptor count to the size
+                        if (type.array[0] != 1) {
+                            targetBinding.descriptorCount = type.array[0];
+                        } else {
+                            // If the array size is 1, set the descriptor count to 1 (since it's still a valid size)
+                            targetBinding.descriptorCount = 1;
+                        }
+                    } else {
+                        // If the array size is not a literal (e.g., it might be a specialization constant), handle it appropriately
+                        // Here we assume if not literal, it is an unbounded array, set the descriptor count to 0
                         targetBinding.descriptorCount = 0;
-                }
-                else if (type.array.size() > 0)
-                    targetBinding.descriptorCount = type.array[0];
-                else
-                {
-                    // sampler2DArray
+                    }
+                } else {
+                    // If type is not an array, set the descriptor count to 1
                     targetBinding.descriptorCount = 1;
-                    targetBinding.isArrayType     = true;
                 }
+
 
                 outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 1 : targetBinding.descriptorCount;
             }
@@ -926,20 +942,24 @@ namespace LinaGX
                 targetBinding.type          = DescriptorType::CombinedImageSampler;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
-                if (type.array_size_literal[0])
-                {
-                    if (type.array[0] != 1)
-                        targetBinding.descriptorCount = type.array[0];
-                    else
+                if (!type.array.empty()) {
+                    // Check if the array size is a literal constant
+                    if (type.array_size_literal[0]) {
+                        // If the array size is known and greater than 1, set the descriptor count to the size
+                        if (type.array[0] != 1) {
+                            targetBinding.descriptorCount = type.array[0];
+                        } else {
+                            // If the array size is 1, set the descriptor count to 1 (since it's still a valid size)
+                            targetBinding.descriptorCount = 1;
+                        }
+                    } else {
+                        // If the array size is not a literal (e.g., it might be a specialization constant), handle it appropriately
+                        // Here we assume if not literal, it is an unbounded array, set the descriptor count to 0
                         targetBinding.descriptorCount = 0;
-                }
-                else if (type.array.size() > 0)
-                    targetBinding.descriptorCount = type.array[0];
-                else
-                {
-                    // sampler2DArray
+                    }
+                } else {
+                    // If type is not an array, set the descriptor count to 1
                     targetBinding.descriptorCount = 1;
-                    targetBinding.isArrayType     = true;
                 }
 
                 outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 2 : targetBinding.descriptorCount * 2;
