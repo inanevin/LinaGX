@@ -49,6 +49,8 @@ namespace LinaGX
         LINAGX_VEC<void*> views;
         Format            format;
         uint32            flags;
+        uint32 bytesPerPixel;
+        LGXVector2ui size;
     };
 
     struct MTLBoundDescriptorSet
@@ -110,6 +112,7 @@ namespace LinaGX
         uint32 height                = 0;
         uint32 _currentDrawableIndex = 0;
         Format format;
+        void* osHandle = nullptr;
     };
 
     struct MTLArgEncoder
@@ -278,6 +281,7 @@ namespace LinaGX
         void CMD_CopyResource(uint8* data, MTLCommandStream& stream);
         void CMD_CopyBufferToTexture2D(uint8* data, MTLCommandStream& stream);
         void CMD_CopyTexture(uint8* data, MTLCommandStream& stream);
+        void CMD_CopyTexture2DToBuffer(uint8* data, MTLCommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, MTLCommandStream& stream);
         void CMD_BindConstants(uint8* data, MTLCommandStream& stream);
         void CMD_Dispatch(uint8* data, MTLCommandStream& stream);

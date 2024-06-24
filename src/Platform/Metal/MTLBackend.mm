@@ -60,6 +60,101 @@ namespace LinaGX
 
 #endif
 
+uint32 GetBytesPerPixelFromMTLFormat(Format format)
+{
+    switch (format)
+    {
+    case Format::UNDEFINED:
+            return 0;
+        // 8 bit
+    case Format::R8_SINT:
+    case Format::R8_UINT:
+    case Format::R8_UNORM:
+    case Format::R8_SNORM:
+        return 1;
+
+    case Format::R8G8_SINT:
+    case Format::R8G8_UINT:
+    case Format::R8G8_UNORM:
+    case Format::R8G8_SNORM:
+            return 2;
+
+    case Format::R8G8B8A8_SINT:
+    case Format::R8G8B8A8_UINT:
+    case Format::R8G8B8A8_UNORM:
+    case Format::R8G8B8A8_SNORM:
+    case Format::R8G8B8A8_SRGB:
+    case Format::B8G8R8A8_UNORM:
+    case Format::B8G8R8A8_SRGB:
+            return 4;
+
+        // 16 bit
+    case Format::R16_SINT:
+    case Format::R16_UINT:
+    case Format::R16_UNORM:
+    case Format::R16_SNORM:
+    case Format::R16_SFLOAT:
+            return 2;
+
+    case Format::R16G16_SINT:
+    case Format::R16G16_UINT:
+    case Format::R16G16_UNORM:
+    case Format::R16G16_SNORM:
+    case Format::R16G16_SFLOAT:
+            return 4;
+
+    case Format::R16G16B16A16_SINT:
+    case Format::R16G16B16A16_UINT:
+    case Format::R16G16B16A16_UNORM:
+    case Format::R16G16B16A16_SNORM:
+    case Format::R16G16B16A16_SFLOAT:
+            return 8;
+
+        // 32 bit
+    case Format::R32_SINT:
+    case Format::R32_UINT:
+    case Format::R32_SFLOAT:
+            return 4;
+
+    case Format::R32G32_SINT:
+    case Format::R32G32_UINT:
+    case Format::R32G32_SFLOAT:
+            return 8;
+
+    case Format::R32G32B32_SFLOAT:
+    case Format::R32G32B32_SINT:
+    case Format::R32G32B32_UINT:
+            return 12;
+
+    case Format::R32G32B32A32_SINT:
+    case Format::R32G32B32A32_UINT:
+    case Format::R32G32B32A32_SFLOAT:
+            return 16;
+            
+        // depth-stencil
+    case Format::D32_SFLOAT:
+    case Format::D24_UNORM_S8_UINT:
+            return 4;
+        case Format::D16_UNORM:
+            return 2;
+
+        // misc
+    case Format::R11G11B10_SFLOAT:
+            return 4;
+    case Format::R10G0B10A2_INT:
+        return 4;
+    case Format::BC3_BLOCK_SRGB:
+            return 0;
+    case Format::BC3_BLOCK_UNORM:
+        return 0;
+
+    default:
+            return MTLPixelFormatInvalid;
+    }
+
+    return 0;
+};
+
 MTLPixelFormat GetMTLFormat(Format format)
 {
     switch (format)
@@ -951,7 +1046,6 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
 
     LOGA(desc.mipLevels != 0 && desc.arrayLength != 0 && static_cast<uint32>(desc.views.size()) != 0, "Backend -> Mip levels, array length or view count can't be zero!");
 
-    
     const auto mtlFormat = GetMTLFormat(desc.format);
 
     MTLTexture item = {};
@@ -959,6 +1053,8 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
     item.arrayLength = desc.arrayLength;
     item.format = desc.format;
     item.flags = desc.flags;
+    item.size = {desc.width, desc.height};
+    item.bytesPerPixel = GetBytesPerPixelFromMTLFormat(desc.format);
     
     auto device = AS_MTL(m_device, id<MTLDevice>);
     
@@ -982,8 +1078,8 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
         textureDescriptor.usage |= MTLTextureUsageRenderTarget;
     
     id<MTLTexture> texture = [device newTextureWithDescriptor:textureDescriptor];
-    [texture retain];
-    
+
+
     for(const auto& vw : desc.views)
     {
         NSRange mipRng = NSMakeRange(vw.baseMipLevel, vw.mipCount == 0 ? desc.mipLevels - vw.baseMipLevel : vw.mipCount);
@@ -991,10 +1087,9 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
 
         MTLTextureType type = vw.isCubemap ? MTLTextureTypeCube : textureDescriptor.textureType;
         id<MTLTexture> view = [texture newTextureViewWithPixelFormat:mtlFormat textureType:type levels:mipRng slices:layerRng];
-        [view retain];
         item.views.push_back(AS_VOID(view));
     }
-    
+
     item.ptr = AS_VOID(texture);
     NAME_OBJ_CSTR(texture, desc.debugName);
 
@@ -1070,13 +1165,22 @@ uint32 MTLBackend::CreateResource(const ResourceDesc &desc) {
     auto device = AS_MTL(m_device, id<MTLDevice>);
     
     MTLResourceOptions options = 0;
-   
-    if(desc.heapType == ResourceHeap::GPUOnly)
+    
+    if(desc.typeHintFlags & ResourceTypeHint::TH_ReadbackDest)
+        options |= MTLResourceStorageModeShared;
+    else if(desc.heapType == ResourceHeap::GPUOnly)
         options |= MTLResourceStorageModePrivate;
     else if(desc.heapType == ResourceHeap::StagingHeap)
-        options |= MTLStorageModeShared;
+        options |= MTLResourceStorageModeShared;
     else if(desc.heapType == ResourceHeap::CPUVisibleGPUMemory)
-        options |= MTLStorageModeShared;
+        options |= MTLResourceStorageModeShared;
+   
+   // if(desc.typeHintFlags & ResourceTypeHint::TH_ReadbackDest)
+   //     options = MTLStorageModeShared;
+   // else if(desc.heapType == ResourceHeap::GPUOnly)
+   //     options = MTLStorageModePrivate;
+   // else if(desc.heapType == ResourceHeap::StagingHeap || desc.heapType == ResourceHeap::CPUVisibleGPUMemory)
+   //     options = MTLStorageModeShared;
     
     id<MTLBuffer> buffer = [device newBufferWithLength:desc.size options:options];
     [buffer retain];
@@ -1089,11 +1193,11 @@ uint32 MTLBackend::CreateResource(const ResourceDesc &desc) {
 void MTLBackend::MapResource(uint32 handle, uint8 *&ptr) {
     auto& item = m_resources.GetItemR(handle);
     
-    if(item.heapType == ResourceHeap::GPUOnly)
-    {
-        LOGE("Backend -> Can not map gpu only resources!");
-        return;
-    }
+    // if(item.heapType == ResourceHeap::GPUOnly)
+    // {
+    //     LOGE("Backend -> Can not map gpu only resources!");
+    //     return;
+    // }
     
     id<MTLBuffer> buffer = AS_MTL(item.ptr, id<MTLBuffer>);
     ptr = static_cast<uint8*>([buffer contents]);
@@ -1450,6 +1554,9 @@ void MTLBackend::SetCommandStreamImpl(uint32 handle, CommandStream* stream)
 
 void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount) {
     
+    @autoreleasepool {
+        
+  
     const auto& q = m_queues.GetItemR(GetPrimaryQueue(CommandType::Graphics));
     id<MTLCommandQueue> queue = AS_MTL(q.queue, id<MTLCommandQueue>);
     
@@ -1499,8 +1606,9 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
              const size_t increment = sizeof(LINAGX_TYPEID);
              uint8*       cmd       = data + increment;
 
+       
              // Starting blit ops but no blit encoder.
-             if(tid == LGX_GetTypeID<CMDCopyResource>() || tid == LGX_GetTypeID<CMDCopyBufferToTexture2D>() || tid == LGX_GetTypeID<CMDCopyTexture>())
+             if(tid == LGX_GetTypeID<CMDCopyResource>() || tid == LGX_GetTypeID<CMDCopyBufferToTexture2D>() || tid == LGX_GetTypeID<CMDCopyTexture>() || tid == LGX_GetTypeID<CMDCopyTexture2DToBuffer>())
              {
                  if(sr.currentBlitEncoder == nullptr)
                  {
@@ -1592,115 +1700,121 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
         
         sr.boundDescriptorSets.clear();
     }
+        
+    }
 }
 
 void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
           
-    auto& pfd = m_perFrameData[m_currentFrameIndex];
-    
-    if (desc.isMultithreaded)
-    {
-        // spinlock
-        while (m_submissionFlag.test_and_set(std::memory_order_acquire))
-        {
-            
-        }
-    }
-    
-    const auto& queue = m_queues.GetItemR(desc.targetQueue);
-
-    if(queue.type == CommandType::Graphics)
-        pfd.submits++;
-    
-    if(desc.isMultithreaded)
-        m_submissionFlag.clear();
-  
-    for (uint32 i = 0; i < desc.streamCount; i++)
-    {
-        auto stream = desc.streams[i];
-        if (stream->m_commandCount == 0)
-        {
-            LOGE("Backend -> Can not execute stream as no commands were recorded!");
-            continue;
-        }
-
-        auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
-        LOGA(str.type != CommandType::Secondary, "Backend -> Can not submit command streams of type Secondary directly to the queues! Use CMDExecuteSecondary instead!");
-        id<MTLCommandBuffer> buffer = AS_MTL(str.currentBuffer, id<MTLCommandBuffer>);
+    @autoreleasepool {
         
-        if(desc.useWait)
+        
+        auto& pfd = m_perFrameData[m_currentFrameIndex];
+        
+        if (desc.isMultithreaded)
         {
-            for (uint32 j = 0; j < desc.waitCount; j++)
+            // spinlock
+            while (m_submissionFlag.test_and_set(std::memory_order_acquire))
             {
-                const auto& us = m_userSemaphores.GetItemR(desc.waitSemaphores[j]);
-                id<MTLSharedEvent> ev = AS_MTL(us.semaphore, id<MTLSharedEvent>);
-                [buffer encodeWaitForEvent:ev value:desc.waitValues[j]];
+                
             }
         }
+        
+        const auto& queue = m_queues.GetItemR(desc.targetQueue);
         
         if(queue.type == CommandType::Graphics)
+            pfd.submits++;
+        
+        if(desc.isMultithreaded)
+            m_submissionFlag.clear();
+        
+        for (uint32 i = 0; i < desc.streamCount; i++)
         {
-            [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
-              
-                while (m_submissionFlag.test_and_set(std::memory_order_acquire))
-                {
-                }
-                pfd.reachedSubmits++;
-                m_submissionFlag.clear();
-            }];
-            
-        }
-    
-        if(desc.useSignal)
-        {
-            for (uint32 j = 0; j < desc.signalCount; j++)
+            auto stream = desc.streams[i];
+            if (stream->m_commandCount == 0)
             {
-                const auto& us = m_userSemaphores.GetItemR(desc.signalSemaphores[j]);
-                id<MTLSharedEvent> ev = AS_MTL(us.semaphore, id<MTLSharedEvent>);
-                [buffer encodeSignalEvent:ev value:desc.signalValues[j]];
+                LOGE("Backend -> Can not execute stream as no commands were recorded!");
+                continue;
             }
+            
+            auto& str = m_cmdStreams.GetItemR(stream->m_gpuHandle);
+            LOGA(str.type != CommandType::Secondary, "Backend -> Can not submit command streams of type Secondary directly to the queues! Use CMDExecuteSecondary instead!");
+            id<MTLCommandBuffer> buffer = AS_MTL(str.currentBuffer, id<MTLCommandBuffer>);
+            
+            if(desc.useWait)
+            {
+                for (uint32 j = 0; j < desc.waitCount; j++)
+                {
+                    const auto& us = m_userSemaphores.GetItemR(desc.waitSemaphores[j]);
+                    id<MTLSharedEvent> ev = AS_MTL(us.semaphore, id<MTLSharedEvent>);
+                    [buffer encodeWaitForEvent:ev value:desc.waitValues[j]];
+                }
+            }
+            
+            if(queue.type == CommandType::Graphics)
+            {
+                [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+                    
+                    while (m_submissionFlag.test_and_set(std::memory_order_acquire))
+                    {
+                    }
+                    pfd.reachedSubmits++;
+                    m_submissionFlag.clear();
+                }];
+                
+            }
+            
+            if(desc.useSignal)
+            {
+                for (uint32 j = 0; j < desc.signalCount; j++)
+                {
+                    const auto& us = m_userSemaphores.GetItemR(desc.signalSemaphores[j]);
+                    id<MTLSharedEvent> ev = AS_MTL(us.semaphore, id<MTLSharedEvent>);
+                    [buffer encodeSignalEvent:ev value:desc.signalValues[j]];
+                }
+            }
+            
+            for(auto swp : str.writtenSwapchains)
+            {
+                const auto& swap = m_swapchains.GetItemR(swp);
+                id<CAMetalDrawable> drawable = AS_MTL(swap._currentDrawable, id<CAMetalDrawable>);
+                [buffer presentDrawable:drawable];
+            }
+            
+            [buffer commit];
+            [buffer release];
+            
+            for(auto ptr : str.allBlitEncoders)
+            {
+                id<MTLBlitCommandEncoder> encoder = AS_MTL(ptr, id<MTLBlitCommandEncoder>);
+                [encoder release];
+            }
+            
+            for(auto ptr : str.allRenderEncoders)
+            {
+                id<MTLRenderCommandEncoder> encoder = AS_MTL(ptr, id<MTLRenderCommandEncoder>);
+                [encoder release];
+            }
+            
+            for(auto ptr : str.allComputeEncoders)
+            {
+                id<MTLComputeCommandEncoder> encoder = AS_MTL(ptr, id<MTLComputeCommandEncoder>);
+                [encoder release];
+            }
+            
+            str.currentShader = 0;
+            str.currentEncoder =  str.currentBlitEncoder = str.currentComputeEncoder = str.currentBuffer = nullptr;
+            str.lastVertexBind.Init();
+            str.currentRenderPassUseDepth = false;
+            str.currentEncoderDepthStencil = nullptr;
+            str.currentShaderExists = false;
+            str.writtenSwapchains.clear();
+            str.allBlitEncoders.clear();
+            str.allRenderEncoders.clear();
+            str.allComputeEncoders.clear();
+            
+            m_submissionPerFrame.store(m_submissionPerFrame + 1);
         }
-        
-        for(auto swp : str.writtenSwapchains)
-        {
-            const auto& swap = m_swapchains.GetItemR(swp);
-            id<CAMetalDrawable> drawable = AS_MTL(swap._currentDrawable, id<CAMetalDrawable>);
-            [buffer presentDrawable:drawable];
-        }
-        
-        [buffer commit];
-        [buffer release];
-        
-        for(auto ptr : str.allBlitEncoders)
-        {
-            id<MTLBlitCommandEncoder> encoder = AS_MTL(ptr, id<MTLBlitCommandEncoder>);
-            [encoder release];
-        }
-        
-        for(auto ptr : str.allRenderEncoders)
-        {
-            id<MTLRenderCommandEncoder> encoder = AS_MTL(ptr, id<MTLRenderCommandEncoder>);
-            [encoder release];
-        }
-        
-        for(auto ptr : str.allComputeEncoders)
-        {
-            id<MTLComputeCommandEncoder> encoder = AS_MTL(ptr, id<MTLComputeCommandEncoder>);
-            [encoder release];
-        }
-        
-        str.currentShader = 0;
-        str.currentEncoder =  str.currentBlitEncoder = str.currentComputeEncoder = str.currentBuffer = nullptr;
-        str.lastVertexBind.Init();
-        str.currentRenderPassUseDepth = false;
-        str.currentEncoderDepthStencil = nullptr;
-        str.currentShaderExists = false;
-        str.writtenSwapchains.clear();
-        str.allBlitEncoders.clear();
-        str.allRenderEncoders.clear();
-        str.allComputeEncoders.clear();
-        
-        m_submissionPerFrame.store(m_submissionPerFrame + 1);
     }
 }
 
@@ -2736,6 +2850,29 @@ void MTLBackend::CMD_CopyTexture(LinaGX::uint8 *data, LinaGX::MTLCommandStream &
     
     [encoder copyFromTexture:srcTexture sourceSlice:cmd->srcLayer sourceLevel:cmd->srcMip toTexture:dstTexture destinationSlice:cmd->dstLayer destinationLevel:cmd->dstMip sliceCount:1 levelCount:1];
 
+}
+
+void MTLBackend::CMD_CopyTexture2DToBuffer(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) {
+    
+    CMDCopyTexture2DToBuffer* cmd = reinterpret_cast<CMDCopyTexture2DToBuffer*>(data);
+    const auto& srcTxtResource = m_textures.GetItemR(cmd->srcTexture);
+    const auto& dstBufferResource = m_resources.GetItemR(cmd->destBuffer);
+    
+    if (cmd->srcLayer >= srcTxtResource.arrayLength)
+    {
+        LOGE("Backend -> CMDCopyTexture2DToBuffer source texture layer is bigger than total layers in the texture, aborting!");
+        return;
+    }
+    
+    id<MTLBlitCommandEncoder> encoder = AS_MTL(stream.currentBlitEncoder, id<MTLBlitCommandEncoder>);
+    
+    id<MTLTexture> srcTexture = AS_MTL(srcTxtResource.ptr, id<MTLTexture>);
+    id<MTLBuffer> dstBuffer = AS_MTL(dstBufferResource.ptr, id<MTLBuffer>);
+    
+    MTLOrigin origin = MTLOriginMake(0, 0, 0);
+    MTLSize size = MTLSizeMake(srcTxtResource.size.x, srcTxtResource.size.y, 1);
+    uint32 bytesPerRow = srcTxtResource.size.x * srcTxtResource.bytesPerPixel;
+    [encoder copyFromTexture:srcTexture sourceSlice:cmd->srcLayer sourceLevel:cmd->srcMip sourceOrigin:origin sourceSize:size toBuffer:dstBuffer destinationOffset:0 destinationBytesPerRow:bytesPerRow destinationBytesPerImage:srcTxtResource.size.x * srcTxtResource.size.y * srcTxtResource.bytesPerPixel];
 }
 
 

@@ -254,6 +254,25 @@ namespace LinaGX
     };
 
     /// <summary>
+    /// Use for texture readback to cpu.
+    /// </summary>
+    struct CMDCopyTexture2DToBuffer
+    {
+        uint32 destBuffer;
+        uint32 srcTexture;
+        uint32 srcLayer;
+        uint32 srcMip;
+        
+        inline void Init()
+        {
+            destBuffer = 0;
+            srcTexture = 0;
+            srcLayer = 0;
+            srcMip = 0;
+        }
+    };
+
+    /// <summary>
     /// GPU-to-GPU texture copy.
     /// </summary>
     struct CMDCopyTexture
@@ -487,6 +506,7 @@ namespace LinaGX
     m_cmdFunctions[LGX_GetTypeID<CMDBindVertexBuffers>()]      = &BACKEND::CMD_BindVertexBuffers;      \
     m_cmdFunctions[LGX_GetTypeID<CMDBindIndexBuffers>()]       = &BACKEND::CMD_BindIndexBuffers;       \
     m_cmdFunctions[LGX_GetTypeID<CMDCopyResource>()]           = &BACKEND::CMD_CopyResource;           \
+    m_cmdFunctions[LGX_GetTypeID<CMDCopyTexture2DToBuffer>()]  = &BACKEND::CMD_CopyTexture2DToBuffer;  \
     m_cmdFunctions[LGX_GetTypeID<CMDCopyBufferToTexture2D>()]  = &BACKEND::CMD_CopyBufferToTexture2D;  \
     m_cmdFunctions[LGX_GetTypeID<CMDCopyTexture>()]            = &BACKEND::CMD_CopyTexture;            \
     m_cmdFunctions[LGX_GetTypeID<CMDBindDescriptorSets>()]     = &BACKEND::CMD_BindDescriptorSets;     \

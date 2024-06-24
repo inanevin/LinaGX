@@ -368,6 +368,7 @@ namespace LinaGX
         TH_StorageBuffer  = 1 << 3,
         TH_IndexBuffer    = 1 << 4,
         TH_IndirectBuffer = 1 << 5,
+        TH_ReadbackDest = 1 << 6,
     };
 
     enum class ResourceHeap
@@ -485,6 +486,7 @@ namespace LinaGX
         TF_CopySource            = 1 << 6,
         TF_CopyDest              = 1 << 7,
         TF_Cubemap               = 1 << 8,
+        TF_Readback = 1 << 9,
     };
 
     struct DX12IndexedIndirectCommand
