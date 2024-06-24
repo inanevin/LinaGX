@@ -211,6 +211,7 @@ namespace LinaGX
                 uint32 primitiveIndex = 0;
                 for (const auto& tgPrimitive : tgMesh.primitives)
                 {
+                    
                     node->mesh->primitives[primitiveIndex] = node->mesh->primitives[0] + primitiveIndex;
                     ModelMeshPrimitive* primitive          = node->mesh->primitives[primitiveIndex];
 
@@ -219,12 +220,15 @@ namespace LinaGX
                     const tinygltf::Accessor&   vertexAccessor   = model.accessors[tgPrimitive.attributes.find("POSITION")->second];
                     const tinygltf::BufferView& vertexBufferView = model.bufferViews[vertexAccessor.bufferView];
                     const tinygltf::Buffer&     vertexBuffer     = model.buffers[vertexBufferView.buffer];
-
+          
+                    
                     LOGA((vertexAccessor.type == TINYGLTF_TYPE_VEC3 && vertexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
 
                     const size_t numVertices = vertexAccessor.count;
                     primitive->positions.resize(numVertices);
                     primitive->vertexCount = static_cast<uint32>(numVertices);
+                    primitive->minPosition = {static_cast<float>(vertexAccessor.minValues[0]), static_cast<float>(vertexAccessor.minValues[1]), static_cast<float>(vertexAccessor.minValues[2])};
+                    primitive->maxPosition = {static_cast<float>(vertexAccessor.maxValues[0]), static_cast<float>(vertexAccessor.maxValues[1]), static_cast<float>(vertexAccessor.maxValues[2])};
 
                     for (size_t j = 0; j < numVertices; ++j)
                     {
