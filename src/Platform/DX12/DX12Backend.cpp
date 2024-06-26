@@ -73,6 +73,8 @@ namespace LinaGX
 
     DWORD msgCallback = 0;
 
+Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
+
     DXGI_FORMAT GetDXFormat(Format format)
     {
         switch (format)
@@ -898,7 +900,7 @@ namespace LinaGX
             UINT32                   codePage = CP_UTF8;
             ComPtr<IDxcBlobEncoding> sourceBlob;
             const char*              shaderSource = source.c_str();
-            m_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, static_cast<UINT>(source.size()), codePage, &sourceBlob);
+            s_idxcLib->CreateBlobWithEncodingFromPinned((const BYTE*)shaderSource, static_cast<UINT>(source.size()), codePage, &sourceBlob);
 
             const wchar_t* targetProfile = L"vs_6_0";
             if (stage == ShaderStage::Fragment)
@@ -2517,7 +2519,7 @@ namespace LinaGX
 
             // DXC
             {
-                HRESULT hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&m_idxcLib));
+                HRESULT hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&s_idxcLib));
                 if (FAILED(hr))
                 {
                     LOGE("Backend -> Failed to create DXC library!");
@@ -2679,7 +2681,7 @@ namespace LinaGX
         delete m_gpuHeapSampler;
 
         m_dx12Allocator->Release();
-        m_idxcLib.Reset();
+        s_idxcLib.Reset();
         m_device.Reset();
 
         delete m_bufferHeap;

@@ -220,7 +220,7 @@ namespace LinaGX
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
         virtual void   SetSwapchainActive(uint8 swp, bool isActive) override;
-        virtual bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob) override;
+        static bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
         virtual uint32 CreateTexture(const TextureDesc& desc) override;
@@ -296,7 +296,7 @@ namespace LinaGX
 
     private:
         D3D12MA::Allocator*                   m_dx12Allocator = nullptr;
-        Microsoft::WRL::ComPtr<IDxcLibrary>   m_idxcLib;
+        static Microsoft::WRL::ComPtr<IDxcLibrary>   s_idxcLib;
         Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter      = nullptr;
         Microsoft::WRL::ComPtr<ID3D12Device>  m_device       = nullptr;
         Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory      = nullptr;

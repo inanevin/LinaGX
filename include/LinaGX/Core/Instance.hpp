@@ -146,7 +146,7 @@ namespace LinaGX
         /// <param name="compileData">Per-stage map representing the stage text and root directory for any #include directives.</param>
         /// <param name="outCompiledBlobs">Per-stage map giving compiled blobs. On Vulkan, blobs will be SPIR-V. On DX12 they will be DXIL, on Metal they will be binary representation of cross-compiled MSL. </param>
         /// <param name="outLayout">ShaderLayout describing the reflection information of the shader. You need to use this while calling CreateShader(). </param>
-        bool CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout);
+        static bool CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout);
 
         /// <summary>
         /// Creates a shader pipeline state object.

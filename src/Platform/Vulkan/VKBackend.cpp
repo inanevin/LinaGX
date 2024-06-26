@@ -988,12 +988,6 @@ namespace LinaGX
         swap.isActive = isActive;
     }
 
-    bool VKBackend::CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob)
-    {
-        LOGA(false, "!!");
-        return false;
-    }
-
     bool CompareBindings(const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b)
     {
         return a.binding < b.binding;

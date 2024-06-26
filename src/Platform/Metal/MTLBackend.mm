@@ -766,7 +766,6 @@ void MTLBackend::SetSwapchainActive(uint8 swp, bool isActive) {
 }
 
 bool MTLBackend::CompileShader(ShaderStage stage, const std::string &source, DataBlob &outBlob) {
-    auto device = AS_MTL(m_device, id<MTLDevice>);
     outBlob.ptr = (uint8*)LINAGX_MALLOC(source.size());
     outBlob.size = source.size();
     LINAGX_MEMCPY(outBlob.ptr, source.data(), source.size());

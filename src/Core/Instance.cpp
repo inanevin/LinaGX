@@ -42,6 +42,14 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef LINAGX_DISABLE_VK
 #include "LinaGX/Platform/Vulkan/VKBackend.hpp"
 #endif
+
+#ifndef LINAGX_DISABLE_DX12
+#include "LinaGX/Platform/DX12/DX12Backend.hpp"
+#endif
+#endif
+
+#ifdef LINAGX_PLATFORM_APPLE
+#include "LinaGX/Platform/Metal/MTLBackend.hpp"
 #endif
 
 namespace LinaGX
@@ -260,8 +268,13 @@ namespace LinaGX
 
                 hlsl += outHLSLs[stage];
 
-                if (!m_backend->CompileShader(stage, hlsl, blob))
+#ifdef LINAGX_PLATFORM_WINDOWS
+#ifndef LINAGX_DISABLE_DX12
+                if (!DX12Backend::CompileShader(stage, hlsl, blob))
                     return false;
+#endif
+#endif
+             
             }
         }
         else if (Config.api == BackendAPI::Metal)
@@ -279,8 +292,10 @@ namespace LinaGX
 
                 spv = {};
 
-                if (!m_backend->CompileShader(stage, outMSL, spv))
+#ifdef LINAGX_PLATFORM_APPLE
+                if (!MTLBackend::CompileShader(stage, outMSL, spv))
                     return false;
+#endif
             }
         }
 
