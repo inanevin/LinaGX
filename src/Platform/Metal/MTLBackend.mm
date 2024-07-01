@@ -1333,146 +1333,150 @@ void MTLBackend::DestroyDescriptorSet(uint16 handle) {
 
 void MTLBackend::DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc &desc) {
     
-    auto& item = m_descriptorSets.GetItemR(desc.setHandle);
-    auto device = AS_MTL(m_device, id<MTLDevice>);
-    LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
+    @autoreleasepool {
+        auto& item = m_descriptorSets.GetItemR(desc.setHandle);
+        auto device = AS_MTL(m_device, id<MTLDevice>);
+        LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
 
-    auto& bindingData = item.bindings[desc.setAllocationIndex][desc.binding];
-    const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
-    LOGA(descriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
-    LOGA(bindingData.lgxBinding.type == DescriptorType::UBO || bindingData.lgxBinding.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
-    
-    bindingData.resources.clear();
-    for(uint32 i = 0; i < descriptorCount; i++)
-        bindingData.resources.push_back(desc.buffers[i]);
-    
-    if(bindingData.lgxBinding.unbounded)
-    {
-        LOGA(bindingData.lgxBinding.type != DescriptorType::SSBO, "Backend -> Can't use SSBO's as unbounded!");
+        auto& bindingData = item.bindings[desc.setAllocationIndex][desc.binding];
+        const uint32 descriptorCount = static_cast<uint32>(desc.buffers.size());
+        LOGA(descriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updating descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        LOGA(bindingData.lgxBinding.type == DescriptorType::UBO || bindingData.lgxBinding.type == DescriptorType::SSBO, "Backend -> You can only use DescriptorUpdateBuffer with descriptors of type UBO and SSBO! Use DescriptorUpdateImage()");
         
-        if(bindingData.argBuffer != nullptr)
-        {
-            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
-            [argBuffer release];
-        }
-       
-        id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * descriptorCount options:0];
-        [argBuffer retain];
-        bindingData.argBuffer = AS_VOID(argBuffer);
-        id<MTLArgumentEncoder> encoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
-        
+        bindingData.resources.clear();
         for(uint32 i = 0; i < descriptorCount; i++)
+            bindingData.resources.push_back(desc.buffers[i]);
+        
+        if(bindingData.lgxBinding.unbounded)
         {
-            id<MTLBuffer> buf = AS_MTL(m_resources.GetItemR(bindingData.resources[i]).ptr, id<MTLBuffer>);
-            [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
-            [encoder setBuffer:buf offset:0 atIndex:0];
+            LOGA(bindingData.lgxBinding.type != DescriptorType::SSBO, "Backend -> Can't use SSBO's as unbounded!");
+            
+            if(bindingData.argBuffer != nullptr)
+            {
+                id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
+                [argBuffer release];
+            }
+           
+            id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * descriptorCount options:0];
+            // [argBuffer retain];
+            bindingData.argBuffer = AS_VOID(argBuffer);
+            id<MTLArgumentEncoder> encoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
+            
+            for(uint32 i = 0; i < descriptorCount; i++)
+            {
+                id<MTLBuffer> buf = AS_MTL(m_resources.GetItemR(bindingData.resources[i]).ptr, id<MTLBuffer>);
+                [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
+                [encoder setBuffer:buf offset:0 atIndex:0];
+            }
         }
     }
 }
 
 void MTLBackend::DescriptorUpdateImage(const DescriptorUpdateImageDesc &desc) {
     
-    auto& item = m_descriptorSets.GetItemR(desc.setHandle);
-    auto device = AS_MTL(m_device, id<MTLDevice>);
-    LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
+    @autoreleasepool {
+        auto& item = m_descriptorSets.GetItemR(desc.setHandle);
+        auto device = AS_MTL(m_device, id<MTLDevice>);
+        LOGA(desc.binding < static_cast<uint32>(item.bindings[desc.setAllocationIndex].size()), "Backend -> Binding is not valid!");
 
-    auto& bindingData = item.bindings[desc.setAllocationIndex][desc.binding];
-    const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
-    const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
-    LOGA(txtDescriptorCount <= bindingData.lgxBinding.descriptorCount && smpDescriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
+        auto& bindingData = item.bindings[desc.setAllocationIndex][desc.binding];
+        const uint32 txtDescriptorCount = static_cast<uint32>(desc.textures.size());
+        const uint32 smpDescriptorCount = static_cast<uint32>(desc.samplers.size());
+        LOGA(txtDescriptorCount <= bindingData.lgxBinding.descriptorCount && smpDescriptorCount <= bindingData.lgxBinding.descriptorCount, "Backend -> Error updateing descriptor buffer as update count exceeds the maximum descriptor count for given binding!");
 
-    LOGA(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage, "Backend -> You can only use DescriptorUpdateImage with descriptors of type combined image sampler, separate image or separate sampler! Use DescriptorUpdateBuffer()");
-    
-    bindingData.resources.clear();
-    bindingData.additionalResources.clear();
-    bindingData.viewIndices = desc.textureViewIndices;
-    
-    uint32 usedDescriptorCount = 0;
-    if(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler)
-    {
-        LOGA(txtDescriptorCount == smpDescriptorCount, "Backend -> Trying to update combined image samplers but amount of texture and sampler resources are not the same!");
-        usedDescriptorCount = txtDescriptorCount;
-        for(uint32 i = 0; i < txtDescriptorCount; i++)
-        {
-            bindingData.resources.push_back(desc.textures[i]);
-            bindingData.additionalResources.push_back(desc.samplers[i]);
-        }
-    }
-    else if(bindingData.lgxBinding.type == DescriptorType::SeparateSampler)
-    {
-        usedDescriptorCount = smpDescriptorCount;
-        for(uint32 i = 0; i < smpDescriptorCount; i++)
-            bindingData.resources.push_back(desc.samplers[i]);
-    }
-    else if(bindingData.lgxBinding.type == DescriptorType::SeparateImage)
-    {
-        usedDescriptorCount = txtDescriptorCount;
-        for(uint32 i = 0; i < txtDescriptorCount; i++)
-            bindingData.resources.push_back(desc.textures[i]);
-    }
-    
-     
-    if(bindingData.lgxBinding.unbounded)
-    {
-        auto processForTexture = [&](){
-            
-            id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * usedDescriptorCount options:0];
-            [argBuffer retain];
-            bindingData.argBuffer = AS_VOID(argBuffer);
-
-            id<MTLArgumentEncoder> encoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
-            auto hm = encoder.encodedLength;
-            for(uint32 i = 0; i < usedDescriptorCount; i++)
-            {
-                auto& txtRes = m_textures.GetItemR(bindingData.resources[i]);
-                id<MTLTexture> txt = AS_MTL(bindingData.viewIndices.empty() ? txtRes.views[0] : txtRes.views[bindingData.viewIndices[i]], id<MTLTexture>);
-                [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
-                [encoder setTexture:txt atIndex:0];
-            }
-        };
+        LOGA(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler || bindingData.lgxBinding.type == DescriptorType::SeparateSampler || bindingData.lgxBinding.type == DescriptorType::SeparateImage, "Backend -> You can only use DescriptorUpdateImage with descriptors of type combined image sampler, separate image or separate sampler! Use DescriptorUpdateBuffer()");
         
-        auto processForSampler = [&](bool useSecondary){
-            
-            id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLSamplerState>) * usedDescriptorCount options:0];
-            [argBuffer retain];
-            
-            if(useSecondary)
-                bindingData.argBufferSecondary = AS_VOID(argBuffer);
-            else
-                bindingData.argBuffer = AS_VOID(argBuffer);
-
-            id<MTLArgumentEncoder> encoder = AS_MTL(useSecondary ? bindingData.argEncoderSecondary : bindingData.argEncoder, id<MTLArgumentEncoder>);
-            for(uint32 i = 0; i < usedDescriptorCount; i++)
-            {
-                const uint32 handle = useSecondary ? bindingData.additionalResources[i] : bindingData.resources[i];
-                id<MTLSamplerState> smp = AS_MTL(m_samplers.GetItemR(handle).ptr, id<MTLSamplerState>);
-                [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
-                [encoder setSamplerState:smp atIndex:0];
-            }
-        };
+        bindingData.resources.clear();
+        bindingData.additionalResources.clear();
+        bindingData.viewIndices = desc.textureViewIndices;
         
-        if(bindingData.argBuffer != nullptr)
-        {
-            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
-            [argBuffer release];
-        }
-        
-        if(bindingData.argBufferSecondary != nullptr)
-        {
-            id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBufferSecondary, id<MTLBuffer>);
-            [argBuffer release];
-        }
-        
+        uint32 usedDescriptorCount = 0;
         if(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler)
         {
-            processForTexture();
-            processForSampler(true);
+            LOGA(txtDescriptorCount == smpDescriptorCount, "Backend -> Trying to update combined image samplers but amount of texture and sampler resources are not the same!");
+            usedDescriptorCount = txtDescriptorCount;
+            for(uint32 i = 0; i < txtDescriptorCount; i++)
+            {
+                bindingData.resources.push_back(desc.textures[i]);
+                bindingData.additionalResources.push_back(desc.samplers[i]);
+            }
+        }
+        else if(bindingData.lgxBinding.type == DescriptorType::SeparateSampler)
+        {
+            usedDescriptorCount = smpDescriptorCount;
+            for(uint32 i = 0; i < smpDescriptorCount; i++)
+                bindingData.resources.push_back(desc.samplers[i]);
         }
         else if(bindingData.lgxBinding.type == DescriptorType::SeparateImage)
-            processForTexture();
-        else
-            processForSampler(false);
-       
+        {
+            usedDescriptorCount = txtDescriptorCount;
+            for(uint32 i = 0; i < txtDescriptorCount; i++)
+                bindingData.resources.push_back(desc.textures[i]);
+        }
+        
+         
+        if(bindingData.lgxBinding.unbounded)
+        {
+            auto processForTexture = [&](){
+                
+                id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLTexture>) * usedDescriptorCount options:0];
+              //  [argBuffer retain];
+                bindingData.argBuffer = AS_VOID(argBuffer);
+
+                id<MTLArgumentEncoder> encoder = AS_MTL(bindingData.argEncoder, id<MTLArgumentEncoder>);
+                auto hm = encoder.encodedLength;
+                for(uint32 i = 0; i < usedDescriptorCount; i++)
+                {
+                    auto& txtRes = m_textures.GetItemR(bindingData.resources[i]);
+                    id<MTLTexture> txt = AS_MTL(bindingData.viewIndices.empty() ? txtRes.views[0] : txtRes.views[bindingData.viewIndices[i]], id<MTLTexture>);
+                    [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
+                    [encoder setTexture:txt atIndex:0];
+                }
+            };
+            
+            auto processForSampler = [&](bool useSecondary){
+                
+                id<MTLBuffer> argBuffer = [device newBufferWithLength:sizeof(id<MTLSamplerState>) * usedDescriptorCount options:0];
+             //   [argBuffer retain];
+                
+                if(useSecondary)
+                    bindingData.argBufferSecondary = AS_VOID(argBuffer);
+                else
+                    bindingData.argBuffer = AS_VOID(argBuffer);
+
+                id<MTLArgumentEncoder> encoder = AS_MTL(useSecondary ? bindingData.argEncoderSecondary : bindingData.argEncoder, id<MTLArgumentEncoder>);
+                for(uint32 i = 0; i < usedDescriptorCount; i++)
+                {
+                    const uint32 handle = useSecondary ? bindingData.additionalResources[i] : bindingData.resources[i];
+                    id<MTLSamplerState> smp = AS_MTL(m_samplers.GetItemR(handle).ptr, id<MTLSamplerState>);
+                    [encoder setArgumentBuffer:argBuffer offset:encoder.encodedLength * i];
+                    [encoder setSamplerState:smp atIndex:0];
+                }
+            };
+            
+            if(bindingData.argBuffer != nullptr)
+            {
+                id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBuffer, id<MTLBuffer>);
+                [argBuffer release];
+            }
+            
+            if(bindingData.argBufferSecondary != nullptr)
+            {
+                id<MTLBuffer> argBuffer = AS_MTL(bindingData.argBufferSecondary, id<MTLBuffer>);
+                [argBuffer release];
+            }
+            
+            if(bindingData.lgxBinding.type == DescriptorType::CombinedImageSampler)
+            {
+                processForTexture();
+                processForSampler(true);
+            }
+            else if(bindingData.lgxBinding.type == DescriptorType::SeparateImage)
+                processForTexture();
+            else
+                processForSampler(false);
+           
+        }
     }
     
 }
