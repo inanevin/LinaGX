@@ -784,6 +784,7 @@ namespace LinaGX
         uint16*         signalSemaphores = 0;
         uint64*         signalValues     = 0;
         bool            isMultithreaded  = false; // Set to true if you are targeting the same Queue from multiple non-syncronized threads.
+        bool standaloneSubmission = false; // If you are rendering outside of main render loop (so outside of StartFrame() and EndFrame()), for example in a background thread, set to true.
     };
 
     struct PresentDesc

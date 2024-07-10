@@ -1710,11 +1710,10 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
 void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
           
     @autoreleasepool {
-        
-        
+                
         auto& pfd = m_perFrameData[m_currentFrameIndex];
         
-        if (desc.isMultithreaded)
+        if (desc.isMultithreaded && !desc.standaloneSubmission)
         {
             // spinlock
             while (m_submissionFlag.test_and_set(std::memory_order_acquire))
@@ -1725,10 +1724,10 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         
         const auto& queue = m_queues.GetItemR(desc.targetQueue);
         
-        if(queue.type == CommandType::Graphics)
+        if(queue.type == CommandType::Graphics && !desc.standaloneSubmission)
             pfd.submits++;
         
-        if(desc.isMultithreaded)
+        if(desc.isMultithreaded && !desc.standaloneSubmission)
             m_submissionFlag.clear();
         
         for (uint32 i = 0; i < desc.streamCount; i++)
@@ -1754,7 +1753,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
                 }
             }
             
-            if(queue.type == CommandType::Graphics)
+            if(queue.type == CommandType::Graphics && !desc.standaloneSubmission)
             {
                 [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
                     
@@ -1777,12 +1776,16 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
                 }
             }
             
-            for(auto swp : str.writtenSwapchains)
+            if(!desc.standaloneSubmission)
             {
-                const auto& swap = m_swapchains.GetItemR(swp);
-                id<CAMetalDrawable> drawable = AS_MTL(swap._currentDrawable, id<CAMetalDrawable>);
-                [buffer presentDrawable:drawable];
+                for(auto swp : str.writtenSwapchains)
+                {
+                    const auto& swap = m_swapchains.GetItemR(swp);
+                    id<CAMetalDrawable> drawable = AS_MTL(swap._currentDrawable, id<CAMetalDrawable>);
+                    [buffer presentDrawable:drawable];
+                }
             }
+           
             
             [buffer commit];
             [buffer release];
@@ -1816,7 +1819,8 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
             str.allRenderEncoders.clear();
             str.allComputeEncoders.clear();
             
-            m_submissionPerFrame.store(m_submissionPerFrame + 1);
+            if(!desc.standaloneSubmission)
+                m_submissionPerFrame.store(m_submissionPerFrame + 1);
         }
     }
 }
