@@ -497,7 +497,7 @@ namespace LinaGX
         replace("LGX_INDEXED_INDIRECT_CMD", "LGXIndexedIndirectCommand");
         replace("LGX_INDIRECT_CMD", "LGXIndirectCommand");
 
-        size_t versionPos = fullShaderStr.find("#version");
+        size_t versionPos          = fullShaderStr.find("#version");
         size_t endOfVersionLinePos = fullShaderStr.find("\n", versionPos);
 
         if (Config.api == BackendAPI::DX12)
@@ -852,26 +852,25 @@ namespace LinaGX
                 targetBinding.type          = DescriptorType::SeparateSampler;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
-                if (!type.array.empty()) {
-                    // Check if the array size is a literal constant
-                    if (type.array_size_literal[0]) {
-                        // If the array size is known and greater than 1, set the descriptor count to the size
-                        if (type.array[0] != 1) {
-                            targetBinding.descriptorCount = type.array[0];
-                        } else {
-                            // If the array size is 1, set the descriptor count to 1 (since it's still a valid size)
-                            targetBinding.descriptorCount = 1;
-                        }
-                    } else {
-                        // If the array size is not a literal (e.g., it might be a specialization constant), handle it appropriately
-                        // Here we assume if not literal, it is an unbounded array, set the descriptor count to 0
+                if (!type.array.empty())
+                {
+                    if (type.array_size_literal[0])
+                        targetBinding.descriptorCount = type.array[0];
+                    else
                         targetBinding.descriptorCount = 0;
-                    }
-                } else {
-                    // If type is not an array, set the descriptor count to 1
-                    targetBinding.descriptorCount = 1;
                 }
+                else
+                    targetBinding.descriptorCount = 1;
 
+                // I love hacks *-*
+                const size_t pos = fullShaderStr.find(name);
+                if (pos != LINAGX_STRING::npos)
+                {
+                    const LINAGX_STRING substr  = fullShaderStr.substr(pos + name.size(), 3);
+                    const LINAGX_STRING substr2 = fullShaderStr.substr(pos + name.size() + 1, 3);
+                    if (substr.compare("[];") == 0 || substr2.compare("[];") == 0)
+                        targetBinding.descriptorCount = 0;
+                }
 
                 outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 1 : targetBinding.descriptorCount;
             }
@@ -897,26 +896,25 @@ namespace LinaGX
                 targetBinding.type          = DescriptorType::SeparateImage;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
-                if (!type.array.empty()) {
-                    // Check if the array size is a literal constant
-                    if (type.array_size_literal[0]) {
-                        // If the array size is known and greater than 1, set the descriptor count to the size
-                        if (type.array[0] != 1) {
-                            targetBinding.descriptorCount = type.array[0];
-                        } else {
-                            // If the array size is 1, set the descriptor count to 1 (since it's still a valid size)
-                            targetBinding.descriptorCount = 1;
-                        }
-                    } else {
-                        // If the array size is not a literal (e.g., it might be a specialization constant), handle it appropriately
-                        // Here we assume if not literal, it is an unbounded array, set the descriptor count to 0
+                if (!type.array.empty())
+                {
+                    if (type.array_size_literal[0])
+                        targetBinding.descriptorCount = type.array[0];
+                    else
                         targetBinding.descriptorCount = 0;
-                    }
-                } else {
-                    // If type is not an array, set the descriptor count to 1
-                    targetBinding.descriptorCount = 1;
                 }
+                else
+                    targetBinding.descriptorCount = 1;
 
+                // I love hacks *-*
+                const size_t pos = fullShaderStr.find(name);
+                if (pos != LINAGX_STRING::npos)
+                {
+                    const LINAGX_STRING substr  = fullShaderStr.substr(pos + name.size(), 3);
+                    const LINAGX_STRING substr2 = fullShaderStr.substr(pos + name.size() + 1, 3);
+                    if (substr.compare("[];") == 0 || substr2.compare("[];") == 0)
+                        targetBinding.descriptorCount = 0;
+                }
 
                 outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 1 : targetBinding.descriptorCount;
             }
@@ -942,24 +940,24 @@ namespace LinaGX
                 targetBinding.type          = DescriptorType::CombinedImageSampler;
                 targetBinding.isActive[stg] = activeResources.count(id) > 0;
 
-                if (!type.array.empty()) {
-                    // Check if the array size is a literal constant
-                    if (type.array_size_literal[0]) {
-                        // If the array size is known and greater than 1, set the descriptor count to the size
-                        if (type.array[0] != 1) {
-                            targetBinding.descriptorCount = type.array[0];
-                        } else {
-                            // If the array size is 1, set the descriptor count to 1 (since it's still a valid size)
-                            targetBinding.descriptorCount = 1;
-                        }
-                    } else {
-                        // If the array size is not a literal (e.g., it might be a specialization constant), handle it appropriately
-                        // Here we assume if not literal, it is an unbounded array, set the descriptor count to 0
+                if (!type.array.empty())
+                {
+                    if (type.array_size_literal[0])
+                        targetBinding.descriptorCount = type.array[0];
+                    else
                         targetBinding.descriptorCount = 0;
-                    }
-                } else {
-                    // If type is not an array, set the descriptor count to 1
+                }
+                else
                     targetBinding.descriptorCount = 1;
+
+                // I love hacks *-*
+                const size_t pos = fullShaderStr.find(name);
+                if (pos != LINAGX_STRING::npos)
+                {
+                    const LINAGX_STRING substr  = fullShaderStr.substr(pos + name.size(), 3);
+                    const LINAGX_STRING substr2 = fullShaderStr.substr(pos + name.size() + 1, 3);
+                    if (substr.compare("[];") == 0 || substr2.compare("[];") == 0)
+                        targetBinding.descriptorCount = 0;
                 }
 
                 outLayout.totalDescriptors += targetBinding.descriptorCount == 0 ? 2 : targetBinding.descriptorCount * 2;
@@ -1032,7 +1030,7 @@ namespace LinaGX
             options.shader_model = 60; // SM6_0
 
             compiler.set_hlsl_options(options);
-            compiler.add_vertex_attribute_remap(attribs);
+            // compiler.add_vertex_attribute_remap(attribs);
 
             uint32 setIndex = 0;
 
@@ -1251,7 +1249,7 @@ namespace LinaGX
                         if (bindingData.descriptorCount == 0)
                         {
                             mslb.count                   = 0;
-                            mslb.msl_sampler           = bufferID;
+                            mslb.msl_sampler             = bufferID;
                             bindingData.mslBufferID[stg] = bufferID;
                             bufferID++;
                         }
