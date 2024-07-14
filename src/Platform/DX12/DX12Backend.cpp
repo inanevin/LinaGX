@@ -73,7 +73,7 @@ namespace LinaGX
 
     DWORD msgCallback = 0;
 
-Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
+    Microsoft::WRL::ComPtr<IDxcLibrary> DX12Backend::s_idxcLib;
 
     DXGI_FORMAT GetDXFormat(Format format)
     {
@@ -203,6 +203,105 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
         }
 
         return DXGI_FORMAT_UNKNOWN;
+    }
+
+    uint32 GetDXBytesPerPixel(Format format)
+    {
+        switch (format)
+        {
+        case Format::UNDEFINED:
+            return 0;
+
+            // 8 bit
+        case Format::R8_SINT:
+        case Format::R8_UINT:
+        case Format::R8_UNORM:
+        case Format::R8_SNORM:
+            return 1;
+
+        case Format::R8G8_SINT:
+        case Format::R8G8_UINT:
+        case Format::R8G8_UNORM:
+        case Format::R8G8_SNORM:
+            return 2;
+
+        case Format::R8G8B8A8_SINT:
+        case Format::R8G8B8A8_UINT:
+        case Format::R8G8B8A8_UNORM:
+        case Format::R8G8B8A8_SNORM:
+        case Format::R8G8B8A8_SRGB:
+            return 4;
+
+        case Format::B8G8R8A8_UNORM:
+        case Format::B8G8R8A8_SRGB:
+            return 4;
+
+            // 16 bit
+        case Format::R16_SINT:
+        case Format::R16_UINT:
+        case Format::R16_UNORM:
+        case Format::R16_SNORM:
+        case Format::R16_SFLOAT:
+            return 2;
+
+        case Format::R16G16_SINT:
+        case Format::R16G16_UINT:
+        case Format::R16G16_UNORM:
+        case Format::R16G16_SNORM:
+        case Format::R16G16_SFLOAT:
+            return 4;
+
+        case Format::R16G16B16A16_SINT:
+        case Format::R16G16B16A16_UINT:
+        case Format::R16G16B16A16_UNORM:
+        case Format::R16G16B16A16_SNORM:
+        case Format::R16G16B16A16_SFLOAT:
+            return 8;
+
+            // 32 bit
+        case Format::R32_SINT:
+        case Format::R32_UINT:
+        case Format::R32_SFLOAT:
+            return 4;
+
+        case Format::R32G32_SINT:
+        case Format::R32G32_UINT:
+        case Format::R32G32_SFLOAT:
+            return 8;
+
+        case Format::R32G32B32_SFLOAT:
+        case Format::R32G32B32_SINT:
+        case Format::R32G32B32_UINT:
+            return 12;
+
+        case Format::R32G32B32A32_SINT:
+        case Format::R32G32B32A32_UINT:
+        case Format::R32G32B32A32_SFLOAT:
+            return 16;
+
+            // depth-stencil
+        case Format::D32_SFLOAT:
+            return 4;
+        case Format::D24_UNORM_S8_UINT:
+            return 4;
+        case Format::D16_UNORM:
+            return 2;
+
+            // misc
+        case Format::R11G11B10_SFLOAT:
+            return 4;
+        case Format::R10G0B10A2_INT:
+            return 4;
+        case Format::BC3_BLOCK_SRGB:
+            return 4;
+        case Format::BC3_BLOCK_UNORM:
+            return 4;
+
+        default:
+            return 0;
+        }
+
+        return 0;
     }
 
     DXGI_FORMAT GetDXIndexType(IndexType type)
@@ -948,13 +1047,17 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
                 ComPtr<IDxcBlob>      pDebugData;
                 ComPtr<IDxcBlobUtf16> pDebugDataPath;
                 result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(pDebugData.GetAddressOf()), pDebugDataPath.GetAddressOf());
-                const wchar_t* pdbPath = reinterpret_cast<const wchar_t*>(pDebugDataPath->GetBufferPointer());
 
-                if (pDebugData && pdbPath)
+                if (pDebugData != NULL && pDebugDataPath != NULL)
                 {
-                    std::ofstream outFile(pdbPath, std::ios::binary);
-                    outFile.write(reinterpret_cast<const char*>(pDebugData->GetBufferPointer()), pDebugData->GetBufferSize());
-                    outFile.close();
+                    const wchar_t* pdbPath = reinterpret_cast<const wchar_t*>(pDebugDataPath->GetBufferPointer());
+
+                    if (pDebugData && pdbPath)
+                    {
+                        std::ofstream outFile(pdbPath, std::ios::binary);
+                        outFile.write(reinterpret_cast<const char*>(pDebugData->GetBufferPointer()), pDebugData->GetBufferSize());
+                        outFile.close();
+                    }
                 }
             }
 
@@ -1476,6 +1579,8 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
         DX12Texture2D item = {};
         item.isValid       = true;
         item.desc          = txtDesc;
+        item.format        = GetDXFormat(txtDesc.format);
+        item.bytesPerPixel = GetDXBytesPerPixel(txtDesc.format);
 
         D3D12_RESOURCE_DESC resourceDesc = {};
         resourceDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -1488,7 +1593,7 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
         resourceDesc.SampleDesc.Quality  = 0;
         resourceDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
-        resourceDesc.Format              = GetDXFormat(txtDesc.format);
+        resourceDesc.Format              = item.format;
 
         if (txtDesc.type == TextureType::Texture1D)
             resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
@@ -1852,7 +1957,7 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
 
             NV_RESOURCE_PARAMS nvResourceParams = {};
             nvResourceParams.NVResourceFlags    = NV_D3D12_RESOURCE_FLAG_CPUVISIBLE_VIDMEM;
-            auto         hp                     = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            auto         hp                     = CD3DX12_HEAP_PROPERTIES(desc.typeHintFlags & ResourceTypeHint::TH_ReadbackDest ? D3D12_HEAP_TYPE_READBACK : D3D12_HEAP_TYPE_UPLOAD);
             NvAPI_Status result                 = NvAPI_D3D12_CreateCommittedResource(m_device.Get(), &hp, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COMMON, NULL, &nvResourceParams, IID_PPV_ARGS(&item.cpuVisibleResource), NULL);
             LOGA(result == NvAPI_Status::NVAPI_OK, "Backend -> Host-visible gpu resource creation failed! Maybe exceeded total size?");
             NAME_DX12_OBJECT_CSTR(item.cpuVisibleResource, desc.debugName);
@@ -1875,6 +1980,12 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
         else
         {
             allocationDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+            state                   = D3D12_RESOURCE_STATE_COPY_DEST;
+        }
+
+        if (desc.typeHintFlags & ResourceTypeHint::TH_ReadbackDest)
+        {
+            allocationDesc.HeapType = D3D12_HEAP_TYPE_READBACK;
             state                   = D3D12_RESOURCE_STATE_COPY_DEST;
         }
 
@@ -2902,7 +3013,7 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
             queue.queue->ExecuteCommandLists(desc.streamCount, data);
 
             // If "Join" is called without an EndFrame(), we need to make sure the graphics fence are bumped...
-            if (queue.type == CommandType::Graphics)
+            if (queue.type == CommandType::Graphics || !desc.standaloneSubmission)
                 m_graphicsFencesDirty.store(true);
 
             if (desc.useSignal)
@@ -2911,7 +3022,8 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
                     queue.queue->Signal(m_userSemaphores.GetItem(desc.signalSemaphores[i]).ptr.Get(), desc.signalValues[i]);
             }
 
-            m_submissionPerFrame.store(m_submissionPerFrame + 1);
+            if (!desc.standaloneSubmission)
+                m_submissionPerFrame.store(m_submissionPerFrame + 1);
         }
         catch (HrException e)
         {
@@ -3424,6 +3536,32 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
         UpdateSubresources(stream.list.Get(), dstTexture.allocation->GetResource(), GetGPUResource(srcRes), 0, static_cast<uint32>(allData.size()) * cmd->destinationSlice, static_cast<uint32>(allData.size()), allData.data());
     }
 
+    void DX12Backend::CMD_CopyTexture2DToBuffer(uint8* data, DX12CommandStream& stream)
+    {
+        CMDCopyTexture2DToBuffer* cmd        = reinterpret_cast<CMDCopyTexture2DToBuffer*>(data);
+        const auto&               srcTexture = m_textures.GetItemR(cmd->srcTexture);
+        const auto&               dstBuffer  = m_resources.GetItemR(cmd->destBuffer);
+
+        D3D12_TEXTURE_COPY_LOCATION dstLocation        = {};
+        dstLocation.pResource                          = GetGPUResource(dstBuffer);
+        dstLocation.SubresourceIndex                   = 0;
+        dstLocation.Type                               = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        dstLocation.Type                               = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        dstLocation.PlacedFootprint.Offset             = 0;
+        dstLocation.PlacedFootprint.Footprint.Format   = srcTexture.format;
+        dstLocation.PlacedFootprint.Footprint.Width    = static_cast<UINT>(srcTexture.desc.width);
+        dstLocation.PlacedFootprint.Footprint.Height   = static_cast<UINT>(srcTexture.desc.height);
+        dstLocation.PlacedFootprint.Footprint.Depth    = 1;
+        dstLocation.PlacedFootprint.Footprint.RowPitch = static_cast<UINT>(srcTexture.desc.width * srcTexture.bytesPerPixel);
+
+        D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+        srcLocation.pResource                   = srcTexture.allocation->GetResource();
+        srcLocation.Type                        = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLocation.SubresourceIndex            = D3D12CalcSubresource(cmd->srcMip, cmd->srcLayer, 0, 1, 1);
+
+        stream.list.Get()->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, NULL);
+    }
+
     void DX12Backend::CMD_CopyTexture(uint8* data, DX12CommandStream& stream)
     {
         CMDCopyTexture* cmd    = reinterpret_cast<CMDCopyTexture*>(data);
@@ -3561,6 +3699,9 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
             if (stream.type == CommandType::Transfer && newState != D3D12_RESOURCE_STATE_COPY_DEST && newState != D3D12_RESOURCE_STATE_COPY_SOURCE)
                 continue;
 
+            if (newState == txt.state)
+                continue;
+
             auto dxRes = txt.rawRes.Get() != nullptr ? txt.rawRes.Get() : txt.allocation->GetResource();
             auto dxBar = CD3DX12_RESOURCE_BARRIER::Transition(dxRes, txt.state, newState);
             txt.state  = newState;
@@ -3576,6 +3717,9 @@ Microsoft::WRL::ComPtr<IDxcLibrary>   DX12Backend::s_idxcLib;
 
             // Will decay to common & promoted on first usage.
             if (stream.type == CommandType::Transfer && newState != D3D12_RESOURCE_STATE_COPY_DEST && newState != D3D12_RESOURCE_STATE_COPY_SOURCE)
+                continue;
+
+            if (newState == res.state)
                 continue;
 
             auto dxBar = CD3DX12_RESOURCE_BARRIER::Transition(dxRes, res.state, newState);
