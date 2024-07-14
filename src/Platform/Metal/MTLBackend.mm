@@ -1713,7 +1713,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
                 
         auto& pfd = m_perFrameData[m_currentFrameIndex];
         
-        if (desc.isMultithreaded && !desc.standaloneSubmission)
+        if (Config.multithreadedQueueSubmission && !desc.standaloneSubmission)
         {
             // spinlock
             while (m_submissionFlag.test_and_set(std::memory_order_acquire))
@@ -1727,7 +1727,7 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
         if(queue.type == CommandType::Graphics && !desc.standaloneSubmission)
             pfd.submits++;
         
-        if(desc.isMultithreaded && !desc.standaloneSubmission)
+        if(Config.multithreadedQueueSubmission && !desc.standaloneSubmission)
             m_submissionFlag.clear();
         
         for (uint32 i = 0; i < desc.streamCount; i++)

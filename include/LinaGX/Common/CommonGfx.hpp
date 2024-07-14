@@ -368,7 +368,7 @@ namespace LinaGX
         TH_StorageBuffer  = 1 << 3,
         TH_IndexBuffer    = 1 << 4,
         TH_IndirectBuffer = 1 << 5,
-        TH_ReadbackDest = 1 << 6,
+        TH_ReadbackDest   = 1 << 6,
     };
 
     enum class ResourceHeap
@@ -486,7 +486,7 @@ namespace LinaGX
         TF_CopySource            = 1 << 6,
         TF_CopyDest              = 1 << 7,
         TF_Cubemap               = 1 << 8,
-        TF_Readback = 1 << 9,
+        TF_Readback              = 1 << 9,
     };
 
     struct DX12IndexedIndirectCommand
@@ -739,19 +739,20 @@ namespace LinaGX
 
     struct Configuration
     {
-        BackendAPI          api                       = BackendAPI::Vulkan;
-        PreferredGPUType    gpu                       = PreferredGPUType::Discrete;
-        const char*         appName                   = "LinaGX App";
-        uint32              framesInFlight            = 2;
-        uint32              backbufferCount           = 2;
-        GPULimits           gpuLimits                 = {};
-        VulkanConfiguration vulkanConfig              = {};
-        DX12Configuration   dx12Config                = {};
-        MetalConfiguration  mtlConfig                 = {};
-        LogCallback         errorCallback             = nullptr;
-        LogCallback         infoCallback              = nullptr;
-        LogLevel            logLevel                  = LogLevel::Normal;
-        bool                mutexLockCreationDeletion = false;
+        BackendAPI          api                          = BackendAPI::Vulkan;
+        PreferredGPUType    gpu                          = PreferredGPUType::Discrete;
+        const char*         appName                      = "LinaGX App";
+        uint32              framesInFlight               = 2;
+        uint32              backbufferCount              = 2;
+        GPULimits           gpuLimits                    = {};
+        VulkanConfiguration vulkanConfig                 = {};
+        DX12Configuration   dx12Config                   = {};
+        MetalConfiguration  mtlConfig                    = {};
+        LogCallback         errorCallback                = nullptr;
+        LogCallback         infoCallback                 = nullptr;
+        LogLevel            logLevel                     = LogLevel::Normal;
+        bool                mutexLockCreationDeletion    = false;
+        bool                multithreadedQueueSubmission = false;
     };
 
     struct MonitorInfo
@@ -772,19 +773,18 @@ namespace LinaGX
     struct SubmitDesc
     {
 
-        uint8           targetQueue      = 0; // Target queue either created with LinaGX::Instance::CreateQueue() or obtained with ::GetPrimaryQueue()
-        CommandStream** streams          = nullptr;
-        uint32          streamCount      = 0;
-        bool            useWait          = 0; // Set to true if you want to wait for a user semaphore to be signalled.
-        uint32          waitCount        = 0;
-        uint16*         waitSemaphores   = 0;
-        uint64*         waitValues       = 0;
-        bool            useSignal        = 0; // Set to true if you want to signal a user semaphore when this submission is completed on gpu.
-        uint32          signalCount      = 0;
-        uint16*         signalSemaphores = 0;
-        uint64*         signalValues     = 0;
-        bool            isMultithreaded  = false; // Set to true if you are targeting the same Queue from multiple non-syncronized threads.
-        bool standaloneSubmission = false; // If you are rendering outside of main render loop (so outside of StartFrame() and EndFrame()), for example in a background thread, set to true.
+        uint8           targetQueue          = 0; // Target queue either created with LinaGX::Instance::CreateQueue() or obtained with ::GetPrimaryQueue()
+        CommandStream** streams              = nullptr;
+        uint32          streamCount          = 0;
+        bool            useWait              = 0; // Set to true if you want to wait for a user semaphore to be signalled.
+        uint32          waitCount            = 0;
+        uint16*         waitSemaphores       = 0;
+        uint64*         waitValues           = 0;
+        bool            useSignal            = 0; // Set to true if you want to signal a user semaphore when this submission is completed on gpu.
+        uint32          signalCount          = 0;
+        uint16*         signalSemaphores     = 0;
+        uint64*         signalValues         = 0;
+        bool            standaloneSubmission = false; // If you are rendering outside of main render loop (so outside of StartFrame() and EndFrame()), for example in a background thread, set to true.
     };
 
     struct PresentDesc

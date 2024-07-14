@@ -262,8 +262,8 @@ namespace LinaGX
 
                     outLayout.drawIDBinding = maxBinding;
 
-                    hlsl = "\n cbuffer DrawIDBuffer : register(b" + LINAGX_TOSTRING(outLayout.drawIDBinding);
-                    hlsl += +") \n  {\n uint LGX_DRAW_ID; \n }; \n";
+                    hlsl = "\ncbuffer DrawIDBuffer : register(b" + LINAGX_TOSTRING(outLayout.drawIDBinding);
+                    hlsl += +") \n{\n\tuint LGX_DRAW_ID; \n}; \n\n";
                 }
 
                 hlsl += outHLSLs[stage];

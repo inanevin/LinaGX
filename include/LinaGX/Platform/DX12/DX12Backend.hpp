@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -104,6 +104,8 @@ namespace LinaGX
         D3D12MA::Allocation*                   allocation         = NULL;
         D3D12_RESOURCE_STATES                  state              = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
         TextureDesc                            desc               = {};
+        DXGI_FORMAT                            format             = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+        uint32                                 bytesPerPixel      = 0;
         bool                                   isValid            = false;
         bool                                   isSwapchainTexture = false;
     };
@@ -220,7 +222,7 @@ namespace LinaGX
         virtual void   DestroySwapchain(uint8 handle) override;
         virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc) override;
         virtual void   SetSwapchainActive(uint8 swp, bool isActive) override;
-        static bool   CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
+        static bool    CompileShader(ShaderStage stage, const LINAGX_STRING& source, DataBlob& outBlob);
         virtual uint16 CreateShader(const ShaderDesc& shaderDesc) override;
         virtual void   DestroyShader(uint16 handle) override;
         virtual uint32 CreateTexture(const TextureDesc& desc) override;
@@ -284,6 +286,7 @@ namespace LinaGX
         void CMD_BindIndexBuffers(uint8* data, DX12CommandStream& stream);
         void CMD_CopyResource(uint8* data, DX12CommandStream& stream);
         void CMD_CopyBufferToTexture2D(uint8* data, DX12CommandStream& stream);
+        void CMD_CopyTexture2DToBuffer(uint8* data, DX12CommandStream& stream);
         void CMD_CopyTexture(uint8* data, DX12CommandStream& stream);
         void CMD_BindDescriptorSets(uint8* data, DX12CommandStream& stream);
         void CMD_BindConstants(uint8* data, DX12CommandStream& stream);
@@ -295,12 +298,12 @@ namespace LinaGX
         void CMD_DebugEndLabel(uint8* data, DX12CommandStream& stream);
 
     private:
-        D3D12MA::Allocator*                   m_dx12Allocator = nullptr;
-        static Microsoft::WRL::ComPtr<IDxcLibrary>   s_idxcLib;
-        Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter      = nullptr;
-        Microsoft::WRL::ComPtr<ID3D12Device>  m_device       = nullptr;
-        Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory      = nullptr;
-        bool                                  m_allowTearing = false;
+        D3D12MA::Allocator*                        m_dx12Allocator = nullptr;
+        static Microsoft::WRL::ComPtr<IDxcLibrary> s_idxcLib;
+        Microsoft::WRL::ComPtr<IDXGIAdapter1>      m_adapter      = nullptr;
+        Microsoft::WRL::ComPtr<ID3D12Device>       m_device       = nullptr;
+        Microsoft::WRL::ComPtr<IDXGIFactory4>      m_factory      = nullptr;
+        bool                                       m_allowTearing = false;
 
         DX12HeapStaging*                                    m_rtvHeap         = nullptr;
         DX12HeapStaging*                                    m_bufferHeap      = nullptr;
