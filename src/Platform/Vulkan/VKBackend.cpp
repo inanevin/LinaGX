@@ -1611,7 +1611,8 @@ namespace LinaGX
         bool                                     containsBindlessTextures = false;
         LINAGX_VEC<VkDescriptorBindingFlags>     bindlessFlags;
 
-        const uint32 bindingsCount = static_cast<uint32>(desc.bindings.size());
+        const uint32 bindingsCount        = static_cast<uint32>(desc.bindings.size());
+        uint32       totalDescriptorCount = 0;
 
         for (uint32 i = 0; i < bindingsCount; i++)
         {
@@ -1631,6 +1632,10 @@ namespace LinaGX
 
                 bindlessFlags.push_back(pbFlag);
                 vkBinding.descriptorCount = m_gpuProperties.limits.maxPerStageDescriptorSampledImages;
+
+                // Lame hack
+                if (vkBinding.descriptorCount >= m_gpuProperties.limits.maxPerStageResources)
+                    vkBinding.descriptorCount /= 2;
             }
             else if (binding.type == DescriptorType::SeparateSampler && binding.unbounded)
             {
@@ -1660,6 +1665,7 @@ namespace LinaGX
             for (auto stg : binding.stages)
                 vkBinding.stageFlags |= GetVKShaderStage(stg);
 
+            totalDescriptorCount += vkBinding.descriptorCount;
             bindings.push_back(vkBinding);
         }
 
@@ -1980,7 +1986,7 @@ namespace LinaGX
         LINAGX_VEC<VkSubmitInfo> submitInfos;
         submitInfos.resize(desc.streamCount);
 
-        if (desc.isMultithreaded)
+        if (Config.multithreadedQueueSubmission)
         {
             // spinlock
             while (flag->test_and_set(std::memory_order_acquire))
@@ -2102,7 +2108,7 @@ namespace LinaGX
 
         VkResult res = vkQueueSubmit(queue.queue, 1, &submitInfo, nullptr);
 
-        if (desc.isMultithreaded)
+        if (Config.multithreadedQueueSubmission)
             flag->clear(std::memory_order_release);
 
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
@@ -3417,6 +3423,37 @@ namespace LinaGX
         UnmapResource(stagingHandle);
 
         vkCmdCopyBufferToImage(buffer, srcResource.buffer, dstTexture.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32>(regions.size()), regions.data());
+    }
+
+    void VKBackend::CMD_CopyTexture2DToBuffer(uint8* data, VKBCommandStream& stream)
+    {
+        CMDCopyTexture2DToBuffer* cmd         = reinterpret_cast<CMDCopyTexture2DToBuffer*>(data);
+        auto                      buffer      = stream.buffer;
+        const auto&               srcTexture  = m_textures.GetItemR(cmd->srcTexture);
+        const auto&               dstResource = m_resources.GetItemR(cmd->destBuffer);
+
+        LINAGX_VEC<VkBufferImageCopy> regions;
+
+        VkOffset3D imageOffset = {};
+        imageOffset.x = imageOffset.y = imageOffset.z = 0;
+
+        VkImageSubresourceLayers subresLayers = {};
+        subresLayers.aspectMask               = srcTexture.aspectFlags;
+        subresLayers.mipLevel                 = cmd->srcMip;
+        subresLayers.baseArrayLayer           = cmd->srcLayer;
+        subresLayers.layerCount               = 1;
+
+        VkBufferImageCopy copy = VkBufferImageCopy{};
+        copy.bufferOffset      = 0;
+        copy.bufferRowLength   = 0;
+        copy.bufferImageHeight = 0;
+        copy.imageSubresource  = subresLayers;
+        copy.imageOffset       = imageOffset;
+        copy.imageExtent       = srcTexture.extent;
+
+        regions.push_back(copy);
+
+        vkCmdCopyImageToBuffer(buffer, srcTexture.img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstResource.buffer, static_cast<uint32>(regions.size()), regions.data());
     }
 
     void VKBackend::CMD_CopyTexture(uint8* data, VKBCommandStream& stream)
