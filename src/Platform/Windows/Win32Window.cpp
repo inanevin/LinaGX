@@ -445,7 +445,7 @@ namespace LinaGX
             win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_RBUTTON, InputAction::Released);
+                l->OnWindowMouse(win32Window, VK_MBUTTON, InputAction::Released);
 
             break;
         }
