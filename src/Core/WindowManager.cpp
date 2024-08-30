@@ -34,6 +34,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Core/WindowManager.hpp"
 #include "LinaGX/Core/Input.hpp"
+#include <algorithm>
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include <Windows.h>
@@ -49,9 +50,9 @@ namespace LinaGX
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same sid already exists! %d", sid);
 
 #ifdef LINAGX_PLATFORM_WINDOWS
-        Window* win = new Win32Window(m_input);
+        Window* win = new Win32Window(m_input, this);
 #else
-        Window* win = new OSXWindow(m_input);
+        Window* win = new OSXWindow(m_input, this);
 #endif
 
         if (!win->Create(sid, title, x, y, width, height, style, parent))
@@ -73,6 +74,40 @@ namespace LinaGX
         it->second->Destroy();
         delete it->second;
         m_windows.erase(it);
+        PopWindowFromList(sid);
+    }
+
+    void WindowManager::SetWindowFocused(Window *window)
+    {
+        PushWindowToList(window->GetSID());
+    }
+
+    void WindowManager::PushWindowToList(LINAGX_STRINGID id)
+    {
+        auto it = std::find_if(m_windowList.begin(), m_windowList.end(), [id](LINAGX_STRINGID sid) -> bool { return sid == id;});
+        if(it != m_windowList.end())
+            m_windowList.erase(it);
+        m_windowList.push_back(id);
+    }
+
+    void WindowManager::PopWindowFromList(LINAGX_STRINGID id)
+    {
+        auto it = std::find_if(m_windowList.begin(), m_windowList.end(), [id](LINAGX_STRINGID sid) -> bool { return sid == id;});
+        if(it != m_windowList.end())
+            m_windowList.erase(it);
+    }
+
+    Window* WindowManager::GetTopWindow()
+    {
+        if(m_windowList.empty())
+            return nullptr;
+        
+        LINAGX_STRINGID id = m_windowList.back();
+        auto it = m_windows.find(id);
+        if(it == m_windows.end())
+            return nullptr;
+        
+        return it->second;
     }
 
     void WindowManager::TickWindowSystem()

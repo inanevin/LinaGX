@@ -42,6 +42,7 @@ namespace LinaGX
     class WindowManager;
     class Input;
     class Window;
+    
 
     class WindowListener
     {
@@ -185,6 +186,11 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         virtual void FreeMouse() = 0;
+        
+        /// <summary>
+        /// Makes window stay always ont op
+        /// </summary>
+        virtual void SetIsFloating(bool isFloating) = 0;
 
         /// <summary>
         ///
@@ -301,8 +307,8 @@ namespace LinaGX
 
     protected:
         friend class WindowManager;
-        Window(Input* input)
-            : m_input(input){};
+        Window(Input* input, WindowManager* wm)
+            : m_input(input), m_manager(wm) {};
         virtual ~Window() = default;
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) = 0;
@@ -310,6 +316,7 @@ namespace LinaGX
         virtual void Tick()                                                                                                                           = 0;
 
     protected:
+        WindowManager* m_manager = nullptr;
         LINAGX_STRINGID             m_sid   = 0;
         Input*                      m_input = nullptr;
         LINAGX_STRING               m_title = "";

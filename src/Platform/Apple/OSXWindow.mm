@@ -35,6 +35,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Platform/Apple/OSXWindow.hpp"
 #include "LinaGX/Core/Input.hpp"
+#include "LinaGX/Core/WindowManager.hpp"
 #include "LinaGX/Platform/Apple/OSXNSWindow.hh"
 
 namespace LinaGX
@@ -161,6 +162,8 @@ namespace LinaGX
             m_hasFocus = cond;
             for(auto* l : m_listeners)
                 l->OnWindowFocus(this, cond);
+            
+            m_manager->SetWindowFocused(this);
         };
         
         std::function<void(bool)> setMainCallback = [this](bool cond) {
@@ -244,6 +247,15 @@ namespace LinaGX
         [wnd close];
         [wnd release];
         m_nsWindow = nil;
+    }
+
+    void OSXWindow::SetIsFloating(bool isFloating)
+    {
+        NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
+        if(isFloating)
+            [wnd setLevel:NSMainMenuWindowLevel + 1];
+        else
+            [wnd setLevel:NSMainMenuWindowLevel];
     }
 
     void OSXWindow::Tick() {
@@ -376,6 +388,7 @@ namespace LinaGX
     void OSXWindow::BringToFront() {
         NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
         [wnd makeKeyAndOrderFront:nil];
+        m_manager->SetWindowFocused(this);
     }
     
     void OSXWindow::SetAlpha(float alpha) {

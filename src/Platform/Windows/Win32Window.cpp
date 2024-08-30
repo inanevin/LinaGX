@@ -230,6 +230,7 @@ namespace LinaGX
             {
                 for (auto* l : win32Window->m_listeners)
                     l->OnWindowFocus(win32Window, false);
+                win32Window->m_manager->SetWindowFocused(this);
                 win32Window->m_hasFocus = false;
             }
 
@@ -653,6 +654,18 @@ namespace LinaGX
         }
     }
 
+    void Win32Window::SetIsFloating(bool isFloating)
+    {
+        SetWindowPos(
+               m_hwnd,
+               isFloating ? HWND_TOPMOST : HWND_NOTOPMOST,
+               0, 0, 0, 0,
+               SWP_NOMOVE |
+               SWP_NOSIZE |
+               SWP_NOACTIVATE
+           );
+    }
+
     void Win32Window::OnDPIChanged(uint32 dpi)
     {
         m_dpi      = GetDpiForWindow(m_hwnd);
@@ -847,6 +860,7 @@ namespace LinaGX
     {
         OpenIcon(m_hwnd);
         SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+        m_manager->SetWindowFocused(this);
     }
 
     void Win32Window::SetAlpha(float alpha)

@@ -36,6 +36,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Common/CommonGfx.hpp"
 
+
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
 #elif LINAGX_PLATFORM_APPLE
@@ -60,7 +61,17 @@ namespace LinaGX
         /// Destroy a window with a given id, make sure all gpu and swapchain operations are completed prior.
         /// </summary>
         void DestroyApplicationWindow(LINAGX_STRINGID sid);
+        
+        /// <summary>
+        /// Used internally by windows to keep track of focus hierarcy
+        /// </summary>
+        void SetWindowFocused(Window* window);
 
+        /// <summary>
+        /// Returns the window in the back of the focus list, can be nullptr.
+        /// </summary>
+        Window* GetTopWindow();
+        
         /// <summary>
         /// Find a window with the given id, will return uninitialized memory if not found.
         /// </summary>
@@ -84,6 +95,7 @@ namespace LinaGX
             return m_monitors;
         }
 
+
     private:
         friend class Instance;
 
@@ -96,10 +108,13 @@ namespace LinaGX
         void TickWindowSystem();
         void EndFrame();
 
+        void PushWindowToList(LINAGX_STRINGID id);
+        void PopWindowFromList(LINAGX_STRINGID id);
+        
     private:
+        LINAGX_VEC<LINAGX_STRINGID> m_windowList;
         LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows = {};
         LINAGX_VEC<MonitorInfo>              m_monitors;
         Input*                               m_input = nullptr;
-        int                                  a       = 0;
     };
 } // namespace LinaGX

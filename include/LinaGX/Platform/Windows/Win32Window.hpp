@@ -83,6 +83,7 @@ namespace LinaGX
         virtual void ConfineMouseToCenter() override;
         virtual void FreeMouse() override;
         virtual void SetMouseVisible(bool visible) override;
+        virtual void SetIsFloating(bool isFloating) override;
 
         virtual void* GetWindowHandle() override
         {
@@ -96,8 +97,8 @@ namespace LinaGX
 
     protected:
         friend class WindowManager;
-        Win32Window(Input* input)
-            : Window(input){};
+        Win32Window(Input* input, WindowManager* wm)
+            : Window(input, wm){};
         virtual ~Win32Window() = default;
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) override;
