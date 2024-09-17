@@ -167,11 +167,9 @@ namespace LinaGX
         };
         
         std::function<void(bool)> setMainCallback = [this](bool cond) {
-            
-            NSWindow* nsw = static_cast<NSWindow*>(m_nsWindow);
-            id<NSWindowDelegate> del = [nsw delegate];
-            CustomWindowDelegate* delp = static_cast<CustomWindowDelegate*>(del);
-            
+            // NSWindow* nsw = static_cast<NSWindow*>(m_nsWindow);
+            // id<NSWindowDelegate> del = [nsw delegate];
+            // CustomWindowDelegate* delp = static_cast<CustomWindowDelegate*>(del);
         };
     
         std::function<void(bool)> appActivateCallback = [this](bool cond) {
@@ -190,6 +188,11 @@ namespace LinaGX
                 l->OnWindowClose(this);
         };
         
+        std::function<void(bool)> windowVisibilityCallback = [this](bool visible){
+            m_isVisible = visible;
+            LOGT("Visibility changed %d", m_isVisible);
+        };
+        
         std::function<void()> mouseDraggedCallback = [this]() {
             
            
@@ -200,6 +203,7 @@ namespace LinaGX
         [wndDelegate retain];
         [wndDelegate setWindowMovedCallback:windowMovedCallback];
         [wndDelegate setWindowResizedCallback:windowResizedCallback];
+        [wndDelegate setWindowVisibilityCallback:windowVisibilityCallback];
         [wndDelegate setFocusCallback:setFocusCallback];
         [wndDelegate setMainCallback:setMainCallback];
         [wndDelegate setAppActivateCallback:appActivateCallback];
@@ -249,6 +253,7 @@ namespace LinaGX
         m_nsWindow = nil;
     }
 
+
     void OSXWindow::SetIsFloating(bool isFloating)
     {
         NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
@@ -256,6 +261,12 @@ namespace LinaGX
             [wnd setLevel:NSMainMenuWindowLevel + 1];
         else
             [wnd setLevel:NSMainMenuWindowLevel];
+    }
+
+    bool OSXWindow::QueryVisibility()
+    {
+        NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
+        return [wnd isVisible];
     }
 
     void OSXWindow::Tick() {

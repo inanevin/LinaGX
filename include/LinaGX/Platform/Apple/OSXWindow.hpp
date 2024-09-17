@@ -77,6 +77,7 @@ namespace LinaGX
         virtual void         FreeMouse() override;
         virtual void         SetMouseVisible(bool visible) override;
         virtual void SetIsFloating(bool isFloating) override;
+        virtual bool QueryVisibility() override;
         
         virtual void* GetWindowHandle() override
         {

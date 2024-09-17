@@ -188,10 +188,12 @@ namespace LinaGX
         virtual void FreeMouse() = 0;
         
         /// <summary>
-        /// Makes window stay always ont op
+        /// Makes window stay always on top
         /// </summary>
         virtual void SetIsFloating(bool isFloating) = 0;
 
+        virtual bool QueryVisibility() = 0;
+        
         /// <summary>
         ///
         /// </summary>

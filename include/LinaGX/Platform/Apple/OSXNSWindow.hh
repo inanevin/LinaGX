@@ -60,6 +60,7 @@ namespace LinaGX
     std::function<void(bool)> appActivateCallback;
     std::function<void()> screenChangedCallback;
     std::function<void()> windowClosedCallback;
+    std::function<void(bool)> windowVisibilityCallback;
 }
 
 - (void)setWindowMovedCallback:(std::function<void(int, int)>)callback;
@@ -69,6 +70,7 @@ namespace LinaGX
 - (void)setAppActivateCallback:(std::function<void(bool)>)callback;
 - (void)setScreenChangedCallback:(std::function<void()>)callback;
 - (void)setWindowClosedCallback:(std::function<void()>)callback;
+- (void)setWindowVisibilityCallback:(std::function<void(bool)>)callback;
 
 @end
 
