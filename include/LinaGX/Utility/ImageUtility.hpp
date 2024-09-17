@@ -38,14 +38,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-    enum class ImageChannelMask
-    {
-        G = 0,
-        GA,
-        RGB,
-        RGBA,
-    };
-
     /// <summary>
     /// Returns the correct mip-levels for a texture with the given size.
     /// </summary>
@@ -55,7 +47,7 @@ namespace LinaGX
     /// Given path load the file and fill the pixel data in outData. Channel mask will be used to omit pixels or fill-empty pixels,
     /// e.g. on a texture with 2 channels, if loaded with RGBA, other 2 channels will be filled with stub pixel data.
     /// </summary>
-    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, ImageChannelMask channelMask = ImageChannelMask::RGBA);
+    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels = nullptr);
 
     /// <summary>
     /// Always use this on a texture data obtained via Load functions using LinaGX.
@@ -69,12 +61,12 @@ namespace LinaGX
     /// outMipData is not cleared, so you can create one vector, fill the first element with original texture data, pass first element here and the vector,
     /// as a result you will have a vector containing all TextureBuffers, both the original and all mips generated.
     /// </summary>
-    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace, uint32 requestLevels = 0);
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, uint32 channels, bool linearColorSpace, uint32 requestLevels = 0);
 
     /// <summary>
     /// Resizes the given texture buffer to target. You are responsible for creating the pixels for out buffer!
     /// </summary>
-    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace);
+    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, uint32 channels, bool linearColorSpace);
 
     /// <summary>
     /// Writes the data from writeData into targetBuffer starting from the given position.

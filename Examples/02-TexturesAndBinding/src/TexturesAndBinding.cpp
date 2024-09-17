@@ -251,14 +251,14 @@ namespace LinaGX::Examples
         // Load image.
         TextureBuffer loadedTextureData  = {};
         TextureBuffer loadedTextureData2 = {};
-        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, ImageChannelMask::RGBA);
-        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX2.png", loadedTextureData2, ImageChannelMask::RGBA);
+        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX.png", loadedTextureData, 4);
+        LinaGX::LoadImageFromFile("Resources/Textures/LinaGX2.png", loadedTextureData2, 4);
 
         std::vector<TextureBuffer> txtData1 = {loadedTextureData}, txtData2 = {loadedTextureData2};
 
         // Generate mipmaps
-        LinaGX::GenerateMipmaps(loadedTextureData, txtData1, MipmapFilter::Default, ImageChannelMask::RGBA, false);
-        LinaGX::GenerateMipmaps(loadedTextureData2, txtData2, MipmapFilter::Default, ImageChannelMask::RGBA, false);
+        LinaGX::GenerateMipmaps(loadedTextureData, txtData1, MipmapFilter::Default, 4, false);
+        LinaGX::GenerateMipmaps(loadedTextureData2, txtData2, MipmapFilter::Default, 4, false);
 
         // Need big enough staging resource, calculate size.
         uint32 totalStagingResourceSize = 0;

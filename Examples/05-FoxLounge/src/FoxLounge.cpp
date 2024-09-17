@@ -190,12 +190,12 @@ namespace LinaGX::Examples
     void Example::LoadTexture(const char* path, uint32 id)
     {
         LinaGX::TextureBuffer outData;
-        LinaGX::LoadImageFromFile(path, outData, ImageChannelMask::RGBA);
+        LinaGX::LoadImageFromFile(path, outData, 4);
         auto& txt = m_textures.at(id);
         txt.allLevels.push_back(outData);
         txt.path            = path;
         const uint32 levels = LinaGX::CalculateMipLevels(outData.width, outData.height);
-        LinaGX::GenerateMipmaps(outData, txt.allLevels, MipmapFilter::Default, ImageChannelMask::RGBA, false);
+        LinaGX::GenerateMipmaps(outData, txt.allLevels, MipmapFilter::Default, 4, false);
     }
 
     void Example::SetupMaterials()

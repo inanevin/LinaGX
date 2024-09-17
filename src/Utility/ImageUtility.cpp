@@ -44,46 +44,34 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-    int GetSTBIChannelMask(ImageChannelMask mask)
-    {
-        switch (mask)
-        {
-        case LinaGX::ImageChannelMask::G:
-            return STBI_grey;
-        case LinaGX::ImageChannelMask::GA:
-            return STBI_grey_alpha;
-        case LinaGX::ImageChannelMask::RGB:
-            return STBI_rgb;
-        case LinaGX::ImageChannelMask::RGBA:
-            return STBI_rgb_alpha;
-        default:
-            return STBI_rgb_alpha;
-        }
-    }
+
 
     LINAGX_API uint32 CalculateMipLevels(uint32 width, uint32 height)
     {
         return FloorLog2(Max(width, height)) + 1;
     }
 
-    void LoadImageFromFile(const char* path, TextureBuffer& outData, ImageChannelMask channelMask)
+    void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels)
     {
         int        w = 0, h = 0, ch = 0;
         const bool is16 = stbi_is_16_bit(path);
 
-        outData.bytesPerPixel = (static_cast<uint32>(channelMask) + 1) * (is16 ? 2 : 1);
-
         if (is16)
         {
-            auto pixels    = stbi_load_16(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
+            auto pixels    = stbi_load_16(path, &w, &h, &ch, channels);
+            outData.bytesPerPixel = channels == 0 ? static_cast<uint32>(ch) * 2 : channels * 2;
             outData.pixels = new uint8[w * h * outData.bytesPerPixel];
             LINAGX_MEMCPY(outData.pixels, pixels, w * h * outData.bytesPerPixel);
             stbi_image_free(pixels);
         }
         else
         {
-            outData.pixels = stbi_load(path, &w, &h, &ch, GetSTBIChannelMask(channelMask));
+            outData.pixels = stbi_load(path, &w, &h, &ch, channels);
+            outData.bytesPerPixel = channels == 0 ? static_cast<uint32>(ch) : channels;
         }
+        
+        if(outChannels != nullptr)
+            *outChannels = channels == 0 ? ch : channels;
 
         outData.width  = w;
         outData.height = h;
@@ -103,7 +91,7 @@ namespace LinaGX
         stbi_image_free(pixels);
     }
 
-    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace, uint32 requestLevels)
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, uint32 channels, bool linearColorSpace, uint32 requestLevels)
     {
         uint8*       lastPixels = sourceData.pixels;
         uint32       lastWidth  = sourceData.width;
@@ -121,7 +109,6 @@ namespace LinaGX
             if (height < 1)
                 height = 1;
 
-            const uint32  channels    = static_cast<int>(channelMask) + 1;
             TextureBuffer mipData     = {};
             mipData.width             = width;
             mipData.height            = height;
@@ -132,7 +119,7 @@ namespace LinaGX
             int retVal = 0;
 
             if (mipData.bytesPerPixel == 4 || mipData.bytesPerPixel == 1)
-                retVal = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+                retVal = stbir_resize_uint8_generic(lastPixels, lastWidth, lastHeight, 0, mipData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
             else
                 retVal = stbir_resize_uint16_generic((uint16*)lastPixels, lastWidth, lastHeight, 0, (uint16*)mipData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
 
@@ -143,14 +130,13 @@ namespace LinaGX
         }
     }
 
-    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, ImageChannelMask channelMask, bool linearColorSpace)
+    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, uint32 channels, bool linearColorSpace)
     {
-        const uint32  channels    = static_cast<int>(channelMask) + 1;
         int retVal = 0;
         const stbir_colorspace cs = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
 
         if(sourceData.bytesPerPixel == 4 || sourceData.bytesPerPixel == 1)
-            retVal = stbir_resize_uint8_generic(sourceData.pixels, sourceData.width, sourceData.height, 0, outData.pixels, width, height, 0, channels, STBIR_ALPHA_CHANNEL_NONE, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+            retVal = stbir_resize_uint8_generic(sourceData.pixels, sourceData.width, sourceData.height, 0, outData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
         else
             retVal = stbir_resize_uint16_generic((uint16*)sourceData.pixels, sourceData.width, sourceData.height, 0, (uint16*)outData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
         
