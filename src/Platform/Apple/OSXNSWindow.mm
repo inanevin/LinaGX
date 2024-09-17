@@ -40,6 +40,10 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 @implementation CustomView
 
 
+- (BOOL)acceptsFirstMouse:(NSEvent *)event {
+    return YES;
+}
+
 - (void)updateTrackingAreas {
     [super updateTrackingAreas];
     
@@ -94,7 +98,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 - (void)mouseDown:(NSEvent *)event
 {
     mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
-    [super otherMouseDown:event];
+    [super mouseDown:event];
 }
 
 - (void)mouseUp:(NSEvent *)theEvent {
@@ -105,12 +109,12 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 - (void)rightMouseDown:(NSEvent *)event
 {
     mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
-    [super otherMouseDown:event];
+    [super rightMouseDown:event];
 }
 
 - (void)rightMouseUp:(NSEvent *)theEvent {
     mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
-    [super mouseUp:theEvent];
+    [super rightMouseUp:theEvent];
 }
 
 - (void)otherMouseDown:(NSEvent *)event
@@ -121,7 +125,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (void)otherMouseUp:(NSEvent *)theEvent {
     mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
-    [super mouseUp:theEvent];
+    [super otherMouseUp:theEvent];
 }
 
 @end
@@ -157,6 +161,11 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
    windowClosedCallback = callback;
 }
 
+- (void)setWindowVisibilityCallback:(std::function<void (bool)>)callback
+{
+    windowVisibilityCallback = callback;
+}
+
 - (void)windowDidMove:(NSNotification *)notification {
     NSWindow *window = (NSWindow *)[notification object];
     NSRect frame = [window frame];
@@ -169,6 +178,16 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
     windowResizedCallback(static_cast<unsigned int>(frame.size.width), static_cast<unsigned int>(frame.size.height));
 }
 
+- (void)windowDidChangeOcclusionState:(NSNotification *)notification
+{
+    NSWindow *window = (NSWindow *)[notification object];
+    bool isVisible = [window isVisible];
+    if (window.occlusionState & NSWindowOcclusionStateVisible)
+        windowVisibilityCallback(true);
+      else
+        windowVisibilityCallback(false);
+     
+}
 - (void)windowDidBecomeMain:(NSNotification *)notification
 {
     NSWindow *window = (NSWindow *)[notification object];
