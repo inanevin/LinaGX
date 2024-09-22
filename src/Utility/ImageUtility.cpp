@@ -51,12 +51,12 @@ namespace LinaGX
         return FloorLog2(Max(width, height)) + 1;
     }
 
-    void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels)
+    void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels, bool force8bit)
     {
         int        w = 0, h = 0, ch = 0;
         const bool is16 = stbi_is_16_bit(path);
 
-        if (is16)
+        if (is16 && !force8bit)
         {
             auto pixels    = stbi_load_16(path, &w, &h, &ch, channels);
             outData.bytesPerPixel = channels == 0 ? static_cast<uint32>(ch) * 2 : channels * 2;

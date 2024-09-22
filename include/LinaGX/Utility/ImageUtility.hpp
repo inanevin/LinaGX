@@ -47,7 +47,7 @@ namespace LinaGX
     /// Given path load the file and fill the pixel data in outData. Channel mask will be used to omit pixels or fill-empty pixels,
     /// e.g. on a texture with 2 channels, if loaded with RGBA, other 2 channels will be filled with stub pixel data.
     /// </summary>
-    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels = nullptr);
+    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels = nullptr, bool force8bit = false);
 
     /// <summary>
     /// Always use this on a texture data obtained via Load functions using LinaGX.
