@@ -85,6 +85,17 @@ namespace LinaGX
         /// </summary>
         MonitorInfo GetPrimaryMonitorInfo();
 
+        /// <summary>
+        /// Done automatically when a window gains focus.
+        /// </summary>
+        void PushWindowToList(LINAGX_STRINGID id);
+        
+        /// <summary>
+        /// Done automatically when a window is destroyed.
+        /// </summary>
+        void PopWindowFromList(LINAGX_STRINGID id);
+        
+        
         inline const LINAGX_MAP<LINAGX_STRINGID, Window*>& GetWindows() const
         {
             return m_windows;
@@ -95,7 +106,7 @@ namespace LinaGX
             return m_monitors;
         }
 
-
+        
     private:
         friend class Instance;
 
@@ -107,9 +118,6 @@ namespace LinaGX
         void Shutdown();
         void TickWindowSystem();
         void EndFrame();
-
-        void PushWindowToList(LINAGX_STRINGID id);
-        void PopWindowFromList(LINAGX_STRINGID id);
         
     private:
         LINAGX_VEC<LINAGX_STRINGID> m_windowList;

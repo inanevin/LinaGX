@@ -82,7 +82,7 @@ namespace LinaGX
         };
     
         std::function<void(int, LinaGX::InputAction action)> mouseCallback = [this](int keyCode, LinaGX::InputAction action) {
-            
+
             if(m_style != LinaGX::WindowStyle::WindowedApplication && keyCode == 0)
             {
                 if(action == LinaGX::InputAction::Pressed && m_dragRect.IsPointInside(m_mousePosition))
@@ -190,7 +190,6 @@ namespace LinaGX
         
         std::function<void(bool)> windowVisibilityCallback = [this](bool visible){
             m_isVisible = visible;
-            LOGT("Visibility changed %d", m_isVisible);
         };
         
         std::function<void()> mouseDraggedCallback = [this]() {
@@ -229,7 +228,10 @@ namespace LinaGX
         [wnd setAcceptsMouseMovedEvents:YES];
         
         if(parent == nullptr)
+        {
             [wnd makeMainWindow];
+            [wnd makeKeyAndOrderFront:nil];
+        }
         
         CalculateDPI();
         CalculateMonitorInfo();
