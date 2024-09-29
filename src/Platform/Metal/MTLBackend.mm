@@ -2046,11 +2046,7 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
         CAMetalLayer* layer = AS_MTL(swp.layer, CAMetalLayer*);
         id<CAMetalDrawable> drawable = [layer nextDrawable];
         [drawable retain];
-        
-        if(drawable)
-        {
-            swp._currentDrawable = AS_VOID(drawable);
-        }
+        swp._currentDrawable = AS_VOID(drawable);
     }
     
     const uint32 next = m_cmdStreams.GetNextFreeID();

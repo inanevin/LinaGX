@@ -126,8 +126,7 @@ namespace LinaGX
                         texture->buffer.width         = image.width;
                         texture->buffer.height        = image.height;
                         texture->buffer.bytesPerPixel = image.bits / 8 * image.component;
-                        texture->name                 = image.name;
-
+                        texture->name                 = image.name.empty() ? gltfTexture.name : image.name;
                         std::memcpy(texture->buffer.pixels, image.image.data(), image.image.size());
                     }
                 }
