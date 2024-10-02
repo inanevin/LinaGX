@@ -1132,6 +1132,11 @@ uint32 MTLBackend::CreateSampler(const SamplerDesc &desc) {
     samplerDesc.supportArgumentBuffers = true;
     NAME_OBJ_CSTR(samplerDesc, desc.debugName);
 
+    if(samplerDesc.maxAnisotropy < 1)
+        samplerDesc.maxAnisotropy = 1;
+    else if(samplerDesc.maxAnisotropy > 16)
+        samplerDesc.maxAnisotropy = 16;
+    
     id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
     [sampler retain];
     item.ptr = AS_VOID(sampler);
