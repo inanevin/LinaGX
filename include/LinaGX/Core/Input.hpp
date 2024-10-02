@@ -51,19 +51,6 @@ namespace LinaGX
     class OSXWindow;
 #endif
 
-    class InputListener
-    {
-    public:
-        
-        InputListener() = default;
-        virtual ~InputListener() = default;
-        
-        virtual void OnKey(uint32 keycode, int32 scancode, LinaGX::InputAction action, LinaGX::Window* window) {};
-        virtual void OnMouse(uint32 button, LinaGX::InputAction action, LinaGX::Window* window) {};
-        virtual void OnMouseMove(const LinaGX::LGXVector2& pos, LinaGX::Window* window) {};
-        virtual void OnMouseWheel(float delta, LinaGX::Window* window) {};
-    };
-
     class Input
     {
     public:

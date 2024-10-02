@@ -447,4 +447,21 @@ namespace LinaGX
         uint32        m_size = 0;
     };
 
+    struct LGXVector2;
+class Window;
+
+    class InputListener
+    {
+    public:
+        
+        InputListener() = default;
+        virtual ~InputListener() = default;
+        
+        virtual void OnKey(uint32 keycode, int32 scancode, InputAction action, LinaGX::Window* window) {};
+        virtual void OnMouse(uint32 button, InputAction action, LinaGX::Window* window) {};
+        virtual void OnMouseMove(const LGXVector2& pos, LinaGX::Window* window) {};
+        virtual void OnMouseWheel(float delta, LinaGX::Window* window) {};
+    };
+
+
 } // namespace LinaGX
