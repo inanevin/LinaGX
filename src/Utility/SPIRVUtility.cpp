@@ -527,7 +527,7 @@ namespace LinaGX
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
             log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Preprocess failed %s", log.c_str());
-            LOGA(false, "");
+            // LOGA(false, "");
             return false;
         }
 
@@ -536,7 +536,7 @@ namespace LinaGX
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
             log               = log.substr(0, 3000);
             LOGE("GLSL2SPV -> Parsing failed %s", log.c_str());
-            LOGA(false, "");
+            // LOGA(false, "");
             return false;
         }
 
@@ -547,7 +547,7 @@ namespace LinaGX
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
             log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Linking failed %s, %s", log.c_str());
-            LOGA(false, "");
+            // LOGA(false, "");
             return false;
         }
 
