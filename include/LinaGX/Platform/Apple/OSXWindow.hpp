@@ -51,7 +51,8 @@ namespace LinaGX
             None,
             Center,
             Window,
-            Region
+            Region,
+            Point,
         };
         
     public:
@@ -74,6 +75,7 @@ namespace LinaGX
         virtual void         ConfineMouse() override;
         virtual void         ConfineMouseToRegion(const LGXRectui& region) override;
         virtual void         ConfineMouseToCenter() override;
+        virtual void         ConfineMouseToPoint(const LGXVector2ui& pos) override;
         virtual void         FreeMouse() override;
         virtual void         SetMouseVisible(bool visible) override;
         virtual void SetIsFloating(bool isFloating) override;
@@ -119,7 +121,9 @@ namespace LinaGX
         bool m_lmDownForDrag = false;
         LGXVector2 m_lmDragDelta = {};
         LGXRectui m_confineRegion = {};
+        LGXVector2ui m_confinePoint = {};
         MouseConfineStyle m_confineStyle = MouseConfineStyle::None;
+        float m_titleBarHeight = 0.0f;
     };
 } // namespace LinaGX
 

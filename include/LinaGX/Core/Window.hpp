@@ -174,6 +174,12 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouseToRegion(const LGXRectui& region) = 0;
+        
+        /// <summary>
+        /// Restricts the mouse movement for a specific local point in the window.
+        /// </summary>
+        /// <returns></returns>
+        virtual void ConfineMouseToPoint(const LGXVector2ui& region) = 0;
 
         /// <summary>
         /// Restricts the mouse movement to a small region in the center of the window.
@@ -306,6 +312,16 @@ namespace LinaGX
             auto it            = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](WindowListener* list) -> bool { return list == listener; });
             m_listeners.erase(it);
         }
+        
+        inline const LGXVector2& GetMouseDelta() const
+        {
+            return m_lastMouseDelta;
+        }
+        
+        inline const LGXVector2& GetMouseDeltaRelative()const
+        {
+            return m_lastMouseDeltaRelative;
+        }
 
     protected:
         friend class WindowManager;
@@ -317,6 +333,23 @@ namespace LinaGX
         virtual void Destroy()                                                                                                                        = 0;
         virtual void Tick()                                                                                                                           = 0;
 
+        inline void SetLastMouseDelta(const LGXVector2& delta)
+        {
+            m_lastMouseDelta = delta;
+            m_lastMouseDeltaRelative.x = m_size.x == 0 ? 0.0f : delta.x / static_cast<float>(m_size.x);
+            m_lastMouseDeltaRelative.y = m_size.y == 0 ? 0.0f : delta.y / static_cast<float>(m_size.y);
+            
+            if(m_lastMouseDeltaRelative.x < -1.0f)
+                m_lastMouseDeltaRelative.x = -1.0f;
+            if(m_lastMouseDeltaRelative.y < -1.0f)
+                m_lastMouseDeltaRelative.y = -1.0f;
+            
+            if(m_lastMouseDeltaRelative.x > 1.0f)
+                m_lastMouseDeltaRelative.x = 1.0f;
+            if(m_lastMouseDeltaRelative.y > 1.0f)
+                m_lastMouseDeltaRelative.y = 1.0f;
+        }
+        
     protected:
         WindowManager* m_manager = nullptr;
         LINAGX_STRINGID             m_sid   = 0;
@@ -339,6 +372,8 @@ namespace LinaGX
         WindowStyle                 m_style       = WindowStyle::WindowedApplication;
         MonitorInfo                 m_monitorInfo = {};
         LINAGX_VEC<WindowListener*> m_listeners;
+        LGXVector2 m_lastMouseDelta = {};
+        LGXVector2 m_lastMouseDeltaRelative = {};
     };
 
 } // namespace LinaGX

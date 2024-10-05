@@ -113,9 +113,12 @@ namespace LinaGX
     void WindowManager::TickWindowSystem()
     {
         m_input->Tick();
-
+        
         for (const auto& [sid, w] : m_windows)
+        {
+            w->SetLastMouseDelta(m_input->GetMouseDelta());
             w->Tick();
+        }
     }
 
     void WindowManager::EndFrame()

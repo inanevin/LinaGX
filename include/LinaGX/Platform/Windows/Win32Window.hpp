@@ -80,6 +80,7 @@ namespace LinaGX
         virtual bool GetIsMinimized() override;
         virtual void ConfineMouse() override;
         virtual void ConfineMouseToRegion(const LGXRectui& region) override;
+        virtual void ConfineMouseToPoint(const LGXVector2ui& point) override;
         virtual void ConfineMouseToCenter() override;
         virtual void FreeMouse() override;
         virtual void SetMouseVisible(bool visible) override;
@@ -129,6 +130,7 @@ namespace LinaGX
         bool         m_mouseMoved           = false;
         ConfineStyle m_confineStyle         = ConfineStyle::None;
         LGXRectui    m_confineRect          = {};
+        LGXVector2ui m_confinePoint = {};
         bool         m_hittestOwnsCursor    = false;
     };
 } // namespace LinaGX

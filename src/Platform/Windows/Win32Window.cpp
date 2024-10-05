@@ -623,7 +623,9 @@ namespace LinaGX
             if (m_confineStyle == ConfineStyle::Window)
                 rect = {m_position.x, m_position.y, m_position.x + static_cast<LONG>(m_size.x), m_position.y + static_cast<LONG>(m_size.y)};
             else if (m_confineStyle == ConfineStyle::Center)
-                rect = {m_position.x + static_cast<LONG>(m_size.x) / 2 - 5, m_position.y + static_cast<LONG>(m_size.y) / 2 - 5, m_position.x + static_cast<LONG>(m_size.x) / 2 + 5, m_position.y + static_cast<LONG>(m_size.y) / 2 + 5};
+                rect = {m_position.x + static_cast<LONG>(m_size.x) / 2 - 2, m_position.y + static_cast<LONG>(m_size.y) / 2 - 2, m_position.x + static_cast<LONG>(m_size.x) / 2 + 2, m_position.y + static_cast<LONG>(m_size.y) / 2 + 2};
+            else if(m_confineStyle == ConfineStyle::Point)
+                rect = {m_position.x + static_cast<LONG>(m_confinePoint.x) - 1, m_position.y + static_cast<LONG>(m_confinePoint.y) - 1, m_position.x + static_cast<LONG>(m_confinePoint.x) + 1, m_position.y + static_cast<LONG>(m_confinePoint.y) + 1, };
 
             ClipCursor(&rect);
         }
@@ -941,6 +943,12 @@ namespace LinaGX
     {
         m_confineStyle = ConfineStyle::Region;
         m_confineRect  = region;
+    }
+
+    void Win32Window::ConfineMouseToPoint(const LGXVector2ui& point)
+    {
+        m_confineStyle = ConfineStyle::Point;
+        m_confinePoint = point;
     }
 
     void Win32Window::ConfineMouseToCenter()

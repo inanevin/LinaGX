@@ -193,7 +193,6 @@ namespace LinaGX
         };
         
         std::function<void()> mouseDraggedCallback = [this]() {
-            
            
         };
     
@@ -273,6 +272,12 @@ namespace LinaGX
 
     void OSXWindow::Tick() {
         
+        NSWindow* wnd = static_cast<NSWindow*>(m_nsWindow);
+        NSRect frame = [wnd frame];
+        NSPoint position = frame.origin;
+        m_position.x = position.x;
+        m_position.y = ConvertY(position.y);
+
         if(m_lmDownForDrag)
         {
             const LGXVector2 absMouse = m_input->GetMousePositionAbs();
@@ -319,6 +324,13 @@ namespace LinaGX
                 CGPoint point;
                 point.x = m_position.x + m_size.x / 2;
                 point.y = m_position.y + m_size.y / 2;
+                CGWarpMouseCursorPosition(point);
+            }
+            else if(m_confineStyle == MouseConfineStyle::Point)
+            {
+                CGPoint point;
+                point.x = m_position.x + m_confinePoint.x;
+                point.y = m_position.y + m_confinePoint.y;
                 CGWarpMouseCursorPosition(point);
             }
             
@@ -372,7 +384,6 @@ namespace LinaGX
         p.x = convertedPos.x;
         p.y = convertedPos.y;
         [wnd setFrameOrigin:p];
-        m_position = pos;
     }
     
     void OSXWindow::SetSize(const LinaGX::LGXVector2ui &size) {
@@ -507,9 +518,9 @@ namespace LinaGX
         CGFloat dpi = ceil((screenFrame.size.width * scaleFactor) / (displayPhysicalSize.width / 25.4)); // convert mm to inches
         m_dpi = dpi * scaleFactor;
         m_dpiScale = scaleFactor;
-        
     }
 
+   
 namespace{
     MonitorInfo GetMonitorInfo(NSScreen* screen)
     {
@@ -588,6 +599,12 @@ namespace{
     void OSXWindow::ConfineMouseToCenter()
     {
         m_confineStyle = MouseConfineStyle::Center;
+    }
+
+    void OSXWindow::ConfineMouseToPoint(const LGXVector2ui &pos)
+    {
+        m_confinePoint = pos;
+        m_confineStyle = MouseConfineStyle::Point;
     }
     
     void OSXWindow::FreeMouse()
