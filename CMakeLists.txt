@@ -224,8 +224,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectSettings.cmake)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MAJOR=1)
-target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MINOR=0)
-target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_PATCH=2)
+target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_MINOR=1)
+target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_VERSION_PATCH=0)
 
 if(LINAGX_DISABLE_DX12)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC LINAGX_DISABLE_DX12=1)
@@ -249,13 +249,6 @@ if(LINAGX_BUILD_EXAMPLES)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()
 
-## Copy windows dlls
-if(WIN32)
-add_custom_command(
-TARGET ${PROJECT_NAME}
-POST_BUILD
-COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/bin/" "${LINAGX_RUNTIME_OUTPUT_DIRECTORY}")
-endif()
 
 if(MSVC_IDE OR APPLE)
 	foreach(source IN LISTS LinaGX_HEADERS LinaGX_SOURCES LinaGX_PLATFORM_HEADERS LinaGX_PLATFORM_SOURCES LinaGX_API_HEADERS LinaGX_API_SOURCES)
