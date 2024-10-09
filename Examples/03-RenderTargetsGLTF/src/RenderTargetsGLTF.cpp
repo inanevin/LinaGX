@@ -810,11 +810,7 @@ namespace LinaGX::Examples
             .mipLevels = 1,
             .debugName = "LinaGXRTTexture",
         };
-
-        uint32 dummy = _lgx->CreateResource({.size = 100});
-        
-        _lgx->DestroyResource(dummy);
-        
+ 
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
 

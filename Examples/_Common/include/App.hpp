@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -50,11 +50,11 @@ namespace LinaGX
     namespace Examples
     {
         extern std::mutex g_logMtx;
-    
+
         inline void LogError(const char* err, ...)
         {
             std::lock_guard lg(g_logMtx);
-            va_list args;
+            va_list         args;
             va_start(args, err);
 
             std::cout << "\033[1;31m";
@@ -67,7 +67,7 @@ namespace LinaGX
         inline void LogInfo(const char* info, ...)
         {
             std::lock_guard lg(g_logMtx);
-            va_list args;
+            va_list         args;
             va_start(args, info);
             std::cout << "LinaGX: ";
             vprintf(info, args);
@@ -78,23 +78,22 @@ namespace LinaGX
         class App : public LinaGX::WindowListener
         {
         public:
-            virtual void Initialize() {};
+            virtual void Initialize(){};
             virtual void Run();
-            virtual void Shutdown() {};
-            virtual void OnTick() = 0;
+            virtual void Shutdown(){};
+            virtual void OnTick()   = 0;
             virtual void OnRender() = 0;
-            void Tick();
-            
-            virtual void OnWindowClose(Window* window) override;
-            virtual void OnWindowSizeChanged(Window* window, const LGXVector2ui&) override;
+            void         Tick();
+
+            virtual void OnWindowClose(LinaGX::Window* window) override;
+            virtual void OnWindowSizeChanged(LinaGX::Window* window, const LGXVector2ui&) override;
 
         protected:
-            
-            void RegisterWindowCallbacks(LinaGX::Window* wnd);
-            virtual void OnWindowResized(uint32 newWidth, uint32 newHeight) {};
+            void         RegisterWindowCallbacks(LinaGX::Window* wnd);
+            virtual void OnWindowResized(uint32 newWidth, uint32 newHeight){};
 
         protected:
-            std::atomic<bool>                     m_isRunning         = false;
+            std::atomic<bool>                     m_isRunning = false;
             std::mutex                            m_sizeMtx;
             uint64                                m_deltaMicroseconds = 0;
             uint64                                m_framesPerSecond   = 0;
@@ -102,6 +101,7 @@ namespace LinaGX
             float                                 m_elapsedSeconds    = 0.0f;
             std::chrono::steady_clock::time_point m_prevTime;
             uint64                                m_lastFrames = 0;
+            LinaGX::Window*                       m_window     = nullptr;
         };
 
     } // namespace Examples

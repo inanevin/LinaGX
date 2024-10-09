@@ -36,6 +36,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
 #include "LinaGX/Core/Input.hpp"
+#include "LinaGX/Core/WindowManager.hpp"
 #include <Windows.h>
 #include <windowsx.h>
 #include <shellscalingapi.h>
@@ -230,7 +231,7 @@ namespace LinaGX
             {
                 for (auto* l : win32Window->m_listeners)
                     l->OnWindowFocus(win32Window, false);
-                win32Window->m_manager->SetWindowFocused(this);
+                win32Window->m_manager->SetWindowFocused(win32Window);
                 win32Window->m_hasFocus = false;
             }
 

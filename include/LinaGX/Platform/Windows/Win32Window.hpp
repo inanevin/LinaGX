@@ -57,6 +57,7 @@ namespace LinaGX
             Window,
             Region,
             Center,
+            Point,
         };
 
     public:

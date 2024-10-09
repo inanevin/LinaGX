@@ -65,8 +65,8 @@ namespace LinaGX::Examples
         if(inputAction != InputAction::Pressed)
             return;
         
-        m_mainWindow->SetMouseVisible(false);
-        m_mainWindow->ConfineMouseToCenter();
+        //m_mainWindow->SetMouseVisible(false);
+        //m_mainWindow->ConfineMouseToCenter();
         m_controlsEnabled = true;
     }
 
@@ -75,8 +75,8 @@ namespace LinaGX::Examples
         if (m_controlsEnabled && m_lgx->GetInput().GetKey(LINAGX_KEY_ESCAPE))
         {
             m_controlsEnabled = false;
-            m_mainWindow->SetMouseVisible(true);
-            m_mainWindow->FreeMouse();
+            //m_mainWindow->SetMouseVisible(true);
+            //m_mainWindow->FreeMouse();
         }
 
         // m_controlsEnabled = true;

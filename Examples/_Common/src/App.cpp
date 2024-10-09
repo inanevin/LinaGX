@@ -92,12 +92,12 @@ namespace LinaGX::Examples
         m_window->AddListener(this);
     }
 
-    void App::OnWindowClose()
+    void App::OnWindowClose(LinaGX::Window* window)
     {
         m_isRunning = false;
     }
 
-    void App::OnWindowSizeChanged(const LinaGX::LGXVector2ui& newSize)
+    void App::OnWindowSizeChanged(LinaGX::Window* window, const LinaGX::LGXVector2ui& newSize)
     {
          OnWindowResized(newSize.x, newSize.y); 
     }

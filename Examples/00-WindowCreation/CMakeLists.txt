@@ -69,15 +69,6 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER ${LINAGX_FOLDER_BASE}/Exampl
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../CMake/ExampleProjectSettings.cmake)
 
 
-if(APPLE)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    MACOSX_BUNDLE TRUE
-    MACOSX_BUNDLE_INFO_PLIST ${LINAGX_SOURCE_DIR}/CMake/MacOSXBundleInfo.plist
-)
-
-endif()
-
 set_target_properties(
     ${PROJECT_NAME}
       PROPERTIES 

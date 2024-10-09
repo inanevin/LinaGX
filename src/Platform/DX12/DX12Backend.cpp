@@ -2108,6 +2108,11 @@ namespace LinaGX
             return;
         }
 
+        m_bufferHeap->FreeHeapHandle(res.descriptor);
+
+        if (res.additionalDescriptor.IsValid())
+            m_bufferHeap->FreeHeapHandle(res.additionalDescriptor);
+
         UnmapResource(handle);
 
         if (res.heapType == ResourceHeap::StagingHeap || res.heapType == ResourceHeap::GPUOnly)
