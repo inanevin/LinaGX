@@ -140,10 +140,12 @@ namespace LinaGX
         int retVal = 0;
         const stbir_colorspace cs = linearColorSpace ? stbir_colorspace::STBIR_COLORSPACE_LINEAR : stbir_colorspace::STBIR_COLORSPACE_SRGB;
 
+        const uint32 alphaChn = sourceData.bytesPerPixel == 1 ? 0 : 3;
+
         if(sourceData.bytesPerPixel == 4 || sourceData.bytesPerPixel == 1)
-            retVal = stbir_resize_uint8_generic(sourceData.pixels, sourceData.width, sourceData.height, 0, outData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+            retVal = stbir_resize_uint8_generic(sourceData.pixels, sourceData.width, sourceData.height, 0, outData.pixels, width, height, 0, channels, alphaChn, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
         else
-            retVal = stbir_resize_uint16_generic((uint16*)sourceData.pixels, sourceData.width, sourceData.height, 0, (uint16*)outData.pixels, width, height, 0, channels, 0, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
+            retVal = stbir_resize_uint16_generic((uint16*)sourceData.pixels, sourceData.width, sourceData.height, 0, (uint16*)outData.pixels, width, height, 0, channels, alphaChn, 0, stbir_edge::STBIR_EDGE_CLAMP, static_cast<stbir_filter>(filter), cs, 0);
         
         return retVal == 1;
     }
