@@ -626,10 +626,10 @@ namespace LinaGX
 
     struct TextureBuffer
     {
-        uint8* pixels;
-        uint32 width;
-        uint32 height;
-        uint32 bytesPerPixel;
+        uint8* pixels = nullptr;
+        uint32 width = 0;
+        uint32 height = 0;
+        uint32 bytesPerPixel = 0;
     };
 
     class CommandStream;
@@ -935,7 +935,7 @@ namespace LinaGX
         float              minLod     = 0.0f;
         float              maxLod     = 1.0f;
         float              mipLodBias = 0.0f;
-        BorderColor        borderColor;
+        BorderColor        borderColor = BorderColor::BlackOpaque;
         const char*        debugName = "LinaGXSampler";
     };
 
