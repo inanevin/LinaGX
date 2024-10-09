@@ -61,7 +61,7 @@ namespace LinaGX
     /// outMipData is not cleared, so you can create one vector, fill the first element with original texture data, pass first element here and the vector,
     /// as a result you will have a vector containing all TextureBuffers, both the original and all mips generated.
     /// </summary>
-    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, uint32 channels, bool linearColorSpace, uint32 requestLevels = 0);
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, uint32 channels, bool linearColorSpace, uint32 requestLevels = 0, bool premultipliedAlpha = false);
 
     /// <summary>
     /// Resizes the given texture buffer to target. You are responsible for creating the pixels for out buffer!
