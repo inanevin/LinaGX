@@ -139,6 +139,7 @@ namespace LinaGX
         float depthBias = 0.0f;
         float depthSlope = 0.0f;
         float depthClamp = 0.0f;
+        LINAGX_STRING debugName = "";
     };
 
     struct MTLFence

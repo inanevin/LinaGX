@@ -780,6 +780,7 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     item.frontFace = shaderDesc.frontFace;
     item.topology = shaderDesc.topology;
     item.layout = shaderDesc.layout;
+    item.debugName = shaderDesc.debugName;
     
     for (const auto& [stage, blob] : shaderDesc.stages)
     {
