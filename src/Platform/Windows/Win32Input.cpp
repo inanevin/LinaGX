@@ -85,6 +85,11 @@ namespace LinaGX
             {
                 if (keycode >= '0' && keycode <= '9')
                     mask |= Number;
+                else if ((keycode >= '0' && keycode <= '9') ||
+                         (keycode >= VK_NUMPAD0 && keycode <= VK_NUMPAD9))
+                {
+                    mask |= Number;
+                }
                 else
                     mask |= Letter;
             }
@@ -186,8 +191,8 @@ namespace LinaGX
         // if (!m_receivedDelta)
         //     m_mouseDelta = {};
         // m_receivedDelta = false;
-        m_mouseDelta.x  = m_currentMousePositionAbs.x - m_previousMousePosition.x;
-        m_mouseDelta.y  = m_currentMousePositionAbs.y - m_previousMousePosition.y;
+        m_mouseDelta.x = m_currentMousePositionAbs.x - m_previousMousePosition.x;
+        m_mouseDelta.y = m_currentMousePositionAbs.y - m_previousMousePosition.y;
     }
 
     void Input::EndFrame()
@@ -223,9 +228,9 @@ namespace LinaGX
 
     void Input::WindowFeedDelta(int32 deltaX, int32 deltaY)
     {
-       // m_mouseDelta.x  = static_cast<float>(deltaX);
-       // m_mouseDelta.y  = static_cast<float>(deltaY);
-       // m_receivedDelta = true;
+        // m_mouseDelta.x  = static_cast<float>(deltaX);
+        // m_mouseDelta.y  = static_cast<float>(deltaY);
+        // m_receivedDelta = true;
     }
 
     void Input::WindowFeedMousePosition(const LGXVector2& pos, Window* window)
