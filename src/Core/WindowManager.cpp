@@ -77,43 +77,43 @@ namespace LinaGX
         PopWindowFromList(sid);
     }
 
-    void WindowManager::SetWindowFocused(Window *window)
+    void WindowManager::SetWindowFocused(Window* window)
     {
         PushWindowToList(window->GetSID());
     }
 
     void WindowManager::PushWindowToList(LINAGX_STRINGID id)
     {
-        auto it = std::find_if(m_windowList.begin(), m_windowList.end(), [id](LINAGX_STRINGID sid) -> bool { return sid == id;});
-        if(it != m_windowList.end())
+        auto it = std::find_if(m_windowList.begin(), m_windowList.end(), [id](LINAGX_STRINGID sid) -> bool { return sid == id; });
+        if (it != m_windowList.end())
             m_windowList.erase(it);
         m_windowList.push_back(id);
     }
 
     void WindowManager::PopWindowFromList(LINAGX_STRINGID id)
     {
-        auto it = std::find_if(m_windowList.begin(), m_windowList.end(), [id](LINAGX_STRINGID sid) -> bool { return sid == id;});
-        if(it != m_windowList.end())
+        auto it = std::find_if(m_windowList.begin(), m_windowList.end(), [id](LINAGX_STRINGID sid) -> bool { return sid == id; });
+        if (it != m_windowList.end())
             m_windowList.erase(it);
     }
 
     Window* WindowManager::GetTopWindow()
     {
-        if(m_windowList.empty())
+        if (m_windowList.empty())
             return nullptr;
-        
+
         LINAGX_STRINGID id = m_windowList.back();
-        auto it = m_windows.find(id);
-        if(it == m_windows.end())
+        auto            it = m_windows.find(id);
+        if (it == m_windows.end())
             return nullptr;
-        
+
         return it->second;
     }
 
     void WindowManager::TickWindowSystem()
     {
         m_input->Tick();
-        
+
         for (const auto& [sid, w] : m_windows)
         {
             w->SetLastMouseDelta(m_input->GetMouseDelta());

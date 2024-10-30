@@ -525,7 +525,7 @@ namespace LinaGX
         if (!glslang_shader_preprocess(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            log               = log.substr(0, 100);
+            // log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Preprocess failed %s", log.c_str());
             // LOGA(false, "");
             return false;
@@ -534,7 +534,7 @@ namespace LinaGX
         if (!glslang_shader_parse(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            log               = log.substr(0, 100);
+            // log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Parsing failed %s", log.c_str());
             // LOGA(false, "");
             return false;
@@ -545,7 +545,7 @@ namespace LinaGX
         if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            log               = log.substr(0, 100);
+            // log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Linking failed %s, %s", log.c_str());
             // LOGA(false, "");
             return false;
