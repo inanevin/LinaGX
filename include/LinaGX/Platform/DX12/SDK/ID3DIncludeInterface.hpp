@@ -32,7 +32,7 @@ SOFTWARE.
 #define ID3DIncludeInterface_HPP
 
 #include "d3dcommon.h"
-#include "dxc/dxcapi.h"
+#include "dxcapi/dxcapi.h"
 #include <wrl/client.h>
 
 namespace Lina
