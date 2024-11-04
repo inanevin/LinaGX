@@ -183,6 +183,7 @@ namespace LinaGX
 
     void Input::Tick()
     {
+
         POINT point;
         GetCursorPos(&point);
         m_previousMousePosition     = m_currentMousePositionAbs;
@@ -199,6 +200,8 @@ namespace LinaGX
     {
         for (int i = 0; i < NUM_KEY_STATES; i++)
             m_previousStates[i] = m_currentStates[i];
+
+        m_mouseScroll = 0.0f;
     }
 
     void Input::WindowFeedKey(uint32 key, int32 scanCode, InputAction action, Window* window)

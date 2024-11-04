@@ -386,10 +386,10 @@ namespace LinaGX
 
             auto delta = GET_WHEEL_DELTA_WPARAM(wParam);
 
-            win32Window->m_input->WindowFeedMouseWheel(static_cast<float>(delta), win32Window);
-
+            const float dt = static_cast<float>(delta) / static_cast<float>(WHEEL_DELTA);
+            win32Window->m_input->WindowFeedMouseWheel(dt, win32Window);
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouseWheel(win32Window, static_cast<float>(delta));
+                l->OnWindowMouseWheel(win32Window, static_cast<float>(dt));
 
             break;
         }
@@ -625,8 +625,13 @@ namespace LinaGX
                 rect = {m_position.x, m_position.y, m_position.x + static_cast<LONG>(m_size.x), m_position.y + static_cast<LONG>(m_size.y)};
             else if (m_confineStyle == ConfineStyle::Center)
                 rect = {m_position.x + static_cast<LONG>(m_size.x) / 2 - 2, m_position.y + static_cast<LONG>(m_size.y) / 2 - 2, m_position.x + static_cast<LONG>(m_size.x) / 2 + 2, m_position.y + static_cast<LONG>(m_size.y) / 2 + 2};
-            else if(m_confineStyle == ConfineStyle::Point)
-                rect = {m_position.x + static_cast<LONG>(m_confinePoint.x) - 1, m_position.y + static_cast<LONG>(m_confinePoint.y) - 1, m_position.x + static_cast<LONG>(m_confinePoint.x) + 1, m_position.y + static_cast<LONG>(m_confinePoint.y) + 1, };
+            else if (m_confineStyle == ConfineStyle::Point)
+                rect = {
+                    m_position.x + static_cast<LONG>(m_confinePoint.x) - 1,
+                    m_position.y + static_cast<LONG>(m_confinePoint.y) - 1,
+                    m_position.x + static_cast<LONG>(m_confinePoint.x) + 1,
+                    m_position.y + static_cast<LONG>(m_confinePoint.y) + 1,
+                };
 
             ClipCursor(&rect);
         }
@@ -660,13 +665,12 @@ namespace LinaGX
     void Win32Window::SetIsFloating(bool isFloating)
     {
         SetWindowPos(
-               m_hwnd,
-               isFloating ? HWND_TOPMOST : HWND_NOTOPMOST,
-               0, 0, 0, 0,
-               SWP_NOMOVE |
-               SWP_NOSIZE |
-               SWP_NOACTIVATE
-           );
+            m_hwnd,
+            isFloating ? HWND_TOPMOST : HWND_NOTOPMOST,
+            0, 0, 0, 0,
+            SWP_NOMOVE |
+                SWP_NOSIZE |
+                SWP_NOACTIVATE);
     }
 
     void Win32Window::OnDPIChanged(uint32 dpi)
