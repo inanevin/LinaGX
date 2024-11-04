@@ -107,7 +107,7 @@ namespace LinaGX
                 mask |= Control;
         }
 
-        if (ch == L'.')
+        if (ch == L'.' || ch == L',')
             mask |= Separator;
 
         if (mask & (Letter | Number | Whitespace | Separator | Symbol))
