@@ -340,11 +340,6 @@ namespace LinaGX
 
             const InputAction action = isRepeated ? InputAction::Repeated : InputAction::Pressed;
 
-            if (key == VK_SPACE)
-            {
-                win32Window->Minimize();
-            }
-
             win32Window->m_input->WindowFeedKey(key, static_cast<int32>(scanCode), action, win32Window);
 
             for (auto* l : win32Window->m_listeners)
