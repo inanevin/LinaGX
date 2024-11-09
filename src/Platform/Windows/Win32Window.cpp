@@ -266,7 +266,7 @@ namespace LinaGX
             return 0;
         }
         case WM_DPICHANGED: {
-            const uint32 dpi = static_cast<uint32>((short)LOWORD(lParam));
+            const uint32 dpi = (uint32)LOWORD(wParam);
             win32Window->OnDPIChanged(dpi);
             win32Window->CalculateMonitorInfo();
             break;
@@ -670,7 +670,7 @@ namespace LinaGX
 
     void Win32Window::OnDPIChanged(uint32 dpi)
     {
-        m_dpi      = GetDpiForWindow(m_hwnd);
+        m_dpi      = dpi;
         m_dpiScale = m_dpi / 96.0f;
     }
 
