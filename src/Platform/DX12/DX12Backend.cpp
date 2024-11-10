@@ -1025,7 +1025,7 @@ namespace LinaGX
             arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
             arguments.push_back(L"-HV 2021");                 //-WX
 
-            if (Config.dx12Config.enableShaderDebugInformation)
+            if (Config.enableShaderDebugInformation)
             {
                 arguments.push_back(DXC_ARG_DEBUG);
                 arguments.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
@@ -1042,7 +1042,7 @@ namespace LinaGX
             ComPtr<IDxcResult> result;
             ThrowIfFailed(idxcCompiler->Compile(&sourceBuffer, arguments.data(), static_cast<uint32>(arguments.size()), NULL, IID_PPV_ARGS(result.GetAddressOf())));
 
-            if (Config.dx12Config.serializeShaderDebugSymbols)
+            if (Config.serializeShaderDebugInformation)
             {
                 ComPtr<IDxcBlob>      pDebugData;
                 ComPtr<IDxcBlobUtf16> pDebugDataPath;
@@ -2630,7 +2630,7 @@ namespace LinaGX
             {
                 UINT dxgiFactoryFlags = 0;
 
-                if (Config.dx12Config.enableDebugLayers)
+                if (Config.enableAPIDebugLayers)
                 {
                     ComPtr<ID3D12Debug> debugController;
                     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
@@ -2665,7 +2665,7 @@ namespace LinaGX
                 ThrowIfFailed(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
             }
 
-            if (Config.dx12Config.enableDebugLayers)
+            if (Config.enableAPIDebugLayers)
             {
                 // Dbg callback
                 {
@@ -2834,7 +2834,7 @@ namespace LinaGX
             LOGA(!l.isValid, "Backend -> Some pipeline layouts were not destroyed!");
         }
 
-        if (Config.dx12Config.enableDebugLayers)
+        if (Config.enableAPIDebugLayers)
         {
             ID3D12InfoQueue1* infoQueue = nullptr;
             if (SUCCEEDED(m_device->QueryInterface<ID3D12InfoQueue1>(&infoQueue)))

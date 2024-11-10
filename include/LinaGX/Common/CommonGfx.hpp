@@ -720,17 +720,13 @@ namespace LinaGX
     struct VulkanConfiguration
     {
         bool   flipViewport            = true;
-        bool   enableValidationLayers  = true;
         uint32 extraGraphicsQueueCount = 0;
         uint32 enableVulkanFeatures    = 0;
     };
 
     struct DX12Configuration
     {
-        bool allowTearing                 = true;
-        bool enableDebugLayers            = true;
-        bool enableShaderDebugInformation = true;
-        bool serializeShaderDebugSymbols  = false;
+        bool allowTearing = true;
     };
 
     struct MetalConfiguration
@@ -739,20 +735,23 @@ namespace LinaGX
 
     struct Configuration
     {
-        BackendAPI          api                          = BackendAPI::Vulkan;
-        PreferredGPUType    gpu                          = PreferredGPUType::Discrete;
-        const char*         appName                      = "LinaGX App";
-        uint32              framesInFlight               = 2;
-        uint32              backbufferCount              = 2;
-        GPULimits           gpuLimits                    = {};
-        VulkanConfiguration vulkanConfig                 = {};
-        DX12Configuration   dx12Config                   = {};
-        MetalConfiguration  mtlConfig                    = {};
-        LogCallback         errorCallback                = nullptr;
-        LogCallback         infoCallback                 = nullptr;
-        LogLevel            logLevel                     = LogLevel::Normal;
-        bool                mutexLockCreationDeletion    = false;
-        bool                multithreadedQueueSubmission = false;
+        BackendAPI          api                             = BackendAPI::Vulkan;
+        PreferredGPUType    gpu                             = PreferredGPUType::Discrete;
+        const char*         appName                         = "LinaGX App";
+        uint32              framesInFlight                  = 2;
+        uint32              backbufferCount                 = 2;
+        GPULimits           gpuLimits                       = {};
+        VulkanConfiguration vulkanConfig                    = {};
+        DX12Configuration   dx12Config                      = {};
+        MetalConfiguration  mtlConfig                       = {};
+        LogCallback         errorCallback                   = nullptr;
+        LogCallback         infoCallback                    = nullptr;
+        LogLevel            logLevel                        = LogLevel::Normal;
+        bool                mutexLockCreationDeletion       = false;
+        bool                multithreadedQueueSubmission    = false;
+        bool                enableAPIDebugLayers            = true;
+        bool                enableShaderDebugInformation    = false;
+        bool                serializeShaderDebugInformation = false;
     };
 
     struct MonitorInfo
