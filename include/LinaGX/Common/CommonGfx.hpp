@@ -626,9 +626,9 @@ namespace LinaGX
 
     struct TextureBuffer
     {
-        uint8* pixels = nullptr;
-        uint32 width = 0;
-        uint32 height = 0;
+        uint8* pixels        = nullptr;
+        uint32 width         = 0;
+        uint32 height        = 0;
         uint32 bytesPerPixel = 0;
     };
 
@@ -927,16 +927,16 @@ namespace LinaGX
 
     struct SamplerDesc
     {
-        Filter             minFilter  = Filter::Linear;
-        Filter             magFilter  = Filter::Linear;
-        SamplerAddressMode mode       = SamplerAddressMode::ClampToEdge;
-        MipmapMode         mipmapMode = MipmapMode::Linear;
-        uint32             anisotropy = 0;
-        float              minLod     = 0.0f;
-        float              maxLod     = 1.0f;
-        float              mipLodBias = 0.0f;
+        Filter             minFilter   = Filter::Linear;
+        Filter             magFilter   = Filter::Linear;
+        SamplerAddressMode mode        = SamplerAddressMode::ClampToEdge;
+        MipmapMode         mipmapMode  = MipmapMode::Linear;
+        uint32             anisotropy  = 0;
+        float              minLod      = 0.0f;
+        float              maxLod      = 1.0f;
+        float              mipLodBias  = 0.0f;
         BorderColor        borderColor = BorderColor::BlackOpaque;
-        const char*        debugName = "LinaGXSampler";
+        const char*        debugName   = "LinaGXSampler";
     };
 
     struct ResourceDesc
@@ -1001,9 +1001,9 @@ namespace LinaGX
     {
         LINAGX_VEC<DescriptorSetDesc>               descriptorSetDescriptions;
         LINAGX_VEC<PipelineLayoutPushConstantRange> constantRanges;
-        bool                                        isCompute           = false;
-        bool                                        indirectDrawEnabled = false;
-        const char*                                 debugName           = "LinaGX PipelineLayout";
+        bool                                        isCompute   = false;
+        bool                                        hasGLDrawID = false;
+        const char*                                 debugName   = "LinaGX PipelineLayout";
     };
 
 #define LOGT(...)                                                                                            \

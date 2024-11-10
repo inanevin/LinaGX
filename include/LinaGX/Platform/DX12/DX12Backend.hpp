@@ -86,11 +86,12 @@ namespace LinaGX
 
     struct DX12Shader
     {
-        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso       = NULL;
-        DX12PipelineLayout                          layout    = {};
-        Topology                                    topology  = Topology::TriangleList;
-        bool                                        isValid   = false;
-        bool                                        isCompute = false;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso        = NULL;
+        DX12PipelineLayout                          layout     = {};
+        Topology                                    topology   = Topology::TriangleList;
+        bool                                        isValid    = false;
+        bool                                        isCompute  = false;
+        bool                                        ownsLayout = false;
     };
 
     struct DX12Texture2D
