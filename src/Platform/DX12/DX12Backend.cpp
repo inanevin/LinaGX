@@ -1261,7 +1261,7 @@ namespace LinaGX
             }
 
             uint32 drawIDRootParamIndex = 0;
-            if (shaderDesc.layout.hasGLDrawID || shaderDesc.drawIndirectEnabled)
+            if (shaderDesc.layout.hasGLDrawID)
             {
                 CD3DX12_ROOT_PARAMETER1 param      = CD3DX12_ROOT_PARAMETER1{};
                 D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -1341,37 +1341,62 @@ namespace LinaGX
             }
 
             // Indirect signature.
-            if (shaderDesc.layout.hasGLDrawID || shaderDesc.drawIndirectEnabled)
+            if (true)
             {
                 try
                 {
-                    D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[2]     = {};
-                    argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
-                    argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
-                    argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
-                    argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
-                    argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+                    if (shaderDesc.layout.hasGLDrawID)
+                    {
+                        D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[2]     = {};
+                        argumentDescs[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                        argumentDescs[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                        argumentDescs[0].Constant.DestOffsetIn32BitValues = 0;
+                        argumentDescs[0].Constant.Num32BitValuesToSet     = 1;
+                        argumentDescs[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
 
-                    D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
-                    commandSignatureDesc.pArgumentDescs               = argumentDescs;
-                    commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
-                    commandSignatureDesc.ByteStride                   = sizeof(DX12IndexedIndirectCommand);
+                        D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+                        commandSignatureDesc.pArgumentDescs               = argumentDescs;
+                        commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
+                        commandSignatureDesc.ByteStride                   = sizeof(DX12IndexedIndirectCommand);
 
-                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectIndexedSig)));
+                        ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectIndexedSig)));
 
-                    D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]     = {};
-                    argumentDescs2[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
-                    argumentDescs2[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
-                    argumentDescs2[0].Constant.DestOffsetIn32BitValues = 0;
-                    argumentDescs2[0].Constant.Num32BitValuesToSet     = 1;
-                    argumentDescs2[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+                        D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[2]     = {};
+                        argumentDescs2[0].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+                        argumentDescs2[0].Constant.RootParameterIndex      = drawIDRootParamIndex;
+                        argumentDescs2[0].Constant.DestOffsetIn32BitValues = 0;
+                        argumentDescs2[0].Constant.Num32BitValuesToSet     = 1;
+                        argumentDescs2[1].Type                             = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
 
-                    D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
-                    commandSignatureDesc2.pArgumentDescs               = argumentDescs2;
-                    commandSignatureDesc2.NumArgumentDescs             = _countof(argumentDescs2);
-                    commandSignatureDesc2.ByteStride                   = sizeof(DX12IndirectCommand);
+                        D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
+                        commandSignatureDesc2.pArgumentDescs               = argumentDescs2;
+                        commandSignatureDesc2.NumArgumentDescs             = _countof(argumentDescs2);
+                        commandSignatureDesc2.ByteStride                   = sizeof(DX12IndirectCommand);
 
-                    ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectDrawSig)));
+                        ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, shader.layout.rootSig.Get(), IID_PPV_ARGS(&shader.layout.indirectDrawSig)));
+                    }
+                    else
+                    {
+                        D3D12_INDIRECT_ARGUMENT_DESC argumentDescs[1] = {};
+                        argumentDescs[0].Type                         = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+                        D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+                        commandSignatureDesc.pArgumentDescs               = argumentDescs;
+                        commandSignatureDesc.NumArgumentDescs             = _countof(argumentDescs);
+                        commandSignatureDesc.ByteStride                   = sizeof(DX12IndexedIndirectCommand);
+
+                        ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, NULL, IID_PPV_ARGS(&shader.layout.indirectIndexedSig)));
+
+                        D3D12_INDIRECT_ARGUMENT_DESC argumentDescs2[1] = {};
+                        argumentDescs2[0].Type                         = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+                        D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc2 = {};
+                        commandSignatureDesc2.pArgumentDescs               = argumentDescs2;
+                        commandSignatureDesc2.NumArgumentDescs             = _countof(argumentDescs2);
+                        commandSignatureDesc2.ByteStride                   = sizeof(DX12IndirectCommand);
+
+                        ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, NULL, IID_PPV_ARGS(&shader.layout.indirectDrawSig)));
+                    }
                 }
                 catch (HrException e)
                 {
