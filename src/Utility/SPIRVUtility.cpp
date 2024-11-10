@@ -509,7 +509,7 @@ namespace LinaGX
 
         glslang_input_t input                   = {};
         input.language                          = GLSLANG_SOURCE_GLSL;
-        input.stage                             = stage;
+        input.stage                             = stage; 
         input.client                            = GLSLANG_CLIENT_VULKAN;
         input.target_language                   = GLSLANG_TARGET_SPV;
         input.target_language_version           = GLSLANG_TARGET_SPV_1_0;
@@ -551,7 +551,25 @@ namespace LinaGX
             return false;
         }
 
-        glslang_program_SPIRV_generate(program, stage);
+        glslang_spv_options_t options;
+
+        if (LinaGX::Config.enableShaderDebugInformation)
+        {
+            options.generate_debug_info                  = true;
+            options.emit_nonsemantic_shader_debug_info   = true;
+            options.emit_nonsemantic_shader_debug_source = true;
+            options.strip_debug_info                     = false;
+        }
+        else
+        {
+            options.generate_debug_info                  = false;
+            options.emit_nonsemantic_shader_debug_info   = false;
+            options.emit_nonsemantic_shader_debug_source = false;
+            options.strip_debug_info                     = true;
+        }
+
+        glslang_program_SPIRV_generate_with_options(program, stage, &options);
+        // glslang_program_SPIRV_generate(program, stage);
         std::vector<uint32> spirvBinary;
         const size_t        elemCount = glslang_program_SPIRV_get_size(program);
         spirvBinary.resize(elemCount);
