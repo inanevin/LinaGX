@@ -49,10 +49,14 @@ namespace LinaGX
     PFN_vkSetDebugUtilsObjectNameEXT g_vkSetDebugUtilsObjectNameEXT;
     PFN_vkCmdBeginDebugUtilsLabelEXT g_vkCmdBeginDebugUtilsLabelEXT;
     PFN_vkCmdEndDebugUtilsLabelEXT   g_vkCmdEndDebugUtilsLabelEXT;
+    // PFN_vkCmdSetCheckpointNV         g_vkCmdSetCheckpointNVEXT;
+    // PFN_vkGetQueueCheckpointDataNV   g_vkCmdGetQueueCheckpointDataNVEXT;
 
 #define pfn_vkSetDebugUtilsObjectNameEXT g_vkSetDebugUtilsObjectNameEXT
 #define pfn_vkBeginDebugUtilLabelEXT     g_vkCmdBeginDebugUtilsLabelEXT
 #define pfn_vkEndDebugUtilLabelEXT       g_vkCmdEndDebugUtilsLabelEXT
+    // #define pfn_vkCmdSetCheckpointNV          g_vkCmdSetCheckpointNVEXT
+    // #define pfn_vkCmdGetQueueCheckpointDataNV g_vkCmdGetQueueCheckpointDataNVEXT
 
 #ifdef _DEBUG
 #define VK_NAME_OBJECT(namedObject, objType, name, structName)                                     \
@@ -1329,6 +1333,11 @@ namespace LinaGX
 
     uint32 VKBackend::CreateTexture(const TextureDesc& txtDesc)
     {
+        if (txtDesc.width == 0 || txtDesc.height == 0)
+        {
+            LOGA(false, "Backend -> Textures can't have 0 width or height!");
+        }
+
         if (txtDesc.type == TextureType::Texture3D && txtDesc.arrayLength != 1)
         {
             LOGA(false, "Backend -> Array length needs to be 1 for 3D textures!");
@@ -1732,8 +1741,8 @@ namespace LinaGX
             return;
         }
 
+        vkFreeDescriptorSets(m_device, m_descriptorPool, item.setCount, item.sets);
         delete[] item.sets;
-
         vkDestroyDescriptorSetLayout(m_device, item.layout, m_allocator);
 
         m_descriptorSets.RemoveItem(handle);
@@ -2110,7 +2119,6 @@ namespace LinaGX
 
         if (Config.multithreadedQueueSubmission)
             flag->clear(std::memory_order_release);
-
         VK_CHECK_RESULT(res, "Failed submitting to queue!");
     }
 
@@ -2310,13 +2318,14 @@ namespace LinaGX
         LINAGX_VEC<const char*> requiredExtensions;
         requiredExtensions.push_back("VK_KHR_surface");
         requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        requiredExtensions.push_back("VK_EXT_validation_features");
 
-        if (Config.vulkanConfig.enableValidationLayers)
+        if (Config.enableAPIDebugLayers)
             requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         // Instance builder
         vkb::InstanceBuilder builder;
-        builder = builder.set_app_name(Config.appName).request_validation_layers(Config.vulkanConfig.enableValidationLayers).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
+        builder = builder.set_app_name(Config.appName).enable_validation_layers(Config.enableAPIDebugLayers).request_validation_layers(Config.enableAPIDebugLayers).require_api_version(LGX_VK_MAJOR, LGX_VK_MINOR, 0);
 
         // Extensions
         for (auto ext : requiredExtensions)
@@ -2324,19 +2333,19 @@ namespace LinaGX
 
         VkDebugUtilsMessageSeverityFlagsEXT severity = 0;
 
-        if (Config.vulkanConfig.enableValidationLayers)
+        if (Config.enableAPIDebugLayers)
         {
             // severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
-            severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
             builder.set_debug_callback(VkDebugCallback);
             builder.set_debug_messenger_severity(severity);
-            builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+            builder.set_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT);
         }
 
         auto res = builder.build();
-        if (!res)
+        if (!res.has_value())
         {
-            LOGE("Backend -> Vulkan builder failed!");
+            LOGE("Backend -> Vulkan builder failed! {0}", res.error().message());
             return false;
         }
 
@@ -2455,14 +2464,10 @@ namespace LinaGX
             vk12Features.descriptorBindingUniformBufferUpdateAfterBind = true;
         }
 
+        // NV checkpoint debug VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME
+
         vkb::PhysicalDeviceSelector      selector{inst};
-        vkb::Result<vkb::PhysicalDevice> phyRes = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR)
-                                                      .set_required_features_12(vk12Features)
-                                                      .defer_surface_initialization()
-                                                      .prefer_gpu_device_type(targetDeviceType)
-                                                      .allow_any_gpu_device_type(false)
-                                                      .set_required_features(features)
-                                                      .select(vkb::DeviceSelectionMode::partially_and_fully_suitable);
+        vkb::Result<vkb::PhysicalDevice> phyRes = selector.set_minimum_version(LGX_VK_MAJOR, LGX_VK_MINOR).set_required_features_12(vk12Features).defer_surface_initialization().prefer_gpu_device_type(targetDeviceType).allow_any_gpu_device_type(false).set_required_features(features).select(vkb::DeviceSelectionMode::partially_and_fully_suitable);
 
         vkb::PhysicalDevice physicalDevice;
 
@@ -2702,10 +2707,11 @@ namespace LinaGX
         g_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
         g_vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(vkGetDeviceProcAddr(m_device, "vkCmdBeginDebugUtilsLabelEXT"));
         g_vkCmdEndDebugUtilsLabelEXT   = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(vkGetDeviceProcAddr(m_device, "vkCmdEndDebugUtilsLabelEXT"));
+        // g_vkCmdSetCheckpointNVEXT      = reinterpret_cast<PFN_vkCmdSetCheckpointNV>(vkGetDeviceProcAddr(m_device, "vkCmdSetCheckpointNV"));
+        // g_vkCmdGetQueueCheckpointDataNVEXT = reinterpret_cast<PFN_vkGetQueueCheckpointDataNV>(vkGetDeviceProcAddr(m_device, "vkGetQueueCheckpointDataNV"));
 
         // Queue support
         {
-
             QueueDesc descGfx, descTransfer, descCompute;
             descGfx.type                           = CommandType::Graphics;
             descTransfer.type                      = CommandType::Transfer;
@@ -2820,9 +2826,10 @@ namespace LinaGX
             VkDescriptorPoolCreateInfo info = VkDescriptorPoolCreateInfo{};
             info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             info.flags                      = (Config.vulkanConfig.enableVulkanFeatures & VulkanFeatureFlags::VKF_UpdateAfterBind) ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
-            info.maxSets                    = Config.gpuLimits.maxDescriptorSets;
-            info.poolSizeCount              = static_cast<uint32>(sizeInfos.size());
-            info.pPoolSizes                 = sizeInfos.data();
+            info.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+            info.maxSets       = Config.gpuLimits.maxDescriptorSets;
+            info.poolSizeCount = static_cast<uint32>(sizeInfos.size());
+            info.pPoolSizes    = sizeInfos.data();
 
             VkResult res = vkCreateDescriptorPool(m_device, &info, m_allocator, &m_descriptorPool);
             VK_CHECK_RESULT(res, "Backend -> Could not create descriptor pool!");
@@ -2922,10 +2929,11 @@ namespace LinaGX
         {
             for (auto& q : m_queues)
             {
-                if (!q.isValid || q.type != CommandType::Graphics || q.wasSubmitted[i])
+                if (!q.isValid || q.type != CommandType::Graphics || !q.wasSubmitted[i])
                     continue;
 
-                q.wasSubmitted[i] = false;
+                q.wasSubmitted[i]             = false;
+                q.pfd[i].submitSemaphoreIndex = 0;
 
                 auto sem = q.pfd[i].startFrameWaitSemaphore;
 
@@ -2946,10 +2954,19 @@ namespace LinaGX
             waitInfo.semaphoreCount      = static_cast<uint32>(waitSemaphores.size());
             waitInfo.pSemaphores         = waitSemaphores.data();
             waitInfo.pValues             = waitSemaphoreValues.data();
-            vkWaitSemaphores(m_device, &waitInfo, timeout);
+            const VkResult result        = vkWaitSemaphores(m_device, &waitInfo, timeout);
+            if (result != VK_SUCCESS)
+            {
+                LOGE("Error on vkWaitSemaphores! %s", LinaGX_VkErr(result).c_str());
+            }
         }
 
-        vkDeviceWaitIdle(m_device);
+        const VkResult result = vkDeviceWaitIdle(m_device);
+
+        if (result != VK_SUCCESS)
+        {
+            LOGE("Error on vkDeviceWaitIdle! %s", LinaGX_VkErr(result).c_str());
+        }
     }
 
     void VKBackend::StartFrame(uint32 frameIndex)
