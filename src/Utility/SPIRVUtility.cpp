@@ -509,7 +509,7 @@ namespace LinaGX
 
         glslang_input_t input                   = {};
         input.language                          = GLSLANG_SOURCE_GLSL;
-        input.stage                             = stage; 
+        input.stage                             = stage;
         input.client                            = GLSLANG_CLIENT_VULKAN;
         input.target_language                   = GLSLANG_TARGET_SPV;
         input.target_language_version           = GLSLANG_TARGET_SPV_1_0;
@@ -525,18 +525,16 @@ namespace LinaGX
         if (!glslang_shader_preprocess(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            // log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Preprocess failed %s", log.c_str());
-            // LOGA(false, "");
+            glslang_shader_delete(shader);
             return false;
         }
 
         if (!glslang_shader_parse(shader, &input))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            // log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Parsing failed %s", log.c_str());
-            // LOGA(false, "");
+            glslang_shader_delete(shader);
             return false;
         }
 
@@ -545,9 +543,9 @@ namespace LinaGX
         if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT))
         {
             LINAGX_STRING log = glslang_shader_get_info_log(shader);
-            // log               = log.substr(0, 100);
             LOGE("GLSL2SPV -> Linking failed %s, %s", log.c_str());
-            // LOGA(false, "");
+            glslang_program_delete(program);
+            glslang_shader_delete(shader);
             return false;
         }
 
