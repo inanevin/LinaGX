@@ -71,6 +71,8 @@ namespace LinaGX
     };
 
     struct LGXVector2;
+    struct LGXVector2i;
+    struct LGXVector2ui;
     class Window;
 
     class InputListener

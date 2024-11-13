@@ -35,7 +35,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <functional>
-#include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Common/CommonInput.hpp"
 #import <Cocoa/Cocoa.h>
 
 namespace LinaGX
