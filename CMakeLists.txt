@@ -69,9 +69,15 @@ set(LinaGX_HEADERS
 	include/LinaGX/LinaGX.hpp
 	include/LinaGX/LinaGXExports.hpp
 	include/LinaGX/Common/CommonData.hpp
+	include/LinaGX/Common/CommonInput.hpp
+	include/LinaGX/Common/CommonConfig.hpp
+	include/LinaGX/Common/Types.hpp
 	include/LinaGX/Common/CommonGfx.hpp
 	include/LinaGX/Common/Math.hpp
 	include/LinaGX/Common/Vectors.hpp
+	include/LinaGX/Common/Defines/Format.hpp
+	include/LinaGX/Common/Defines/DataBuffers.hpp
+	include/LinaGX/Common/Defines/SamplerDesc.hpp
 	include/LinaGX/Core/Backend.hpp
 	include/LinaGX/Core/Input.hpp
 	include/LinaGX/Core/InputMappings.hpp
@@ -80,6 +86,7 @@ set(LinaGX_HEADERS
 	include/LinaGX/Core/Commands.hpp
 	include/LinaGX/Core/WindowManager.hpp
 	include/LinaGX/Core/Window.hpp
+	include/LinaGX/Core/WindowListener.hpp
 	include/LinaGX/Utility/SPIRVUtility.hpp
 	include/LinaGX/Utility/PlatformUtility.hpp
 	include/LinaGX/Utility/ImageUtility.hpp
@@ -92,7 +99,7 @@ set(LinaGX_HEADERS
 )
 
 set(LinaGX_SOURCES
-	src/Common/CommonGfx.cpp
+	src/Common/CommonConfig.cpp
 	src/Common/CommonData.cpp
 	src/Common/Math.cpp
 	src/Core/Backend.cpp

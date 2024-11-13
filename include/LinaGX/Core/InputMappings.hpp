@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -35,6 +35,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #ifdef LINAGX_PLATFORM_WINDOWS
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <Xinput.h>
 #endif
@@ -125,8 +126,8 @@ namespace LinaGX
 #define LINAGX_KEY_TAB       VK_TAB
 #define LINAGX_KEY_SPACE     VK_SPACE
 
-#define LINAGX_KEY_MINUS VK_OEM_MINUS
-#define LINAGX_KEY_GRAVE VK_OEM_3 // 41 // ?
+#define LINAGX_KEY_MINUS    VK_OEM_MINUS
+#define LINAGX_KEY_GRAVE    VK_OEM_3 // 41 // ?
 #define LINAGX_KEY_COMMA    VK_OEM_COMMA
 #define LINAGX_KEY_PERIOD   VK_OEM_PERIOD
 #define LINAGX_KEY_SLASH    VK_DIVIDE
@@ -148,10 +149,10 @@ namespace LinaGX
 #define LINAGX_KEY_F14 VK_F14
 #define LINAGX_KEY_F15 VK_F15
 
-#define LINAGX_KEY_PRINTSCREEN VK_PRINT
-#define LINAGX_KEY_SCROLLLOCK  VK_SCROLL
-#define LINAGX_KEY_PAUSE       VK_PAUSE
-#define LINAGX_KEY_INSERT      VK_INSERT
+#define LINAGX_KEY_PRINTSCREEN  VK_PRINT
+#define LINAGX_KEY_SCROLLLOCK   VK_SCROLL
+#define LINAGX_KEY_PAUSE        VK_PAUSE
+#define LINAGX_KEY_INSERT       VK_INSERT
 #define LINAGX_KEY_HOME         VK_HOME
 #define LINAGX_KEY_PAGEUP       VK_PRIOR
 #define LINAGX_KEY_DELETE       VK_DELETE
@@ -270,13 +271,12 @@ namespace LinaGX
 #define LINAGX_KEY_TAB       0x30
 #define LINAGX_KEY_SPACE     0x31
 
-#define LINAGX_KEY_MINUS     0x1B  // '-'
-#define LINAGX_KEY_GRAVE     0x32  // '`'
-#define LINAGX_KEY_COMMA     0x2B  // ','
-#define LINAGX_KEY_PERIOD    0x2F  // '.'
-#define LINAGX_KEY_SLASH     0x2C  // '/'
-#define LINAGX_KEY_CAPSLOCK  0x39
-
+#define LINAGX_KEY_MINUS    0x1B // '-'
+#define LINAGX_KEY_GRAVE    0x32 // '`'
+#define LINAGX_KEY_COMMA    0x2B // ','
+#define LINAGX_KEY_PERIOD   0x2F // '.'
+#define LINAGX_KEY_SLASH    0x2C // '/'
+#define LINAGX_KEY_CAPSLOCK 0x39
 
 #define LINAGX_KEY_F1  0x7A
 #define LINAGX_KEY_F2  0x78
@@ -298,16 +298,16 @@ namespace LinaGX
 #define LINAGX_KEY_SCROLLLOCK  LINAGX_KEY_UNKNOWN
 #define LINAGX_KEY_PAUSE       LINAGX_KEY_UNKNOWN
 
-#define LINAGX_KEY_INSERT 0x72 // "Help" key on some older Mac keyboards
-#define LINAGX_KEY_HOME   0x73
-#define LINAGX_KEY_PAGEUP 0x74
-#define LINAGX_KEY_DELETE 0x75
-#define LINAGX_KEY_END    0x77
-#define LINAGX_KEY_PAGEDOWN 0x79
-#define LINAGX_KEY_RIGHT  0x7C
-#define LINAGX_KEY_LEFT   0x7B
-#define LINAGX_KEY_DOWN   0x7D
-#define LINAGX_KEY_UP     0x7E
+#define LINAGX_KEY_INSERT       0x72 // "Help" key on some older Mac keyboards
+#define LINAGX_KEY_HOME         0x73
+#define LINAGX_KEY_PAGEUP       0x74
+#define LINAGX_KEY_DELETE       0x75
+#define LINAGX_KEY_END          0x77
+#define LINAGX_KEY_PAGEDOWN     0x79
+#define LINAGX_KEY_RIGHT        0x7C
+#define LINAGX_KEY_LEFT         0x7B
+#define LINAGX_KEY_DOWN         0x7D
+#define LINAGX_KEY_UP           0x7E
 #define LINAGX_KEY_NUMLOCKCLEAR LINAGX_KEY_UNKNOWN
 
 #define LINAGX_KEY_KP_DECIMAL  0x41
@@ -480,4 +480,3 @@ namespace LinaGX
     };
 
 } // namespace LinaGX
-

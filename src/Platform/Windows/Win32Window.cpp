@@ -37,6 +37,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
 #include "LinaGX/Core/Input.hpp"
 #include "LinaGX/Core/WindowManager.hpp"
+
 #include <Windows.h>
 #include <windowsx.h>
 #include <shellscalingapi.h>

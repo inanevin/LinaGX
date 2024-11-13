@@ -34,35 +34,24 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "LinaGX/Common/CommonGfx.hpp"
-#include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Common/CommonInput.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
+#include "LinaGX/Core/WindowListener.hpp"
 
 namespace LinaGX
 {
     class WindowManager;
     class Input;
-    class Window;
-    
 
-    class WindowListener
+    struct MonitorInfo
     {
-    public:
-        WindowListener()          = default;
-        virtual ~WindowListener() = default;
-
-        virtual void OnWindowClose(Window* window){};
-        virtual void OnWindowPosChanged(Window* window, const LGXVector2i&){};
-        virtual void OnWindowSizeChanged(Window* window, const LGXVector2ui&){};
-        virtual void OnWindowKey(Window* window, uint32 keycode, int32 scancode, InputAction inputAction){};
-        virtual void OnWindowMouse(Window* window, uint32 button, InputAction inputAction){};
-        virtual void OnWindowMouseWheel(Window* window, float delta){};
-        virtual void OnWindowMouseMove(Window* window, const LGXVector2&){};
-        virtual void OnWindowFocus(Window* window, bool gainedFocus){};
-        virtual void OnWindowHoverBegin(Window* window){};
-        virtual void OnWindowHoverEnd(Window* window){};
-
-    protected:
-        friend class Window;
+        void*        monitorHandle = nullptr;
+        bool         isPrimary     = false;
+        float        dpiScale      = 0.0f;
+        uint32       dpi           = 0;
+        LGXVector2ui size          = {};
+        LGXVector2ui workSize      = {};
+        LGXVector2i  workTopLeft   = {};
     };
 
     class Window
@@ -174,7 +163,7 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         virtual void ConfineMouseToRegion(const LGXRectui& region) = 0;
-        
+
         /// <summary>
         /// Restricts the mouse movement for a specific local point in the window.
         /// </summary>
@@ -192,14 +181,14 @@ namespace LinaGX
         /// </summary>
         /// <returns></returns>
         virtual void FreeMouse() = 0;
-        
+
         /// <summary>
         /// Makes window stay always on top
         /// </summary>
         virtual void SetIsFloating(bool isFloating) = 0;
 
         virtual bool QueryVisibility() = 0;
-        
+
         /// <summary>
         ///
         /// </summary>
@@ -309,16 +298,16 @@ namespace LinaGX
 
         inline void RemoveListener(WindowListener* listener)
         {
-            auto it            = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](WindowListener* list) -> bool { return list == listener; });
+            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](WindowListener* list) -> bool { return list == listener; });
             m_listeners.erase(it);
         }
-        
+
         inline const LGXVector2& GetMouseDelta() const
         {
             return m_lastMouseDelta;
         }
-        
-        inline const LGXVector2& GetMouseDeltaRelative()const
+
+        inline const LGXVector2& GetMouseDeltaRelative() const
         {
             return m_lastMouseDeltaRelative;
         }
@@ -326,7 +315,7 @@ namespace LinaGX
     protected:
         friend class WindowManager;
         Window(Input* input, WindowManager* wm)
-            : m_input(input), m_manager(wm) {};
+            : m_input(input), m_manager(wm){};
         virtual ~Window() = default;
 
         virtual bool Create(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent) = 0;
@@ -335,26 +324,26 @@ namespace LinaGX
 
         inline void SetLastMouseDelta(const LGXVector2& delta)
         {
-            m_lastMouseDelta = delta;
+            m_lastMouseDelta           = delta;
             m_lastMouseDeltaRelative.x = m_size.x == 0 ? 0.0f : delta.x / static_cast<float>(m_size.x);
             m_lastMouseDeltaRelative.y = m_size.y == 0 ? 0.0f : delta.y / static_cast<float>(m_size.y);
-            
-            if(m_lastMouseDeltaRelative.x < -1.0f)
+
+            if (m_lastMouseDeltaRelative.x < -1.0f)
                 m_lastMouseDeltaRelative.x = -1.0f;
-            if(m_lastMouseDeltaRelative.y < -1.0f)
+            if (m_lastMouseDeltaRelative.y < -1.0f)
                 m_lastMouseDeltaRelative.y = -1.0f;
-            
-            if(m_lastMouseDeltaRelative.x > 1.0f)
+
+            if (m_lastMouseDeltaRelative.x > 1.0f)
                 m_lastMouseDeltaRelative.x = 1.0f;
-            if(m_lastMouseDeltaRelative.y > 1.0f)
+            if (m_lastMouseDeltaRelative.y > 1.0f)
                 m_lastMouseDeltaRelative.y = 1.0f;
         }
-        
+
     protected:
-        WindowManager* m_manager = nullptr;
-        LINAGX_STRINGID             m_sid   = 0;
-        Input*                      m_input = nullptr;
-        LINAGX_STRING               m_title = "";
+        WindowManager*              m_manager = nullptr;
+        LINAGX_STRINGID             m_sid     = 0;
+        Input*                      m_input   = nullptr;
+        LINAGX_STRING               m_title   = "";
         LGXVector2i                 m_position;
         LGXVector2ui                m_size;
         LGXVector2ui                m_trueSize;
@@ -372,8 +361,8 @@ namespace LinaGX
         WindowStyle                 m_style       = WindowStyle::WindowedApplication;
         MonitorInfo                 m_monitorInfo = {};
         LINAGX_VEC<WindowListener*> m_listeners;
-        LGXVector2 m_lastMouseDelta = {};
-        LGXVector2 m_lastMouseDeltaRelative = {};
+        LGXVector2                  m_lastMouseDelta         = {};
+        LGXVector2                  m_lastMouseDeltaRelative = {};
     };
 
 } // namespace LinaGX

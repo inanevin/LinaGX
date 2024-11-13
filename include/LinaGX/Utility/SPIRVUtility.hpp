@@ -39,6 +39,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
+    enum class BackendAPI;
+
     class SPIRVUtility
     {
     public:

@@ -35,10 +35,10 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "LinaGX/LinaGXExports.hpp"
+#include "LinaGX/Common/Types.hpp"
 #include <string>
-#include <string_view>
 #include <typeinfo>
-#include <functional>
+
 
 #ifndef LINAGX_VEC
 #include <vector>
@@ -59,45 +59,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace LinaGX
 {
 
-#if defined(__GNUC__) || defined(__clang__) || (defined(_MSC_VER) && _MSC_VER >= 1600)
-#include <stdint.h>
-#elif defined(_MSC_VER)
-    typedef signed __int8    int8_t;
-    typedef unsigned __int8  uint8_t;
-    typedef signed __int16   int16_t;
-    typedef unsigned __int16 uint16_t;
-    typedef signed __int32   int32_t;
-    typedef unsigned __int32 uint32_t;
-    typedef signed __int64   int64_t;
-    typedef unsigned __int64 uint64_t;
-    typedef uint64_t         uintptr_t;
-    typedef int64_t          intptr_t;
-    typedef int16_t          wchar_t;
-#else
-    typedef signed char        int8_t;
-    typedef unsigned char      uint8_t;
-    typedef signed short int   int16_t;
-    typedef unsigned short int uint16_t;
-    typedef signed int         int32_t;
-    typedef unsigned int       uint32_t;
-    typedef long long          int64_t;
-    typedef unsigned long long uint64_t;
-    typedef uint64_t           uintptr_t;
-    typedef int64_t            intptr_t;
-    typedef int16_t            wchar_t;
-#endif
 
-    typedef uint8_t   CHART;
-    typedef int8_t    int8;
-    typedef int16_t   int16;
-    typedef int32_t   int32;
-    typedef int64_t   int64;
-    typedef uint8_t   uint8;
-    typedef uint16_t  uint16;
-    typedef uint32_t  uint32;
-    typedef uint64_t  uint64;
-    typedef intptr_t  intptr;
-    typedef uintptr_t uintptr;
 
 #ifndef LINAGX_DISABLE_VC_WARNING
 #if defined(_MSC_VER)
@@ -171,36 +133,6 @@ namespace LinaGX
 #define ALIGN_SIZE_POW(sizeToAlign, PowerOfTwo) (((sizeToAlign) + (PowerOfTwo)-1) & ~((PowerOfTwo)-1))
 #define ALIGN_SIZE(sizeToAlign, Alignment)      (sizeToAlign + Alignment - 1) - sizeToAlign % Alignment;
 #define IS_SIZE_ALIGNED(sizeToTest, PowerOfTwo) (((sizeToTest) & ((PowerOfTwo)-1)) == 0)
-
-    enum class InputAction
-    {
-        Pressed,
-        Released,
-        Repeated
-    };
-
-    enum class CursorType
-    {
-        None,           // Default
-        Default,        // Default
-        SizeHorizontal, // That horizontal sizing cursor thingy
-        SizeVertical,   // That vertical sizing cursor thingy
-        Caret,          // Text/input caret
-    };
-
-    enum CharacterMask
-    {
-        Letter     = 1 << 0,
-        Number     = 1 << 1,
-        Separator  = 1 << 2,
-        Symbol     = 1 << 4,
-        Whitespace = 1 << 5,
-        Control    = 1 << 6,
-        Printable  = 1 << 7,
-        Operator   = 1 << 8,
-        Sign       = 1 << 9,
-        Any        = Letter | Number | Separator | Whitespace | Control | Symbol | Printable | Operator | Sign,
-    };
 
     template <typename U, typename T>
     class IDList
@@ -390,78 +322,5 @@ namespace LinaGX
     }
 
     extern LINAGX_STRINGID LGX_ToSID(const char* ty);
-
-    template <typename T>
-    class RingBuffer
-    {
-    public:
-        inline void Initialize(uint32 size)
-        {
-            m_elements.resize(size, T());
-            m_size = size;
-        }
-
-        inline uint32 GetSize()
-        {
-            return m_size;
-        }
-
-        inline void Place(uint32 index, T item)
-        {
-            m_elements[index] = item;
-        }
-
-        inline T GetElement(uint32 index)
-        {
-            return m_elements[index % m_size];
-        }
-
-        inline const T& GetElementRef(uint32 index)
-        {
-            return m_elements[index % m_size];
-        }
-
-        inline T GetHead()
-        {
-            return m_elements[m_head];
-        }
-
-        inline void Increment()
-        {
-            m_head = (m_head + 1) % m_size;
-        }
-
-        inline uint32 GetHeadIndex()
-        {
-            return m_head;
-        }
-
-        inline void Clear()
-        {
-            m_elements.clear();
-        }
-
-    private:
-        LINAGX_VEC<T> m_elements;
-        uint32        m_head = 0;
-        uint32        m_size = 0;
-    };
-
-    struct LGXVector2;
-class Window;
-
-    class InputListener
-    {
-    public:
-        
-        InputListener() = default;
-        virtual ~InputListener() = default;
-        
-        virtual void OnKey(uint32 keycode, int32 scancode, InputAction action, LinaGX::Window* window) {};
-        virtual void OnMouse(uint32 button, InputAction action, LinaGX::Window* window) {};
-        virtual void OnMouseMove(const LGXVector2& pos, LinaGX::Window* window) {};
-        virtual void OnMouseWheel(float delta, LinaGX::Window* window) {};
-    };
-
 
 } // namespace LinaGX

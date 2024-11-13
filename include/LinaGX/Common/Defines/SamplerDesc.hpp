@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -32,53 +32,52 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include "LinaGX/Core/Backend.hpp"
-#include "LinaGX/Common/CommonConfig.hpp"
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-
-#ifndef LINAGX_DISABLE_DX12
-#include "LinaGX/Platform/DX12/DX12Backend.hpp"
-#endif
-
-#ifndef LINAGX_DISABLE_VK
-#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
-#endif
-
-#endif
-
-#ifdef LINAGX_PLATFORM_APPLE
-#include "LinaGX/Platform/Metal/MTLBackend.hpp"
-#endif
+#pragma once
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend()
+
+    enum class BorderColor
     {
-        
-#ifdef LINAGX_PLATFORM_WINDOWS
+        BlackTransparent,
+        BlackOpaque,
+        WhiteOpaque
+    };
 
-        if (Config.api == BackendAPI::Vulkan)
-        {
-#ifndef LINAGX_DISABLE_VK
-            return new VKBackend();
-#else
-            return nullptr;
-#endif
-        }
-        else if (Config.api == BackendAPI::DX12)
-        {
-#ifndef LINAGX_DISABLE_DX12
-            return new DX12Backend();
-#else
-            return nullptr;
-#endif
-        }
-#endif
+    enum class Filter
+    {
+        Anisotropic,
+        Nearest,
+        Linear,
+    };
 
-#ifdef LINAGX_PLATFORM_APPLE
-        return new MTLBackend();
-#endif
-        return nullptr;
-    }
+    enum class MipmapMode
+    {
+        Nearest,
+        Linear
+    };
+
+    enum class SamplerAddressMode
+    {
+        Repeat,
+        MirroredRepeat,
+        ClampToEdge,
+        ClampToBorder,
+        MirrorClampToEdge
+    };
+
+    struct SamplerDesc
+    {
+        Filter             minFilter   = Filter::Linear;
+        Filter             magFilter   = Filter::Linear;
+        SamplerAddressMode mode        = SamplerAddressMode::ClampToEdge;
+        MipmapMode         mipmapMode  = MipmapMode::Linear;
+        uint32             anisotropy  = 0;
+        float              minLod      = 0.0f;
+        float              maxLod      = 1.0f;
+        float              mipLodBias  = 0.0f;
+        BorderColor        borderColor = BorderColor::BlackOpaque;
+        const char*        debugName   = "LinaGXSampler";
+    };
+
 } // namespace LinaGX

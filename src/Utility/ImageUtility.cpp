@@ -34,6 +34,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Utility/ImageUtility.hpp"
 #include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION

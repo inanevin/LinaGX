@@ -33,7 +33,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "LinaGX/Utility/PlatformUtility.hpp"
-#include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 #include <sstream>
 #include <fstream>
 #include <codecvt>

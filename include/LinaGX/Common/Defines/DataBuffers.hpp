@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -32,17 +32,24 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-/*
+#pragma once
 
-*/
-
-
-#include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Common/Types.hpp"
 
 namespace LinaGX
 {
-    Configuration         Config           = {};
-    GPUInformation        GPUInfo          = {};
-    PerformanceStatistics PerformanceStats = {};
+    struct DataBlob
+    {
+        uint8* ptr  = nullptr;
+        size_t size = 0;
+    };
+
+    struct TextureBuffer
+    {
+        uint8* pixels        = nullptr;
+        uint32 width         = 0;
+        uint32 height        = 0;
+        uint32 bytesPerPixel = 0;
+    };
 
 } // namespace LinaGX

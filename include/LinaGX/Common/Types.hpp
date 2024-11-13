@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -32,53 +32,50 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include "LinaGX/Core/Backend.hpp"
-#include "LinaGX/Common/CommonConfig.hpp"
+#pragma once
 
-#ifdef LINAGX_PLATFORM_WINDOWS
-
-#ifndef LINAGX_DISABLE_DX12
-#include "LinaGX/Platform/DX12/DX12Backend.hpp"
-#endif
-
-#ifndef LINAGX_DISABLE_VK
-#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
-#endif
-
-#endif
-
-#ifdef LINAGX_PLATFORM_APPLE
-#include "LinaGX/Platform/Metal/MTLBackend.hpp"
+#if defined(__GNUC__) || defined(__clang__) || (defined(_MSC_VER) && _MSC_VER >= 1600)
+#include <stdint.h>
 #endif
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend()
-    {
-        
-#ifdef LINAGX_PLATFORM_WINDOWS
-
-        if (Config.api == BackendAPI::Vulkan)
-        {
-#ifndef LINAGX_DISABLE_VK
-            return new VKBackend();
+#if defined(__GNUC__) || defined(__clang__) || (defined(_MSC_VER) && _MSC_VER >= 1600)
+    typedef uint8_t   CHART;
+    typedef int8_t    int8;
+    typedef int16_t   int16;
+    typedef int32_t   int32;
+    typedef int64_t   int64;
+    typedef uint8_t   uint8;
+    typedef uint16_t  uint16;
+    typedef uint32_t  uint32;
+    typedef uint64_t  uint64;
+    typedef intptr_t  intptr;
+    typedef uintptr_t uintptr;
+#elif defined(_MSC_VER)
+    typedef signed __int8    int8_t;
+    typedef unsigned __int8  uint8_t;
+    typedef signed __int16   int16_t;
+    typedef unsigned __int16 uint16_t;
+    typedef signed __int32   int32_t;
+    typedef unsigned __int32 uint32_t;
+    typedef signed __int64   int64_t;
+    typedef unsigned __int64 uint64_t;
+    typedef uint64_t         uintptr_t;
+    typedef int64_t          intptr_t;
+    typedef int16_t          wchar_t;
 #else
-            return nullptr;
-#endif
-        }
-        else if (Config.api == BackendAPI::DX12)
-        {
-#ifndef LINAGX_DISABLE_DX12
-            return new DX12Backend();
-#else
-            return nullptr;
-#endif
-        }
+    typedef signed char        int8_t;
+    typedef unsigned char      uint8_t;
+    typedef signed short int   int16_t;
+    typedef unsigned short int uint16_t;
+    typedef signed int         int32_t;
+    typedef unsigned int       uint32_t;
+    typedef long long          int64_t;
+    typedef unsigned long long uint64_t;
+    typedef uint64_t           uintptr_t;
+    typedef int64_t            intptr_t;
+    typedef int16_t            wchar_t;
 #endif
 
-#ifdef LINAGX_PLATFORM_APPLE
-        return new MTLBackend();
-#endif
-        return nullptr;
-    }
 } // namespace LinaGX

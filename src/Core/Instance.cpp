@@ -37,6 +37,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Utility/SPIRVUtility.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
 #include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #ifndef LINAGX_DISABLE_VK

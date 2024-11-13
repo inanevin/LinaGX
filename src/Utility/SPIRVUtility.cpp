@@ -34,6 +34,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Utility/SPIRVUtility.hpp"
 #include "LinaGX/Utility/PlatformUtility.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 #include "spirv_glsl.hpp"
 #include "spirv_msl.hpp"
 #include "spirv_hlsl.hpp"

@@ -36,6 +36,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Platform/DX12/DX12HeapGPU.hpp"
 #include "LinaGX/Platform/DX12/DX12Backend.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 
 namespace LinaGX
 {

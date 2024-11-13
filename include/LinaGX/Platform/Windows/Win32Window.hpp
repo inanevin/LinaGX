@@ -34,10 +34,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#ifndef LINAGX_WIN32WINDOW_HPP
-#define LINAGX_WIN32WINDOW_HPP
-
-#include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Common/Math.hpp"
 #include "LinaGX/Core/Window.hpp"
 
@@ -136,4 +132,3 @@ namespace LinaGX
     };
 } // namespace LinaGX
 
-#endif

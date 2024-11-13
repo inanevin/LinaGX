@@ -42,6 +42,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Core/Commands.hpp"
 #include "LinaGX/Core/Instance.hpp"
 #include "LinaGX/Core/CommandStream.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
+
 #include <fstream>
 #include "WinPixEventRuntime/pix3.h"
 

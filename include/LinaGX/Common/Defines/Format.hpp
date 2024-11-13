@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -32,53 +32,81 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include "LinaGX/Core/Backend.hpp"
-#include "LinaGX/Common/CommonConfig.hpp"
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-
-#ifndef LINAGX_DISABLE_DX12
-#include "LinaGX/Platform/DX12/DX12Backend.hpp"
-#endif
-
-#ifndef LINAGX_DISABLE_VK
-#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
-#endif
-
-#endif
-
-#ifdef LINAGX_PLATFORM_APPLE
-#include "LinaGX/Platform/Metal/MTLBackend.hpp"
-#endif
+#pragma once
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend()
+
+    enum class Format
     {
-        
-#ifdef LINAGX_PLATFORM_WINDOWS
+        UNDEFINED = 0,
 
-        if (Config.api == BackendAPI::Vulkan)
-        {
-#ifndef LINAGX_DISABLE_VK
-            return new VKBackend();
-#else
-            return nullptr;
-#endif
-        }
-        else if (Config.api == BackendAPI::DX12)
-        {
-#ifndef LINAGX_DISABLE_DX12
-            return new DX12Backend();
-#else
-            return nullptr;
-#endif
-        }
-#endif
+        // 8 bit
+        R8_SINT,
+        R8_UINT,
+        R8_UNORM,
+        R8_SNORM,
 
-#ifdef LINAGX_PLATFORM_APPLE
-        return new MTLBackend();
-#endif
-        return nullptr;
-    }
+        R8G8_SINT,
+        R8G8_UINT,
+        R8G8_UNORM,
+        R8G8_SNORM,
+
+        R8G8B8A8_SINT,
+        R8G8B8A8_UINT,
+        R8G8B8A8_UNORM,
+        R8G8B8A8_SNORM,
+        R8G8B8A8_SRGB,
+
+        B8G8R8A8_UNORM,
+        B8G8R8A8_SRGB,
+
+        // 16 bit
+        R16_SINT,
+        R16_UINT,
+        R16_UNORM,
+        R16_SNORM,
+        R16_SFLOAT,
+
+        R16G16_SINT,
+        R16G16_UINT,
+        R16G16_UNORM,
+        R16G16_SNORM,
+        R16G16_SFLOAT,
+
+        R16G16B16A16_SINT,
+        R16G16B16A16_UINT,
+        R16G16B16A16_UNORM,
+        R16G16B16A16_SNORM,
+        R16G16B16A16_SFLOAT,
+
+        // 32 bit
+        R32_SINT,
+        R32_UINT,
+        R32_SFLOAT,
+
+        R32G32_SINT,
+        R32G32_UINT,
+        R32G32_SFLOAT,
+
+        R32G32B32_SFLOAT,
+        R32G32B32_SINT,
+        R32G32B32_UINT,
+
+        R32G32B32A32_SINT,
+        R32G32B32A32_UINT,
+        R32G32B32A32_SFLOAT,
+
+        // depth-stencil
+        D32_SFLOAT,
+        D24_UNORM_S8_UINT,
+        D16_UNORM,
+
+        // Misc
+        R11G11B10_SFLOAT,
+        R10G0B10A2_INT,
+        BC3_BLOCK_SRGB,
+        BC3_BLOCK_UNORM,
+        FORMAT_MAX,
+    };
 } // namespace LinaGX

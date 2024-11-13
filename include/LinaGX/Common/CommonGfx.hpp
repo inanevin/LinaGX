@@ -35,17 +35,14 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonData.hpp"
+#include "LinaGX/Common/Defines/Format.hpp"
+#include "LinaGX/Common/Defines/DataBuffers.hpp"
+#include "LinaGX/Common/Defines/SamplerDesc.hpp"
 #include "Math.hpp"
 #include <assert.h>
 
 namespace LinaGX
 {
-    enum class BackendAPI
-    {
-        Vulkan,
-        DX12,
-        Metal
-    };
 
     enum class ShaderStage
     {
@@ -55,93 +52,6 @@ namespace LinaGX
         Geometry,
         TesellationControl,
         TesellationEval,
-    };
-
-    enum class PreferredGPUType
-    {
-        Integrated,
-        Discrete,
-    };
-
-    enum class LogLevel
-    {
-        None,
-        OnlyErrors,
-        Normal,
-        Verbose,
-    };
-
-    enum class Format
-    {
-        UNDEFINED = 0,
-
-        // 8 bit
-        R8_SINT,
-        R8_UINT,
-        R8_UNORM,
-        R8_SNORM,
-
-        R8G8_SINT,
-        R8G8_UINT,
-        R8G8_UNORM,
-        R8G8_SNORM,
-
-        R8G8B8A8_SINT,
-        R8G8B8A8_UINT,
-        R8G8B8A8_UNORM,
-        R8G8B8A8_SNORM,
-        R8G8B8A8_SRGB,
-
-        B8G8R8A8_UNORM,
-        B8G8R8A8_SRGB,
-
-        // 16 bit
-        R16_SINT,
-        R16_UINT,
-        R16_UNORM,
-        R16_SNORM,
-        R16_SFLOAT,
-
-        R16G16_SINT,
-        R16G16_UINT,
-        R16G16_UNORM,
-        R16G16_SNORM,
-        R16G16_SFLOAT,
-
-        R16G16B16A16_SINT,
-        R16G16B16A16_UINT,
-        R16G16B16A16_UNORM,
-        R16G16B16A16_SNORM,
-        R16G16B16A16_SFLOAT,
-
-        // 32 bit
-        R32_SINT,
-        R32_UINT,
-        R32_SFLOAT,
-
-        R32G32_SINT,
-        R32G32_UINT,
-        R32G32_SFLOAT,
-
-        R32G32B32_SFLOAT,
-        R32G32B32_SINT,
-        R32G32B32_UINT,
-
-        R32G32B32A32_SINT,
-        R32G32B32A32_UINT,
-        R32G32B32A32_SFLOAT,
-
-        // depth-stencil
-        D32_SFLOAT,
-        D24_UNORM_S8_UINT,
-        D16_UNORM,
-
-        // Misc
-        R11G11B10_SFLOAT,
-        R10G0B10A2_INT,
-        BC3_BLOCK_SRGB,
-        BC3_BLOCK_UNORM,
-        FORMAT_MAX,
     };
 
     enum class PolygonMode
@@ -319,47 +229,6 @@ namespace LinaGX
         None,
     };
 
-    enum class Filter
-    {
-        Anisotropic,
-        Nearest,
-        Linear,
-    };
-
-    enum class MipmapMode
-    {
-        Nearest,
-        Linear
-    };
-
-    enum class SamplerAddressMode
-    {
-        Repeat,
-        MirroredRepeat,
-        ClampToEdge,
-        ClampToBorder,
-        MirrorClampToEdge
-    };
-
-    enum class ImageTransitionType
-    {
-        Present2RT,
-        RT2Present,
-    };
-
-    /// <summary>
-    /// Variety of window styles to use, check the enums for description.
-    /// </summary>
-    enum class WindowStyle
-    {
-        WindowedApplication,   // Most OS-default application, windowed with title bar and system buttons
-        BorderlessApplication, // Borderless-application, which still supports for example OS animations, taskbar interaction etc.
-        Borderless,            // True borderless, a lifeless and soulless application window only displaying what you draw.
-        BorderlessAlpha,       // Borderless but supports alpha blending,
-        BorderlessFullscreen,  // Borderless full-screen by default, you can change the size later on
-        Fullscreen,            // Full-screen exclusive by default, you can change the size later on.
-    };
-
     enum ResourceTypeHint
     {
         TH_None           = 1 << 0,
@@ -392,13 +261,6 @@ namespace LinaGX
         SSBO,
         UBO,
         ConstantBlock,
-    };
-
-    enum class BorderColor
-    {
-        BlackTransparent,
-        BlackOpaque,
-        WhiteOpaque
     };
 
     enum class MipmapFilter
@@ -525,12 +387,6 @@ namespace LinaGX
         uint32 baseInstance  = 0;
     };
 
-    struct DataBlob
-    {
-        uint8* ptr  = nullptr;
-        size_t size = 0;
-    };
-
     struct ShaderStageInput
     {
         LINAGX_STRING name     = "";
@@ -624,14 +480,6 @@ namespace LinaGX
         uint32 height;
     };
 
-    struct TextureBuffer
-    {
-        uint8* pixels        = nullptr;
-        uint32 width         = 0;
-        uint32 height        = 0;
-        uint32 bytesPerPixel = 0;
-    };
-
     class CommandStream;
 
     /// <summary>
@@ -672,41 +520,6 @@ namespace LinaGX
         uint32 dstAccessFlags;
     };
 
-    struct GPULimits
-    {
-        uint32 textureLimit       = 512;
-        uint32 samplerLimit       = 512;
-        uint32 bufferLimit        = 512;
-        uint32 maxSubmitsPerFrame = 30;
-        uint32 maxDescriptorSets  = 512;
-    };
-
-    struct FormatSupportInfo
-    {
-        Format format                 = Format::UNDEFINED;
-        bool   sampled                = false;
-        bool   colorAttachment        = false;
-        bool   depthStencilAttachment = false;
-    };
-
-    struct GPUInformation
-    {
-        LINAGX_STRING                 deviceName = "";
-        LINAGX_VEC<FormatSupportInfo> supportedTexture2DFormats;
-
-        uint64 totalCPUVisibleGPUMemorySize     = 0;
-        uint64 dedicatedVideoMemory             = 0;
-        uint64 minConstantBufferOffsetAlignment = 0;
-        uint64 minStorageBufferOffsetAlignment  = 0;
-    };
-
-    struct PerformanceStatistics
-    {
-        uint64 totalFrames = 0;
-    };
-
-    typedef void (*LogCallback)(const char*, ...);
-
     enum VulkanFeatureFlags
     {
         VKF_Bindless          = 1 << 0,
@@ -716,58 +529,6 @@ namespace LinaGX
         VKF_DepthClamp        = 1 << 4,
         VKF_DepthBiasClamp    = 1 << 5,
     };
-
-    struct VulkanConfiguration
-    {
-        bool   flipViewport            = true;
-        uint32 extraGraphicsQueueCount = 0;
-        uint32 enableVulkanFeatures    = 0;
-    };
-
-    struct DX12Configuration
-    {
-        bool allowTearing = true;
-    };
-
-    struct MetalConfiguration
-    {
-    };
-
-    struct Configuration
-    {
-        BackendAPI          api                             = BackendAPI::Vulkan;
-        PreferredGPUType    gpu                             = PreferredGPUType::Discrete;
-        const char*         appName                         = "LinaGX App";
-        uint32              framesInFlight                  = 2;
-        uint32              backbufferCount                 = 2;
-        GPULimits           gpuLimits                       = {};
-        VulkanConfiguration vulkanConfig                    = {};
-        DX12Configuration   dx12Config                      = {};
-        MetalConfiguration  mtlConfig                       = {};
-        LogCallback         errorCallback                   = nullptr;
-        LogCallback         infoCallback                    = nullptr;
-        LogLevel            logLevel                        = LogLevel::Normal;
-        bool                mutexLockCreationDeletion       = false;
-        bool                multithreadedQueueSubmission    = false;
-        bool                enableAPIDebugLayers            = true;
-        bool                enableShaderDebugInformation    = false;
-        bool                serializeShaderDebugInformation = false;
-    };
-
-    struct MonitorInfo
-    {
-        void*        monitorHandle = nullptr;
-        bool         isPrimary     = false;
-        float        dpiScale      = 0.0f;
-        uint32       dpi           = 0;
-        LGXVector2ui size          = {};
-        LGXVector2ui workSize      = {};
-        LGXVector2i  workTopLeft   = {};
-    };
-
-    extern LINAGX_API Configuration         Config;
-    extern LINAGX_API GPUInformation        GPUInfo;
-    extern LINAGX_API PerformanceStatistics PerformanceStats;
 
     struct SubmitDesc
     {
@@ -924,20 +685,6 @@ namespace LinaGX
         const char*          debugName                = "LinaGXTexture";
     };
 
-    struct SamplerDesc
-    {
-        Filter             minFilter   = Filter::Linear;
-        Filter             magFilter   = Filter::Linear;
-        SamplerAddressMode mode        = SamplerAddressMode::ClampToEdge;
-        MipmapMode         mipmapMode  = MipmapMode::Linear;
-        uint32             anisotropy  = 0;
-        float              minLod      = 0.0f;
-        float              maxLod      = 1.0f;
-        float              mipLodBias  = 0.0f;
-        BorderColor        borderColor = BorderColor::BlackOpaque;
-        const char*        debugName   = "LinaGXSampler";
-    };
-
     struct ResourceDesc
     {
         uint64       size          = 0;
@@ -1004,37 +751,5 @@ namespace LinaGX
         bool                                        hasGLDrawID = false;
         const char*                                 debugName   = "LinaGX PipelineLayout";
     };
-
-#define LOGT(...)                                                                                            \
-    if (Config.infoCallback && Config.logLevel != LogLevel::None && Config.logLevel != LogLevel::OnlyErrors) \
-        Config.infoCallback(__VA_ARGS__);
-#define LOGE(...)                                                       \
-    if (Config.errorCallback && Config.logLevel != LogLevel::None)      \
-    {                                                                   \
-        Config.errorCallback(__VA_ARGS__);                              \
-        Config.errorCallback("File: %s, Line: %d", __FILE__, __LINE__); \
-    }
-
-#define LOGV(...)                                                    \
-    if (Config.infoCallback && Config.logLevel == LogLevel::Verbose) \
-        Config.infoCallback(__VA_ARGS__);
-
-#define LOGA(condition, ...)                  \
-    if (!(condition) && Config.errorCallback) \
-        Config.errorCallback(__VA_ARGS__);    \
-    assert(condition);
-
-    class Window;
-
-    typedef std::function<void()>                                    CallbackNoArg;
-    typedef std::function<void(const LGXVector2i&)>                  CallbackPosChanged;
-    typedef std::function<void(const LGXVector2ui&, Window*)>        CallbackMouseMove;
-    typedef std::function<void(const LGXVector2ui&)>                 CallbackSizeChanged;
-    typedef std::function<void(uint32, int32, InputAction, Window*)> CallbackKey;
-    typedef std::function<void(uint32, InputAction, Window*)>        CallbackMouse;
-    typedef std::function<void(int32, Window*)>                      CallbackMouseWheel;
-    typedef std::function<void(bool)>                                CallbackFocus;
-    typedef std::function<void()>                                    CallbackHoverBegin;
-    typedef std::function<void()>                                    CallbackHoverEnd;
 
 } // namespace LinaGX

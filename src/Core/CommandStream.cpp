@@ -35,6 +35,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Core/CommandStream.hpp"
 #include "LinaGX/Core/Commands.hpp"
 #include "LinaGX/Core/Backend.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 
 namespace LinaGX
 {

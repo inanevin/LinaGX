@@ -34,6 +34,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Utility/ModelUtility.hpp"
 #include "LinaGX/Utility/ImageUtility.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 
 LINAGX_DISABLE_VC_WARNING(4018)
 LINAGX_DISABLE_VC_WARNING(4267)

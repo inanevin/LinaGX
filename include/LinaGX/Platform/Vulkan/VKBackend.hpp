@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -48,6 +48,8 @@ struct VmaAllocation_T;
 
 namespace LinaGX
 {
+    enum class PreferredGPUType;
+
 #define SEMAPHORE_RING_BUF_SIZE 30
 
     struct VKBShader
@@ -266,7 +268,6 @@ namespace LinaGX
         void CMD_DebugEndLabel(uint8* data, VKBCommandStream& stream);
 
     private:
-
     private:
         VkInstance               m_vkInstance     = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;

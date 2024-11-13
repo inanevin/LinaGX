@@ -35,6 +35,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "LinaGX/Platform/Vulkan/VKBackend.hpp"
+#include "LinaGX/Common/CommonConfig.hpp"
 #include "LinaGX/Platform/Vulkan/SDK/VkBootstrap.h"
 #include "LinaGX/Core/Commands.hpp"
 #include "LinaGX/Core/Instance.hpp"

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -32,53 +32,34 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include "LinaGX/Core/Backend.hpp"
-#include "LinaGX/Common/CommonConfig.hpp"
-
-#ifdef LINAGX_PLATFORM_WINDOWS
-
-#ifndef LINAGX_DISABLE_DX12
-#include "LinaGX/Platform/DX12/DX12Backend.hpp"
-#endif
-
-#ifndef LINAGX_DISABLE_VK
-#include "LinaGX/Platform/Vulkan/VKBackend.hpp"
-#endif
-
-#endif
-
-#ifdef LINAGX_PLATFORM_APPLE
-#include "LinaGX/Platform/Metal/MTLBackend.hpp"
-#endif
+#pragma once
 
 namespace LinaGX
 {
-    Backend* LinaGX::Backend::CreateBackend()
+    class Window;
+    struct LGXVector2i;
+    struct LGXVector2ui;
+    enum class InputAction;
+
+    class WindowListener
     {
-        
-#ifdef LINAGX_PLATFORM_WINDOWS
+    public:
+        WindowListener()          = default;
+        virtual ~WindowListener() = default;
 
-        if (Config.api == BackendAPI::Vulkan)
-        {
-#ifndef LINAGX_DISABLE_VK
-            return new VKBackend();
-#else
-            return nullptr;
-#endif
-        }
-        else if (Config.api == BackendAPI::DX12)
-        {
-#ifndef LINAGX_DISABLE_DX12
-            return new DX12Backend();
-#else
-            return nullptr;
-#endif
-        }
-#endif
+        virtual void OnWindowClose(Window* window){};
+        virtual void OnWindowPosChanged(Window* window, const LGXVector2i&){};
+        virtual void OnWindowSizeChanged(Window* window, const LGXVector2ui&){};
+        virtual void OnWindowKey(Window* window, uint32 keycode, int32 scancode, InputAction inputAction){};
+        virtual void OnWindowMouse(Window* window, uint32 button, InputAction inputAction){};
+        virtual void OnWindowMouseWheel(Window* window, float delta){};
+        virtual void OnWindowMouseMove(Window* window, const LGXVector2&){};
+        virtual void OnWindowFocus(Window* window, bool gainedFocus){};
+        virtual void OnWindowHoverBegin(Window* window){};
+        virtual void OnWindowHoverEnd(Window* window){};
 
-#ifdef LINAGX_PLATFORM_APPLE
-        return new MTLBackend();
-#endif
-        return nullptr;
-    }
+    protected:
+        friend class Window;
+    };
+
 } // namespace LinaGX
