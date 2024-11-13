@@ -1,4 +1,4 @@
-/*
+/* 
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -34,7 +34,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Utility/ModelUtility.hpp"
 #include "LinaGX/Utility/ImageUtility.hpp"
-#include "LinaGX/Common/CommonData.hpp"
 
 LINAGX_DISABLE_VC_WARNING(4018)
 LINAGX_DISABLE_VC_WARNING(4267)
@@ -211,7 +210,7 @@ namespace LinaGX
                 uint32 primitiveIndex = 0;
                 for (const auto& tgPrimitive : tgMesh.primitives)
                 {
-
+                    
                     node->mesh->primitives[primitiveIndex] = node->mesh->primitives[0] + primitiveIndex;
                     ModelMeshPrimitive* primitive          = node->mesh->primitives[primitiveIndex];
 
@@ -220,7 +219,8 @@ namespace LinaGX
                     const tinygltf::Accessor&   vertexAccessor   = model.accessors[tgPrimitive.attributes.find("POSITION")->second];
                     const tinygltf::BufferView& vertexBufferView = model.bufferViews[vertexAccessor.bufferView];
                     const tinygltf::Buffer&     vertexBuffer     = model.buffers[vertexBufferView.buffer];
-
+          
+                    
                     LOGA((vertexAccessor.type == TINYGLTF_TYPE_VEC3 && vertexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT), "Unsupported component type!");
 
                     const size_t numVertices = vertexAccessor.count;

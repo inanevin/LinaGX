@@ -1,4 +1,4 @@
-/*
+/* 
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -34,10 +34,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "LinaGX/Common/Types.hpp"
 #include "LinaGX/Common/CommonGfx.hpp"
-#include "LinaGX/Common/CommonData.hpp"
-#include "LinaGX/Common/Vectors.hpp"
 
 namespace LinaGX
 {
@@ -265,13 +262,13 @@ namespace LinaGX
         uint32 srcTexture;
         uint32 srcLayer;
         uint32 srcMip;
-
+        
         inline void Init()
         {
             destBuffer = 0;
             srcTexture = 0;
-            srcLayer   = 0;
-            srcMip     = 0;
+            srcLayer = 0;
+            srcMip = 0;
         }
     };
 
@@ -365,7 +362,7 @@ namespace LinaGX
         inline void Init()
         {
             firstSet             = 0;
-            allocationIndices    = nullptr;
+            allocationIndices      = nullptr;
             setCount             = 0;
             descriptorSetHandles = nullptr;
             isCompute            = false;

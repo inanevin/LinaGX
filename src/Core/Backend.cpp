@@ -33,7 +33,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "LinaGX/Core/Backend.hpp"
-#include "LinaGX/Common/CommonData.hpp"
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 

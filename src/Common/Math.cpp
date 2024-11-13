@@ -1,4 +1,4 @@
-/*
+/* 
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -33,10 +33,11 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Common/CommonGfx.hpp"
 
 namespace LinaGX
 {
-    uint32 FloorLog2(uint32 val)
+    LINAGX_API uint32 FloorLog2(uint32 val)
     {
         uint32 pos = 0;
         if (val >= 1 << 16)

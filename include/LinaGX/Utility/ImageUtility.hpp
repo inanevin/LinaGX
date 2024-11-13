@@ -1,4 +1,4 @@
-/*
+/* 
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -41,18 +41,18 @@ namespace LinaGX
     /// <summary>
     /// Returns the correct mip-levels for a texture with the given size.
     /// </summary>
-    uint32 CalculateMipLevels(uint32 width, uint32 height);
+    LINAGX_API uint32 CalculateMipLevels(uint32 width, uint32 height);
 
     /// <summary>
     /// Given path load the file and fill the pixel data in outData. Channel mask will be used to omit pixels or fill-empty pixels,
     /// e.g. on a texture with 2 channels, if loaded with RGBA, other 2 channels will be filled with stub pixel data.
     /// </summary>
-    void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels = nullptr, bool force8bit = false);
+    LINAGX_API void LoadImageFromFile(const char* path, TextureBuffer& outData, uint32 channels, int32* outChannels = nullptr, bool force8bit = false);
 
     /// <summary>
     /// Always use this on a texture data obtained via Load functions using LinaGX.
     /// </summary>
-    void FreeImage(uint8* pixels);
+    LINAGX_API void FreeImage(uint8* pixels);
 
     /// <summary>
     /// If requestLevels is 0, will calculate how many maximum mip levels can be generated using CalculateMipLevels().
@@ -61,16 +61,16 @@ namespace LinaGX
     /// outMipData is not cleared, so you can create one vector, fill the first element with original texture data, pass first element here and the vector,
     /// as a result you will have a vector containing all TextureBuffers, both the original and all mips generated.
     /// </summary>
-    void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, uint32 channels, bool linearColorSpace, uint32 requestLevels = 0, bool premultipliedAlpha = false);
+    LINAGX_API void GenerateMipmaps(const TextureBuffer& sourceData, LINAGX_VEC<TextureBuffer>& outMipData, MipmapFilter filter, uint32 channels, bool linearColorSpace, uint32 requestLevels = 0, bool premultipliedAlpha = false);
 
     /// <summary>
     /// Resizes the given texture buffer to target. You are responsible for creating the pixels for out buffer!
     /// </summary>
-    bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, uint32 channels, bool linearColorSpace);
+    LINAGX_API bool ResizeBuffer(const TextureBuffer& sourceData, TextureBuffer& outData, uint32 width, uint32 height, MipmapFilter filter, uint32 channels, bool linearColorSpace);
 
     /// <summary>
     /// Writes the data from writeData into targetBuffer starting from the given position.
     /// </summary>
-    void WriteToBuffer(const TextureBuffer& targetBuffer, const TextureBuffer& writeData, uint32 positionX, uint32 positionY);
+    LINAGX_API void WriteToBuffer(const TextureBuffer& targetBuffer, const TextureBuffer& writeData, uint32 positionX, uint32 positionY);
 
 } // namespace LinaGX

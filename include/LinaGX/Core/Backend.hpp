@@ -41,107 +41,6 @@ namespace LinaGX
     class Instance;
     class CommandStream;
 
-    template <typename U, typename T>
-    class IDList
-    {
-    public:
-        IDList(uint32 step)
-        {
-            m_defaultStep = step;
-            m_items.resize(step, T());
-        }
-
-        ~IDList() = default;
-
-        typename LINAGX_VEC<T>::iterator begin()
-        {
-            return m_items.begin();
-        }
-
-        typename LINAGX_VEC<T>::iterator end()
-        {
-            return m_items.end();
-        }
-
-        inline U AddItem(T item)
-        {
-            U id = 0;
-
-            if (!m_availableIDs.empty())
-            {
-                id = m_availableIDs.front();
-                m_availableIDs.pop();
-            }
-            else
-                id = m_nextFreeID++;
-
-            const U currentSize = static_cast<U>(m_items.size());
-            if (id >= currentSize)
-                m_items.resize(m_defaultStep + currentSize);
-
-            m_items[id] = item;
-            return id;
-        }
-
-        inline void AddItem(T item, U index)
-        {
-            m_items[index] = item;
-        }
-
-        inline void RemoveItem(U id)
-        {
-            m_items[id] = T();
-            m_availableIDs.push(id);
-        }
-
-        inline const LINAGX_VEC<T>& GetItems() const
-        {
-            return m_items;
-        }
-
-        inline LINAGX_VEC<T>& GetItems()
-        {
-            return m_items;
-        }
-
-        inline T GetItem(int index)
-        {
-            return m_items[index];
-        }
-
-        inline T& GetItemR(int index)
-        {
-            return m_items[index];
-        }
-
-        inline U GetNextFreeID()
-        {
-            return m_nextFreeID;
-        }
-
-        inline void Clear()
-        {
-            m_items.clear();
-        }
-
-        inline void Reset()
-        {
-            Clear();
-            m_items.resize(m_defaultStep, T());
-        }
-
-        inline T* GetRaw()
-        {
-            return m_items.data();
-        }
-
-    private:
-        LINAGX_VEC<T>   m_items;
-        LINAGX_QUEUE<U> m_availableIDs;
-        U               m_nextFreeID  = 0;
-        uint32          m_defaultStep = 50;
-    };
-
     class Backend
     {
     public:
@@ -155,37 +54,37 @@ namespace LinaGX
         virtual void EndFrame()                          = 0;
         virtual void Present(const PresentDesc& present) = 0;
 
-        virtual uint16 CreateUserSemaphore()                                            = 0;
-        virtual void   DestroyUserSemaphore(uint16 handle)                              = 0;
-        virtual void   WaitForUserSemaphore(uint16 handle, uint64 value)                = 0;
-        virtual uint8  CreateSwapchain(const SwapchainDesc& desc)                       = 0;
-        virtual void   DestroySwapchain(uint8 handle)                                   = 0;
-        virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc)             = 0;
-        virtual void   SetSwapchainActive(uint8 swp, bool isActive)                     = 0;
-        virtual uint16 CreateShader(const ShaderDesc& shaderDesc)                       = 0;
-        virtual void   DestroyShader(uint16 handle)                                     = 0;
-        virtual uint32 CreateTexture(const TextureDesc& desc)                           = 0;
-        virtual void   DestroyTexture(uint32 handle)                                    = 0;
-        virtual uint32 CreateSampler(const SamplerDesc& desc)                           = 0;
-        virtual void   DestroySampler(uint32 handle)                                    = 0;
-        virtual uint32 CreateResource(const ResourceDesc& desc)                         = 0;
-        virtual void   DestroyResource(uint32 handle)                                   = 0;
-        virtual void   MapResource(uint32 resource, uint8*& ptr)                        = 0;
-        virtual void   UnmapResource(uint32 resource)                                   = 0;
-        virtual uint16 CreateDescriptorSet(const DescriptorSetDesc& desc)               = 0;
-        virtual void   DestroyDescriptorSet(uint16 handle)                              = 0;
-        virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)   = 0;
-        virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)     = 0;
-        virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc)             = 0;
-        virtual void   DestroyPipelineLayout(uint16 layout)                             = 0;
-        virtual uint32 CreateCommandStream(const CommandStreamDesc& desc)               = 0;
-        virtual void   DestroyCommandStream(uint32 handle)                              = 0;
-        virtual void   SetCommandStreamImpl(uint32 handle, CommandStream* stream)       = 0;
-        virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount) = 0;
-        virtual void   SubmitCommandStreams(const SubmitDesc& desc)                     = 0;
-        virtual uint8  CreateQueue(const QueueDesc& desc)                               = 0;
-        virtual void   DestroyQueue(uint8 queue)                                        = 0;
-        virtual uint8  GetPrimaryQueue(CommandType type)                                = 0;
+        virtual uint16 CreateUserSemaphore()                                                            = 0;
+        virtual void   DestroyUserSemaphore(uint16 handle)                                              = 0;
+        virtual void   WaitForUserSemaphore(uint16 handle, uint64 value)                                = 0;
+        virtual uint8  CreateSwapchain(const SwapchainDesc& desc)                                       = 0;
+        virtual void   DestroySwapchain(uint8 handle)                                                   = 0;
+        virtual void   RecreateSwapchain(const SwapchainRecreateDesc& desc)                             = 0;
+        virtual void   SetSwapchainActive(uint8 swp, bool isActive)                                     = 0;
+        virtual uint16 CreateShader(const ShaderDesc& shaderDesc)                                       = 0;
+        virtual void   DestroyShader(uint16 handle)                                                     = 0;
+        virtual uint32 CreateTexture(const TextureDesc& desc)                                           = 0;
+        virtual void   DestroyTexture(uint32 handle)                                                    = 0;
+        virtual uint32 CreateSampler(const SamplerDesc& desc)                                           = 0;
+        virtual void   DestroySampler(uint32 handle)                                                    = 0;
+        virtual uint32 CreateResource(const ResourceDesc& desc)                                         = 0;
+        virtual void   DestroyResource(uint32 handle)                                                   = 0;
+        virtual void   MapResource(uint32 resource, uint8*& ptr)                                        = 0;
+        virtual void   UnmapResource(uint32 resource)                                                   = 0;
+        virtual uint16 CreateDescriptorSet(const DescriptorSetDesc& desc)                               = 0;
+        virtual void   DestroyDescriptorSet(uint16 handle)                                              = 0;
+        virtual void   DescriptorUpdateBuffer(const DescriptorUpdateBufferDesc& desc)                   = 0;
+        virtual void   DescriptorUpdateImage(const DescriptorUpdateImageDesc& desc)                     = 0;
+        virtual uint16 CreatePipelineLayout(const PipelineLayoutDesc& desc)                             = 0;
+        virtual void   DestroyPipelineLayout(uint16 layout)                                             = 0;
+        virtual uint32 CreateCommandStream(const CommandStreamDesc& desc)                               = 0;
+        virtual void   DestroyCommandStream(uint32 handle)                                              = 0;
+        virtual void   SetCommandStreamImpl(uint32 handle, CommandStream* stream)                       = 0;
+        virtual void   CloseCommandStreams(CommandStream** streams, uint32 streamCount)                 = 0;
+        virtual void   SubmitCommandStreams(const SubmitDesc& desc)                                     = 0;
+        virtual uint8  CreateQueue(const QueueDesc& desc)                                               = 0;
+        virtual void   DestroyQueue(uint8 queue)                                                        = 0;
+        virtual uint8  GetPrimaryQueue(CommandType type)                                                = 0;
 
         static Backend* CreateBackend();
     };

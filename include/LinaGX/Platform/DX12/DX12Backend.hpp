@@ -35,7 +35,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "LinaGX/Core/Backend.hpp"
-#include "LinaGX/Common/CommonData.hpp"
 #include "LinaGX/Platform/DX12/DX12Common.hpp"
 #include <atomic>
 

@@ -61,7 +61,7 @@ namespace LinaGX
         return buffer;
     }
 
-     const wchar_t* CharToWChar(const char* ch)
+    LINAGX_API const wchar_t* CharToWChar(const char* ch)
     {
 #ifdef LINAGX_PLATFORM_WINDOWS
         std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
@@ -94,7 +94,7 @@ namespace LinaGX
         return content.c_str();
     }
 
-     void* AdjustBufferPitch(void* data, uint32 width, uint32 height, uint32 bytesPerPixel, uint32 alignment)
+    LINAGX_API void* AdjustBufferPitch(void* data, uint32 width, uint32 height, uint32 bytesPerPixel, uint32 alignment)
     {
         // calculate the adjusted row pitch
         uint32 rowPitch = (width * bytesPerPixel + (alignment - 1)) & ~(alignment - 1);

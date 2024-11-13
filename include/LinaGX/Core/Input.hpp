@@ -1,4 +1,4 @@
-/*
+/* 
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -34,9 +34,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "LinaGX/Common/Types.hpp"
-#include "LinaGX/Common/Vectors.hpp"
-#include "LinaGX/Common/Containers.hpp"
+#include "LinaGX/Common/CommonGfx.hpp"
+#include "LinaGX/Common/Math.hpp"
 
 namespace LinaGX
 {
@@ -52,39 +51,6 @@ namespace LinaGX
     class OSXWindow;
 #endif
 
-    enum class InputAction
-    {
-        Pressed,
-        Released,
-        Repeated
-    };
-
-    enum CharacterMask
-    {
-        Letter     = 1 << 0,
-        Number     = 1 << 1,
-        Separator  = 1 << 2,
-        Symbol     = 1 << 4,
-        Whitespace = 1 << 5,
-        Control    = 1 << 6,
-        Printable  = 1 << 7,
-        Operator   = 1 << 8,
-        Sign       = 1 << 9,
-        Any        = Letter | Number | Separator | Whitespace | Control | Symbol | Printable | Operator | Sign,
-    };
-
-    class InputListener
-    {
-    public:
-        InputListener()          = default;
-        virtual ~InputListener() = default;
-
-        virtual void OnKey(uint32 keycode, int32 scancode, InputAction action, LinaGX::Window* window){};
-        virtual void OnMouse(uint32 button, InputAction action, LinaGX::Window* window){};
-        virtual void OnMouseMove(const LGXVector2& pos, LinaGX::Window* window){};
-        virtual void OnMouseWheel(float delta, LinaGX::Window* window){};
-    };
-
     class Input
     {
     public:
@@ -92,12 +58,12 @@ namespace LinaGX
         /// Fills character info, wide-character representation of the keycode and 16 bit unsigned integer representing LinaGX::CharacterMask.
         /// </summary>
         void GetCharacterInfoFromKeycode(uint32 keycode, wchar_t& outWChar, uint16& outMask);
-
+     
         /// <summary>
         /// This is NOT only CTRL keys, it's all "control" keys, e.g. CTRLs, ALTs, TAB and CAPSLOCK.
         /// </summary>
         bool IsControlPressed();
-
+        
         /// <summary>
         /// True if given key is pressed.
         /// </summary>
@@ -156,10 +122,10 @@ namespace LinaGX
         {
             m_listeners.push_back(listener);
         }
-
+        
         inline void RemoveListener(InputListener* listener)
         {
-            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool { return list == listener; });
+            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool {return list == listener;});
             m_listeners.erase(it);
         }
 
@@ -186,20 +152,21 @@ namespace LinaGX
         void WindowFeedDelta(int32 deltaX, int32 deltaY);
 
     private:
-        bool       m_appActive               = true;
-        LGXVector2 m_currentMousePositionAbs = {0, 0};
-        LGXVector2 m_previousMousePosition   = {0, 0};
-        LGXVector2 m_mouseDelta              = {0, 0};
-        float      m_mouseScroll             = 0.0f;
-
-        LGXVector2 m_mousePosTrackingClick = {};
+       
+        bool        m_appActive                         = true;
+        LGXVector2  m_currentMousePositionAbs           = {0, 0};
+        LGXVector2  m_previousMousePosition             = {0, 0};
+        LGXVector2  m_mouseDelta                        = {0, 0};
+        float       m_mouseScroll                       = 0.0f;
+    
+        LGXVector2  m_mousePosTrackingClick             = {};
 
         bool m_currentMouseStates[NUM_MOUSE_STATES];
         bool m_prevMouseStates[NUM_MOUSE_STATES];
-        bool m_currentStates[NUM_KEY_STATES]  = {0};
-        bool m_previousStates[NUM_KEY_STATES] = {0};
-
-        bool                       m_receivedDelta = false;
+        bool        m_currentStates[NUM_KEY_STATES]                = {0};
+        bool        m_previousStates[NUM_KEY_STATES]               = {0};
+       
+        bool                     m_receivedDelta = false;
         LINAGX_VEC<InputListener*> m_listeners;
     };
 } // namespace LinaGX

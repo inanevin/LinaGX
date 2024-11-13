@@ -1,4 +1,4 @@
-/*
+/* 
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -34,7 +34,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "Types.hpp"
+#include "CommonData.hpp"
+#include "Vectors.hpp"
 
 namespace LinaGX
 {
@@ -42,7 +43,7 @@ namespace LinaGX
 #define DEG2RAD(X) X * 0.0174533f
 #define LPI        3.14159265359f
 
-    extern uint32 FloorLog2(uint32 val);
+    extern LINAGX_API uint32 FloorLog2(uint32 val);
 
     template <typename T>
     inline constexpr T Max(const T& val1, const T& val2)
@@ -63,3 +64,4 @@ namespace LinaGX
     }
 
 } // namespace LinaGX
+
