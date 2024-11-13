@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -35,6 +35,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "LinaGX/Core/Backend.hpp"
+#include "LinaGX/Common/CommonData.hpp"
+
 #include <atomic>
 
 #ifdef LINAGX_PLATFORM_WINDOWS
@@ -266,7 +268,6 @@ namespace LinaGX
         void CMD_DebugEndLabel(uint8* data, VKBCommandStream& stream);
 
     private:
-
     private:
         VkInstance               m_vkInstance     = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;

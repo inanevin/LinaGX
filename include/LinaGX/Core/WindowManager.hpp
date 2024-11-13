@@ -34,8 +34,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "LinaGX/Common/CommonGfx.hpp"
-
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"

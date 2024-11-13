@@ -34,9 +34,11 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "CommonData.hpp"
+#include "Containers.hpp"
+#include "Types.hpp"
 #include "Math.hpp"
 #include <assert.h>
+#include <functional>
 
 namespace LinaGX
 {
@@ -345,19 +347,6 @@ namespace LinaGX
     {
         Present2RT,
         RT2Present,
-    };
-
-    /// <summary>
-    /// Variety of window styles to use, check the enums for description.
-    /// </summary>
-    enum class WindowStyle
-    {
-        WindowedApplication,   // Most OS-default application, windowed with title bar and system buttons
-        BorderlessApplication, // Borderless-application, which still supports for example OS animations, taskbar interaction etc.
-        Borderless,            // True borderless, a lifeless and soulless application window only displaying what you draw.
-        BorderlessAlpha,       // Borderless but supports alpha blending,
-        BorderlessFullscreen,  // Borderless full-screen by default, you can change the size later on
-        Fullscreen,            // Full-screen exclusive by default, you can change the size later on.
     };
 
     enum ResourceTypeHint
@@ -754,20 +743,9 @@ namespace LinaGX
         bool                serializeShaderDebugInformation = false;
     };
 
-    struct MonitorInfo
-    {
-        void*        monitorHandle = nullptr;
-        bool         isPrimary     = false;
-        float        dpiScale      = 0.0f;
-        uint32       dpi           = 0;
-        LGXVector2ui size          = {};
-        LGXVector2ui workSize      = {};
-        LGXVector2i  workTopLeft   = {};
-    };
-
-    extern LINAGX_API Configuration         Config;
-    extern LINAGX_API GPUInformation        GPUInfo;
-    extern LINAGX_API PerformanceStatistics PerformanceStats;
+    extern Configuration         Config;
+    extern GPUInformation        GPUInfo;
+    extern PerformanceStatistics PerformanceStats;
 
     struct SubmitDesc
     {
@@ -1025,6 +1003,10 @@ namespace LinaGX
     assert(condition);
 
     class Window;
+
+    struct LGXVector2i;
+    struct LGXVector2ui;
+    enum class InputAction;
 
     typedef std::function<void()>                                    CallbackNoArg;
     typedef std::function<void(const LGXVector2i&)>                  CallbackPosChanged;

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -36,6 +36,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Common/CommonGfx.hpp"
 #include "LinaGX/Common/Math.hpp"
+#include "LinaGX/Common/Vectors.hpp"
 
 namespace LinaGX
 {
@@ -82,8 +83,8 @@ namespace LinaGX
         LINAGX_VEC<LGXVector4>     weights;
         uint32                     vertexCount = 0;
         IndexType                  indexType   = IndexType::Uint16;
-        LGXVector3 minPosition = LGXVector3();
-        LGXVector3 maxPosition = LGXVector3();
+        LGXVector3                 minPosition = LGXVector3();
+        LGXVector3                 maxPosition = LGXVector3();
 
         inline void Clear()
         {
@@ -245,11 +246,11 @@ namespace LinaGX
     /// <summary>
     /// Load a .glb file.
     /// </summary>
-    LINAGX_API bool LoadGLTFBinary(const char* path, ModelData& outData);
+    bool LoadGLTFBinary(const char* path, ModelData& outData);
 
     /// <summary>
     /// Load a .gltf file, if .bin file is present in the same directory it will be loaded and necessary data will be filled.
     /// </summary>
-    LINAGX_API bool LoadGLTFASCII(const char* path, ModelData& outData);
+    bool LoadGLTFASCII(const char* path, ModelData& outData);
 
 } // namespace LinaGX

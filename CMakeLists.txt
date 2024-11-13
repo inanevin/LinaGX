@@ -67,8 +67,9 @@ endif()
 
 set(LinaGX_HEADERS
 	include/LinaGX/LinaGX.hpp
-	include/LinaGX/LinaGXExports.hpp
 	include/LinaGX/Common/CommonData.hpp
+	include/LinaGX/Common/Containers.hpp
+	include/LinaGX/Common/Types.hpp
 	include/LinaGX/Common/CommonGfx.hpp
 	include/LinaGX/Common/Math.hpp
 	include/LinaGX/Common/Vectors.hpp

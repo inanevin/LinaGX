@@ -34,7 +34,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "LinaGX/Common/CommonGfx.hpp"
 #include "WindowManager.hpp"
 #include "Input.hpp"
 #include <mutex>

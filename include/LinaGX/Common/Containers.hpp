@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -32,50 +32,71 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#pragma once
 
-#ifndef LINAGX_API_H
-#define LINAGX_API_H
+#ifndef LINAGX_VEC
+#include <vector>
+#endif
+
+#ifndef LINAGX_MAP
+#include <unordered_map>
+#endif
+
+#ifndef LINAGX_QUEUE
+#include <queue>
+#endif
+
+#ifndef LINAGX_DEQUE
+#include <deque>
+#endif
+
+#include <string>
 
 namespace LinaGX
 {
 
-#ifdef LINAGX_STATIC_DEFINE
-#define LINAGX_API
-#define LINAGX_NO_EXPORT
-#else
-#ifndef LINAGX_API
-#ifdef LinaGX_EXPORTS
-    /* We are building this library */
-#define LINAGX_API
-#else
-    /* We are using this library */
-#define LINAGX_API
-#endif
+#ifndef LINAGX_VEC
+#define LINAGX_VEC std::vector
 #endif
 
-#ifndef LINAGX_NO_EXPORT
-#define LINAGX_NO_EXPORT
-#endif
-#endif
-
-#ifndef LINAGX_DEPRECATED
-#define LINAGX_DEPRECATED __declspec(deprecated)
+#ifndef LINAGX_FIND_IF
+#define LINAGX_FIND_IF std::find_if
 #endif
 
-#ifndef LINAGX_DEPRECATED_EXPORT
-#define LINAGX_DEPRECATED_EXPORT LINAGX_API LINAGX_DEPRECATED
+#ifndef LINAGX_QUEUE
+#define LINAGX_QUEUE std::queue
 #endif
 
-#ifndef LINAGX_DEPRECATED_NO_EXPORT
-#define LINAGX_DEPRECATED_NO_EXPORT LINAGX_NO_EXPORT LINAGX_DEPRECATED
+#ifndef LINAGX_STRING
+#define LINAGX_STRING std::string
 #endif
 
-#if 0 /* DEFINE_NO_DEPRECATED */
-#ifndef LINAGX_NO_DEPRECATED
-#define LINAGX_NO_DEPRECATED
+#ifndef LINAGX_TOSTRING
+#define LINAGX_TOSTRING std::to_string
 #endif
+
+#ifndef LINAGX_WSTRING
+#define LINAGX_WSTRING std::wstring
+#endif
+
+#ifndef LINAGX_MAP
+#define LINAGX_MAP std::unordered_map
+#endif
+
+#ifndef LINAGX_DEQUE
+#define LINAGX_DEQUE std::deque
+#endif
+
+#ifndef LINAGX_MALLOC
+#define LINAGX_MALLOC(...) malloc(__VA_ARGS__)
+#endif
+
+#ifndef LINAGX_MEMCPY
+#define LINAGX_MEMCPY(...) memcpy(__VA_ARGS__)
+#endif
+
+#ifndef LINAGX_FREE
+#define LINAGX_FREE(...) free(__VA_ARGS__)
 #endif
 
 } // namespace LinaGX
-
-#endif /* LINAGX_API_H */
