@@ -67,6 +67,9 @@ under couple thousand LOC, which could very well be put down to hundreds with a 
 #include <glm/gtc/quaternion.hpp>
 #include <chrono>
 #include <random>
+#include <LinaGX/Utility/PlatformUtility.hpp>
+#include <LinaGX/Utility/ImageUtility.hpp>
+#include <LinaGX/Utility/ModelUtility.hpp>
 
 namespace LinaGX::Examples
 {

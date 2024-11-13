@@ -42,6 +42,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "glm/gtc/quaternion.hpp"
 #include <string>
 #include <unordered_map>
+#include <LinaGX/Utility/ModelUtility.hpp>
+#include <LinaGX/Utility/PlatformUtility.hpp>
 
 namespace LinaGX
 {

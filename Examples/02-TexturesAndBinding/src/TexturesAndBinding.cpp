@@ -54,6 +54,8 @@ Demonstrates:
 #include "TexturesAndBinding.hpp"
 #include <iostream>
 #include <cstdarg>
+#include <LinaGX/Utility/PlatformUtility.hpp>
+#include <LinaGX/Utility/ImageUtility.hpp>
 
 namespace LinaGX::Examples
 {

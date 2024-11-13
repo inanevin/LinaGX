@@ -52,6 +52,7 @@ Demonstrates:
 #include "Triangle.hpp"
 #include <iostream>
 #include <cstdarg>
+#include <LinaGX/Utility/PlatformUtility.hpp>
 
 namespace LinaGX::Examples
 {

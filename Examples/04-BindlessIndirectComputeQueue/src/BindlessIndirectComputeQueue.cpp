@@ -60,6 +60,9 @@ Demonstrates:
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <LinaGX/Utility/PlatformUtility.hpp>
+#include <LinaGX/Utility/ImageUtility.hpp>
+#include <LinaGX/Utility/ModelUtility.hpp>
 
 namespace LinaGX::Examples
 {

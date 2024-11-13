@@ -83,9 +83,7 @@ UNSUPPORTED ON FIRST RELEASE:
 #include "Core/Commands.hpp"
 #include "Core/Input.hpp"
 #include "Common/Math.hpp"
-#include "Utility/PlatformUtility.hpp"
-#include "Utility/ImageUtility.hpp"
-#include "Utility/ModelUtility.hpp"
+
 
 namespace LinaGX
 {
