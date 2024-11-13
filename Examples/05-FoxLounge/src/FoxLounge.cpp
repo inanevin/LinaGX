@@ -90,17 +90,17 @@ namespace LinaGX::Examples
         api = BackendAPI::Metal;
 #endif
 
-        LinaGX::Config.api                                    = api;
-        LinaGX::Config.gpu                                    = PreferredGPUType::Discrete;
-        LinaGX::Config.framesInFlight                         = FRAMES_IN_FLIGHT;
-        LinaGX::Config.backbufferCount                        = BACKBUFFER_COUNT;
-        LinaGX::Config.gpuLimits                              = {};
-        LinaGX::Config.logLevel                               = LogLevel::Verbose;
-        LinaGX::Config.errorCallback                          = LogError;
-        LinaGX::Config.infoCallback                           = LogInfo;
-        LinaGX::Config.dx12Config.serializeShaderDebugSymbols = false;
-        LinaGX::Config.dx12Config.enableDebugLayers           = true;
-        LinaGX::Config.vulkanConfig.enableVulkanFeatures      = VulkanFeatureFlags::VKF_SamplerAnisotropy;
+        LinaGX::Config.api                               = api;
+        LinaGX::Config.gpu                               = PreferredGPUType::Discrete;
+        LinaGX::Config.framesInFlight                    = FRAMES_IN_FLIGHT;
+        LinaGX::Config.backbufferCount                   = BACKBUFFER_COUNT;
+        LinaGX::Config.gpuLimits                         = {};
+        LinaGX::Config.logLevel                          = LogLevel::Verbose;
+        LinaGX::Config.errorCallback                     = LogError;
+        LinaGX::Config.infoCallback                      = LogInfo;
+        LinaGX::Config.serializeShaderDebugInformation   = false;
+        LinaGX::Config.enableShaderDebugInformation      = true;
+        LinaGX::Config.vulkanConfig.enableVulkanFeatures = VulkanFeatureFlags::VKF_SamplerAnisotropy;
 
         m_lgx = new LinaGX::Instance();
 
@@ -648,7 +648,6 @@ namespace LinaGX::Examples
         m_samplers.push_back(m_lgx->CreateSampler(defaultSampler));
         m_samplers.push_back(m_lgx->CreateSampler(depthSampler));
         m_samplers.push_back(m_lgx->CreateSampler(clampSampler));
-
     }
 
     void Example::SetupGlobalDescriptorSet()
