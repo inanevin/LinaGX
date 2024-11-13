@@ -35,7 +35,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "LinaGX/Common/CommonGfx.hpp"
-#include "LinaGX/Common/CommonData.hpp"
 
 namespace LinaGX
 {
