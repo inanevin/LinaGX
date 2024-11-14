@@ -54,13 +54,13 @@ namespace LinaGX
 
     struct VKBShader
     {
-        bool                                    usingCustomLayout = false;
-        bool                                    isValid           = false;
-        bool                                    isCompute         = false;
-        VkPipeline                              ptrPipeline       = nullptr;
-        VkPipelineLayout                        ptrLayout         = nullptr;
-        LINAGX_MAP<ShaderStage, VkShaderModule> modules;
-        LINAGX_VEC<VkDescriptorSetLayout>       layouts;
+        bool                                                 usingCustomLayout = false;
+        bool                                                 isValid           = false;
+        bool                                                 isCompute         = false;
+        VkPipeline                                           ptrPipeline       = nullptr;
+        VkPipelineLayout                                     ptrLayout         = nullptr;
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, VkShaderModule>> modules;
+        LINAGX_VEC<VkDescriptorSetLayout>                    layouts;
     };
 
     struct VKBTexture2D
@@ -116,14 +116,14 @@ namespace LinaGX
 
     struct VKBCommandStream
     {
-        bool                       isValid     = false;
-        CommandType                type        = CommandType::Graphics;
-        uint32                     boundShader = 0;
-        VkCommandBuffer            buffer      = nullptr;
-        VkCommandPool              pool        = nullptr;
-        LINAGX_MAP<uint32, uint64> intermediateResources;
-        LINAGX_VEC<uint8>          swapchainWrites;
-        CommandStream*             streamImpl = nullptr;
+        bool                                    isValid     = false;
+        CommandType                             type        = CommandType::Graphics;
+        uint32                                  boundShader = 0;
+        VkCommandBuffer                         buffer      = nullptr;
+        VkCommandPool                           pool        = nullptr;
+        LINAGX_VEC<LINAGX_PAIR<uint32, uint64>> intermediateResources;
+        LINAGX_VEC<uint8>                       swapchainWrites;
+        CommandStream*                          streamImpl = nullptr;
     };
 
     struct VKBResource
@@ -300,14 +300,14 @@ namespace LinaGX
         IDList<uint8, VKBQueue>           m_queues          = {5};
         IDList<uint16, VKBPipelineLayout> m_pipelineLayouts = {10};
 
-        LINAGX_VEC<VKBPerFrameData>                m_perFrameData = {};
-        LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions = {};
-        LINAGX_MAP<CommandType, uint8>             m_primaryQueues;
-        LINAGX_MAP<VkQueue, std::atomic_flag*>     m_flagsPerQueue;
+        LINAGX_VEC<VKBPerFrameData>                             m_perFrameData = {};
+        LINAGX_VEC<LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>> m_cmdFunctions = {};
+        LINAGX_VEC<LINAGX_PAIR<CommandType, uint8>>             m_primaryQueues;
+        LINAGX_VEC<LINAGX_PAIR<VkQueue, std::atomic_flag*>>     m_flagsPerQueue;
 
         VkDescriptorPool           m_descriptorPool = nullptr;
         VkPhysicalDeviceProperties m_gpuProperties;
 
-        LINAGX_MAP<CommandType, VKBQueueData> m_queueData;
+        LINAGX_VEC<LINAGX_PAIR<CommandType, VKBQueueData>> m_queueData;
     };
 } // namespace LinaGX

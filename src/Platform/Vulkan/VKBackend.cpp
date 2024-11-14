@@ -1002,9 +1002,9 @@ namespace LinaGX
     {
         VKBShader shader = {};
 
-        for (const auto& [stage, blob] : shaderDesc.stages)
+        for (const ShaderCompileData& data : shaderDesc.stages)
         {
-            if (stage == ShaderStage::Compute)
+            if (data.stage == ShaderStage::Compute)
             {
                 if (shaderDesc.stages.size() == 1)
                 {
@@ -1077,23 +1077,26 @@ namespace LinaGX
         // Modules & stages
         LINAGX_VEC<VkPipelineShaderStageCreateInfo> shaderStages;
 
-        for (auto& [stage, blob] : shaderDesc.stages)
+        shader.modules.clear();
+
+        for (const ShaderCompileData& data : shaderDesc.stages)
         {
-            auto&                    ptr          = shader.modules[stage];
+            shader.modules.push_back({data.stage, {}});
+            auto&                    pair         = shader.modules.back();
             VkShaderModuleCreateInfo shaderModule = VkShaderModuleCreateInfo{};
             shaderModule.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             shaderModule.pNext                    = nullptr;
-            shaderModule.codeSize                 = blob.size;
-            shaderModule.pCode                    = reinterpret_cast<uint32*>(blob.ptr);
+            shaderModule.codeSize                 = data.outBlob.size;
+            shaderModule.pCode                    = reinterpret_cast<uint32*>(data.outBlob.ptr);
 
-            VkResult res = vkCreateShaderModule(m_device, &shaderModule, nullptr, &ptr);
+            VkResult res = vkCreateShaderModule(m_device, &shaderModule, nullptr, &pair.second);
             VK_CHECK_RESULT(res, "Failed creating shader module");
 
             VkPipelineShaderStageCreateInfo info = VkPipelineShaderStageCreateInfo{};
             info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             info.pNext                           = nullptr;
-            info.stage                           = static_cast<VkShaderStageFlagBits>(GetVKShaderStage(stage));
-            info.module                          = ptr;
+            info.stage                           = static_cast<VkShaderStageFlagBits>(GetVKShaderStage(data.stage));
+            info.module                          = pair.second;
             info.pName                           = "main";
             shaderStages.push_back(info);
         }
@@ -1270,7 +1273,7 @@ namespace LinaGX
         VkResult res = {};
 
         // Compute only pipeline.
-        if (shaderDesc.stages.size() == 1 && shaderDesc.stages.begin()->first == ShaderStage::Compute)
+        if (shaderDesc.stages.size() == 1 && shaderDesc.stages.begin()->stage == ShaderStage::Compute)
         {
             VkComputePipelineCreateInfo computeInfo = {};
             computeInfo.sType                       = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -1310,7 +1313,7 @@ namespace LinaGX
         for (auto [stg, mod] : shader.modules)
             vkDestroyShaderModule(m_device, mod, m_allocator);
         shader.isValid = true;
-
+        shader.modules.clear();
         return m_shaders.AddItem(shader);
     }
 
@@ -1898,7 +1901,7 @@ namespace LinaGX
         item.isValid          = true;
         item.type             = desc.type;
 
-        const uint32 familyIndex = m_queueData[desc.type == CommandType::Secondary ? CommandType::Graphics : desc.type].familyIndex;
+        const uint32 familyIndex = m_queueData[desc.type == CommandType::Secondary ? (uint32)CommandType::Graphics : (uint32)desc.type].second.familyIndex;
 
         VkCommandPoolCreateInfo commandPoolInfo = VkCommandPoolCreateInfo{};
         commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1936,6 +1939,7 @@ namespace LinaGX
         for (const auto& [id, frame] : stream.intermediateResources)
             DestroyResource(id);
 
+        stream.intermediateResources.clear();
         stream.isValid = false;
         vkDestroyCommandPool(m_device, stream.pool, m_allocator);
         m_cmdStreams.RemoveItem(handle);
@@ -1979,7 +1983,8 @@ namespace LinaGX
                 LINAGX_MEMCPY(&tid, data, sizeof(LINAGX_TYPEID));
                 const size_t increment = sizeof(LINAGX_TYPEID);
                 uint8*       cmd       = data + increment;
-                (this->*m_cmdFunctions[tid])(cmd, sr);
+                auto         it        = LINAGX_FIND_IF(m_cmdFunctions.begin(), m_cmdFunctions.end(), [tid](const LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>& pair) -> bool { return pair.first == tid; });
+                (this->*(it->second))(cmd, sr);
             }
 
             res = vkEndCommandBuffer(buffer);
@@ -1991,7 +1996,8 @@ namespace LinaGX
     {
         auto& queue    = m_queues.GetItemR(desc.targetQueue);
         auto& queuePfd = queue.pfd[m_currentFrameIndex];
-        auto  flag     = m_flagsPerQueue.at(queue.queue);
+        auto  it       = LINAGX_FIND_IF(m_flagsPerQueue.begin(), m_flagsPerQueue.end(), [&](const LINAGX_PAIR<VkQueue, std::atomic_flag*>& pair) -> bool { return pair.first == queue.queue; });
+        auto  flag     = it->second;
 
         LINAGX_VEC<VkSubmitInfo> submitInfos;
         submitInfos.resize(desc.streamCount);
@@ -2128,12 +2134,12 @@ namespace LinaGX
         VkQueue targetQueue = nullptr;
 
         if (desc.type == CommandType::Transfer)
-            targetQueue = m_queueData[CommandType::Transfer].queues[0];
+            targetQueue = m_queueData[(uint32)CommandType::Transfer].second.queues[0];
         else if (desc.type == CommandType::Compute)
-            targetQueue = m_queueData[CommandType::Compute].queues[0];
+            targetQueue = m_queueData[(uint32)CommandType::Compute].second.queues[0];
         else
         {
-            auto& gfx = m_queueData[CommandType::Graphics];
+            auto& gfx = m_queueData[(uint32)CommandType::Graphics].second;
 
             if (gfx.createRequestCount < static_cast<uint32>(gfx.queues.size()))
             {
@@ -2213,7 +2219,8 @@ namespace LinaGX
     uint8 VKBackend::GetPrimaryQueue(CommandType type)
     {
         LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
-        return m_primaryQueues[type];
+        auto it = LINAGX_FIND_IF(m_primaryQueues.begin(), m_primaryQueues.end(), [type](const LINAGX_PAIR<CommandType, uint8>& pair) -> bool { return type == pair.first; });
+        return it->second;
     }
 
     uint16 VKBackend::CreateFence()
@@ -2578,23 +2585,34 @@ namespace LinaGX
             }
         }
 
-        LINAGX_MAP<uint32, uint32> queueIndicesAndCounts;
+        LINAGX_VEC<LINAGX_PAIR<uint32, uint32>> queueIndicesAndCounts;
+
+        auto get = [&](uint32 key, LINAGX_VEC<LINAGX_PAIR<uint32, uint32>>& vec) -> uint32& {
+            auto it = LINAGX_FIND_IF(vec.begin(), vec.end(), [key](const auto& pair) -> bool { return key == pair.first; });
+            if (it == vec.end())
+            {
+                vec.push_back({key, 0});
+                return vec.back().second;
+            }
+
+            return it->second;
+        };
 
         if (m_supportsDedicatedTransferQueue)
-            queueIndicesAndCounts[dedicatedTransferQueueIndex] = 1;
+            get(dedicatedTransferQueueIndex, queueIndicesAndCounts) = 1;
         else if (m_supportsSeparateTransferQueue)
-            queueIndicesAndCounts[separateTransferQueueIndex]++;
+            get(separateTransferQueueIndex, queueIndicesAndCounts)++;
         else
-            queueIndicesAndCounts[transferQueueFamilies[0]]++;
+            get(transferQueueFamilies[0], queueIndicesAndCounts)++;
 
         if (m_supportsDedicatedComputeQueue)
-            queueIndicesAndCounts[dedicatedComputeQueueIndex] = 1;
+            get(dedicatedComputeQueueIndex, queueIndicesAndCounts) = 1;
         else if (m_supportsSeparateComputeQueue)
-            queueIndicesAndCounts[separateComputeQueueIndex]++;
+            get(separateComputeQueueIndex, queueIndicesAndCounts)++;
         else
-            queueIndicesAndCounts[computeQueueFamilies[0]]++;
+            get(computeQueueFamilies[0], queueIndicesAndCounts)++;
 
-        queueIndicesAndCounts[graphicsQueueFamilies[0]] += 1 + Config.vulkanConfig.extraGraphicsQueueCount;
+        get(graphicsQueueFamilies[0], queueIndicesAndCounts) += 1 + Config.vulkanConfig.extraGraphicsQueueCount;
 
         for (auto& pair : queueIndicesAndCounts)
         {
@@ -2611,14 +2629,17 @@ namespace LinaGX
         m_device              = vkbDevice.device;
         m_gpu                 = physicalDevice.physical_device;
 
-        auto& gfx      = m_queueData[CommandType::Graphics];
-        auto& transfer = m_queueData[CommandType::Transfer];
-        auto& compute  = m_queueData[CommandType::Compute];
+        m_queueData.push_back({CommandType::Graphics, {}});
+        m_queueData.push_back({CommandType::Transfer, {}});
+        m_queueData.push_back({CommandType::Compute, {}});
+        auto& gfx      = m_queueData[0].second;
+        auto& transfer = m_queueData[1].second;
+        auto& compute  = m_queueData[2].second;
 
         transfer.queues.resize(1);
         compute.queues.resize(1);
 
-        LINAGX_MAP<uint32, uint32> queueIndicesAndOccupiedQueues;
+        LINAGX_VEC<LINAGX_PAIR<uint32, uint32>> queueIndicesAndOccupiedQueues;
 
         if (m_supportsDedicatedTransferQueue)
         {
@@ -2629,14 +2650,14 @@ namespace LinaGX
         else if (m_supportsSeparateTransferQueue)
         {
             vkGetDeviceQueue(m_device, separateTransferQueueIndex, 0, &transfer.queues[0]);
-            queueIndicesAndOccupiedQueues[separateTransferQueueIndex]++;
+            get(separateTransferQueueIndex, queueIndicesAndOccupiedQueues)++;
             transfer.familyIndex     = separateTransferQueueIndex;
             transfer.actualQueueType = CommandType::Transfer;
         }
         else
         {
             vkGetDeviceQueue(m_device, transferQueueFamilies[0], 0, &transfer.queues[0]);
-            queueIndicesAndOccupiedQueues[transferQueueFamilies[0]]++;
+            get(transferQueueFamilies[0], queueIndicesAndOccupiedQueues)++;
             transfer.familyIndex     = transferQueueFamilies[0];
             transfer.actualQueueType = CommandType::Graphics;
         }
@@ -2649,14 +2670,14 @@ namespace LinaGX
         }
         else if (m_supportsSeparateComputeQueue)
         {
-            if (queueIndicesAndOccupiedQueues[separateComputeQueueIndex] < queueFamilies[separateComputeQueueIndex].queueCount)
+            if (get(separateComputeQueueIndex, queueIndicesAndOccupiedQueues) < queueFamilies[separateComputeQueueIndex].queueCount)
             {
-                vkGetDeviceQueue(m_device, separateComputeQueueIndex, queueIndicesAndOccupiedQueues[separateComputeQueueIndex], &compute.queues[0]);
-                queueIndicesAndOccupiedQueues[separateComputeQueueIndex]++;
+                vkGetDeviceQueue(m_device, separateComputeQueueIndex, get(separateComputeQueueIndex, queueIndicesAndOccupiedQueues), &compute.queues[0]);
+                get(separateComputeQueueIndex, queueIndicesAndOccupiedQueues)++;
             }
             else
             {
-                vkGetDeviceQueue(m_device, separateComputeQueueIndex, queueIndicesAndOccupiedQueues[separateComputeQueueIndex] - 1, &compute.queues[0]);
+                vkGetDeviceQueue(m_device, separateComputeQueueIndex, get(separateComputeQueueIndex, queueIndicesAndOccupiedQueues) - 1, &compute.queues[0]);
             }
 
             compute.familyIndex     = separateComputeQueueIndex;
@@ -2664,14 +2685,14 @@ namespace LinaGX
         }
         else
         {
-            if (queueIndicesAndOccupiedQueues[computeQueueFamilies[0]] < queueFamilies[computeQueueFamilies[0]].queueCount)
+            if (get(computeQueueFamilies[0], queueIndicesAndOccupiedQueues) < queueFamilies[computeQueueFamilies[0]].queueCount)
             {
-                vkGetDeviceQueue(m_device, computeQueueFamilies[0], queueIndicesAndOccupiedQueues[computeQueueFamilies[0]], &compute.queues[0]);
-                queueIndicesAndOccupiedQueues[computeQueueFamilies[0]]++;
+                vkGetDeviceQueue(m_device, computeQueueFamilies[0], get(computeQueueFamilies[0], queueIndicesAndOccupiedQueues), &compute.queues[0]);
+                get(computeQueueFamilies[0], queueIndicesAndOccupiedQueues)++;
             }
             else
             {
-                vkGetDeviceQueue(m_device, computeQueueFamilies[0], queueIndicesAndOccupiedQueues[computeQueueFamilies[0]] - 1, &compute.queues[0]);
+                vkGetDeviceQueue(m_device, computeQueueFamilies[0], get(computeQueueFamilies[0], queueIndicesAndOccupiedQueues) - 1, &compute.queues[0]);
             }
 
             compute.familyIndex     = computeQueueFamilies[0];
@@ -2683,14 +2704,14 @@ namespace LinaGX
 
         for (uint32 i = 0; i < Config.vulkanConfig.extraGraphicsQueueCount + 1; i++)
         {
-            if (queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]] < queueFamilies[graphicsQueueFamilies[0]].queueCount)
+            if (get(graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues) < queueFamilies[graphicsQueueFamilies[0]].queueCount)
             {
-                vkGetDeviceQueue(m_device, graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]], &gfx.queues[i]);
-                queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]]++;
+                vkGetDeviceQueue(m_device, graphicsQueueFamilies[0], get(graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues), &gfx.queues[i]);
+                get(graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues)++;
             }
             else
             {
-                vkGetDeviceQueue(m_device, graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues[graphicsQueueFamilies[0]] - 1, &gfx.queues[i]);
+                vkGetDeviceQueue(m_device, graphicsQueueFamilies[0], get(graphicsQueueFamilies[0], queueIndicesAndOccupiedQueues) - 1, &gfx.queues[i]);
             }
         }
 
@@ -2698,10 +2719,11 @@ namespace LinaGX
         {
             for (auto q : data.queues)
             {
-                auto& ptr = m_flagsPerQueue[q];
-
-                if (ptr == nullptr)
-                    ptr = new std::atomic_flag();
+                auto it = LINAGX_FIND_IF(m_flagsPerQueue.begin(), m_flagsPerQueue.end(), [q](const LINAGX_PAIR<VkQueue, std::atomic_flag*>& pair) -> bool { return pair.first == q; });
+                if (it == m_flagsPerQueue.end())
+                {
+                    m_flagsPerQueue.push_back({q, new std::atomic_flag()});
+                }
             }
         }
 
@@ -2714,15 +2736,16 @@ namespace LinaGX
         // Queue support
         {
             QueueDesc descGfx, descTransfer, descCompute;
-            descGfx.type                           = CommandType::Graphics;
-            descTransfer.type                      = CommandType::Transfer;
-            descCompute.type                       = CommandType::Compute;
-            descGfx.debugName                      = "Primary Graphics Queue";
-            descTransfer.debugName                 = "Primary Transfer Queue";
-            descCompute.debugName                  = "Primary Compute Queue";
-            m_primaryQueues[CommandType::Graphics] = CreateQueue(descGfx);
-            m_primaryQueues[CommandType::Transfer] = CreateQueue(descTransfer);
-            m_primaryQueues[CommandType::Compute]  = CreateQueue(descCompute);
+            descGfx.type           = CommandType::Graphics;
+            descTransfer.type      = CommandType::Transfer;
+            descCompute.type       = CommandType::Compute;
+            descGfx.debugName      = "Primary Graphics Queue";
+            descTransfer.debugName = "Primary Transfer Queue";
+            descCompute.debugName  = "Primary Compute Queue";
+            m_primaryQueues.clear();
+            m_primaryQueues.push_back({CommandType::Graphics, CreateQueue(descGfx)});
+            m_primaryQueues.push_back({CommandType::Transfer, CreateQueue(descTransfer)});
+            m_primaryQueues.push_back({CommandType::Compute, CreateQueue(descCompute)});
         }
 
         // Check format support
@@ -2798,12 +2821,12 @@ namespace LinaGX
 
             uint32 totalSets = 0;
 
-            LINAGX_MAP<DescriptorType, uint32> limits;
-            limits[DescriptorType::CombinedImageSampler] = Config.gpuLimits.samplerLimit;
-            limits[DescriptorType::SeparateSampler]      = Config.gpuLimits.samplerLimit;
-            limits[DescriptorType::SeparateImage]        = Config.gpuLimits.textureLimit;
-            limits[DescriptorType::UBO]                  = Config.gpuLimits.bufferLimit;
-            limits[DescriptorType::SSBO]                 = Config.gpuLimits.bufferLimit;
+            LINAGX_VEC<LINAGX_PAIR<DescriptorType, uint32>> limits;
+            limits.push_back({DescriptorType::CombinedImageSampler, Config.gpuLimits.samplerLimit});
+            limits.push_back({DescriptorType::SeparateSampler, Config.gpuLimits.samplerLimit});
+            limits.push_back({DescriptorType::SeparateImage, Config.gpuLimits.textureLimit});
+            limits.push_back({DescriptorType::UBO, Config.gpuLimits.bufferLimit});
+            limits.push_back({DescriptorType::SSBO, Config.gpuLimits.bufferLimit});
 
             for (const auto& [dt, limit] : limits)
             {
@@ -2816,12 +2839,12 @@ namespace LinaGX
 
             VkDescriptorPoolSize sizeInfoUboDynamic = VkDescriptorPoolSize{};
             sizeInfoUboDynamic.type                 = GetVKDescriptorType(DescriptorType::UBO, true);
-            sizeInfoUboDynamic.descriptorCount      = limits[DescriptorType::UBO] / 2;
+            sizeInfoUboDynamic.descriptorCount      = limits[(uint32)DescriptorType::UBO].second / 2;
             sizeInfos.push_back(sizeInfoUboDynamic);
 
             VkDescriptorPoolSize sizeInfoSSBODynamic = VkDescriptorPoolSize{};
             sizeInfoSSBODynamic.type                 = GetVKDescriptorType(DescriptorType::UBO, true);
-            sizeInfoSSBODynamic.descriptorCount      = limits[DescriptorType::SSBO] / 2;
+            sizeInfoSSBODynamic.descriptorCount      = limits[(uint32)DescriptorType::SSBO].second / 2;
             sizeInfos.push_back(sizeInfoSSBODynamic);
 
             VkDescriptorPoolCreateInfo info = VkDescriptorPoolCreateInfo{};
@@ -2849,6 +2872,7 @@ namespace LinaGX
         for (const auto& [q, flag] : m_flagsPerQueue)
             delete flag;
 
+        m_flagsPerQueue.clear();
         DestroyQueue(GetPrimaryQueue(CommandType::Graphics));
         DestroyQueue(GetPrimaryQueue(CommandType::Transfer));
         DestroyQueue(GetPrimaryQueue(CommandType::Compute));
@@ -2917,6 +2941,8 @@ namespace LinaGX
             vkb::destroy_debug_utils_messenger(m_vkInstance, m_debugMessenger);
 
         vkDestroyInstance(m_vkInstance, m_allocator);
+
+        m_queueData.clear();
     }
 
     void VKBackend::Join()
@@ -3232,8 +3258,8 @@ namespace LinaGX
         VkRect2D area      = {};
         area.extent.width  = interVP.width;
         area.extent.height = interVP.height;
-        area.offset.x      = interVP.x;
-        area.offset.y      = interVP.y;
+        area.offset.x      = static_cast<int32>(interVP.x);
+        area.offset.y      = static_cast<int32>(interVP.y);
 
         VkRenderingInfo renderingInfo      = VkRenderingInfo{};
         renderingInfo.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
@@ -3263,13 +3289,14 @@ namespace LinaGX
     {
         CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
         auto            buffer = stream.buffer;
-        VkViewport      vp     = VkViewport{};
-        vp.x                   = static_cast<float>(cmd->x);
-        vp.y                   = Config.vulkanConfig.flipViewport ? static_cast<float>(cmd->height) : static_cast<float>(cmd->y);
-        vp.width               = static_cast<float>(cmd->width);
-        vp.height              = Config.vulkanConfig.flipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
-        vp.minDepth            = cmd->minDepth;
-        vp.maxDepth            = cmd->maxDepth;
+
+        VkViewport vp = VkViewport{};
+        vp.x          = cmd->x;
+        vp.y          = Config.vulkanConfig.flipViewport ? static_cast<float>(cmd->height) : cmd->y;
+        vp.width      = static_cast<float>(cmd->width);
+        vp.height     = Config.vulkanConfig.flipViewport ? -static_cast<float>(cmd->height) : static_cast<float>(cmd->height);
+        vp.minDepth   = cmd->minDepth;
+        vp.maxDepth   = cmd->maxDepth;
 
         if (vp.width == 0.0)
             vp.width = 1.0f;
@@ -3282,7 +3309,7 @@ namespace LinaGX
 
     void VKBackend::CMD_SetScissors(uint8* data, VKBCommandStream& stream)
     {
-        CMDSetViewport* cmd    = reinterpret_cast<CMDSetViewport*>(data);
+        CMDSetScissors* cmd    = reinterpret_cast<CMDSetScissors*>(data);
         auto            buffer = stream.buffer;
         VkRect2D        rect   = VkRect2D{};
         rect.offset.x          = static_cast<int32>(cmd->x);
@@ -3388,12 +3415,12 @@ namespace LinaGX
             totalDataSize += buf.width * buf.height * buf.bytesPerPixel;
         }
 
-        ResourceDesc stagingDesc                    = {};
-        stagingDesc.size                            = totalDataSize;
-        stagingDesc.typeHintFlags                   = TH_None;
-        stagingDesc.heapType                        = ResourceHeap::StagingHeap;
-        uint32 stagingHandle                        = CreateResource(stagingDesc);
-        stream.intermediateResources[stagingHandle] = PerformanceStats.totalFrames;
+        ResourceDesc stagingDesc  = {};
+        stagingDesc.size          = totalDataSize;
+        stagingDesc.typeHintFlags = TH_None;
+        stagingDesc.heapType      = ResourceHeap::StagingHeap;
+        uint32 stagingHandle      = CreateResource(stagingDesc);
+        stream.intermediateResources.push_back({stagingHandle, PerformanceStats.totalFrames});
 
         const auto& srcResource = m_resources.GetItemR(stagingHandle);
         const auto& dstTexture  = m_textures.GetItemR(cmd->destTexture);

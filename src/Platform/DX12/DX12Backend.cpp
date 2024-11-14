@@ -1117,7 +1117,18 @@ namespace LinaGX
     {
         uint32 bindingIndex = 0;
 
-        LINAGX_MAP<D3D12_DESCRIPTOR_RANGE_TYPE, uint32> descriptorTableRegisters;
+        LINAGX_VEC<LINAGX_PAIR<D3D12_DESCRIPTOR_RANGE_TYPE, uint32>> descriptorTableRegisters;
+
+        auto get = [&](D3D12_DESCRIPTOR_RANGE_TYPE key) -> uint32& {
+            auto it = LINAGX_FIND_IF(descriptorTableRegisters.begin(), descriptorTableRegisters.end(), [key](const auto& pair) -> bool { return key == pair.first; });
+            if (it == descriptorTableRegisters.end())
+            {
+                descriptorTableRegisters.push_back({key, 0});
+                return descriptorTableRegisters.back().second;
+            }
+
+            return it->second;
+        };
 
         for (const auto& binding : desc.bindings)
         {
@@ -1140,7 +1151,7 @@ namespace LinaGX
 
             if (binding.type == DescriptorType::UBO)
             {
-                auto& reg = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_CBV];
+                auto& reg = get(D3D12_DESCRIPTOR_RANGE_TYPE_CBV);
 
                 if (binding.descriptorCount > 1)
                 {
@@ -1159,13 +1170,14 @@ namespace LinaGX
             }
             else if (binding.type == DescriptorType::CombinedImageSampler)
             {
-                auto& reg1 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SRV];
-                auto& reg2 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER];
+                auto& reg1 = get(D3D12_DESCRIPTOR_RANGE_TYPE_SRV);
 
                 ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg1, setIndex, flags);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
                 reg1 += binding.unbounded ? 1 : binding.descriptorCount;
+
+                auto& reg2 = get(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER);
 
                 ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg2, setIndex, flags);
                 param2.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
@@ -1177,7 +1189,7 @@ namespace LinaGX
             }
             else if (binding.type == DescriptorType::SeparateImage)
             {
-                auto& reg1 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SRV];
+                auto& reg1 = get(D3D12_DESCRIPTOR_RANGE_TYPE_SRV);
                 ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg1, setIndex, flags);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
                 rangeCounter++;
@@ -1187,7 +1199,7 @@ namespace LinaGX
             }
             else if (binding.type == DescriptorType::SeparateSampler)
             {
-                auto& reg1 = descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER];
+                auto& reg1 = get(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER);
 
                 ranges[rangeCounter].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, binding.unbounded ? UINT_MAX : binding.descriptorCount, reg1, setIndex, flags);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
@@ -1198,7 +1210,7 @@ namespace LinaGX
             }
             else
             {
-                auto& reg1 = !binding.isWritable ? descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_SRV] : descriptorTableRegisters[D3D12_DESCRIPTOR_RANGE_TYPE_UAV];
+                auto& reg1 = !binding.isWritable ? get(D3D12_DESCRIPTOR_RANGE_TYPE_SRV) : get(D3D12_DESCRIPTOR_RANGE_TYPE_UAV);
 
                 ranges[rangeCounter].Init(!binding.isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, reg1, setIndex, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
                 param.InitAsDescriptorTable(1, &ranges[rangeCounter], visibility);
@@ -1217,9 +1229,9 @@ namespace LinaGX
         shader.isValid    = true;
         shader.topology   = shaderDesc.topology;
 
-        for (const auto& [stage, blob] : shaderDesc.stages)
+        for (const ShaderCompileData& data : shaderDesc.stages)
         {
-            if (stage == ShaderStage::Compute)
+            if (data.stage == ShaderStage::Compute)
             {
                 if (shaderDesc.stages.size() == 1)
                 {
@@ -1415,7 +1427,7 @@ namespace LinaGX
         // done with it.
         if (shader.isCompute)
         {
-            const auto& blob = shaderDesc.stages.begin()->second;
+            const auto& blob = shaderDesc.stages.begin()->outBlob;
 
             D3D12_COMPUTE_PIPELINE_STATE_DESC cpsd = {};
             cpsd.pRootSignature                    = shader.layout.rootSig.Get();
@@ -1519,10 +1531,11 @@ namespace LinaGX
         psoDesc.RasterizerState.SlopeScaledDepthBias  = shaderDesc.depthBiasSlope;
         psoDesc.DSVFormat                             = GetDXFormat(shaderDesc.depthStencilDesc.depthStencilAttachmentFormat);
 
-        for (const auto& [stg, blob] : shaderDesc.stages)
+        for (const ShaderCompileData& data : shaderDesc.stages)
         {
-            const void*  byteCode = (void*)blob.ptr;
-            const SIZE_T length   = static_cast<SIZE_T>(blob.size);
+            const void*       byteCode = (void*)data.outBlob.ptr;
+            const SIZE_T      length   = static_cast<SIZE_T>(data.outBlob.size);
+            const ShaderStage stg      = data.stage;
 
             if (stg == ShaderStage::Vertex)
             {
@@ -2702,15 +2715,16 @@ namespace LinaGX
             // Queue
             {
                 QueueDesc descGfx, descTransfer, descCompute;
-                descGfx.type                           = CommandType::Graphics;
-                descTransfer.type                      = CommandType::Transfer;
-                descCompute.type                       = CommandType::Compute;
-                descGfx.debugName                      = "Primary Graphics Queue";
-                descTransfer.debugName                 = "Primary Transfer Queue";
-                descCompute.debugName                  = "Primary Compute Queue";
-                m_primaryQueues[CommandType::Graphics] = CreateQueue(descGfx);
-                m_primaryQueues[CommandType::Transfer] = CreateQueue(descTransfer);
-                m_primaryQueues[CommandType::Compute]  = CreateQueue(descCompute);
+                descGfx.type           = CommandType::Graphics;
+                descTransfer.type      = CommandType::Transfer;
+                descCompute.type       = CommandType::Compute;
+                descGfx.debugName      = "Primary Graphics Queue";
+                descTransfer.debugName = "Primary Transfer Queue";
+                descCompute.debugName  = "Primary Compute Queue";
+                m_primaryQueues.clear();
+                m_primaryQueues.push_back({CommandType::Graphics, CreateQueue(descGfx)});
+                m_primaryQueues.push_back({CommandType::Transfer, CreateQueue(descTransfer)});
+                m_primaryQueues.push_back({CommandType::Compute, CreateQueue(descCompute)});
             }
 
             // Heaps
@@ -2974,9 +2988,14 @@ namespace LinaGX
         for (const auto& [id, frame] : stream.intermediateResources)
             DestroyResource(id);
 
+        for (const auto& [buf, frame] : stream.adjustedBuffers)
+            LINAGX_FREE(buf);
+
         stream.isValid = false;
         stream.list.Reset();
         stream.allocator.Reset();
+        stream.intermediateResources.clear();
+        stream.adjustedBuffers.clear();
 
         m_cmdStreams.RemoveItem(handle);
     }
@@ -3028,7 +3047,8 @@ namespace LinaGX
 
                 const size_t increment = sizeof(LINAGX_TYPEID);
                 uint8*       cmd       = data + increment;
-                (this->*m_cmdFunctions[tid])(cmd, sr);
+                auto         it        = LINAGX_FIND_IF(m_cmdFunctions.begin(), m_cmdFunctions.end(), [tid](const LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>& pair) -> bool { return pair.first == tid; });
+                (this->*(it->second))(cmd, sr);
                 // TODO: tids -> consecutive into arr
             }
 
@@ -3144,7 +3164,8 @@ namespace LinaGX
     uint8 DX12Backend::GetPrimaryQueue(CommandType type)
     {
         LOGA(type != CommandType::Secondary, "Backend -> No queues of type Secondary exists, use either Graphics, Transfer or Compute!");
-        return m_primaryQueues[type];
+        auto it = LINAGX_FIND_IF(m_primaryQueues.begin(), m_primaryQueues.end(), [type](const LINAGX_PAIR<CommandType, uint8>& pair) -> bool { return type == pair.first; });
+        return it->second;
     }
 
     void DX12Backend::Present(const PresentDesc& present)
@@ -3308,8 +3329,8 @@ namespace LinaGX
         vp.MaxDepth = cmd->maxDepth;
         vp.Height   = static_cast<float>(cmd->height);
         vp.Width    = static_cast<float>(cmd->width);
-        vp.TopLeftX = static_cast<float>(cmd->x);
-        vp.TopLeftY = static_cast<float>(cmd->y);
+        vp.TopLeftX = cmd->x;
+        vp.TopLeftY = cmd->y;
         stream.list->RSSetViewports(1, &vp);
     }
 
@@ -3569,12 +3590,12 @@ namespace LinaGX
         }
 
         // Create staging.
-        ResourceDesc stagingDesc                    = {};
-        stagingDesc.size                            = ogDataSize;
-        stagingDesc.typeHintFlags                   = TH_None;
-        stagingDesc.heapType                        = ResourceHeap::StagingHeap;
-        uint32 stagingHandle                        = CreateResource(stagingDesc);
-        stream.intermediateResources[stagingHandle] = PerformanceStats.totalFrames;
+        ResourceDesc stagingDesc  = {};
+        stagingDesc.size          = ogDataSize;
+        stagingDesc.typeHintFlags = TH_None;
+        stagingDesc.heapType      = ResourceHeap::StagingHeap;
+        uint32 stagingHandle      = CreateResource(stagingDesc);
+        stream.intermediateResources.push_back({stagingHandle, PerformanceStats.totalFrames});
 
         LINAGX_VEC<D3D12_SUBRESOURCE_DATA> allData;
 
@@ -3588,9 +3609,9 @@ namespace LinaGX
 
         for (uint32 i = 0; i < cmd->mipLevels; i++)
         {
-            const auto& buffer                   = cmd->buffers[i];
-            void*       adjustedData             = AdjustBufferPitch(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-            stream.adjustedBuffers[adjustedData] = PerformanceStats.totalFrames;
+            const auto& buffer       = cmd->buffers[i];
+            void*       adjustedData = AdjustBufferPitch(buffer.pixels, buffer.width, buffer.height, buffer.bytesPerPixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+            stream.adjustedBuffers.push_back({adjustedData, PerformanceStats.totalFrames});
             calcTd(adjustedData, buffer.width, buffer.height, buffer.bytesPerPixel);
         }
 
@@ -3677,7 +3698,7 @@ namespace LinaGX
                     data.boundDynamicOffsets.push_back(cmd->dynamicOffsets[dynamicOffsetCounter++]);
             }
 
-            stream.boundDescriptorSets[targetSetIndex] = data;
+            stream.boundDescriptorSets.push_back({targetSetIndex, data});
         }
 
         if (stream.boundRootSignature != nullptr)

@@ -1694,11 +1694,14 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
                      LINAGX_MEMCPY(&secondaryTid, dataSecondary, sizeof(LINAGX_TYPEID));
                      const size_t incrementSecondary = sizeof(LINAGX_TYPEID);
                      uint8*       cmdSecondary       = dataSecondary + incrementSecondary;
-                     (this->*m_cmdFunctions[tid])(cmdSecondary, sr);
+
+                        auto         it        = LINAGX_FIND_IF(m_cmdFunctions.begin(), m_cmdFunctions.end(), [tid](const LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>& pair) -> bool { return pair.first == tid; });
+                      (this->*(it->second))(cmdSecondary, sr);
                  }
              }
              
-             (this->*m_cmdFunctions[tid])(cmd, sr);
+                auto         it        = LINAGX_FIND_IF(m_cmdFunctions.begin(), m_cmdFunctions.end(), [tid](const LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>& pair) -> bool { return pair.first == tid; });
+                (this->*(it->second))(cmd, sr);
          }
         
         if(sr.currentBlitEncoder)
@@ -1707,7 +1710,7 @@ void MTLBackend::CloseCommandStreams(CommandStream **streams, uint32 streamCount
         if(sr.currentComputeEncoder != nullptr)
             endCurrentComputeEncoder();
         
-        sr.boundDescriptorSets.clear();
+            sr.boundSets.clear();
     }
         
     }
@@ -2522,10 +2525,10 @@ void MTLBackend::CMD_SetScissors(uint8 *data, MTLCommandStream &stream) {
     CMDSetScissors* cmd  = reinterpret_cast<CMDSetScissors*>(data);
     id<MTLRenderCommandEncoder> encoder = AS_MTL(stream.currentEncoder, id<MTLRenderCommandEncoder>);
     MTLScissorRect sc;
-    sc.width = cmd->width;
-    sc.height = cmd->height;
-    sc.x = cmd->x;
-    sc.y = cmd->y;
+    sc.width = static_cast<int32>(cmd->width);
+    sc.height = static_cast<int32>(cmd->height);
+    sc.x = static_cast<int32>(cmd->x);
+    sc.y = static_cast<int32>(cmd->y);
     [encoder setScissorRect:sc];
 }
 
@@ -2620,8 +2623,8 @@ void MTLBackend::CMD_BindPipeline(uint8 *data, MTLCommandStream &stream) {
     
     BindConstants(stream, shader);
     
-    for (auto& set : stream.boundSets)
-        set.second.isDirty = true;
+    for (auto& [setIndex, set]: stream.boundSets)
+        set.isDirty = true;
     
     BindDescriptorSets(stream);
 }
@@ -2905,7 +2908,7 @@ void MTLBackend::CMD_BindDescriptorSets(uint8 *data, MTLCommandStream &stream) {
                 data.dynamicOffsets.push_back(cmd->dynamicOffsets[dynCtr++]);
         }
         
-        stream.boundSets[setIndex] = data;
+        stream.boundSets.push_back({setIndex,data});
 
     }
     

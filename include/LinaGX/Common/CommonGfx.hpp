@@ -411,13 +411,13 @@ namespace LinaGX
 
     struct ShaderConstantBlock
     {
-        size_t                         size    = 0;
-        uint32                         set     = 0;
-        uint32                         binding = 0;
-        LINAGX_VEC<ShaderStructMember> members;
-        LINAGX_VEC<ShaderStage>        stages;
-        LINAGX_STRING                  name = "";
-        LINAGX_MAP<ShaderStage, bool>  isActive;
+        size_t                                     size    = 0;
+        uint32                                     set     = 0;
+        uint32                                     binding = 0;
+        LINAGX_VEC<ShaderStructMember>             members;
+        LINAGX_VEC<ShaderStage>                    stages;
+        LINAGX_STRING                              name = "";
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, bool>> isActive;
     };
 
     struct ShaderLayoutMSLBinding
@@ -428,18 +428,18 @@ namespace LinaGX
 
     struct ShaderDescriptorSetBinding
     {
-        DescriptorType                  type = DescriptorType::UBO;
-        LINAGX_STRING                   name = "";
-        LINAGX_VEC<ShaderStage>         stages;
-        LINAGX_VEC<ShaderStructMember>  structMembers;
-        LINAGX_MAP<ShaderStage, bool>   isActive;
-        LINAGX_MAP<ShaderStage, uint32> mslBufferID;
-        uint32                          spvID           = 0;
-        uint32                          binding         = 0;
-        uint32                          descriptorCount = 1;
-        size_t                          size            = 0;
-        bool                            isWritable      = false;
-        bool                            isArrayType     = false;
+        DescriptorType                               type = DescriptorType::UBO;
+        LINAGX_STRING                                name = "";
+        LINAGX_VEC<ShaderStage>                      stages;
+        LINAGX_VEC<ShaderStructMember>               structMembers;
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, bool>>   isActive;
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, uint32>> mslBufferID;
+        uint32                                       spvID           = 0;
+        uint32                                       binding         = 0;
+        uint32                                       descriptorCount = 1;
+        size_t                                       size            = 0;
+        bool                                         isWritable      = false;
+        bool                                         isArrayType     = false;
     };
 
     struct ShaderDescriptorSetLayout
@@ -449,23 +449,23 @@ namespace LinaGX
 
     struct ShaderLayout
     {
-        LINAGX_VEC<ShaderStageInput>           vertexInputs;
-        LINAGX_VEC<ShaderDescriptorSetLayout>  descriptorSetLayouts;
-        LINAGX_VEC<ShaderConstantBlock>        constants;
-        LINAGX_MAP<ShaderStage, uint32>        constantsMSLBuffers;
-        LINAGX_MAP<ShaderStage, LINAGX_STRING> entryPoints;
-        LINAGX_MAP<ShaderStage, uint32>        mslMaxBufferIDs;
-        uint32                                 constantsSet     = 0;
-        uint32                                 constantsBinding = 0;
-        uint32                                 totalDescriptors = 0;
-        bool                                   hasGLDrawID      = false;
-        uint32                                 drawIDBinding    = 0;
+        LINAGX_VEC<ShaderStageInput>                        vertexInputs;
+        LINAGX_VEC<ShaderDescriptorSetLayout>               descriptorSetLayouts;
+        LINAGX_VEC<ShaderConstantBlock>                     constants;
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, uint32>>        constantsMSLBuffers;
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, LINAGX_STRING>> entryPoints;
+        LINAGX_VEC<LINAGX_PAIR<ShaderStage, uint32>>        mslMaxBufferIDs;
+        uint32                                              constantsSet     = 0;
+        uint32                                              constantsBinding = 0;
+        uint32                                              totalDescriptors = 0;
+        bool                                                hasGLDrawID      = false;
+        uint32                                              drawIDBinding    = 0;
     };
 
     struct Viewport
     {
-        uint32 x;
-        uint32 y;
+        float  x;
+        float  y;
         uint32 width;
         uint32 height;
         float  minDepth;
@@ -587,8 +587,10 @@ namespace LinaGX
 
     struct ShaderCompileData
     {
+        ShaderStage   stage       = {};
         LINAGX_STRING text        = "";
         LINAGX_STRING includePath = "";
+        DataBlob      outBlob     = {};
     };
 
     struct ColorBlendAttachment
@@ -640,7 +642,7 @@ namespace LinaGX
 
     struct ShaderDesc
     {
-        LINAGX_MAP<ShaderStage, DataBlob>  stages           = {};
+        LINAGX_VEC<ShaderCompileData>      stages           = {};
         LINAGX_VEC<ShaderColorAttachment>  colorAttachments = {};
         ShaderDepthStencilDesc             depthStencilDesc;
         ShaderLayout                       layout                  = {};

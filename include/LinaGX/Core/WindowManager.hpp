@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -36,7 +36,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "LinaGX/Common/CommonGfx.hpp"
 
-
 #ifdef LINAGX_PLATFORM_WINDOWS
 #include "LinaGX/Platform/Windows/Win32Window.hpp"
 #elif LINAGX_PLATFORM_APPLE
@@ -61,7 +60,7 @@ namespace LinaGX
         /// Destroy a window with a given id, make sure all gpu and swapchain operations are completed prior.
         /// </summary>
         void DestroyApplicationWindow(LINAGX_STRINGID sid);
-        
+
         /// <summary>
         /// Used internally by windows to keep track of focus hierarcy
         /// </summary>
@@ -71,13 +70,14 @@ namespace LinaGX
         /// Returns the window in the back of the focus list, can be nullptr.
         /// </summary>
         Window* GetTopWindow();
-        
+
         /// <summary>
         /// Find a window with the given id, will return uninitialized memory if not found.
         /// </summary>
         inline Window* GetWindow(LINAGX_STRINGID sid)
         {
-            return m_windows[sid];
+            auto it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [sid](const auto& pair) -> bool {  return pair.first == sid; });
+            return it->second;
         }
 
         /// <summary>
@@ -89,14 +89,13 @@ namespace LinaGX
         /// Done automatically when a window gains focus.
         /// </summary>
         void PushWindowToList(LINAGX_STRINGID id);
-        
+
         /// <summary>
         /// Done automatically when a window is destroyed.
         /// </summary>
         void PopWindowFromList(LINAGX_STRINGID id);
-        
-        
-        inline const LINAGX_MAP<LINAGX_STRINGID, Window*>& GetWindows() const
+
+        inline const LINAGX_VEC<LINAGX_PAIR<LINAGX_STRINGID, Window*>>& GetWindows() const
         {
             return m_windows;
         }
@@ -106,7 +105,6 @@ namespace LinaGX
             return m_monitors;
         }
 
-        
     private:
         friend class Instance;
 
@@ -118,11 +116,11 @@ namespace LinaGX
         void Shutdown();
         void TickWindowSystem();
         void EndFrame();
-        
+
     private:
-        LINAGX_VEC<LINAGX_STRINGID> m_windowList;
-        LINAGX_MAP<LINAGX_STRINGID, Window*> m_windows = {};
-        LINAGX_VEC<MonitorInfo>              m_monitors;
-        Input*                               m_input = nullptr;
+        LINAGX_VEC<LINAGX_STRINGID>                       m_windowList;
+        LINAGX_VEC<LINAGX_PAIR<LINAGX_STRINGID, Window*>> m_windows = {};
+        LINAGX_VEC<MonitorInfo>                           m_monitors;
+        Input*                                            m_input = nullptr;
     };
 } // namespace LinaGX

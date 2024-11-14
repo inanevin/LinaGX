@@ -56,7 +56,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-    LINAGX_MAP<HWND__*, Win32Window*> Win32Window::s_win32Windows;
+    LINAGX_VEC<LINAGX_PAIR<HWND__*, Win32Window*>> Win32Window::s_win32Windows;
 
     auto AdjustMaximizedClientRect(Win32Window* win32, HWND window, RECT& rect, bool fs) -> void
     {
@@ -158,13 +158,22 @@ namespace LinaGX
 
     LRESULT __stdcall Win32Window::WndProc(HWND__* hwnd, unsigned int msg, unsigned __int64 wParam, __int64 lParam)
     {
-        auto* win32Window = s_win32Windows[hwnd];
+        auto get = [](HWND__* hwnd) -> Win32Window* {
+            auto it = LINAGX_FIND_IF(s_win32Windows.begin(), s_win32Windows.end(), [hwnd](const auto& pair) -> bool { return pair.first == hwnd; });
+
+            if (it == s_win32Windows.end())
+                return nullptr;
+
+            return it->second;
+        };
 
         if (msg == WM_NCCREATE)
         {
-            auto userData        = reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams;
-            s_win32Windows[hwnd] = static_cast<Win32Window*>(userData);
+            auto userData = reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams;
+            s_win32Windows.push_back({hwnd, static_cast<Win32Window*>(userData)});
         }
+
+        auto* win32Window = get(hwnd);
 
         if (win32Window == nullptr)
             return DefWindowProcA(hwnd, msg, wParam, lParam);
@@ -578,6 +587,7 @@ namespace LinaGX
     void Win32Window::Destroy()
     {
         m_markedDestroy = true;
+        s_win32Windows.erase(LINAGX_FIND_IF(s_win32Windows.begin(), s_win32Windows.end(), [this](const auto& pair) -> bool { return pair.first == m_hwnd; }));
         DestroyWindow(m_hwnd);
     }
 

@@ -142,17 +142,17 @@ namespace LinaGX
 
     struct DX12CommandStream
     {
-        bool                                               isValid            = false;
-        ID3D12RootSignature*                               boundRootSignature = nullptr;
-        uint32                                             boundShader        = 0;
-        CommandType                                        type               = CommandType::Graphics;
-        Microsoft::WRL::ComPtr<ID3D12CommandAllocator>     allocator;
-        Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> list;
-        LINAGX_MAP<uint32, uint64>                         intermediateResources;
-        LINAGX_MAP<void*, uint64>                          adjustedBuffers;
-        LINAGX_MAP<uint32, DX12BoundDescriptorSet>         boundDescriptorSets;
-        DX12BoundConstant                                  boundConstants;
-        CommandStream*                                     streamImpl = nullptr;
+        bool                                                    isValid            = false;
+        ID3D12RootSignature*                                    boundRootSignature = nullptr;
+        uint32                                                  boundShader        = 0;
+        CommandType                                             type               = CommandType::Graphics;
+        Microsoft::WRL::ComPtr<ID3D12CommandAllocator>          allocator;
+        Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4>      list;
+        LINAGX_VEC<LINAGX_PAIR<uint32, uint64>>                 intermediateResources;
+        LINAGX_VEC<LINAGX_PAIR<void*, uint64>>                  adjustedBuffers;
+        LINAGX_VEC<LINAGX_PAIR<uint32, DX12BoundDescriptorSet>> boundDescriptorSets;
+        DX12BoundConstant                                       boundConstants;
+        CommandStream*                                          streamImpl = nullptr;
     };
 
     struct DX12PerFrameData
@@ -325,15 +325,15 @@ namespace LinaGX
         DX12HeapGPU*                                        m_gpuHeapBuffer   = nullptr;
         DX12HeapGPU*                                        m_gpuHeapSampler  = nullptr;
 
-        LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
-        uint32                                     m_currentFrameIndex    = 0;
-        uint32                                     m_currentImageIndex    = 0;
-        uint32                                     m_previousRefreshCount = 0;
-        uint32                                     m_previousPresentCount = 0;
-        uint32                                     m_glitchCount          = 0;
+        LINAGX_VEC<LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>> m_cmdFunctions;
+        uint32                                                  m_currentFrameIndex    = 0;
+        uint32                                                  m_currentImageIndex    = 0;
+        uint32                                                  m_previousRefreshCount = 0;
+        uint32                                                  m_previousPresentCount = 0;
+        uint32                                                  m_glitchCount          = 0;
 
-        LINAGX_VEC<DX12PerFrameData>   m_perFrameData;
-        LINAGX_MAP<CommandType, uint8> m_primaryQueues;
+        LINAGX_VEC<DX12PerFrameData>                m_perFrameData;
+        LINAGX_VEC<LINAGX_PAIR<CommandType, uint8>> m_primaryQueues;
 
         std::atomic<uint32> m_submissionPerFrame  = 0;
         std::atomic<bool>   m_graphicsFencesDirty = false;

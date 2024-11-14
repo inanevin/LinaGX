@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -183,13 +183,23 @@ namespace LinaGX::Examples
         //******************* DEFAULT SHADER CREATION
         {
             // Compile shaders.
-            const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
-            const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
-            ShaderLayout                              outLayout  = {};
-            ShaderCompileData                         dataVertex = {vtxShader, "Resources/Shaders/Include"};
-            ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
-            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
-            _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
+            const std::string             vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/vert.glsl");
+            const std::string             fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/frag.glsl");
+            ShaderLayout                  outLayout  = {};
+            LINAGX_VEC<ShaderCompileData> compileData;
+            compileData.push_back({
+                .stage       = ShaderStage::Vertex,
+                .text        = vtxShader,
+                .includePath = "Resources/Shaders/Include",
+            });
+
+            compileData.push_back({
+                .stage       = ShaderStage::Fragment,
+                .text        = fragShader,
+                .includePath = "Resources/Shaders/Include",
+            });
+
+            _lgx->CompileShader(compileData, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
@@ -208,7 +218,7 @@ namespace LinaGX::Examples
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
+                .stages           = compileData,
                 .colorAttachments = {att},
                 .depthStencilDesc = depthStencilDesc,
                 .layout           = outLayout,
@@ -220,26 +230,36 @@ namespace LinaGX::Examples
 
             _shaderProgramColorPass = _lgx->CreateShader(shaderDesc);
 
-            shaderDesc.colorAttachments[0].format  = Format::B8G8R8A8_UNORM;
-            shaderDesc.depthStencilDesc.depthWrite = false;
+            shaderDesc.colorAttachments[0].format                    = Format::B8G8R8A8_UNORM;
+            shaderDesc.depthStencilDesc.depthWrite                   = false;
             shaderDesc.depthStencilDesc.depthStencilAttachmentFormat = Format::UNDEFINED;
-            _shaderProgramFinalPass                = _lgx->CreateShader(shaderDesc);
+            _shaderProgramFinalPass                                  = _lgx->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-            for (auto& [stg, blob] : outCompiledBlobs)
-                free(blob.ptr);
+            for (auto& data : compileData)
+                free(data.outBlob.ptr);
         }
 
         //******************* QUAD SHADER CREATION
         {
             // Compile shaders.
-            const std::string                         vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
-            const std::string                         fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
-            ShaderLayout                              outLayout  = {};
-            ShaderCompileData                         dataVertex = {vtxShader, "Resources/Shaders/Include"};
-            ShaderCompileData                         dataFrag   = {fragShader, "Resources/Shaders/Include"};
-            std::unordered_map<ShaderStage, DataBlob> outCompiledBlobs;
-            _lgx->CompileShader({{ShaderStage::Vertex, dataVertex}, {ShaderStage::Fragment, dataFrag}}, outCompiledBlobs, outLayout);
+            const std::string             vtxShader  = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_vert.glsl");
+            const std::string             fragShader = LinaGX::ReadFileContentsAsString("Resources/Shaders/quad_frag.glsl");
+            ShaderLayout                  outLayout  = {};
+            LINAGX_VEC<ShaderCompileData> compileData;
+            compileData.push_back({
+                .stage       = ShaderStage::Vertex,
+                .text        = vtxShader,
+                .includePath = "Resources/Shaders/Include",
+            });
+
+            compileData.push_back({
+                .stage       = ShaderStage::Fragment,
+                .text        = fragShader,
+                .includePath = "Resources/Shaders/Include",
+            });
+
+            _lgx->CompileShader(compileData, outLayout);
 
             // At this stage you could serialize the blobs to disk and read it next time, instead of compiling each time.
 
@@ -254,7 +274,7 @@ namespace LinaGX::Examples
 
             // Create shader program with vertex & fragment stages.
             ShaderDesc shaderDesc = {
-                .stages           = {{ShaderStage::Vertex, outCompiledBlobs[ShaderStage::Vertex]}, {ShaderStage::Fragment, outCompiledBlobs[ShaderStage::Fragment]}},
+                .stages           = compileData,
                 .colorAttachments = {att},
                 .depthStencilDesc = depthStencilDesc,
                 .layout           = outLayout,
@@ -267,8 +287,8 @@ namespace LinaGX::Examples
             _quadShaderProgram = _lgx->CreateShader(shaderDesc);
 
             // Compiled binaries are not needed anymore.
-            for (auto& [stg, blob] : outCompiledBlobs)
-                free(blob.ptr);
+            for (auto& data : compileData)
+                free(data.outBlob.ptr);
         }
 
         //******************* RENDER TARGET
@@ -813,7 +833,7 @@ namespace LinaGX::Examples
             .mipLevels = 1,
             .debugName = "LinaGXRTTexture",
         };
- 
+
         // Let LinaGX know we are starting a new frame.
         _lgx->StartFrame();
 

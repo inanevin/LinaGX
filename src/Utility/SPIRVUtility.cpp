@@ -809,9 +809,9 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size          = size;
-                targetBinding.type          = DescriptorType::UBO;
-                targetBinding.isActive[stg] = activeResources.count(id) > 0;
+                targetBinding.size                                   = size;
+                targetBinding.type                                   = DescriptorType::UBO;
+                UtilVector::PairFromKey(targetBinding.isActive, stg) = activeResources.count(id) > 0;
 
                 if (type.array.size() > 0)
                     targetBinding.descriptorCount = type.array[0];
@@ -837,10 +837,10 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size            = size;
-                targetBinding.descriptorCount = 1;
-                targetBinding.type            = DescriptorType::SSBO;
-                targetBinding.isActive[stg]   = activeResources.count(id) > 0;
+                targetBinding.size                                   = size;
+                targetBinding.descriptorCount                        = 1;
+                targetBinding.type                                   = DescriptorType::SSBO;
+                UtilVector::PairFromKey(targetBinding.isActive, stg) = activeResources.count(id) > 0;
 
                 spirv_cross::Bitset buffer_flags = compiler.get_buffer_block_flags(resource.id);
                 targetBinding.isWritable         = !buffer_flags.get(spv::DecorationNonWritable);
@@ -865,9 +865,9 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size          = size;
-                targetBinding.type          = DescriptorType::SeparateSampler;
-                targetBinding.isActive[stg] = activeResources.count(id) > 0;
+                targetBinding.size                                   = size;
+                targetBinding.type                                   = DescriptorType::SeparateSampler;
+                UtilVector::PairFromKey(targetBinding.isActive, stg) = activeResources.count(id) > 0;
 
                 if (!type.array.empty())
                 {
@@ -909,9 +909,9 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size          = size;
-                targetBinding.type          = DescriptorType::SeparateImage;
-                targetBinding.isActive[stg] = activeResources.count(id) > 0;
+                targetBinding.size                                   = size;
+                targetBinding.type                                   = DescriptorType::SeparateImage;
+                UtilVector::PairFromKey(targetBinding.isActive, stg) = activeResources.count(id) > 0;
 
                 if (!type.array.empty())
                 {
@@ -953,9 +953,9 @@ namespace LinaGX
                 targetBinding.name    = name;
                 targetBinding.spvID   = spvID;
                 targetBinding.stages.push_back(stg);
-                targetBinding.size          = size;
-                targetBinding.type          = DescriptorType::CombinedImageSampler;
-                targetBinding.isActive[stg] = activeResources.count(id) > 0;
+                targetBinding.size                                   = size;
+                targetBinding.type                                   = DescriptorType::CombinedImageSampler;
+                UtilVector::PairFromKey(targetBinding.isActive, stg) = activeResources.count(id) > 0;
 
                 if (!type.array.empty())
                 {
@@ -987,10 +987,10 @@ namespace LinaGX
 
                 ShaderConstantBlock block = {};
 
-                const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
-                block.size                        = compiler.get_declared_struct_size(type);
-                block.name                        = compiler.get_name(resource.id);
-                block.isActive[stg]               = activeResources.count(id) > 0;
+                const spirv_cross::SPIRType& type            = compiler.get_type(resource.base_type_id);
+                block.size                                   = compiler.get_declared_struct_size(type);
+                block.name                                   = compiler.get_name(resource.id);
+                UtilVector::PairFromKey(block.isActive, stg) = activeResources.count(id) > 0;
 
                 bool found = false;
                 for (auto& b : outLayout.constants)
@@ -999,7 +999,7 @@ namespace LinaGX
                     {
                         found = true;
                         b.stages.push_back(stg);
-                        b.isActive[stg] = activeResources.count(id) > 0;
+                        UtilVector::PairFromKey(block.isActive, stg) = activeResources.count(id) > 0;
                         break;
                     }
                 }
@@ -1213,7 +1213,7 @@ namespace LinaGX
                 for (auto& bindingData : layout.bindings)
                 {
                     // If not exists for this stage, or not active skip entirely.
-                    auto it = bindingData.isActive.find(stg);
+                    auto it = UtilVector::Find(bindingData.isActive, stg);
                     if (it == bindingData.isActive.end() || it->second == false)
                     {
                         bindingIndex++;
@@ -1227,18 +1227,18 @@ namespace LinaGX
 
                     if (bindingData.type == DescriptorType::UBO)
                     {
-                        mslb.basetype                = spirv_cross::SPIRType::BaseType::Struct;
-                        mslb.count                   = bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
-                        mslb.msl_buffer              = bufferID;
-                        bindingData.mslBufferID[stg] = bufferID;
+                        mslb.basetype                                         = spirv_cross::SPIRType::BaseType::Struct;
+                        mslb.count                                            = bindingData.descriptorCount == 0 ? 1 : bindingData.descriptorCount;
+                        mslb.msl_buffer                                       = bufferID;
+                        UtilVector::PairFromKey(bindingData.mslBufferID, stg) = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
                     else if (bindingData.type == DescriptorType::SSBO)
                     {
-                        mslb.count                   = 1;
-                        mslb.msl_buffer              = bufferID;
-                        bindingData.mslBufferID[stg] = bufferID;
+                        mslb.count                                            = 1;
+                        mslb.msl_buffer                                       = bufferID;
+                        UtilVector::PairFromKey(bindingData.mslBufferID, stg) = bufferID;
                         bufferID += mslb.count;
                         compiler.add_msl_resource_binding(mslb);
                     }
@@ -1246,16 +1246,16 @@ namespace LinaGX
                     {
                         if (bindingData.descriptorCount == 0)
                         {
-                            mslb.count                   = 0;
-                            mslb.msl_texture             = bufferID;
-                            bindingData.mslBufferID[stg] = bufferID;
+                            mslb.count                                            = 0;
+                            mslb.msl_texture                                      = bufferID;
+                            UtilVector::PairFromKey(bindingData.mslBufferID, stg) = bufferID;
                             bufferID++;
                         }
                         else
                         {
-                            mslb.count                   = bindingData.descriptorCount;
-                            mslb.msl_texture             = textureID;
-                            bindingData.mslBufferID[stg] = textureID;
+                            mslb.count                                            = bindingData.descriptorCount;
+                            mslb.msl_texture                                      = textureID;
+                            UtilVector::PairFromKey(bindingData.mslBufferID, stg) = textureID;
                             textureID += mslb.count;
                         }
 
@@ -1265,16 +1265,16 @@ namespace LinaGX
                     {
                         if (bindingData.descriptorCount == 0)
                         {
-                            mslb.count                   = 0;
-                            mslb.msl_sampler             = bufferID;
-                            bindingData.mslBufferID[stg] = bufferID;
+                            mslb.count                                            = 0;
+                            mslb.msl_sampler                                      = bufferID;
+                            UtilVector::PairFromKey(bindingData.mslBufferID, stg) = bufferID;
                             bufferID++;
                         }
                         else
                         {
-                            mslb.count                   = bindingData.descriptorCount;
-                            mslb.msl_sampler             = samplerID;
-                            bindingData.mslBufferID[stg] = samplerID;
+                            mslb.count                                            = bindingData.descriptorCount;
+                            mslb.msl_sampler                                      = samplerID;
+                            UtilVector::PairFromKey(bindingData.mslBufferID, stg) = samplerID;
                             samplerID += mslb.count;
                         }
 
@@ -1284,9 +1284,9 @@ namespace LinaGX
                     {
                         if (bindingData.descriptorCount == 0)
                         {
-                            mslb.count                   = 0;
-                            mslb.msl_texture             = bufferID;
-                            bindingData.mslBufferID[stg] = bufferID;
+                            mslb.count                                            = 0;
+                            mslb.msl_texture                                      = bufferID;
+                            UtilVector::PairFromKey(bindingData.mslBufferID, stg) = bufferID;
                             bufferID++;
                             compiler.add_msl_resource_binding(mslb);
 
@@ -1296,9 +1296,9 @@ namespace LinaGX
                         }
                         else
                         {
-                            mslb.count                   = bindingData.descriptorCount;
-                            mslb.msl_texture             = textureID;
-                            bindingData.mslBufferID[stg] = textureID;
+                            mslb.count                                            = bindingData.descriptorCount;
+                            mslb.msl_texture                                      = textureID;
+                            UtilVector::PairFromKey(bindingData.mslBufferID, stg) = textureID;
                             textureID += mslb.count;
                             compiler.add_msl_resource_binding(mslb);
 
@@ -1319,7 +1319,7 @@ namespace LinaGX
             {
                 for (auto& ct : layoutReflection.constants)
                 {
-                    auto it = ct.isActive.find(stg);
+                    auto it = UtilVector::Find(ct.isActive, stg);
 
                     if (it != ct.isActive.end() && it->second == true)
                     {
@@ -1331,7 +1331,7 @@ namespace LinaGX
                         mslb.basetype   = spirv_cross::SPIRType::BaseType::Struct;
                         mslb.msl_buffer = bufferID;
                         compiler.add_msl_resource_binding(mslb);
-                        layoutReflection.constantsMSLBuffers[stg] = bufferID;
+                        UtilVector::PairFromKey(layoutReflection.constantsMSLBuffers, stg) = bufferID;
                         bufferID++;
                     }
                 }
@@ -1344,13 +1344,13 @@ namespace LinaGX
                 bufferID++;
             }
 
-            layoutReflection.mslMaxBufferIDs[stg] = bufferID;
+            UtilVector::PairFromKey(layoutReflection.mslMaxBufferIDs, stg) = bufferID;
 
             compiler.set_msl_options(options);
             out = compiler.compile();
 
-            auto entry                        = compiler.get_entry_point("main", exec);
-            layoutReflection.entryPoints[stg] = entry.name;
+            auto entry                                                 = compiler.get_entry_point("main", exec);
+            UtilVector::PairFromKey(layoutReflection.entryPoints, stg) = entry.name;
 
             if (layoutReflection.hasGLDrawID && stg == ShaderStage::Vertex)
             {
@@ -1358,14 +1358,14 @@ namespace LinaGX
 
                 LINAGX_STRING insertStr = "";
                 if (!layoutReflection.vertexInputs.empty())
-                    insertStr = layoutReflection.entryPoints[stg] + "(" + layoutReflection.entryPoints[stg] + "_in in [[stage_in]],";
+                    insertStr = UtilVector::PairFromKey(layoutReflection.entryPoints, stg) + "(" + UtilVector::PairFromKey(layoutReflection.entryPoints, stg) + "_in in [[stage_in]],";
                 else
-                    insertStr = layoutReflection.entryPoints[stg] + "(";
+                    insertStr = UtilVector::PairFromKey(layoutReflection.entryPoints, stg) + "(";
 
                 // Insert struct definition.
                 LINAGX_STRING structStr = "struct LGXDrawID\n{\n int value;\n};\n\n";
 
-                LINAGX_STRING mainVertexLine    = "vertex " + layoutReflection.entryPoints[stg] + "_out";
+                LINAGX_STRING mainVertexLine    = "vertex " + UtilVector::PairFromKey(layoutReflection.entryPoints, stg) + "_out";
                 auto          mainVertexLinePos = out.find(mainVertexLine);
                 LOGA(mainVertexLinePos != std::string::npos, "SPIRVUtility -> Failed inserting for gl_DrawID!");
                 out.insert(mainVertexLinePos, structStr);

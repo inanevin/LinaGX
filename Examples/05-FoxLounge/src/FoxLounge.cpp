@@ -87,7 +87,7 @@ namespace LinaGX::Examples
 
     void Example::ConfigureInitializeLinaGX()
     {
-        BackendAPI api = BackendAPI::DX12;
+        BackendAPI api = BackendAPI::Vulkan;
 
 #ifdef LINAGX_PLATFORM_APPLE
         api = BackendAPI::Metal;

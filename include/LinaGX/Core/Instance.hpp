@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -146,7 +146,7 @@ namespace LinaGX
         /// <param name="compileData">Per-stage map representing the stage text and root directory for any #include directives.</param>
         /// <param name="outCompiledBlobs">Per-stage map giving compiled blobs. On Vulkan, blobs will be SPIR-V. On DX12 they will be DXIL, on Metal they will be binary representation of cross-compiled MSL. </param>
         /// <param name="outLayout">ShaderLayout describing the reflection information of the shader. You need to use this while calling CreateShader(). </param>
-        static bool CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout);
+        static bool CompileShader(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout);
 
         /// <summary>
         /// Creates a shader pipeline state object.
@@ -272,7 +272,6 @@ namespace LinaGX
         /// <returns></returns>
         uint8 GetPrimaryQueue(CommandType type);
 
-
         /// <summary>
         /// Vulkan Only, queries feature support and returns a bitmask containing VulkanFeatureFlags of supported features on at least 1 of the preffered devices.
         /// </summary>
@@ -286,28 +285,28 @@ namespace LinaGX
         /// <param name="gpuType"></param>
         /// <returns></returns>
         void BufferIndexedIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance);
-        
+
         /// <summary>
         /// Use below to buffer data into an indirect command buffer.
         /// </summary>
         /// <param name="gpuType"></param>
         /// <returns></returns>
         void BufferIndirectCommandData(uint8* buffer, size_t padding, uint32 drawID, uint32 vertexCount, uint32 instanceCount, uint32 vertexOffset, uint32 firstInstance);
-        
+
         /// <summary>
         /// Use below to fetch the size of the indexed indirect command struct for the current API.
         /// </summary>
         /// <param name="gpuType"></param>
         /// <returns></returns>
         size_t GetIndexedIndirectCommandSize();
-        
+
         /// <summary>
         /// Use below to fetch the size of the indirect command struct for the current API.
         /// </summary>
         /// <param name="gpuType"></param>
         /// <returns></returns>
         size_t GetIndirectCommandSize();
-        
+
         /// <summary>
         /// If you are using LinaGX as Windowing and Input system, make sure to call this function to after you poll all events from the operating system before your update loop (or however you want to handle input polling).
         /// </summary>
@@ -353,7 +352,7 @@ namespace LinaGX
         WindowManager m_windowManager;
         Input         m_input;
         uint32        m_currentFrameIndex = 0;
-        std::mutex m_globalMtx;
+        std::mutex    m_globalMtx;
 
         LINAGX_VEC<CommandStream*> m_commandStreams;
     };

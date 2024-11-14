@@ -46,7 +46,7 @@ namespace LinaGX
 {
     Window* WindowManager::CreateApplicationWindow(LINAGX_STRINGID sid, const char* title, int32 x, int32 y, uint32 width, uint32 height, WindowStyle style, Window* parent)
     {
-        auto it = m_windows.find(sid);
+        auto it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [sid](const auto& pair) -> bool { return pair.first == sid; });
         LOGA((it == m_windows.end()), "Window Manager -> Window with the same sid already exists! %d", sid);
 
 #ifdef LINAGX_PLATFORM_WINDOWS
@@ -62,14 +62,14 @@ namespace LinaGX
             return nullptr;
         }
 
-        m_windows[sid] = win;
+        m_windows.push_back({sid, win});
 
         return win;
     }
 
     void WindowManager::DestroyApplicationWindow(LINAGX_STRINGID sid)
     {
-        auto it = m_windows.find(sid);
+        auto it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [sid](const auto& pair) -> bool { return pair.first == sid; });
         LOGA((it != m_windows.end()), "Window Manager -> Window with the sid %d could not be found!", sid);
         it->second->Destroy();
         delete it->second;
@@ -103,7 +103,7 @@ namespace LinaGX
             return nullptr;
 
         LINAGX_STRINGID id = m_windowList.back();
-        auto            it = m_windows.find(id);
+        auto            it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [id](const auto& pair) -> bool { return pair.first == id; });
         if (it == m_windows.end())
             return nullptr;
 

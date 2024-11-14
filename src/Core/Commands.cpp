@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -38,31 +38,6 @@ namespace LinaGX
 {
     LINAGX_STRING GetCMDDebugName(LINAGX_TYPEID tid)
     {
-        static LINAGX_MAP<LINAGX_TYPEID, LINAGX_STRING> map = {
-            {LGX_GetTypeID<CMDBeginRenderPass>(), "CMDBeginRenderPass"},
-            {LGX_GetTypeID<CMDEndRenderPass>(), "CMDEndRenderPass"},
-            {LGX_GetTypeID<CMDSetViewport>(), "CMDSetViewport"},
-            {LGX_GetTypeID<CMDSetScissors>(), "CMDSetScissors"},
-            {LGX_GetTypeID<CMDBindPipeline>(), "CMDBindPipeline"},
-            {LGX_GetTypeID<CMDDrawInstanced>(), "CMDDrawInstanced"},
-            {LGX_GetTypeID<CMDDrawIndexedInstanced>(), "CMDDrawIndexedInstanced"},
-            {LGX_GetTypeID<CMDDrawIndexedIndirect>(), "CMDDrawIndexedIndirect"},
-            {LGX_GetTypeID<CMDDrawIndirect>(), "CMDDrawIndirect"},
-            {LGX_GetTypeID<CMDBindVertexBuffers>(), "CMDBindVertexBuffers"},
-            {LGX_GetTypeID<CMDBindIndexBuffers>(), "CMDBindIndexBuffers"},
-            {LGX_GetTypeID<CMDCopyResource>(), "CMDCopyResource"},
-            {LGX_GetTypeID<CMDCopyBufferToTexture2D>(), "CMDCopyBufferToTexture2D"},
-            {LGX_GetTypeID<CMDCopyTexture>(), "CMDCopyTexture"},
-            {LGX_GetTypeID<CMDBindDescriptorSets>(), "CMDBindDescriptorSets"},
-            {LGX_GetTypeID<CMDDispatch>(), "CMDDispatch"},
-            {LGX_GetTypeID<CMDBindConstants>(), "CMDBindConstants"},
-            {LGX_GetTypeID<CMDExecuteSecondaryStream>(), "CMDExecuteSecondaryStream"},
-            {LGX_GetTypeID<CMDBarrier>(), "CMDBarrier"},
-            {LGX_GetTypeID<CMDDebug>(), "CMDDebug"},
-            {LGX_GetTypeID<CMDDebugBeginLabel>(), "CMDDebugBeginLabel"},
-            {LGX_GetTypeID<CMDDebugEndLabel>(), "CMDDebugEndLabel"},
-        };
-
-        return map[tid];
+        return "";
     } // namespace LinaGX
 } // namespace LinaGX

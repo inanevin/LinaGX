@@ -211,42 +211,46 @@ namespace LinaGX
         m_backend->SetSwapchainActive(swp, isActive);
     }
 
-    bool Instance::CompileShader(const LINAGX_MAP<ShaderStage, ShaderCompileData>& compileData, LINAGX_MAP<ShaderStage, DataBlob>& outCompiledBlobs, ShaderLayout& outLayout)
+    bool Instance::CompileShader(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout)
     {
-        for (const auto& [stage, data] : compileData)
+        for (ShaderCompileData& data : compileData)
         {
             DataBlob spv = {};
-            if (!SPIRVUtility::GLSL2SPV(stage, data.text, data.includePath, spv, outLayout, Config.api))
+            if (!SPIRVUtility::GLSL2SPV(data.stage, data.text, data.includePath, spv, outLayout, Config.api))
                 return false;
 
-            outCompiledBlobs[stage] = spv;
+            data.outBlob = spv;
         }
 
         SPIRVUtility::PostFillReflection(outLayout, Config.api);
 
         if (Config.api == BackendAPI::DX12)
         {
-            LINAGX_MAP<ShaderStage, LINAGX_STRING> outHLSLs;
+            LINAGX_VEC<LINAGX_STRING> outHLSLs;
+            int                       idx = 0;
 
-            for (auto& [stage, spv] : outCompiledBlobs)
+            for (ShaderCompileData& data : compileData)
             {
-                const bool res = SPIRVUtility::SPV2HLSL(stage, spv, outHLSLs[stage], outLayout);
+                outHLSLs.push_back("");
+                const bool res = SPIRVUtility::SPV2HLSL(data.stage, data.outBlob, outHLSLs[idx], outLayout);
 
-                delete[] spv.ptr;
+                delete[] data.outBlob.ptr;
 
                 if (!res)
                     return false;
 
-                spv = {};
+                data.outBlob = {};
+                idx++;
             }
 
-            for (auto& [stage, blob] : outCompiledBlobs)
+            idx = 0;
+            for (ShaderCompileData& data : compileData)
             {
                 LINAGX_STRING hlsl = "";
 
                 // gl_DrawID is not supported in HLSL
                 // we need to add a custom constant buffer declaration.
-                if (stage == ShaderStage::Vertex && outLayout.hasGLDrawID)
+                if (data.stage == ShaderStage::Vertex && outLayout.hasGLDrawID)
                 {
                     uint32 maxBinding = 0;
 
@@ -267,34 +271,34 @@ namespace LinaGX
                     hlsl += +") \n{\n\tuint LGX_DRAW_ID; \n}; \n\n";
                 }
 
-                hlsl += outHLSLs[stage];
+                hlsl += outHLSLs[idx];
+                idx++;
 
 #ifdef LINAGX_PLATFORM_WINDOWS
 #ifndef LINAGX_DISABLE_DX12
-                if (!DX12Backend::CompileShader(stage, hlsl, blob))
+                if (!DX12Backend::CompileShader(data.stage, hlsl, data.outBlob))
                     return false;
 #endif
 #endif
-             
             }
         }
         else if (Config.api == BackendAPI::Metal)
         {
-            for (auto& [stage, spv] : outCompiledBlobs)
+            for (ShaderCompileData& data : compileData)
             {
                 LINAGX_STRING outMSL = "";
 
-                const bool res = SPIRVUtility::SPV2MSL(stage, spv, outMSL, outLayout);
+                const bool res = SPIRVUtility::SPV2MSL(data.stage, data.outBlob, outMSL, outLayout);
 
-                delete[] spv.ptr;
+                delete[] data.outBlob.ptr;
 
                 if (!res)
                     return false;
 
-                spv = {};
+                data.outBlob = {};
 
 #ifdef LINAGX_PLATFORM_APPLE
-                if (!MTLBackend::CompileShader(stage, outMSL, spv))
+                if (!MTLBackend::CompileShader(data.stage, outMSL, data.outBlob))
                     return false;
 #endif
             }

@@ -58,7 +58,7 @@ namespace LinaGX
 
     public:
         static __int64 __stdcall WndProc(HWND__* window, unsigned int msg, unsigned __int64 wParam, __int64 lParam);
-        static LINAGX_MAP<HWND__*, Win32Window*> s_win32Windows;
+        static LINAGX_VEC<LINAGX_PAIR<HWND__*, Win32Window*>> s_win32Windows;
 
         virtual void Close() override;
         virtual void SetStyle(WindowStyle style) override;
@@ -82,7 +82,7 @@ namespace LinaGX
         virtual void FreeMouse() override;
         virtual void SetMouseVisible(bool visible) override;
         virtual void SetIsFloating(bool isFloating) override;
-        
+
         virtual bool QueryVisibility() override
         {
             return m_isVisible;
@@ -127,8 +127,7 @@ namespace LinaGX
         bool         m_mouseMoved           = false;
         ConfineStyle m_confineStyle         = ConfineStyle::None;
         LGXRectui    m_confineRect          = {};
-        LGXVector2ui m_confinePoint = {};
+        LGXVector2ui m_confinePoint         = {};
         bool         m_hittestOwnsCursor    = false;
     };
 } // namespace LinaGX
-

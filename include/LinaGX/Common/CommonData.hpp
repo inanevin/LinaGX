@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -39,13 +39,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <typeinfo>
 
-
 #ifndef LINAGX_VEC
 #include <vector>
-#endif
-
-#ifndef LINAGX_MAP
-#include <unordered_map>
 #endif
 
 #ifndef LINAGX_QUEUE
@@ -58,8 +53,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-
-
 
 #ifndef LINAGX_DISABLE_VC_WARNING
 #if defined(_MSC_VER)
@@ -82,6 +75,8 @@ namespace LinaGX
 #define LINAGX_VEC std::vector
 #endif
 
+#define LINAGX_PAIR std::pair
+
 #ifndef LINAGX_FIND_IF
 #define LINAGX_FIND_IF std::find_if
 #endif
@@ -100,10 +95,6 @@ namespace LinaGX
 
 #ifndef LINAGX_WSTRING
 #define LINAGX_WSTRING std::wstring
-#endif
-
-#ifndef LINAGX_MAP
-#define LINAGX_MAP std::unordered_map
 #endif
 
 #ifndef LINAGX_DEQUE
@@ -134,6 +125,29 @@ namespace LinaGX
 #define ALIGN_SIZE(sizeToAlign, Alignment)      (sizeToAlign + Alignment - 1) - sizeToAlign % Alignment;
 #define IS_SIZE_ALIGNED(sizeToTest, PowerOfTwo) (((sizeToTest) & ((PowerOfTwo)-1)) == 0)
 
+    class UtilVector
+    {
+    public:
+        template <typename Key, typename Value>
+        static Value& PairFromKey(LINAGX_VEC<LINAGX_PAIR<Key, Value>>& vec, Key key)
+        {
+            auto it = LINAGX_FIND_IF(vec.begin(), vec.end(), [key](const auto& pair) -> bool { return pair.first == key; });
+            if (it == vec.end())
+            {
+                vec.push_back({key, Value()});
+                return vec.back().second;
+            }
+
+            return it->second;
+        }
+
+        template <typename Key, typename Value>
+        static typename LINAGX_VEC<LINAGX_PAIR<Key, Value>>::iterator Find(LINAGX_VEC<LINAGX_PAIR<Key, Value>>& vec, Key key)
+        {
+            auto it = LINAGX_FIND_IF(vec.begin(), vec.end(), [key](const auto& pair) -> bool { return pair.first == key; });
+            return it;
+        }
+    };
     template <typename U, typename T>
     class IDList
     {

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -82,8 +82,8 @@ namespace LinaGX
         LINAGX_VEC<LGXVector4>     weights;
         uint32                     vertexCount = 0;
         IndexType                  indexType   = IndexType::Uint16;
-        LGXVector3 minPosition = LGXVector3();
-        LGXVector3 maxPosition = LGXVector3();
+        LGXVector3                 minPosition = LGXVector3();
+        LGXVector3                 maxPosition = LGXVector3();
 
         inline void Clear()
         {
@@ -131,18 +131,18 @@ namespace LinaGX
 
     struct ModelMaterial
     {
-        LINAGX_STRING                       name      = "";
-        uint32                              index     = 0;
-        LGXVector4                          baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
-        LGXVector3                          emissive  = {1.0f, 1.0f, 1.0f};
-        LINAGX_MAP<GLTFTextureType, uint32> textureIndices;
-        float                               metallicFactor    = 0.0f;
-        float                               roughnessFactor   = 0.0f;
-        float                               alphaCutoff       = 0.0f;
-        float                               occlusionStrength = 0.0f;
-        LGXVector3                          emissiveFactor;
-        bool                                doubleSided = false;
-        bool                                isOpaque    = true;
+        LINAGX_STRING                                    name      = "";
+        uint32                                           index     = 0;
+        LGXVector4                                       baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        LGXVector3                                       emissive  = {1.0f, 1.0f, 1.0f};
+        LINAGX_VEC<LINAGX_PAIR<GLTFTextureType, uint32>> textureIndices;
+        float                                            metallicFactor    = 0.0f;
+        float                                            roughnessFactor   = 0.0f;
+        float                                            alphaCutoff       = 0.0f;
+        float                                            occlusionStrength = 0.0f;
+        LGXVector3                                       emissiveFactor;
+        bool                                             doubleSided = false;
+        bool                                             isOpaque    = true;
     };
 
     struct ModelSkin;

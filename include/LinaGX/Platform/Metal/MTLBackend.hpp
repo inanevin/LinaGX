@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -49,8 +49,8 @@ namespace LinaGX
         LINAGX_VEC<void*> views;
         Format            format;
         uint32            flags;
-        uint32 bytesPerPixel;
-        LGXVector2ui size;
+        uint32            bytesPerPixel;
+        LGXVector2ui      size;
     };
 
     struct MTLBoundDescriptorSet
@@ -58,12 +58,12 @@ namespace LinaGX
         uint16             handle  = 0;
         bool               isDirty = false;
         LINAGX_VEC<uint32> dynamicOffsets;
-        uint32 setAllocIndex = 0;
+        uint32             setAllocIndex = 0;
     };
 
     struct MTLBoundConstant
     {
-        uint8*        data            = nullptr;
+        uint8*       data            = nullptr;
         uint32       offset          = 0;
         uint32       size            = 0;
         uint32       stagesSize      = 0;
@@ -92,9 +92,8 @@ namespace LinaGX
         bool                                      currentShaderExists    = false;
         uint8                                     indexBufferType        = 0;
         bool                                      currentShaderIsCompute = false;
-        LINAGX_MAP<uint32, uint64>                intermediateResources;
-        LINAGX_MAP<uint32, uint16>                boundDescriptorSets;
-        LINAGX_MAP<uint32, MTLBoundDescriptorSet> boundSets;
+        LINAGX_VEC<LINAGX_PAIR<uint32, uint64>>   intermediateResources;
+        LINAGX_VEC<LINAGX_PAIR<uint32, MTLBoundDescriptorSet>> boundSets;
         CMDBindVertexBuffers                      lastVertexBind;
         MTLBoundConstant                          boundConstants;
         LINAGX_STRING                             lastDebugLabel = "";
@@ -112,7 +111,7 @@ namespace LinaGX
         uint32 height                = 0;
         uint32 _currentDrawableIndex = 0;
         Format format;
-        void* osHandle = nullptr;
+        void*  osHandle = nullptr;
     };
 
     struct MTLArgEncoder
@@ -136,10 +135,10 @@ namespace LinaGX
         LINAGX_VEC<Format> colorAttachmentFormats;
         Format             depthFormat;
         Format             stencilFormat;
-        float depthBias = 0.0f;
-        float depthSlope = 0.0f;
-        float depthClamp = 0.0f;
-        LINAGX_STRING debugName = "";
+        float              depthBias  = 0.0f;
+        float              depthSlope = 0.0f;
+        float              depthClamp = 0.0f;
+        LINAGX_STRING      debugName  = "";
     };
 
     struct MTLFence
@@ -189,9 +188,9 @@ namespace LinaGX
 
     struct MTLDescriptorSet
     {
-        bool                   isValid = false;
-        void*                  buffer  = nullptr;
-        DescriptorSetDesc      desc    = {};
+        bool                               isValid = false;
+        void*                              buffer  = nullptr;
+        DescriptorSetDesc                  desc    = {};
         LINAGX_VEC<LINAGX_VEC<MTLBinding>> bindings;
     };
 
@@ -315,8 +314,8 @@ namespace LinaGX
 
         uint8 m_primaryQueues[3];
 
-        LINAGX_MAP<LINAGX_TYPEID, CommandFunction> m_cmdFunctions;
-        std::atomic_flag                           m_submissionFlag;
+        LINAGX_VEC<LINAGX_PAIR<LINAGX_TYPEID, CommandFunction>> m_cmdFunctions;
+        std::atomic_flag                                        m_submissionFlag;
     };
 
 } // namespace LinaGX
