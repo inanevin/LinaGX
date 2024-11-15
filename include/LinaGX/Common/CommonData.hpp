@@ -142,7 +142,7 @@ namespace LinaGX
         }
 
         template <typename Key, typename Value>
-        static typename LINAGX_VEC<LINAGX_PAIR<Key, Value>>::iterator Find(LINAGX_VEC<LINAGX_PAIR<Key, Value>>& vec, Key key)
+        static typename LINAGX_VEC<LINAGX_PAIR<Key, Value>>::const_iterator Find(const LINAGX_VEC<LINAGX_PAIR<Key, Value>>& vec, Key key)
         {
             auto it = LINAGX_FIND_IF(vec.begin(), vec.end(), [key](const auto& pair) -> bool { return pair.first == key; });
             return it;

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -782,9 +782,9 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     item.layout = shaderDesc.layout;
     item.debugName = shaderDesc.debugName;
     
-    for (const auto& [stage, blob] : shaderDesc.stages)
+    for (const ShaderCompileData& data : shaderDesc.stages)
     {
-        if (stage == ShaderStage::Compute)
+        if (data.stage == ShaderStage::Compute)
         {
             if (shaderDesc.stages.size() == 1)
             {
@@ -802,15 +802,17 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     
     if(item.isCompute)
     {
-        const auto& blob = shaderDesc.stages.at(ShaderStage::Compute);
+        const ShaderCompileData& data = shaderDesc.stages[0];
         
-        NSString* src = [[NSString alloc] initWithBytes:blob.ptr length:blob.size encoding:NSUTF8StringEncoding];
+        NSString* src = [[NSString alloc] initWithBytes:data.outBlob.ptr length:data.outBlob.size encoding:NSUTF8StringEncoding];
         NSError* err = nil;
 
         id<MTLLibrary> lib = [device newLibraryWithSource:src options:nil error:&err];
         [lib retain];
         
-        NSString* entryPoint = [NSString stringWithUTF8String:shaderDesc.layout.entryPoints.at(ShaderStage::Compute).c_str()];
+        auto it = UtilVector::Find(shaderDesc.layout.entryPoints, ShaderStage::Compute);
+        
+        NSString* entryPoint = [NSString stringWithUTF8String:it->second.c_str()];
         id<MTLFunction> computeFunc = [lib newFunctionWithName:entryPoint];
         [computeFunc retain];
 
@@ -930,19 +932,21 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     }
 
     // Stages
-    LINAGX_MAP<ShaderStage, id<MTLLibrary>> libs;
+    LINAGX_VEC<LINAGX_PAIR<LinaGX::ShaderStage, id<MTLLibrary>>> libs;
     
-    for(const auto& [stg, blob] : shaderDesc.stages)
+    
+    for(const ShaderCompileData& compData : shaderDesc.stages)
     {
-        void* data = LINAGX_MALLOC(blob.size);
-        LINAGX_MEMCPY(data, blob.ptr, blob.size);
-        std::string readData ((char*)data, blob.size);
+        void* data = LINAGX_MALLOC(compData.outBlob.size);
+        LINAGX_MEMCPY(data, compData.outBlob.ptr, compData.outBlob.size);
+        std::string readData ((char*)data, compData.outBlob.size);
         LINAGX_FREE(data);
         
         NSString* src = [NSString stringWithUTF8String:readData.c_str()];
         NSError* error = nil;
-        libs[stg] = [device newLibraryWithSource:src options:nil error:&error];
-        [libs[stg] retain];
+        id<MTLLibrary> lib = [device newLibraryWithSource:src options:nil error:&error];
+        libs.push_back({compData.stage, lib});
+        [lib retain];
         
         if(error != nil)
         {
@@ -950,17 +954,19 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
             LOGE("Backend -> Shader compile error! %s", errStr);
         }
 
-        NSString* entryPoint = [NSString stringWithUTF8String:shaderDesc.layout.entryPoints.at(stg).c_str()];
+        auto it = UtilVector::Find(shaderDesc.layout.entryPoints, compData.stage);
         
-        id<MTLFunction> f = [libs[stg] newFunctionWithName:entryPoint];
+        NSString* entryPoint = [NSString stringWithUTF8String:it->second.c_str()];
         
-        if(stg == ShaderStage::Compute)
+        id<MTLFunction> f = [lib newFunctionWithName:entryPoint];
+        
+        if(compData.stage == ShaderStage::Compute)
         {
             LOGA(false, "!!");
         }
-        else if(stg == ShaderStage::Fragment)
+        else if(compData.stage == ShaderStage::Fragment)
             pipelineDescriptor.fragmentFunction = f;
-        else if(stg == ShaderStage::Vertex)
+        else if(compData.stage  == ShaderStage::Vertex)
             pipelineDescriptor.vertexFunction = f;
         else{
             LOGA(false, "Unsupported stage!!");
@@ -990,9 +996,10 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     else
         item.dsso = nullptr;
     
-    for(const auto& [stg, blob] : shaderDesc.stages)
+    for(const ShaderCompileData& data : shaderDesc.stages)
     {
-        [libs[stg] release];
+        auto it = UtilVector::Find(libs, data.stage);
+        [it->second release];
     }
     
     [pipelineDescriptor release];
@@ -2187,7 +2194,7 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
             
             for(auto stg : mtlBinding.lgxBinding.stages)
             {
-                auto it = reflectionBindingData.isActive.find(stg);
+                auto it = UtilVector::Find(reflectionBindingData.isActive, stg);
                 
                 if(it == reflectionBindingData.isActive.end() || it->second == false)
                     continue;
@@ -2204,9 +2211,9 @@ void MTLBackend::BindDescriptorSets(MTLCommandStream &stream)
                 if(!mtlBinding.lgxBinding.unbounded && reflectionBindingData.descriptorCount != mtlBinding.lgxBinding.descriptorCount)
                     continue;
                 
-                const uint32 bufferID = reflectionBindingData.mslBufferID.at(stg);
-                
-             
+                auto bufferIDIt = UtilVector::Find(reflectionBindingData.mslBufferID, stg);
+                const uint32 bufferID = bufferIDIt->second;
+
                 if(mtlBinding.lgxBinding.type == DescriptorType::CombinedImageSampler)
                 {
                     LINAGX_VEC<id<MTLTexture>> textures;
@@ -2555,7 +2562,7 @@ void BindConstants(MTLCommandStream& stream, MTLShader& shader)
     
     if(shader.isCompute)
     {
-        auto it = shader.layout.constantsMSLBuffers.find(ShaderStage::Compute);
+        auto it =UtilVector::Find(shader.layout.constantsMSLBuffers, ShaderStage::Compute);
         if(it == shader.layout.constantsMSLBuffers.end())
             return;
 
@@ -2569,7 +2576,7 @@ void BindConstants(MTLCommandStream& stream, MTLShader& shader)
         {
             ShaderStage stage = stream.boundConstants.stages[i];
             
-            auto it = shader.layout.constantsMSLBuffers.find(stage);
+            auto it =UtilVector::Find(shader.layout.constantsMSLBuffers, stage);
             if(it == shader.layout.constantsMSLBuffers.end())
                 continue;
             
@@ -2833,7 +2840,7 @@ void MTLBackend::CMD_CopyBufferToTexture2D(uint8 *data, MTLCommandStream &stream
         offset += mipSize;
     }
     
-    stream.intermediateResources[intermediateResource] = PerformanceStats.totalFrames;
+    stream.intermediateResources.push_back({intermediateResource, PerformanceStats.totalFrames});
 }
 
 
@@ -2971,12 +2978,12 @@ void MTLBackend::CMD_ExecuteSecondaryStream(uint8 *data, MTLCommandStream &strea
     // handled during close command streams.
 }
 
-void MTLBackend::CMD_Barrier(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) { 
+void MTLBackend::CMD_Barrier(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) {
     CMDBarrier* cmd = reinterpret_cast<CMDBarrier*>(data);
     // no barriers.
 }
 
-void MTLBackend::CMD_DebugEndLabel(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) { 
+void MTLBackend::CMD_DebugEndLabel(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream) {
     CMDDebugEndLabel* cmd = reinterpret_cast<CMDDebugEndLabel*>(data);
   
     if(stream.currentEncoder)
@@ -3011,4 +3018,5 @@ void MTLBackend::CMD_Debug(LinaGX::uint8 *data, LinaGX::MTLCommandStream &stream
 }
 
 } // namespace LinaVG
+
 
