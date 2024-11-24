@@ -1030,9 +1030,9 @@ namespace LinaGX
             if (Config.enableShaderDebugInformation)
             {
                 arguments.push_back(DXC_ARG_DEBUG);
-                arguments.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
                 arguments.push_back(DXC_ARG_PREFER_FLOW_CONTROL);
-                arguments.push_back(L"-Qembed_debug");
+                arguments.push_back(DXC_ARG_SKIP_OPTIMIZATIONS);
+                // arguments.push_back(L"-Qembed_debug");
             }
             else
             {
