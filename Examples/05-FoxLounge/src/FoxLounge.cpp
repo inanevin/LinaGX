@@ -567,7 +567,7 @@ namespace LinaGX::Examples
                 {
                     auto& barrier          = textureBarrier->textureBarriers[index];
                     barrier.texture        = txt.gpuHandle;
-                    barrier.toState        = LinaGX::TextureBarrierState::TransferDestination;
+                    barrier.toState        = LinaGX::TextureState::TransferDestination;
                     barrier.isSwapchain    = false;
                     barrier.srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
                     barrier.dstAccessFlags = LinaGX::AF_TransferWrite;
@@ -599,7 +599,7 @@ namespace LinaGX::Examples
                 {
                     auto& barrier          = textureBarrier->textureBarriers[index];
                     barrier.texture        = txt.gpuHandle;
-                    barrier.toState        = LinaGX::TextureBarrierState::ShaderRead;
+                    barrier.toState        = LinaGX::TextureState::ShaderRead;
                     barrier.srcAccessFlags = LinaGX::AF_TransferWrite;
                     barrier.dstAccessFlags = LinaGX::AF_TransferRead;
                     barrier.isSwapchain    = false;
@@ -928,7 +928,7 @@ namespace LinaGX::Examples
 
                 auto& barrier          = textureBarrier->textureBarriers[0];
                 barrier.texture        = m_ssaoNoiseTexture;
-                barrier.toState        = LinaGX::TextureBarrierState::TransferDestination;
+                barrier.toState        = LinaGX::TextureState::TransferDestination;
                 barrier.isSwapchain    = false;
                 barrier.srcAccessFlags = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
                 barrier.dstAccessFlags = LinaGX::AF_TransferWrite;
@@ -951,7 +951,7 @@ namespace LinaGX::Examples
 
                 auto& barrier          = textureBarrier->textureBarriers[0];
                 barrier.texture        = m_ssaoNoiseTexture;
-                barrier.toState        = LinaGX::TextureBarrierState::ShaderRead;
+                barrier.toState        = LinaGX::TextureState::ShaderRead;
                 barrier.srcAccessFlags = LinaGX::AF_TransferWrite;
                 barrier.dstAccessFlags = LinaGX::AF_TransferRead;
                 barrier.isSwapchain    = false;
@@ -1680,7 +1680,7 @@ namespace LinaGX::Examples
         //      DrawObjects(frameIndex, Shader::SH_Default);
         //      EndPass(frameIndex);
         //
-        //      CollectPassBarrier(frameIndex, PS_ObjectsReflections, LinaGX::TextureBarrierState::ShaderRead);
+        //      CollectPassBarrier(frameIndex, PS_ObjectsReflections, LinaGX::TextureState::ShaderRead);
         //      ExecPassBarriers();
         //
         //      BindPassSet(frameIndex, PipelineLayoutType::PL_LightingPassSimple, m_passes[PassType::PS_LightingReflections].descriptorSets[currentFrameIndex], padded + padded * i, true);
@@ -1689,16 +1689,16 @@ namespace LinaGX::Examples
         //      DrawFullscreenQuad(frameIndex);
         //      EndPass(frameIndex);
         //
-        //      CollectPassBarrier(frameIndex, PS_ObjectsReflections, LinaGX::TextureBarrierState::ColorAttachment);
+        //      CollectPassBarrier(frameIndex, PS_ObjectsReflections, LinaGX::TextureState::ColorAttachment);
         //      ExecPassBarriers();
         //  }
         //
-        //  CollectPassBarrier(frameIndex, PS_LightingReflections, LinaGX::TextureBarrierState::ShaderRead);
-        //  CollectPassBarrier(frameIndex, PS_ObjectsReflections, LinaGX::TextureBarrierState::ShaderRead);
+        //  CollectPassBarrier(frameIndex, PS_LightingReflections, LinaGX::TextureState::ShaderRead);
+        //  CollectPassBarrier(frameIndex, PS_ObjectsReflections, LinaGX::TextureState::ShaderRead);
         //  ExecPassBarriers();
     }
 
-    void Example::CollectPassBarrier(uint32 frameIndex, PassType pass, LinaGX::TextureBarrierState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth)
+    void Example::CollectPassBarrier(uint32 frameIndex, PassType pass, LinaGX::TextureState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth)
     {
         auto& pfd = m_pfd[frameIndex];
 
@@ -1889,9 +1889,9 @@ namespace LinaGX::Examples
 
         SSAOGeometry(frameIndex, width, height);
 
-        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
-        CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
+        CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment);
 
         BindPassSet(frameIndex, PipelineLayoutType::PL_Objects, m_passes[PS_Objects].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
@@ -1899,8 +1899,8 @@ namespace LinaGX::Examples
         DrawObjects(frameIndex, drawObjFlags, Shader::SH_Default);
         EndPass(frameIndex);
 
-        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
+        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+        CollectPassBarrier(frameIndex, PS_Objects, LinaGX::TextureState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
 
         BindPassSet(frameIndex, PipelineLayoutType::PL_Lighting, m_passes[PS_Lighting].descriptorSets[frameIndex], cameraDataIndex * camDataPadded, true);
@@ -1909,7 +1909,7 @@ namespace LinaGX::Examples
         DrawFullscreenQuad(frameIndex);
         EndPass(frameIndex);
 
-        CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+        CollectPassBarrier(frameIndex, PS_Lighting, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
     }
 
@@ -1921,10 +1921,10 @@ namespace LinaGX::Examples
 
             TransferGlobalData(frame);
             BindGlobalSet(frame);
-            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
+            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
             ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
 
             for (uint32 i = 0; i < 6; i++)
@@ -1932,10 +1932,10 @@ namespace LinaGX::Examples
                 DeferredRenderScene(frame, DrawObjectFlags::DrawSkybox, i + 1, ENVIRONMENT_MAP_RES, ENVIRONMENT_MAP_RES);
 
                 {
-                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::TransferSource, LinaGX::AF_MemoryRead, LinaGX::AF_TransferRead);
+                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureState::TransferSource, LinaGX::AF_MemoryRead, LinaGX::AF_TransferRead);
 
                     LinaGX::TextureBarrier barrier = {};
-                    barrier.toState                = LinaGX::TextureBarrierState::TransferDestination;
+                    barrier.toState                = LinaGX::TextureState::TransferDestination;
                     barrier.texture                = m_sceneCubemap;
                     barrier.isSwapchain            = false;
                     barrier.srcAccessFlags         = AF_MemoryRead | AF_MemoryWrite;
@@ -1953,9 +1953,9 @@ namespace LinaGX::Examples
                 copyTexture->srcMip                 = 0;
 
                 {
-                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_TransferRead, LinaGX::AF_MemoryRead);
+                    CollectPassBarrier(frame, PassType::PS_Lighting, LinaGX::TextureState::ShaderRead, LinaGX::AF_TransferRead, LinaGX::AF_MemoryRead);
                     LinaGX::TextureBarrier barrier = {};
-                    barrier.toState                = LinaGX::TextureBarrierState::ShaderRead;
+                    barrier.toState                = LinaGX::TextureState::ShaderRead;
                     barrier.texture                = m_sceneCubemap;
                     barrier.isSwapchain            = false;
                     barrier.srcAccessFlags         = LinaGX::AF_TransferWrite;
@@ -1965,9 +1965,9 @@ namespace LinaGX::Examples
                 }
             }
 
-            CollectPassBarrier(frame, PassType::PS_Irradiance, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-            CollectPassBarrier(frame, PassType::PS_Prefilter, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-            CollectPassBarrier(frame, PassType::PS_BRDF, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+            CollectPassBarrier(frame, PassType::PS_Irradiance, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+            CollectPassBarrier(frame, PassType::PS_Prefilter, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+            CollectPassBarrier(frame, PassType::PS_BRDF, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
             ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment);
 
             for (uint32 i = 0; i < 6; i++)
@@ -2004,9 +2004,9 @@ namespace LinaGX::Examples
             DrawFullscreenQuad(frame);
             EndPass(frame);
 
-            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_Irradiance, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_Prefilter, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+            CollectPassBarrier(frame, PS_BRDF, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
             ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
 
             m_lgx->CloseCommandStreams(&pfd.graphicsStream, 1);
@@ -2018,7 +2018,7 @@ namespace LinaGX::Examples
     {
         auto& pfd = m_pfd[frame];
 
-        CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureBarrierState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
+        CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
         ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_EarlyFragment);
 
         for (uint32 i = 0; i < 6; i++)
@@ -2030,7 +2030,7 @@ namespace LinaGX::Examples
             DrawObjects(frame, DrawObjectFlags::DrawDefault, Shader::SH_Shadows, false);
             EndPass(frame);
         }
-        CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
+        CollectPassBarrier(frame, PS_Shadows, LinaGX::TextureState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
         ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
     }
 
@@ -2043,9 +2043,9 @@ namespace LinaGX::Examples
         for (uint32 i = 0; i < amount; i++)
         {
             if (horizontal)
-                CollectPassBarrier(frameIndex, PS_BloomHori, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+                CollectPassBarrier(frameIndex, PS_BloomHori, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
             else
-                CollectPassBarrier(frameIndex, PS_BloomVert, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+                CollectPassBarrier(frameIndex, PS_BloomVert, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
 
             ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment);
 
@@ -2066,9 +2066,9 @@ namespace LinaGX::Examples
             EndPass(frameIndex);
 
             if (horizontal)
-                CollectPassBarrier(frameIndex, PS_BloomHori, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+                CollectPassBarrier(frameIndex, PS_BloomHori, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
             else
-                CollectPassBarrier(frameIndex, PS_BloomVert, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+                CollectPassBarrier(frameIndex, PS_BloomVert, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
 
             ExecPassBarriers(pfd.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_FragmentShader);
             horizontal = !horizontal;
@@ -2079,8 +2079,8 @@ namespace LinaGX::Examples
     {
         auto& currentFrame = m_pfd[frameIndex];
 
-        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
-        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureBarrierState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
+        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureState::DepthStencilAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_DepthStencilAttachmentRead, true);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_TopOfPipe, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment);
 
         BindPassSet(frameIndex, PipelineLayoutType::PL_SSAOGeometry, m_passes[PS_SSAOGeometry].descriptorSets[frameIndex], 0, true);
@@ -2088,8 +2088,8 @@ namespace LinaGX::Examples
         DrawObjects(frameIndex, DrawObjectFlags::DrawDefault, Shader::SH_SSAOGeometry, false);
         EndPass(frameIndex);
 
-        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
-        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureBarrierState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
+        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureState::ShaderRead, LinaGX::AF_ColorAttachmentRead, LinaGX::AF_ShaderRead);
+        CollectPassBarrier(frameIndex, PS_SSAOGeometry, LinaGX::TextureState::ShaderRead, LinaGX::AF_DepthStencilAttachmentRead, LinaGX::AF_ShaderRead, true);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment | LinaGX::PSF_EarlyFragment, LinaGX::PSF_FragmentShader);
     }
 
@@ -2191,7 +2191,7 @@ namespace LinaGX::Examples
 
         DrawShadowmap(currentFrameIndex);
 
-        CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureBarrierState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
+        CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureState::ColorAttachment, LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite, LinaGX::AF_ColorAttachmentRead);
         DeferredRenderScene(currentFrameIndex, DrawObjectFlags::DrawDefault | DrawObjectFlags::DrawSkybox, 0, 0, 0);
 
         Bloom(currentFrameIndex);
@@ -2202,7 +2202,7 @@ namespace LinaGX::Examples
         DrawFullscreenQuad(currentFrameIndex);
         EndPass(currentFrameIndex);
 
-        CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureBarrierState::Present, LinaGX::AF_ColorAttachmentWrite, 0);
+        CollectPassBarrier(currentFrameIndex, PS_FinalQuad, LinaGX::TextureState::Present, LinaGX::AF_ColorAttachmentWrite, 0);
         ExecPassBarriers(currentFrame.graphicsStream, LinaGX::PSF_ColorAttachment, LinaGX::PSF_BottomOfPipe);
 
         // This does the actual *recording* of every single command stream alive.

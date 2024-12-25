@@ -1424,6 +1424,10 @@ namespace LinaGX
         if (txtDesc.flags & TextureFlags::TF_Cubemap)
             imgCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
+        // VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT need to be coupled with this if available
+        //  if (txtDesc.samples > 1)
+        //      imgCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+
         if ((txtDesc.flags & TextureFlags::TF_DepthTexture || txtDesc.flags & TextureFlags::TF_StencilTexture))
             imgCreateInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 

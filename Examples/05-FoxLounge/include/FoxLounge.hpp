@@ -150,7 +150,7 @@ namespace LinaGX
             void BindShader(uint32 frameIndex, uint32 target);
             void BindPassSet(uint32 frameIndex, PipelineLayoutType layout, uint16 set, uint32 offset, bool useDynamicOffset);
             void ReflectionPass(uint32 frameIndex);
-            void CollectPassBarrier(uint32 frameIndex, PassType pass, LinaGX::TextureBarrierState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth = false);
+            void CollectPassBarrier(uint32 frameIndex, PassType pass, LinaGX::TextureState target, uint32 srcAccess, uint32 dstAccess, bool collectDepth = false);
             void ExecPassBarriers(LinaGX::CommandStream* stream, uint32 srcStage, uint32 dstStage);
             void TransferGlobalData(uint32 frameIndex);
             void BindGlobalSet(uint32 frameIndex);

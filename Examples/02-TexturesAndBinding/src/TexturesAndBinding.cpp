@@ -329,7 +329,7 @@ namespace LinaGX::Examples
                 textureBarrier->dstStageFlags        = LinaGX::PSF_Transfer;
                 auto& barrier                        = textureBarrier->textureBarriers[0];
                 barrier.texture                      = _textureGPU;
-                barrier.toState                      = LinaGX::TextureBarrierState::TransferDestination;
+                barrier.toState                      = LinaGX::TextureState::TransferDestination;
                 barrier.isSwapchain                  = false;
                 barrier.srcAccessFlags               = LinaGX::AF_MemoryRead | LinaGX::AF_MemoryWrite;
                 barrier.dstAccessFlags               = LinaGX::AF_TransferWrite;
@@ -358,7 +358,7 @@ namespace LinaGX::Examples
                 textureBarrier->dstStageFlags        = LinaGX::PSF_Transfer;
                 auto& barrier                        = textureBarrier->textureBarriers[0];
                 barrier.texture                      = _textureGPU;
-                barrier.toState                      = LinaGX::TextureBarrierState::ShaderRead;
+                barrier.toState                      = LinaGX::TextureState::ShaderRead;
                 barrier.srcAccessFlags               = LinaGX::AF_TransferWrite;
                 barrier.dstAccessFlags               = LinaGX::AF_TransferRead;
                 barrier.isSwapchain                  = false;
@@ -483,7 +483,7 @@ namespace LinaGX::Examples
             barrier->textureBarriers->dstAccessFlags = LinaGX::AF_ColorAttachmentRead;
             barrier->textureBarriers->isSwapchain    = true;
             barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
-            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::ColorAttachment;
+            barrier->textureBarriers->toState        = LinaGX::TextureState::ColorAttachment;
         }
 
         // Render pass begin
@@ -559,7 +559,7 @@ namespace LinaGX::Examples
             barrier->textureBarriers->dstAccessFlags = 0;
             barrier->textureBarriers->isSwapchain    = true;
             barrier->textureBarriers->texture        = static_cast<uint32>(_swapchain);
-            barrier->textureBarriers->toState        = LinaGX::TextureBarrierState::Present;
+            barrier->textureBarriers->toState        = LinaGX::TextureState::Present;
         }
 
         // This does the actual *recording* of every single command stream alive.

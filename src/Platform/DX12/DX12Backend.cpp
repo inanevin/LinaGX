@@ -630,29 +630,29 @@ namespace LinaGX
         }
     }
 
-    D3D12_RESOURCE_STATES GetDXTextureBarrierState(TextureBarrierState state, uint32 txtFlags)
+    D3D12_RESOURCE_STATES GetDXTextureBarrierState(TextureState state, uint32 txtFlags)
     {
         switch (state)
         {
-        case LinaGX::TextureBarrierState::ColorAttachment:
+        case LinaGX::TextureState::ColorAttachment:
             return D3D12_RESOURCE_STATE_RENDER_TARGET;
-        case LinaGX::TextureBarrierState::DepthStencilAttachment:
+        case LinaGX::TextureState::DepthStencilAttachment:
             return D3D12_RESOURCE_STATE_DEPTH_WRITE;
-        case LinaGX::TextureBarrierState::ShaderRead: {
+        case LinaGX::TextureState::ShaderRead: {
             D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             if (txtFlags & TextureFlags::TF_SampleOutsideFragment)
                 state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
             return state;
         }
-        case LinaGX::TextureBarrierState::DepthRead:
-        case LinaGX::TextureBarrierState::StencilRead:
-        case LinaGX::TextureBarrierState::DepthStencilRead:
+        case LinaGX::TextureState::DepthRead:
+        case LinaGX::TextureState::StencilRead:
+        case LinaGX::TextureState::DepthStencilRead:
             return D3D12_RESOURCE_STATE_DEPTH_READ;
-        case LinaGX::TextureBarrierState::Present:
+        case LinaGX::TextureState::Present:
             return D3D12_RESOURCE_STATE_PRESENT;
-        case LinaGX::TextureBarrierState::TransferSource:
+        case LinaGX::TextureState::TransferSource:
             return D3D12_RESOURCE_STATE_COPY_SOURCE;
-        case LinaGX::TextureBarrierState::TransferDestination:
+        case LinaGX::TextureState::TransferDestination:
             return D3D12_RESOURCE_STATE_COPY_DEST;
         default:
             return D3D12_RESOURCE_STATE_COMMON;
