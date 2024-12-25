@@ -1520,9 +1520,9 @@ namespace LinaGX
         psoDesc.DepthStencilState.FrontFace           = backStencil;
         psoDesc.DepthStencilState.BackFace            = frontStencil;
         psoDesc.SampleMask                            = UINT_MAX;
+        psoDesc.SampleDesc.Count                      = shaderDesc.samples;
         psoDesc.PrimitiveTopologyType                 = GetDXTopologyType(shaderDesc.topology);
         psoDesc.NumRenderTargets                      = attachmentCount;
-        psoDesc.SampleDesc.Count                      = 1;
         psoDesc.RasterizerState.FillMode              = D3D12_FILL_MODE_SOLID;
         psoDesc.RasterizerState.CullMode              = GetDXCullMode(shaderDesc.cullMode);
         psoDesc.RasterizerState.FrontCounterClockwise = shaderDesc.frontFace == FrontFace::CCW;
@@ -1635,7 +1635,7 @@ namespace LinaGX
         resourceDesc.Height              = txtDesc.height;
         resourceDesc.DepthOrArraySize    = txtDesc.arrayLength;
         resourceDesc.MipLevels           = txtDesc.mipLevels;
-        resourceDesc.SampleDesc.Count    = 1;
+        resourceDesc.SampleDesc.Count    = txtDesc.samples;
         resourceDesc.SampleDesc.Quality  = 0;
         resourceDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         resourceDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
@@ -1645,9 +1645,6 @@ namespace LinaGX
             resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
         else if (txtDesc.type == TextureType::Texture1D)
             resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
-
-        auto allocationInfo    = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
-        item.requiredAlignment = allocationInfo.Alignment;
 
         D3D12MA::ALLOCATION_DESC allocationDesc = {};
         allocationDesc.HeapType                 = D3D12_HEAP_TYPE_DEFAULT;
@@ -1665,7 +1662,7 @@ namespace LinaGX
         if ((txtDesc.flags & TextureFlags::TF_ColorAttachment))
             resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-        if (!(txtDesc.flags & TextureFlags::TF_Sampled) && !(txtDesc.flags & TextureFlags::TF_SampleOutsideFragment))
+        if (txtDesc.samples == 1 && !(txtDesc.flags & TextureFlags::TF_Sampled) && !(txtDesc.flags & TextureFlags::TF_SampleOutsideFragment))
             resourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
         // if (txtDesc.usage == TextureUsage::DepthStencilTexture)
@@ -1694,6 +1691,9 @@ namespace LinaGX
         //     // if (txtDesc.sampledOutsideFragment)
         //     //     state |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         // }
+
+        auto allocationInfo    = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+        item.requiredAlignment = allocationInfo.Alignment;
 
         try
         {
@@ -1733,13 +1733,13 @@ namespace LinaGX
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
-                srvDesc.ViewDimension             = D3D12_SRV_DIMENSION_TEXTURE2D;
+                srvDesc.ViewDimension             = txtDesc.samples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
                 srvDesc.Texture2D.MipLevels       = mipLevels;
                 srvDesc.Texture2D.MostDetailedMip = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
-                srvDesc.ViewDimension                  = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+                srvDesc.ViewDimension                  = txtDesc.samples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
                 srvDesc.Texture2DArray.MipLevels       = mipLevels;
                 srvDesc.Texture2DArray.MostDetailedMip = baseMipLevel;
                 srvDesc.Texture2DArray.ArraySize       = layerCount;
@@ -1773,12 +1773,12 @@ namespace LinaGX
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
-                rtvDesc.ViewDimension      = D3D12_RTV_DIMENSION_TEXTURE2D;
+                rtvDesc.ViewDimension      = txtDesc.samples > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
                 rtvDesc.Texture2D.MipSlice = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
-                rtvDesc.ViewDimension                  = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+                rtvDesc.ViewDimension                  = txtDesc.samples > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY : D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
                 rtvDesc.Texture2DArray.ArraySize       = layerCount;
                 rtvDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
                 rtvDesc.Texture2DArray.MipSlice        = baseMipLevel;
@@ -1810,12 +1810,12 @@ namespace LinaGX
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength == 1)
             {
-                depthStencilDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
+                depthStencilDesc.ViewDimension      = txtDesc.samples > 1 ? D3D12_DSV_DIMENSION_TEXTURE2DMS : D3D12_DSV_DIMENSION_TEXTURE2D;
                 depthStencilDesc.Texture2D.MipSlice = baseMipLevel;
             }
             else if (txtDesc.type == TextureType::Texture2D && txtDesc.arrayLength > 1)
             {
-                depthStencilDesc.ViewDimension                  = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+                depthStencilDesc.ViewDimension                  = txtDesc.samples > 1 ? D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY : D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
                 depthStencilDesc.Texture2DArray.ArraySize       = layerCount;
                 depthStencilDesc.Texture2DArray.FirstArraySlice = baseArrayLayer;
                 depthStencilDesc.Texture2DArray.MipSlice        = baseMipLevel;
@@ -3234,8 +3234,12 @@ namespace LinaGX
     {
         CMDBeginRenderPass* begin = reinterpret_cast<CMDBeginRenderPass*>(data);
 
+        stream.lastMSAATargets.clear();
+
         LINAGX_VEC<D3D12_RENDER_PASS_RENDER_TARGET_DESC> colorAttDescs;
         colorAttDescs.resize(begin->colorAttachmentCount);
+
+        LINAGX_VEC<D3D12_RESOURCE_BARRIER> msaaBarriers;
 
         for (uint32 i = 0; i < begin->colorAttachmentCount; i++)
         {
@@ -3276,8 +3280,46 @@ namespace LinaGX
                 D3D12_RENDER_PASS_BEGINNING_ACCESS colorBegin{GetDXLoadOp(att.loadOp), {cv}};
                 D3D12_RENDER_PASS_ENDING_ACCESS    colorEnd{GetDXStoreOp(att.storeOp), {}};
                 colorAttDescs[i] = {txt.rtvs[att.viewIndex].GetCPUHandle(), colorBegin, colorEnd};
+
+                if (att.resolveMode != ResolveMode::None)
+                {
+                    auto& resolveTxt = m_textures.GetItemR(att.resolveTexture);
+
+                    auto dxRes      = txt.rawRes.Get() != nullptr ? txt.rawRes.Get() : txt.allocation->GetResource();
+                    auto resolveRes = resolveTxt.rawRes.Get() != nullptr ? resolveTxt.rawRes.Get() : resolveTxt.allocation->GetResource();
+
+                    if (txt.state != D3D12_RESOURCE_STATE_RENDER_TARGET)
+                    {
+                        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                            dxRes,
+                            txt.state,
+                            D3D12_RESOURCE_STATE_RENDER_TARGET);
+                        msaaBarriers.push_back(barrier);
+                        txt.state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+                    }
+
+                    if (resolveTxt.state != D3D12_RESOURCE_STATE_RENDER_TARGET)
+                    {
+                        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                            resolveRes,
+                            resolveTxt.state,
+                            D3D12_RESOURCE_STATE_RENDER_TARGET);
+                        msaaBarriers.push_back(barrier);
+                        resolveTxt.state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+                    }
+
+                    stream.lastMSAATargets.push_back({
+                        dxRes,
+                        resolveRes,
+                        resolveTxt.format,
+                        att.resolveState,
+                    });
+                }
             }
         }
+
+        if (!msaaBarriers.empty())
+            stream.list->ResourceBarrier(static_cast<uint32>(msaaBarriers.size()), msaaBarriers.data());
 
         if (begin->depthStencilAttachment.useDepth || begin->depthStencilAttachment.useStencil)
         {
@@ -3288,6 +3330,7 @@ namespace LinaGX
             D3D12_RENDER_PASS_ENDING_ACCESS      depthEnd{GetDXStoreOp(begin->depthStencilAttachment.depthStoreOp), {}};
             D3D12_RENDER_PASS_ENDING_ACCESS      stencilEnd{GetDXStoreOp(begin->depthStencilAttachment.stencilStoreOp), {}};
             D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{depthTxt.dsvs[begin->depthStencilAttachment.viewIndex].GetCPUHandle(), depthBegin, depthBegin, depthEnd, depthEnd};
+
             stream.list->BeginRenderPass(begin->colorAttachmentCount, colorAttDescs.data(), &depthStencilDesc, D3D12_RENDER_PASS_FLAG_NONE);
 
             if (!(depthTxt.desc.flags & LinaGX::TextureFlags::TF_DepthTexture) && !(depthTxt.desc.flags & LinaGX::TextureFlags::TF_StencilTexture))
@@ -3319,6 +3362,47 @@ namespace LinaGX
         stream.list->EndEvent();
         CMDEndRenderPass* end = reinterpret_cast<CMDEndRenderPass*>(data);
         stream.list->EndRenderPass();
+
+        // Transit  all msaa targets to resolve source, and resolve targets to resolve destination.
+        LINAGX_VEC<D3D12_RESOURCE_BARRIER> barriers;
+        for (const DX12MSAATargetInfo& inf : stream.lastMSAATargets)
+        {
+            barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                inf.msaaTarget,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+
+            barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                inf.resolveTarget,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_RESOLVE_DEST));
+        }
+
+        if (!barriers.empty())
+            stream.list->ResourceBarrier(static_cast<uint32>(barriers.size()), barriers.data());
+
+        LINAGX_VEC<D3D12_RESOURCE_BARRIER> postResolveBarriers;
+
+        // Resolve MSAA, transit msaa targets back to render target, and resolve targets to their preferred after-resolve state.
+        for (const DX12MSAATargetInfo& info : stream.lastMSAATargets)
+        {
+            stream.list->ResolveSubresource(info.resolveTarget, 0, info.msaaTarget, 0, info.format);
+
+            postResolveBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                info.msaaTarget,
+                D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+                D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+            postResolveBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                info.resolveTarget,
+                D3D12_RESOURCE_STATE_RESOLVE_DEST,
+                GetDXTextureBarrierState(info.resolveState, 0)));
+        }
+
+        if (!postResolveBarriers.empty())
+        {
+            stream.list->ResourceBarrier(static_cast<uint32>(postResolveBarriers.size()), postResolveBarriers.data());
+        }
     }
 
     void DX12Backend::CMD_SetViewport(uint8* data, DX12CommandStream& stream)

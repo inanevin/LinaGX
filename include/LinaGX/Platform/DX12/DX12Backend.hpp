@@ -140,6 +140,14 @@ namespace LinaGX
         size_t linearAllocIndex = 0;
     };
 
+    struct DX12MSAATargetInfo
+    {
+        ID3D12Resource* msaaTarget    = nullptr;
+        ID3D12Resource* resolveTarget = nullptr;
+        DXGI_FORMAT     format        = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+        TextureState    resolveState  = TextureState::ShaderRead;
+    };
+
     struct DX12CommandStream
     {
         bool                                                    isValid            = false;
@@ -153,6 +161,7 @@ namespace LinaGX
         LINAGX_VEC<LINAGX_PAIR<uint32, DX12BoundDescriptorSet>> boundDescriptorSets;
         DX12BoundConstant                                       boundConstants;
         CommandStream*                                          streamImpl = nullptr;
+        LINAGX_VEC<DX12MSAATargetInfo>                          lastMSAATargets;
     };
 
     struct DX12PerFrameData
