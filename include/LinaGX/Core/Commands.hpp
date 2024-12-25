@@ -38,31 +38,40 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
+
     /// <summary>
     /// Defines a color render target.
     /// </summary>
     struct RenderPassColorAttachment
     {
-        LoadOp     loadOp      = LoadOp::Clear;
-        StoreOp    storeOp     = StoreOp::Store;
-        LGXVector4 clearColor  = {0, 0, 0, 1};
-        uint32     texture     = 0; // Target texture to write to.
-        uint32     viewIndex   = 0;
-        bool       isSwapchain = false;
+        LoadOp       loadOp           = LoadOp::Clear;
+        StoreOp      storeOp          = StoreOp::Store;
+        LGXVector4   clearColor       = {0, 0, 0, 1};
+        uint32       texture          = 0; // Target texture to write to.
+        uint32       resolveTexture   = 0;
+        ResolveMode  resolveMode      = ResolveMode::None;
+        TextureState resolveState     = TextureState::ShaderRead;
+        uint32       viewIndex        = 0;
+        uint32       resolveViewIndex = 0;
+        bool         isSwapchain      = false;
     };
 
     struct RenderPassDepthStencilAttachment
     {
-        bool    useDepth       = false;
-        bool    useStencil     = false;
-        uint32  texture        = 0; // Target depth-stencil texture to write to.
-        LoadOp  depthLoadOp    = LoadOp::Clear;
-        StoreOp depthStoreOp   = StoreOp::Store;
-        float   clearDepth     = 1.0f;
-        LoadOp  stencilLoadOp  = LoadOp::Clear;
-        StoreOp stencilStoreOp = StoreOp::Store;
-        uint32  clearStencil   = 0;
-        uint32  viewIndex      = 0;
+        bool         useDepth         = false;
+        bool         useStencil       = false;
+        uint32       texture          = 0; // Target depth-stencil texture to write to.
+        uint32       resolveTexture   = 0;
+        ResolveMode  resolveMode      = ResolveMode::None;
+        TextureState resolveState     = TextureState::DepthRead;
+        LoadOp       depthLoadOp      = LoadOp::Clear;
+        StoreOp      depthStoreOp     = StoreOp::Store;
+        float        clearDepth       = 1.0f;
+        LoadOp       stencilLoadOp    = LoadOp::Clear;
+        StoreOp      stencilStoreOp   = StoreOp::Store;
+        uint32       clearStencil     = 0;
+        uint32       viewIndex        = 0;
+        uint32       resolveViewIndex = 0;
     };
 
     /// <summary>

@@ -532,13 +532,13 @@ namespace LinaGX
         }
     }
 
-    VkImageLayout GetVKImageLayoutTextureBarrier(TextureBarrierState state, uint16 textureFlags)
+    VkImageLayout GetVKImageLayoutTextureBarrier(TextureState state, uint16 textureFlags)
     {
         switch (state)
         {
-        case LinaGX::TextureBarrierState::ColorAttachment:
+        case LinaGX::TextureState::ColorAttachment:
             return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        case LinaGX::TextureBarrierState::DepthStencilAttachment: {
+        case LinaGX::TextureState::DepthStencilAttachment: {
             if ((textureFlags & TextureFlags::TF_DepthTexture) && !(textureFlags & TextureFlags::TF_StencilTexture))
                 return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
             else if (!(textureFlags & TextureFlags::TF_DepthTexture) && (textureFlags & TextureFlags::TF_StencilTexture))
@@ -546,19 +546,19 @@ namespace LinaGX
             else
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
-        case LinaGX::TextureBarrierState::ShaderRead:
+        case LinaGX::TextureState::ShaderRead:
             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        case LinaGX::TextureBarrierState::DepthRead:
+        case LinaGX::TextureState::DepthRead:
             return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
-        case LinaGX::TextureBarrierState::StencilRead:
+        case LinaGX::TextureState::StencilRead:
             return VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
-        case LinaGX::TextureBarrierState::DepthStencilRead:
+        case LinaGX::TextureState::DepthStencilRead:
             return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-        case LinaGX::TextureBarrierState::Present:
+        case LinaGX::TextureState::Present:
             return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        case LinaGX::TextureBarrierState::TransferSource:
+        case LinaGX::TextureState::TransferSource:
             return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        case LinaGX::TextureBarrierState::TransferDestination:
+        case LinaGX::TextureState::TransferDestination:
             return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         default:
             return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -780,6 +780,42 @@ namespace LinaGX
         }
     }
 
+    VkSampleCountFlagBits GetVkSamples(uint32 samples)
+    {
+        if (samples == 1)
+            return VK_SAMPLE_COUNT_1_BIT;
+
+        if (samples == 2)
+            return VK_SAMPLE_COUNT_2_BIT;
+
+        if (samples == 4)
+            return VK_SAMPLE_COUNT_4_BIT;
+
+        if (samples == 8)
+            return VK_SAMPLE_COUNT_8_BIT;
+
+        if (samples == 16)
+            return VK_SAMPLE_COUNT_16_BIT;
+
+        return VK_SAMPLE_COUNT_1_BIT;
+    }
+
+    VkResolveModeFlagBits GetVkResolveMode(ResolveMode mode)
+    {
+        switch (mode)
+        {
+        case ResolveMode::None:
+            return VK_RESOLVE_MODE_NONE;
+        case ResolveMode::Average:
+            return VK_RESOLVE_MODE_AVERAGE_BIT;
+        case ResolveMode::Min:
+            return VK_RESOLVE_MODE_MIN_BIT;
+        case ResolveMode::Max:
+            return VK_RESOLVE_MODE_MAX_BIT;
+        default:
+            return VK_RESOLVE_MODE_NONE;
+        }
+    }
     static VKAPI_ATTR VkBool32 VKAPI_CALL VkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         switch (messageSeverity)
@@ -1191,8 +1227,8 @@ namespace LinaGX
         VkPipelineMultisampleStateCreateInfo msaa            = VkPipelineMultisampleStateCreateInfo{};
         msaa.sType                                           = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         msaa.pNext                                           = nullptr;
-        msaa.rasterizationSamples                            = VK_SAMPLE_COUNT_1_BIT;
-        msaa.sampleShadingEnable                             = VK_FALSE;
+        msaa.rasterizationSamples                            = GetVkSamples(shaderDesc.samples);
+        msaa.sampleShadingEnable                             = shaderDesc.enableSampleShading ? VK_TRUE : VK_FALSE;
         msaa.minSampleShading                                = 1.0f;
         msaa.pSampleMask                                     = nullptr;
         msaa.alphaToCoverageEnable                           = VK_FALSE;
@@ -1373,7 +1409,7 @@ namespace LinaGX
         imgCreateInfo.extent            = VkExtent3D{txtDesc.width, txtDesc.height, 1};
         imgCreateInfo.mipLevels         = txtDesc.mipLevels;
         imgCreateInfo.arrayLayers       = txtDesc.arrayLength;
-        imgCreateInfo.samples           = VK_SAMPLE_COUNT_1_BIT;
+        imgCreateInfo.samples           = GetVkSamples(txtDesc.samples);
         imgCreateInfo.tiling            = (txtDesc.flags & TextureFlags::TF_LinearTiling) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
         imgCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
         imgCreateInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -3208,9 +3244,9 @@ namespace LinaGX
             info.pNext              = nullptr;
             info.imageView          = imageViews[i];
             info.imageLayout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            info.resolveMode        = VK_RESOLVE_MODE_NONE;
-            info.resolveImageView   = nullptr;
-            info.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            info.resolveMode        = GetVkResolveMode(att.resolveMode);
+            info.resolveImageView   = att.resolveMode == ResolveMode::None ? nullptr : m_textures.GetItemR(att.resolveTexture).imgViews[att.resolveViewIndex];
+            info.resolveImageLayout = att.resolveMode == ResolveMode::None ? VK_IMAGE_LAYOUT_UNDEFINED : GetVKImageLayoutTextureBarrier(att.resolveState, 0);
             info.loadOp             = GetVKLoadOp(att.loadOp);
             info.storeOp            = GetVKStoreOp(att.storeOp);
             info.clearValue.color   = {att.clearColor.x, att.clearColor.y, att.clearColor.z, att.clearColor.w};
@@ -3223,9 +3259,9 @@ namespace LinaGX
         depthAttachment.pNext                     = nullptr;
         depthAttachment.imageView                 = depthStencilView;
         depthAttachment.imageLayout               = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthAttachment.resolveMode               = VK_RESOLVE_MODE_NONE;
-        depthAttachment.resolveImageView          = nullptr;
-        depthAttachment.resolveImageLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.resolveMode               = GetVkResolveMode(begin->depthStencilAttachment.resolveMode);
+        depthAttachment.resolveImageView          = begin->depthStencilAttachment.resolveMode == ResolveMode::None ? nullptr : m_textures.GetItemR(begin->depthStencilAttachment.resolveTexture).imgViews[begin->depthStencilAttachment.resolveViewIndex];
+        depthAttachment.resolveImageLayout        = begin->depthStencilAttachment.resolveMode == ResolveMode::None ? VK_IMAGE_LAYOUT_UNDEFINED : GetVKImageLayoutTextureBarrier(begin->depthStencilAttachment.resolveState, 0);
         depthAttachment.loadOp                    = GetVKLoadOp(begin->depthStencilAttachment.depthLoadOp);
         depthAttachment.storeOp                   = GetVKStoreOp(begin->depthStencilAttachment.depthStoreOp);
         depthAttachment.clearValue.depthStencil   = {begin->depthStencilAttachment.useDepth ? begin->depthStencilAttachment.clearDepth : 0.0f, begin->depthStencilAttachment.useStencil ? begin->depthStencilAttachment.clearStencil : 0};

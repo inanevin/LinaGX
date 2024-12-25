@@ -847,7 +847,6 @@ namespace LinaGX
 
                 outLayout.totalDescriptors++;
             }
-
             for (const auto& resource : resources.separate_samplers)
             {
                 const spirv_cross::SPIRType& type         = compiler.get_type(resource.type_id);

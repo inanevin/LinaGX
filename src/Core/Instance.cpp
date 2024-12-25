@@ -213,6 +213,8 @@ namespace LinaGX
 
     bool Instance::CompileShader(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout)
     {
+        outLayout.vertexInputs.clear();
+
         for (ShaderCompileData& data : compileData)
         {
             DataBlob spv = {};

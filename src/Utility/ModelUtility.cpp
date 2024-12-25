@@ -197,10 +197,12 @@ namespace LinaGX
             // Process the rest of the node.
             if (gltfNode.mesh != -1)
             {
-                const auto& tgMesh = model.meshes[gltfNode.mesh];
-                node->mesh         = outData.allMeshes[gltfNode.mesh];
-                node->mesh->node   = node;
-                node->mesh->name   = tgMesh.name;
+                const auto& tgMesh    = model.meshes[gltfNode.mesh];
+                node->mesh            = outData.allMeshes[gltfNode.mesh];
+                node->meshIndex       = gltfNode.mesh;
+                node->mesh->node      = node;
+                node->mesh->nodeIndex = static_cast<int32>(i);
+                node->mesh->name      = tgMesh.name;
 
                 if (!tgMesh.primitives.empty())
                 {
@@ -211,11 +213,11 @@ namespace LinaGX
                 uint32 primitiveIndex = 0;
                 for (const auto& tgPrimitive : tgMesh.primitives)
                 {
-
                     node->mesh->primitives[primitiveIndex] = node->mesh->primitives[0] + primitiveIndex;
                     ModelMeshPrimitive* primitive          = node->mesh->primitives[primitiveIndex];
 
-                    primitive->material = tgPrimitive.material > -1 ? outData.allMaterials[tgPrimitive.material] : nullptr;
+                    primitive->material      = tgPrimitive.material > -1 ? outData.allMaterials[tgPrimitive.material] : nullptr;
+                    primitive->materialIndex = tgPrimitive.material;
 
                     const tinygltf::Accessor&   vertexAccessor   = model.accessors[tgPrimitive.attributes.find("POSITION")->second];
                     const tinygltf::BufferView& vertexBufferView = model.bufferViews[vertexAccessor.bufferView];
@@ -244,16 +246,39 @@ namespace LinaGX
                         const tinygltf::Accessor&   indexAccessor   = model.accessors[tgPrimitive.indices];
                         const tinygltf::BufferView& indexBufferView = model.bufferViews[indexAccessor.bufferView];
                         const tinygltf::Buffer&     indexBuffer     = model.buffers[indexBufferView.buffer];
-                        LOGA((indexAccessor.type == TINYGLTF_TYPE_SCALAR && (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT || indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)), "Unsupported component type!");
+                        LOGA((indexAccessor.type == TINYGLTF_TYPE_SCALAR && (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT || indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE || indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)), "Unsupported component type!");
 
-                        primitive->indexType = indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT ? IndexType::Uint16 : IndexType::Uint32;
+                        primitive->indexType = (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT || indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) ? IndexType::Uint16 : IndexType::Uint32;
 
                         const size_t numIndices = indexAccessor.count;
 
-                        const size_t indexSz = primitive->indexType == IndexType::Uint16 ? sizeof(uint16) : sizeof(uint32);
-                        const size_t stride  = indexBufferView.byteStride == 0 ? indexSz : indexBufferView.byteStride;
-                        primitive->indices.resize(numIndices * (stride));
-                        std::memcpy(primitive->indices.data(), &indexBuffer.data[indexAccessor.byteOffset + indexBufferView.byteOffset], numIndices * indexSz);
+                        if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+                        {
+                            LINAGX_VEC<uint16> converted;
+
+                            uint8* data = (uint8*)&indexBuffer.data[indexAccessor.byteOffset + indexBufferView.byteOffset];
+                            for (size_t i = 0; i < numIndices; i++)
+                                converted.push_back(static_cast<uint16>(data[i]));
+
+                            const size_t indexSz = sizeof(uint16);
+                            const size_t stride  = indexBufferView.byteStride == 0 ? indexSz : indexBufferView.byteStride;
+                            primitive->indices.resize(numIndices * (stride));
+                            std::memcpy(primitive->indices.data(), converted.data(), numIndices * indexSz);
+                        }
+                        else if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                        {
+                            const size_t indexSz = sizeof(uint16);
+                            const size_t stride  = indexBufferView.byteStride == 0 ? indexSz : indexBufferView.byteStride;
+                            primitive->indices.resize(numIndices * (stride));
+                            std::memcpy(primitive->indices.data(), &indexBuffer.data[indexAccessor.byteOffset + indexBufferView.byteOffset], numIndices * indexSz);
+                        }
+                        else
+                        {
+                            const size_t indexSz = sizeof(uint32);
+                            const size_t stride  = indexBufferView.byteStride == 0 ? indexSz : indexBufferView.byteStride;
+                            primitive->indices.resize(numIndices * (stride));
+                            std::memcpy(primitive->indices.data(), &indexBuffer.data[indexAccessor.byteOffset + indexBufferView.byteOffset], numIndices * indexSz);
+                        }
                     }
 
                     auto normalsAttribute = tgPrimitive.attributes.find("NORMAL");
@@ -500,7 +525,15 @@ namespace LinaGX
 
                     const size_t inputCount  = inputAccessor.count;
                     const size_t outputCount = outputAccessor.count;
-                    LOGA(inputCount == outputCount, "Input & output counts do not match!");
+
+                    if (channel.interpolation == GLTFInterpolation::CubicSpline)
+                    {
+                        LOGA(outputCount == inputCount * 3, "Output count mismatch for CubicSpline!");
+                    }
+                    else
+                    {
+                        LOGA(inputCount == outputCount, "Input & output counts do not match!");
+                    }
 
                     channel.keyframeTimes.resize(inputCount);
 
@@ -511,29 +544,112 @@ namespace LinaGX
                         channel.keyframeTimes[j]  = rawFloatData[0];
                     }
 
-                    anim->duration = Max(anim->duration, channel.keyframeTimes[channel.keyframeTimes.size() - 1]);
-
+                    anim->duration            = Max(anim->duration, channel.keyframeTimes[channel.keyframeTimes.size() - 1]);
                     const float* rawFloatData = reinterpret_cast<const float*>(outputBuffer.data.data() + outputAccessor.byteOffset + outputView.byteOffset);
 
                     // TODO
-                    const uint32 numMorphTargets = 1;
+                    const size_t numMorphTargets = 1;
 
-                    switch (channel.targetProperty)
+                    if (channel.interpolation == GLTFInterpolation::CubicSpline)
                     {
-                    case GLTFAnimationProperty::Position:
-                    case GLTFAnimationProperty::Scale:
-                        channel.values.assign(rawFloatData, rawFloatData + outputCount * 3);
-                        break;
-                    case GLTFAnimationProperty::Rotation:
-                        channel.values.assign(rawFloatData, rawFloatData + outputCount * 4);
-                        break;
-                    case GLTFAnimationProperty::Weights:
-                        channel.values.assign(rawFloatData, rawFloatData + outputCount * numMorphTargets);
-                        break;
-                    default:
-                        // Handle error
-                        break;
+                        for (size_t j = 0; j < inputCount; j++)
+                        {
+                            switch (channel.targetProperty)
+                            {
+                            case GLTFAnimationProperty::Position:
+                            case GLTFAnimationProperty::Scale: {
+                                size_t base = j * 9;
+
+                                channel.inTangents.push_back(rawFloatData[base]);
+                                channel.inTangents.push_back(rawFloatData[base + 1]);
+                                channel.inTangents.push_back(rawFloatData[base + 2]);
+
+                                channel.values.push_back(rawFloatData[base + 3]);
+                                channel.values.push_back(rawFloatData[base + 4]);
+                                channel.values.push_back(rawFloatData[base + 5]);
+
+                                channel.outTangents.push_back(rawFloatData[base + 6]);
+                                channel.outTangents.push_back(rawFloatData[base + 7]);
+                                channel.outTangents.push_back(rawFloatData[base + 8]);
+
+                                break;
+                            }
+                            case GLTFAnimationProperty::Rotation: {
+
+                                size_t base = j * 12;
+
+                                channel.inTangents.push_back(rawFloatData[base]);
+                                channel.inTangents.push_back(rawFloatData[base + 1]);
+                                channel.inTangents.push_back(rawFloatData[base + 2]);
+                                channel.inTangents.push_back(rawFloatData[base + 3]);
+
+                                channel.values.push_back(rawFloatData[base + 4]);
+                                channel.values.push_back(rawFloatData[base + 5]);
+                                channel.values.push_back(rawFloatData[base + 6]);
+                                channel.values.push_back(rawFloatData[base + 7]);
+
+                                channel.outTangents.push_back(rawFloatData[base + 8]);
+                                channel.outTangents.push_back(rawFloatData[base + 9]);
+                                channel.outTangents.push_back(rawFloatData[base + 10]);
+                                channel.outTangents.push_back(rawFloatData[base + 11]);
+
+                                break;
+                            }
+                            case GLTFAnimationProperty::Weights: {
+                                // TODO:
+                                break;
+                            }
+                            default:
+                                break;
+                            }
+                        }
                     }
+                    else
+                    {
+                        for (size_t j = 0; j < inputCount; j++)
+                        {
+                            switch (channel.targetProperty)
+                            {
+                            case GLTFAnimationProperty::Position:
+                            case GLTFAnimationProperty::Scale:
+                                channel.values.push_back(rawFloatData[j * 3]);
+                                channel.values.push_back(rawFloatData[j * 3 + 1]);
+                                channel.values.push_back(rawFloatData[j * 3 + 2]);
+                                break;
+                            case GLTFAnimationProperty::Rotation:
+                                channel.values.push_back(rawFloatData[j * 4]);
+                                channel.values.push_back(rawFloatData[j * 4 + 1]);
+                                channel.values.push_back(rawFloatData[j * 4 + 2]);
+                                channel.values.push_back(rawFloatData[j * 4 + 3]);
+                                break;
+                            case GLTFAnimationProperty::Weights: {
+                                channel.values.push_back(rawFloatData[j * numMorphTargets]);
+                                break;
+                            }
+                            default:
+                                break;
+                            }
+                        }
+                    }
+
+                    /*
+                   switch (channel.targetProperty)
+                        {
+                        case GLTFAnimationProperty::Position:
+                        case GLTFAnimationProperty::Scale:
+                            channel.values.assign(rawFloatData, rawFloatData + outputCount * 3);
+                            break;
+                        case GLTFAnimationProperty::Rotation:
+                            channel.values.assign(rawFloatData, rawFloatData + outputCount * 4);
+                            break;
+                        case GLTFAnimationProperty::Weights:
+                            channel.values.assign(rawFloatData, rawFloatData + outputCount * numMorphTargets);
+                            break;
+                        default:
+                            // Handle error
+                            break;
+                        }
+                        */
                 }
             }
         }

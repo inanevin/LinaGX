@@ -69,7 +69,8 @@ namespace LinaGX
 
     struct ModelMeshPrimitive
     {
-        ModelMaterial* material = nullptr;
+        ModelMaterial* material      = nullptr;
+        int32          materialIndex = -1;
 
         LINAGX_VEC<LGXVector2>     texCoords;
         LINAGX_VEC<LGXVector3>     positions;
@@ -80,10 +81,10 @@ namespace LinaGX
         LINAGX_VEC<LGXVector4ui16> jointsui16; // either jointsui8 or jointsui16 will be filled.
         LINAGX_VEC<LGXVector4ui8>  jointsui8;  // either jointsui8 or jointsui16 will be filled.
         LINAGX_VEC<LGXVector4>     weights;
-        uint32                     vertexCount = 0;
-        IndexType                  indexType   = IndexType::Uint16;
-        LGXVector3                 minPosition = LGXVector3();
-        LGXVector3                 maxPosition = LGXVector3();
+        uint32                     vertexCount   = 0;
+        IndexType                  indexType     = IndexType::Uint16;
+        LGXVector3                 minPosition   = LGXVector3();
+        LGXVector3                 maxPosition   = LGXVector3();
 
         inline void Clear()
         {
@@ -104,8 +105,9 @@ namespace LinaGX
     struct ModelMesh
     {
         LINAGX_VEC<ModelMeshPrimitive*> primitives;
-        ModelNode*                      node = nullptr;
-        LINAGX_STRING                   name = "";
+        ModelNode*                      node      = nullptr;
+        int32                           nodeIndex = -1;
+        LINAGX_STRING                   name      = "";
 
         ~ModelMesh()
         {
@@ -150,11 +152,12 @@ namespace LinaGX
     struct ModelNode
     {
     public:
-        uint32                 index  = 0;
-        ModelMesh*             mesh   = nullptr;
-        ModelSkin*             skin   = nullptr;
-        ModelNode*             parent = nullptr;
-        LINAGX_STRING          name   = "";
+        uint32                 index     = 0;
+        int32                  meshIndex = -1;
+        ModelMesh*             mesh      = nullptr;
+        ModelSkin*             skin      = nullptr;
+        ModelNode*             parent    = nullptr;
+        LINAGX_STRING          name      = "";
         LINAGX_VEC<ModelNode*> children;
         LINAGX_VEC<float>      localMatrix; // Either localMatrix will be non-empty, or position-scale-quatRot parameters will be filled.
         LINAGX_VEC<float>      inverseBindMatrix;
@@ -186,6 +189,8 @@ namespace LinaGX
         ModelNode*            targetNode     = nullptr;
         LINAGX_VEC<float>     keyframeTimes  = {};
         LINAGX_VEC<float>     values         = {};
+        LINAGX_VEC<float>     inTangents     = {};
+        LINAGX_VEC<float>     outTangents    = {};
     };
 
     struct ModelAnimation

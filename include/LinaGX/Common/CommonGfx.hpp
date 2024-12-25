@@ -43,6 +43,13 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
+    enum class ResolveMode
+    {
+        None,
+        Average,
+        Min,
+        Max
+    };
 
     enum class ShaderStage
     {
@@ -318,7 +325,7 @@ namespace LinaGX
         AF_MemoryWrite                 = 0x00010000,
     };
 
-    enum class TextureBarrierState
+    enum class TextureState
     {
         ColorAttachment,
         DepthStencilAttachment,
@@ -491,7 +498,7 @@ namespace LinaGX
     {
         uint32              texture;
         bool                isSwapchain;
-        TextureBarrierState toState;
+        TextureState toState;
         uint32              srcAccessFlags;
         uint32              dstAccessFlags;
     };
@@ -650,6 +657,8 @@ namespace LinaGX
         CullMode                           cullMode                = CullMode::None;
         FrontFace                          frontFace               = FrontFace::CW;
         Topology                           topology                = Topology::TriangleList;
+        uint32                             samples                 = 1;
+        bool                               enableSampleShading     = false;
         bool                               blendLogicOpEnabled     = false;
         LogicOp                            blendLogicOp            = LogicOp::Copy;
         bool                               depthBiasEnable         = false;
@@ -684,6 +693,7 @@ namespace LinaGX
         uint32               height                   = 0;
         uint32               mipLevels                = 1;
         uint32               arrayLength              = 1;
+        uint32               samples                  = 1;
         const char*          debugName                = "LinaGXTexture";
     };
 
