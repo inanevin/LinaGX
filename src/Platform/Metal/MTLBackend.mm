@@ -972,6 +972,8 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
             LOGA(false, "Unsupported stage!!");
         }
     }
+
+    pipelineDescriptor.sampleCount = shaderDesc.samples;
     
     // Debug
     NAME_OBJ_CSTR(pipelineDescriptor, shaderDesc.debugName);
@@ -1073,7 +1075,7 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
     if(desc.type == TextureType::Texture1D)
         textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType1D : MTLTextureType1DArray;
     else if(desc.type == TextureType::Texture2D)
-        textureDescriptor.textureType = desc.arrayLength == 1 ? MTLTextureType2D : MTLTextureType2DArray;
+        textureDescriptor.textureType = desc.arrayLength == 1 ? (desc.samples > 1 ? MTLTextureType2DMultisample : MTLTextureType2D) : (desc.samples > 1 ? MTLTextureType2DMultisampleArray : MTLTextureType2DArray);
     else if(desc.type == TextureType::Texture3D)
         textureDescriptor.textureType = MTLTextureType3D;
 
@@ -2386,6 +2388,14 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
             LOGE("Backend -> Texture being used as a depth attachment does not have TF_DepthTexture flag!");
         }
 
+         if(begin->depthStencilAttachment.resolveMode != ResolveMode::None)
+        {
+            const auto& resolveTxt = m_textures.GetItemR(begin->depthStencilAttachment.resolveTexture);
+            id<MTLTexture> resTxt = AS_MTL(resolveTxt.views[begin->depthStencilAttachment.resolveIndex], id<MTLTexture>);
+            passDescriptor.depthAttachment.storeAction = MTLStoreActionMultisampleResolve;
+            passdescriptor.depthAttachment.resolveTexture = resTxt;
+        }
+
     }
 
     if(begin->depthStencilAttachment.useStencil)
@@ -2416,6 +2426,15 @@ void MTLBackend::CMD_BeginRenderPass(uint8 *data, MTLCommandStream &stream) {
         const auto& att = begin->colorAttachments[i];
         passDescriptor.colorAttachments[i].loadAction = GetMTLLoadOp(att.loadOp);
         passDescriptor.colorAttachments[i].storeAction = GetMTLStoreOp(att.storeOp);
+
+        if(att.resolveMode != ResolveMode::None)
+        {
+            const auto& resolveTxt = m_textures.GetItemR(att.resolveTexture);
+            id<MTLTexture> resTxt = AS_MTL(resolveTxt.views[att.resolveIndex], id<MTLTexture>);
+            passDescriptor.colorAttachments[i].storeAction = MTLStoreActionMultisampleResolve;
+            passdescriptor.colorAttachments[i].resolveTexture = resTxt;
+        }
+
         passDescriptor.colorAttachments[i].clearColor = MTLClearColorMake(att.clearColor.x, att.clearColor.y, att.clearColor.z, att.clearColor.w);
         // passDescriptor.colorAttachments[i].slice = att.layer;
         if(att.isSwapchain)
