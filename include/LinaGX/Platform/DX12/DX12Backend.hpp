@@ -146,6 +146,7 @@ namespace LinaGX
         ID3D12Resource* resolveTarget = nullptr;
         DXGI_FORMAT     format        = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
         TextureState    resolveState  = TextureState::ShaderRead;
+        uint32          resolveView   = 0;
     };
 
     struct DX12CommandStream

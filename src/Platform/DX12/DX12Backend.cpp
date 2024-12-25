@@ -3313,6 +3313,7 @@ namespace LinaGX
                         resolveRes,
                         resolveTxt.format,
                         att.resolveState,
+                        att.resolveViewIndex,
                     });
                 }
             }
@@ -3386,7 +3387,7 @@ namespace LinaGX
         // Resolve MSAA, transit msaa targets back to render target, and resolve targets to their preferred after-resolve state.
         for (const DX12MSAATargetInfo& info : stream.lastMSAATargets)
         {
-            stream.list->ResolveSubresource(info.resolveTarget, 0, info.msaaTarget, 0, info.format);
+            stream.list->ResolveSubresource(info.resolveTarget, info.resolveView, info.msaaTarget, 0, info.format);
 
             postResolveBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 info.msaaTarget,
