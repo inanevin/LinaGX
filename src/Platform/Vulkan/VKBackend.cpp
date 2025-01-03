@@ -2366,10 +2366,12 @@ namespace LinaGX
         LINAGX_VEC<const char*> requiredExtensions;
         requiredExtensions.push_back("VK_KHR_surface");
         requiredExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-        requiredExtensions.push_back("VK_EXT_validation_features");
 
         if (Config.enableAPIDebugLayers)
+        {
+        requiredExtensions.push_back("VK_EXT_validation_features");
             requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
 
         // Instance builder
         vkb::InstanceBuilder builder;
