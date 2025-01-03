@@ -3319,6 +3319,23 @@ namespace LinaGX
             }
         }
 
+        if (begin->depthStencilAttachment.useDepth)
+        {
+            auto& depth = m_textures.GetItemR(begin->depthStencilAttachment.texture);
+
+            if (depth.state != D3D12_RESOURCE_STATE_DEPTH_WRITE)
+            {
+                auto res = depth.rawRes.Get() != nullptr ? depth.rawRes.Get() : depth.allocation->GetResource();
+
+                D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                    res,
+                    depth.state,
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE);
+                msaaBarriers.push_back(barrier);
+                depth.state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+            }
+        }
+
         if (!msaaBarriers.empty())
             stream.list->ResourceBarrier(static_cast<uint32>(msaaBarriers.size()), msaaBarriers.data());
 
@@ -3348,8 +3365,8 @@ namespace LinaGX
         interVP.y              = begin->viewport.x;
         interVP.width          = begin->viewport.width;
         interVP.height         = begin->viewport.height;
-        interVP.minDepth       = 0.0f;
-        interVP.maxDepth       = 1.0f;
+        interVP.minDepth       = begin->viewport.minDepth;
+        interVP.maxDepth       = begin->viewport.maxDepth;
         interSC.x              = begin->scissors.x;
         interSC.y              = begin->scissors.y;
         interSC.width          = begin->scissors.width;
@@ -3397,7 +3414,7 @@ namespace LinaGX
             postResolveBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 info.resolveTarget,
                 D3D12_RESOURCE_STATE_RESOLVE_DEST,
-                GetDXTextureBarrierState(info.resolveState, 0)));
+                D3D12_RESOURCE_STATE_RENDER_TARGET));
         }
 
         if (!postResolveBarriers.empty())
