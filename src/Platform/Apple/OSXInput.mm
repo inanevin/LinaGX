@@ -194,6 +194,16 @@ namespace
         return keyState == 0 && m_prevMouseStates[button] == 1;
     }
 
+    void Input::SetMousePosition(const LGXVector2i& mp)
+    {
+        CGPoint point;
+        point.x = static_cast<float>(mp.x);
+        point.y = static_cast<float>(mp.y);
+        CGWarpMouseCursorPosition(point);
+        m_currentMousePositionAbs.x = static_cast<float>(mp.x);
+        m_currentMousePositionAbs.y = static_cast<float>(mp.y);
+        m_previousMousePosition     = m_currentMousePositionAbs;
+    }
     void Input::Tick()
     {
         int32 mdx = 0, mdy = 0;

@@ -181,9 +181,16 @@ namespace LinaGX
         return keyState == 0 && m_previousStates[button] == 1;
     }
 
+    void Input::SetMousePosition(const LGXVector2i& mp)
+    {
+        SetCursorPos(mp.x, mp.y);
+        m_currentMousePositionAbs.x = static_cast<float>(mp.x);
+        m_currentMousePositionAbs.y = static_cast<float>(mp.y);
+        m_previousMousePosition     = m_currentMousePositionAbs;
+    }
+
     void Input::Tick()
     {
-
         POINT point;
         GetCursorPos(&point);
         m_previousMousePosition     = m_currentMousePositionAbs;

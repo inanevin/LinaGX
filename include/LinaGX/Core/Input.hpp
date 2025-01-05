@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -58,12 +58,12 @@ namespace LinaGX
         /// Fills character info, wide-character representation of the keycode and 16 bit unsigned integer representing LinaGX::CharacterMask.
         /// </summary>
         void GetCharacterInfoFromKeycode(uint32 keycode, wchar_t& outWChar, uint16& outMask);
-     
+
         /// <summary>
         /// This is NOT only CTRL keys, it's all "control" keys, e.g. CTRLs, ALTs, TAB and CAPSLOCK.
         /// </summary>
         bool IsControlPressed();
-        
+
         /// <summary>
         /// True if given key is pressed.
         /// </summary>
@@ -94,6 +94,8 @@ namespace LinaGX
         /// </summary>
         bool GetMouseButtonUp(int button);
 
+        void SetMousePosition(const LGXVector2i& mp);
+
         /// <summary>
         /// Absolute mouse position across all monitors, OS-space.
         /// </summary>
@@ -122,10 +124,10 @@ namespace LinaGX
         {
             m_listeners.push_back(listener);
         }
-        
+
         inline void RemoveListener(InputListener* listener)
         {
-            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool {return list == listener;});
+            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool {  return list == listener; });
             m_listeners.erase(it);
         }
 
@@ -152,21 +154,20 @@ namespace LinaGX
         void WindowFeedDelta(int32 deltaX, int32 deltaY);
 
     private:
-       
-        bool        m_appActive                         = true;
-        LGXVector2  m_currentMousePositionAbs           = {0, 0};
-        LGXVector2  m_previousMousePosition             = {0, 0};
-        LGXVector2  m_mouseDelta                        = {0, 0};
-        float       m_mouseScroll                       = 0.0f;
-    
-        LGXVector2  m_mousePosTrackingClick             = {};
+        bool       m_appActive               = true;
+        LGXVector2 m_currentMousePositionAbs = {0, 0};
+        LGXVector2 m_previousMousePosition   = {0, 0};
+        LGXVector2 m_mouseDelta              = {0, 0};
+        float      m_mouseScroll             = 0.0f;
+
+        LGXVector2 m_mousePosTrackingClick = {};
 
         bool m_currentMouseStates[NUM_MOUSE_STATES];
         bool m_prevMouseStates[NUM_MOUSE_STATES];
-        bool        m_currentStates[NUM_KEY_STATES]                = {0};
-        bool        m_previousStates[NUM_KEY_STATES]               = {0};
-       
-        bool                     m_receivedDelta = false;
+        bool m_currentStates[NUM_KEY_STATES]  = {0};
+        bool m_previousStates[NUM_KEY_STATES] = {0};
+
+        bool                       m_receivedDelta = false;
         LINAGX_VEC<InputListener*> m_listeners;
     };
 } // namespace LinaGX

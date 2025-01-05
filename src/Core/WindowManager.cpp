@@ -118,6 +118,29 @@ namespace LinaGX
         {
             w->SetLastMouseDelta(m_input->GetMouseDelta());
             w->Tick();
+
+            if (w->GetWrapMouse())
+            {
+                const MonitorInfo& mi = w->GetMonitorInfoFromWindow();
+                const LGXVector2   mp = m_input->GetMousePositionAbs();
+
+                if (mp.x > mi.workTopLeft.x + mi.workSize.x - 5)
+                {
+                    m_input->SetMousePosition({mi.workTopLeft.x + 6, static_cast<int>(mp.y)});
+                }
+                else if (mp.x < mi.workTopLeft.x + 5)
+                {
+                    m_input->SetMousePosition({mi.workTopLeft.x + static_cast<int>(mi.workSize.x) - 6, static_cast<int>(mp.y)});
+                }
+                else if (mp.y > mi.workTopLeft.y + mi.workSize.y - 5)
+                {
+                    m_input->SetMousePosition({static_cast<int>(mp.x), mi.workTopLeft.y + 6});
+                }
+                else if (mp.y < mi.workTopLeft.y + 5)
+                {
+                    m_input->SetMousePosition({static_cast<int>(mp.x), mi.workTopLeft.y + static_cast<int>(mi.workSize.y) - 6});
+                }
+            }
         }
     }
 

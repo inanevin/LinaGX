@@ -312,6 +312,16 @@ namespace LinaGX
             return m_lastMouseDeltaRelative;
         }
 
+        inline void SetWrapMouse(bool wrap)
+        {
+            m_wrapMouse = wrap;
+        }
+
+        inline bool GetWrapMouse() const
+        {
+            return m_wrapMouse;
+        }
+
     protected:
         friend class WindowManager;
         Window(Input* input, WindowManager* wm)
@@ -363,6 +373,7 @@ namespace LinaGX
         LINAGX_VEC<WindowListener*> m_listeners;
         LGXVector2                  m_lastMouseDelta         = {};
         LGXVector2                  m_lastMouseDeltaRelative = {};
+        bool                        m_wrapMouse              = false;
     };
 
 } // namespace LinaGX
