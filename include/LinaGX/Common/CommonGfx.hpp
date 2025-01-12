@@ -571,6 +571,7 @@ namespace LinaGX
         void*      osHandle     = nullptr; // HINSTANCE handle on Windows, NSVIEW handle on MacOS.
         bool       isFullscreen = false;
         VSyncStyle vsyncStyle   = {};
+        float scalingFactor = 1.0f;
     };
 
     struct SwapchainRecreateDesc
@@ -580,6 +581,7 @@ namespace LinaGX
         uint32     height       = 0;
         bool       isFullscreen = false;
         VSyncStyle vsyncStyle   = {};
+        float scalingFactor = 1.0f;
     };
 
     struct CommandStreamDesc
