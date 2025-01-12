@@ -217,7 +217,7 @@ namespace LinaGX
         [wndContent setMouseCallback:mouseCallback];
         [wndContent setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         [wnd setContentView:wndContent];
-
+       
         // Window events.
         [wnd setKeyCallback:keyCallback];
         [wnd setMouseEnteredCallback:mouseEnteredCallback];
@@ -513,11 +513,12 @@ namespace LinaGX
         CGSize displayPhysicalSize = CGDisplayScreenSize(displayID); // in millimeters
         
         CGFloat scaleFactor = [currentScreen backingScaleFactor];
-        CGRect screenFrame = [currentScreen frame];
+        NSSize displayPixelSize = [[description objectForKey:NSDeviceSize] sizeValue];
         
-        CGFloat dpi = ceil((screenFrame.size.width * scaleFactor) / (displayPhysicalSize.width / 25.4)); // convert mm to inches
-        m_dpi = dpi * scaleFactor;
+        CGFloat dpi = (displayPixelSize.width / displayPhysicalSize.width) * 25.4f;
+        m_dpi = dpi;
         m_dpiScale = scaleFactor;
+        
     }
 
    
@@ -536,12 +537,22 @@ namespace{
         info.workSize.y = visibleFrame.size.height;
         info.workTopLeft.x = visibleFrame.origin.x;
         info.workTopLeft.y = topBarHeight;
+    
+        NSDictionary *description = [screen deviceDescription];
+        NSNumber *screenID = [description objectForKey:@"NSScreenNumber"];
         
-        CGFloat dpi = 72.0 * [screen backingScaleFactor];
+        CGDirectDisplayID displayID = (CGDirectDisplayID)[screenID longValue];
+        CGSize displayPhysicalSize = CGDisplayScreenSize(displayID); // in millimeters
+        
+        CGFloat scaleFactor = [screen backingScaleFactor];
+        NSSize displayPixelSize = [[description objectForKey:NSDeviceSize] sizeValue];
+        
+        CGFloat dpi = (displayPixelSize.width / displayPhysicalSize.width) * 25.4f;
+        
         info.dpi = dpi;
-        info.dpiScale = [screen backingScaleFactor];
-        
+        info.dpiScale = scaleFactor;
         info.isPrimary = (screen == [[NSScreen screens] objectAtIndex:0]);
+
         return info;
     }
 }

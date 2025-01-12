@@ -152,6 +152,7 @@ namespace LinaGX
         void*        ptr      = nullptr;
         ResourceHeap heapType = ResourceHeap::StagingHeap;
         size_t       size     = 0;
+        LINAGX_STRING debugName = "";
     };
 
     struct MTLUserSemaphore

@@ -191,6 +191,7 @@ namespace LinaGX
         {
         case WM_DISPLAYCHANGE: {
             win32Window->CalculateMonitorInfo();
+            win32Window->OnDPIChanged(GetDpiForWindow(win32Window->m_hwnd));
             break;
         }
         case WM_NCACTIVATE: {
@@ -277,8 +278,8 @@ namespace LinaGX
         }
         case WM_DPICHANGED: {
             const uint32 dpi = (uint32)LOWORD(wParam);
-            win32Window->OnDPIChanged(dpi);
             win32Window->CalculateMonitorInfo();
+            win32Window->OnDPIChanged(dpi);
             break;
         }
         case WM_ACTIVATEAPP: {
@@ -561,12 +562,11 @@ namespace LinaGX
         m_size.y      = static_cast<uint32>(height);
         m_title       = title;
         m_style       = style;
-        m_dpi         = GetDpiForWindow(m_hwnd);
-        m_dpiScale    = m_dpi / 96.0f;
         m_restoreSize = m_trueSize;
         m_restorePos  = m_position;
         m_isVisible   = true;
         CalculateMonitorInfo();
+        OnDPIChanged(GetDpiForWindow(m_hwnd));
         SetFocus(m_hwnd);
         BringToFront();
         SetStyle(style);
@@ -705,6 +705,7 @@ namespace LinaGX
             info.monitorHandle = static_cast<void*>(monitor);
             info.dpi           = dpiX;
             info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
+     
             return info;
         }
     } // namespace
