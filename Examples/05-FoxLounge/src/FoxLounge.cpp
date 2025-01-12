@@ -1645,8 +1645,8 @@ namespace LinaGX::Examples
     {
         auto& pfd = m_pfd[frameIndex];
 
-        if (static_cast<uint32>(pfd.boundShader) == target)
-            return;
+       // if (static_cast<uint32>(pfd.boundShader) == target)
+       //     return;
 
         LinaGX::CMDBindPipeline* pipeline = pfd.graphicsStream->AddCommand<LinaGX::CMDBindPipeline>();
         pipeline->shader                  = m_shaders[target];
@@ -1980,7 +1980,6 @@ namespace LinaGX::Examples
                 EndPass(frame);
             }
 
-            BindShader(frame, Shader::SH_Prefilter);
 
             for (uint32 mip = 0; mip < PREFILTER_MIP_LEVELS; mip++)
             {
@@ -1994,6 +1993,7 @@ namespace LinaGX::Examples
                     const uint32 camDataPadded = Utility::GetPaddedItemSize(sizeof(GPUCameraData), static_cast<uint32>(GPUInfo.minConstantBufferOffsetAlignment));
                     BindPassSet(frame, PipelineLayoutType::PL_Irradiance, m_passes[PS_Prefilter].descriptorSets[frame], camDataPadded + camDataPadded * i, true);
                     BeginPass(frame, PassType::PS_Prefilter, mipWidth, mipHeight, i * PREFILTER_MIP_LEVELS + mip);
+                    BindShader(frame, Shader::SH_Prefilter);
                     DrawCube(frame);
                     EndPass(frame);
                 }
