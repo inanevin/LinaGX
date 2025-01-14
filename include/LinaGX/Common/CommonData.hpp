@@ -114,7 +114,7 @@ namespace LinaGX
 #endif
 
 #ifndef LINAGX_STRINGID
-#define LINAGX_STRINGID uint64_t
+#define LINAGX_STRINGID uint32_t
 #endif
 
 #ifndef LINAGX_TYPEID

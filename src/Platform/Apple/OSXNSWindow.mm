@@ -97,34 +97,34 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (void)mouseDown:(NSEvent *)event
 {
-    mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
+    mouseCallback(static_cast<int>(event.buttonNumber),LinaGX::InputAction::Pressed);
     [super mouseDown:event];
 }
 
 - (void)mouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), theEvent.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Released);
     [super mouseUp:theEvent];
 }
 
 - (void)rightMouseDown:(NSEvent *)event
 {
-    mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
+    mouseCallback(static_cast<int>(event.buttonNumber),  LinaGX::InputAction::Pressed);
     [super rightMouseDown:event];
 }
 
 - (void)rightMouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), theEvent.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Released);
     [super rightMouseUp:theEvent];
 }
 
 - (void)otherMouseDown:(NSEvent *)event
 {
-    mouseCallback(static_cast<int>(event.buttonNumber), event.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Pressed);
+    mouseCallback(static_cast<int>(event.buttonNumber),  LinaGX::InputAction::Pressed);
     [super otherMouseDown:event];
 }
 
 - (void)otherMouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), theEvent.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Released);
     [super otherMouseUp:theEvent];
 }
 
@@ -293,6 +293,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 - (BOOL)canBecomeKeyWindow {
     return YES;
 }
+
+
 
 @end
 

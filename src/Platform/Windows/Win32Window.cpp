@@ -242,7 +242,7 @@ namespace LinaGX
             {
                 for (auto* l : win32Window->m_listeners)
                     l->OnWindowFocus(win32Window, false);
-                win32Window->m_manager->SetWindowFocused(win32Window);
+                // win32Window->m_manager->SetWindowFocused(win32Window);
                 win32Window->m_hasFocus = false;
             }
 
@@ -401,54 +401,55 @@ namespace LinaGX
         }
         case WM_LBUTTONDOWN: {
 
-            static std::chrono::steady_clock::time_point lastTime   = {};
-            static LGXVector2                            lastPos    = {};
-            const LGXVector2                             currentPos = win32Window->m_mousePosition;
-            auto                                         current    = std::chrono::high_resolution_clock::now();
-            auto                                         elapsed    = std::chrono::duration_cast<std::chrono::nanoseconds>(current - lastTime);
-            lastTime                                                = current;
-            bool repeated                                           = elapsed.count() < 250000000;
-
-            if (repeated)
-            {
-                if (std::abs(lastPos.x - currentPos.x) + std::abs(lastPos.y - currentPos.y) > 1.0f)
-                    repeated = false;
-            }
-            lastPos = currentPos;
-
-            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed, win32Window);
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Pressed, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
+                l->OnWindowMouse(win32Window, VK_LBUTTON, InputAction::Pressed);
 
             break;
         }
         case WM_RBUTTONDOWN: {
 
-            static std::chrono::steady_clock::time_point lastTime   = {};
-            static LGXVector2                            lastPos    = {};
-            const LGXVector2                             currentPos = win32Window->m_mousePosition;
-            auto                                         current    = std::chrono::high_resolution_clock::now();
-            auto                                         elapsed    = std::chrono::duration_cast<std::chrono::nanoseconds>(current - lastTime);
-            lastTime                                                = current;
-            bool repeated                                           = elapsed.count() < 250000000;
-
-            if (repeated)
-            {
-                if (std::abs(lastPos.x - currentPos.x) + std::abs(lastPos.y - currentPos.y) > 1.0f)
-                    repeated = false;
-            }
-            lastPos = currentPos;
-
-            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed, win32Window);
+            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Pressed, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_RBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
+                l->OnWindowMouse(win32Window, VK_RBUTTON, InputAction::Pressed);
 
             break;
         }
         case WM_MBUTTONDOWN: {
 
+            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Pressed, win32Window);
+
+            for (auto* l : win32Window->m_listeners)
+                l->OnWindowMouse(win32Window, VK_MBUTTON, InputAction::Pressed);
+            break;
+        }
+        case WM_LBUTTONUP: {
+
+            static std::chrono::steady_clock::time_point lastTime   = {};
+            static LGXVector2                            lastPos    = {};
+            const LGXVector2                             currentPos = win32Window->m_mousePosition;
+            auto                                         current    = std::chrono::high_resolution_clock::now();
+            auto                                         elapsed    = std::chrono::duration_cast<std::chrono::nanoseconds>(current - lastTime);
+            lastTime                                                = current;
+            bool repeated                                           = elapsed.count() < 250000000;
+
+            if (repeated)
+            {
+                if (std::abs(lastPos.x - currentPos.x) + std::abs(lastPos.y - currentPos.y) > 1.0f)
+                    repeated = false;
+            }
+            lastPos = currentPos;
+            
+            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Released, win32Window);
+
+            for (auto* l : win32Window->m_listeners)
+                l->OnWindowMouse(win32Window, VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Released);
+            break;
+        }
+        case WM_RBUTTONUP: {
+            
             static std::chrono::steady_clock::time_point lastTime   = {};
             static LGXVector2                            lastPos    = {};
             const LGXVector2                             currentPos = win32Window->m_mousePosition;
@@ -464,34 +465,33 @@ namespace LinaGX
             }
             lastPos = currentPos;
 
-            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed, win32Window);
+            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, repeated ? InputAction::Repeated : InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_MBUTTON, repeated ? InputAction::Repeated : InputAction::Pressed);
-            break;
-        }
-        case WM_LBUTTONUP: {
-
-            win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, InputAction::Released, win32Window);
-
-            for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_LBUTTON, InputAction::Released);
-            break;
-        }
-        case WM_RBUTTONUP: {
-
-            win32Window->m_input->WindowFeedMouseButton(VK_RBUTTON, InputAction::Released, win32Window);
-
-            for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_RBUTTON, InputAction::Released);
+                l->OnWindowMouse(win32Window, VK_RBUTTON, repeated ? InputAction::Repeated : InputAction::Released);
             break;
         }
         case WM_MBUTTONUP: {
+            
+            static std::chrono::steady_clock::time_point lastTime   = {};
+            static LGXVector2                            lastPos    = {};
+            const LGXVector2                             currentPos = win32Window->m_mousePosition;
+            auto                                         current    = std::chrono::high_resolution_clock::now();
+            auto                                         elapsed    = std::chrono::duration_cast<std::chrono::nanoseconds>(current - lastTime);
+            lastTime                                                = current;
+            bool repeated                                           = elapsed.count() < 250000000;
 
-            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, InputAction::Released, win32Window);
+            if (repeated)
+            {
+                if (std::abs(lastPos.x - currentPos.x) + std::abs(lastPos.y - currentPos.y) > 1.0f)
+                    repeated = false;
+            }
+            lastPos = currentPos;
+
+            win32Window->m_input->WindowFeedMouseButton(VK_MBUTTON, repeated ? InputAction::Repeated : InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
-                l->OnWindowMouse(win32Window, VK_MBUTTON, InputAction::Released);
+                l->OnWindowMouse(win32Window, VK_MBUTTON, repeated ? InputAction::Repeated : InputAction::Released);
 
             break;
         }

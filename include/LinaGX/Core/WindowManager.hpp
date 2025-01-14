@@ -122,5 +122,6 @@ namespace LinaGX
         LINAGX_VEC<LINAGX_PAIR<LINAGX_STRINGID, Window*>> m_windows = {};
         LINAGX_VEC<MonitorInfo>                           m_monitors;
         Input*                                            m_input = nullptr;
+        Window* m_lastFocusedWindow = nullptr;
     };
 } // namespace LinaGX

@@ -152,18 +152,21 @@ namespace LinaGX
         };
         
         std::function<void(bool)> setFocusCallback = [this](bool cond) {
-            
+  
             NSWindow* nsw = static_cast<NSWindow*>(m_nsWindow);
             id<NSWindowDelegate> del = [nsw delegate];
             CustomWindowDelegate* delp = static_cast<CustomWindowDelegate*>(del);
             if(!cond)
                 m_isHovered = false;
             
+            if(!cond)
+                m_mousePosition = {};
             m_hasFocus = cond;
             for(auto* l : m_listeners)
                 l->OnWindowFocus(this, cond);
             
-            m_manager->SetWindowFocused(this);
+            //if(cond)
+               // m_manager->SetWindowFocused(this);
         };
         
         std::function<void(bool)> setMainCallback = [this](bool cond) {

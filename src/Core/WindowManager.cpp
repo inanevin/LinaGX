@@ -69,6 +69,9 @@ namespace LinaGX
 
     void WindowManager::DestroyApplicationWindow(LINAGX_STRINGID sid)
     {
+        if(m_lastFocusedWindow && m_lastFocusedWindow->GetSID() == sid)
+            m_lastFocusedWindow = nullptr;
+        
         auto it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [sid](const auto& pair) -> bool { return pair.first == sid; });
         LOGA((it != m_windows.end()), "Window Manager -> Window with the sid %d could not be found!", sid);
         it->second->Destroy();
@@ -79,6 +82,12 @@ namespace LinaGX
 
     void WindowManager::SetWindowFocused(Window* window)
     {
+        if(m_lastFocusedWindow)
+            m_lastFocusedWindow->m_hasFocus = false;
+        
+        m_lastFocusedWindow = window;
+        m_lastFocusedWindow->m_hasFocus = true;
+        
         PushWindowToList(window->GetSID());
     }
 
