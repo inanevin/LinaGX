@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -37,10 +37,10 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace LinaGX
 {
-   namespace Examples
-   {
-    
-   }
-} // namespace LinaVG
+    namespace Examples
+    {
+
+    }
+} // namespace LinaGX
 
 #endif

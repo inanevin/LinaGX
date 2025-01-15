@@ -1,4 +1,4 @@
-﻿/* 
+﻿/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 

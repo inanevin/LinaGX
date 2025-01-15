@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -72,16 +72,16 @@ namespace LinaGX
 
         return wideStrCopy;
 #endif
-        
+
 #ifdef LINAGX_PLATFORM_APPLE
         // Convert the input char string to a wchar_t string on Apple platform
-       size_t length = strlen(ch);
-       wchar_t* wideStrCopy = new wchar_t[length + 1];
+        size_t   length      = strlen(ch);
+        wchar_t* wideStrCopy = new wchar_t[length + 1];
 
-       mbstowcs(wideStrCopy, ch, length);
-       wideStrCopy[length] = L'\0'; // Null-terminate the wide string
+        mbstowcs(wideStrCopy, ch, length);
+        wideStrCopy[length] = L'\0'; // Null-terminate the wide string
 
-       return wideStrCopy;
+        return wideStrCopy;
 #endif
     }
 

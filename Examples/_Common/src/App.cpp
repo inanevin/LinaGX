@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -99,6 +99,6 @@ namespace LinaGX::Examples
 
     void App::OnWindowSizeChanged(LinaGX::Window* window, const LinaGX::LGXVector2ui& newSize)
     {
-         OnWindowResized(newSize.x, newSize.y); 
+        OnWindowResized(newSize.x, newSize.y);
     }
 } // namespace LinaGX::Examples

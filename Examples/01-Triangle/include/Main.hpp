@@ -31,10 +31,10 @@ SOFTWARE.
 
 namespace LinaGX
 {
-   namespace Examples
-   {
-    
-   }
-} // namespace LinaVG
+    namespace Examples
+    {
+
+    }
+} // namespace LinaGX
 
 #endif

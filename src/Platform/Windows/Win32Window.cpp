@@ -441,7 +441,7 @@ namespace LinaGX
                     repeated = false;
             }
             lastPos = currentPos;
-            
+
             win32Window->m_input->WindowFeedMouseButton(VK_LBUTTON, repeated ? InputAction::Repeated : InputAction::Released, win32Window);
 
             for (auto* l : win32Window->m_listeners)
@@ -449,7 +449,7 @@ namespace LinaGX
             break;
         }
         case WM_RBUTTONUP: {
-            
+
             static std::chrono::steady_clock::time_point lastTime   = {};
             static LGXVector2                            lastPos    = {};
             const LGXVector2                             currentPos = win32Window->m_mousePosition;
@@ -472,7 +472,7 @@ namespace LinaGX
             break;
         }
         case WM_MBUTTONUP: {
-            
+
             static std::chrono::steady_clock::time_point lastTime   = {};
             static LGXVector2                            lastPos    = {};
             const LGXVector2                             currentPos = win32Window->m_mousePosition;
@@ -705,7 +705,7 @@ namespace LinaGX
             info.monitorHandle = static_cast<void*>(monitor);
             info.dpi           = dpiX;
             info.dpiScale      = static_cast<float>(dpiX) / 96.0f;
-     
+
             return info;
         }
     } // namespace

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -46,8 +46,7 @@ namespace LinaGX
             virtual void Initialize() override;
             virtual void Shutdown() override;
             virtual void OnTick() override;
-            virtual void OnRender() override {};
-            
+            virtual void OnRender() override{};
         };
 
     } // namespace Examples

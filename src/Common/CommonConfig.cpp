@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -35,7 +35,6 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 /*
 
 */
-
 
 #include "LinaGX/Common/CommonConfig.hpp"
 

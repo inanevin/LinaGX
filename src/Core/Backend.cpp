@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -55,7 +55,7 @@ namespace LinaGX
 {
     Backend* LinaGX::Backend::CreateBackend()
     {
-        
+
 #ifdef LINAGX_PLATFORM_WINDOWS
 
         if (Config.api == BackendAPI::Vulkan)

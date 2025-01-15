@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -48,9 +48,8 @@ namespace LinaGX
             virtual void OnTick() override;
             virtual void OnRender() override;
             virtual void OnWindowResized(uint32 w, uint32 h) override;
-            
+
         private:
-            
             void CreateDepthTexture();
         };
 

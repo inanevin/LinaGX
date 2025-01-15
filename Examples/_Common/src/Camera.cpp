@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -57,16 +57,16 @@ namespace LinaGX::Examples
         m_mainWindow->AddListener(this);
     }
 
-    void Camera::OnWindowMouse(Window *window, uint32 button, InputAction inputAction)
+    void Camera::OnWindowMouse(Window* window, uint32 button, InputAction inputAction)
     {
-        if(button != LINAGX_MOUSE_0)
+        if (button != LINAGX_MOUSE_0)
             return;
-        
-        if(inputAction != InputAction::Pressed)
+
+        if (inputAction != InputAction::Pressed)
             return;
-        
-        //m_mainWindow->SetMouseVisible(false);
-        //m_mainWindow->ConfineMouseToCenter();
+
+        // m_mainWindow->SetMouseVisible(false);
+        // m_mainWindow->ConfineMouseToCenter();
         m_controlsEnabled = true;
     }
 
@@ -75,8 +75,8 @@ namespace LinaGX::Examples
         if (m_controlsEnabled && m_lgx->GetInput().GetKey(LINAGX_KEY_ESCAPE))
         {
             m_controlsEnabled = false;
-            //m_mainWindow->SetMouseVisible(true);
-            //m_mainWindow->FreeMouse();
+            // m_mainWindow->SetMouseVisible(true);
+            // m_mainWindow->FreeMouse();
         }
 
         // m_controlsEnabled = true;

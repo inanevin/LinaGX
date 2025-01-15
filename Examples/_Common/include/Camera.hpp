@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -54,8 +54,8 @@ namespace LinaGX
             ~Camera() = default;
 
             virtual void OnWindowMouse(Window* window, uint32 button, InputAction inputAction) override;
-            void Initialize(LinaGX::Instance* lgx);
-            void Tick(float dt);
+            void         Initialize(LinaGX::Instance* lgx);
+            void         Tick(float dt);
 
             inline const glm::mat4& GetView() const
             {

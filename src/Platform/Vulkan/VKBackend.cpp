@@ -2369,7 +2369,7 @@ namespace LinaGX
 
         if (Config.enableAPIDebugLayers)
         {
-        requiredExtensions.push_back("VK_EXT_validation_features");
+            requiredExtensions.push_back("VK_EXT_validation_features");
             requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
