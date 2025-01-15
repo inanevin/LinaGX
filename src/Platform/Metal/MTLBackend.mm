@@ -988,14 +988,9 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
         LOGE("Backend -> Error creating shader! %s", cString);
     }
     
-    if(depthStencilDesc.depthTest && depthStencilDesc.depthWrite)
-    {
-        id<MTLDepthStencilState> dsso = [device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-        [dsso retain];
-        item.dsso = AS_VOID(dsso);
-    }
-    else
-        item.dsso = nullptr;
+    id<MTLDepthStencilState> dsso = [device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    [dsso retain];
+    item.dsso = AS_VOID(dsso);
     
     for(const ShaderCompileData& data : shaderDesc.stages)
     {
