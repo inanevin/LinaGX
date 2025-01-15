@@ -73,31 +73,31 @@ namespace LinaGX
 
     struct MTLCommandStream
     {
-        bool                                      isValid                          = false;
-        bool                                      currentRenderPassUseDepth        = false;
-        CommandType                               type                             = CommandType::Graphics;
-        void*                                     currentBuffer                    = nullptr;
-        void*                                     currentEncoder                   = nullptr;
-        void*                                     currentBlitEncoder               = nullptr;
-        void*                                     currentComputeEncoder            = nullptr;
-        void*                                     currentEncoderDepthStencil       = nullptr;
-        void*                                     indirectCommandBuffer            = nullptr;
-        uint32                                    indirectCommandBufferMaxCommands = 0;
-        LINAGX_VEC<void*>                         allBlitEncoders;
-        LINAGX_VEC<void*>                         allRenderEncoders;
-        LINAGX_VEC<void*>                         allComputeEncoders;
-        LINAGX_VEC<uint8>                         writtenSwapchains;
-        uint32                                    currentShader          = 0;
-        uint32                                    currentIndexBuffer     = 0;
-        bool                                      currentShaderExists    = false;
-        uint8                                     indexBufferType        = 0;
-        bool                                      currentShaderIsCompute = false;
-        LINAGX_VEC<LINAGX_PAIR<uint32, uint64>>   intermediateResources;
+        bool                                                   isValid                          = false;
+        bool                                                   currentRenderPassUseDepth        = false;
+        CommandType                                            type                             = CommandType::Graphics;
+        void*                                                  currentBuffer                    = nullptr;
+        void*                                                  currentEncoder                   = nullptr;
+        void*                                                  currentBlitEncoder               = nullptr;
+        void*                                                  currentComputeEncoder            = nullptr;
+        void*                                                  currentEncoderDepthStencil       = nullptr;
+        void*                                                  indirectCommandBuffer            = nullptr;
+        uint32                                                 indirectCommandBufferMaxCommands = 0;
+        LINAGX_VEC<void*>                                      allBlitEncoders;
+        LINAGX_VEC<void*>                                      allRenderEncoders;
+        LINAGX_VEC<void*>                                      allComputeEncoders;
+        LINAGX_VEC<uint8>                                      writtenSwapchains;
+        uint32                                                 currentShader          = 0;
+        uint32                                                 currentIndexBuffer     = 0;
+        bool                                                   currentShaderExists    = false;
+        uint8                                                  indexBufferType        = 0;
+        bool                                                   currentShaderIsCompute = false;
+        LINAGX_VEC<LINAGX_PAIR<uint32, uint64>>                intermediateResources;
         LINAGX_VEC<LINAGX_PAIR<uint32, MTLBoundDescriptorSet>> boundSets;
-        CMDBindVertexBuffers                      lastVertexBind;
-        MTLBoundConstant                          boundConstants;
-        LINAGX_STRING                             lastDebugLabel = "";
-        CommandStream*                            streamImpl     = nullptr;
+        CMDBindVertexBuffers                                   lastVertexBind;
+        MTLBoundConstant                                       boundConstants;
+        LINAGX_STRING                                          lastDebugLabel = "";
+        CommandStream*                                         streamImpl     = nullptr;
     };
 
     struct MTLSwapchain
@@ -148,10 +148,10 @@ namespace LinaGX
 
     struct MTLResource
     {
-        bool         isValid  = false;
-        void*        ptr      = nullptr;
-        ResourceHeap heapType = ResourceHeap::StagingHeap;
-        size_t       size     = 0;
+        bool          isValid   = false;
+        void*         ptr       = nullptr;
+        ResourceHeap  heapType  = ResourceHeap::StagingHeap;
+        size_t        size      = 0;
         LINAGX_STRING debugName = "";
     };
 

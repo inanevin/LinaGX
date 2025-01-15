@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -83,7 +83,6 @@ UNSUPPORTED ON FIRST RELEASE:
 #include "Core/Commands.hpp"
 #include "Core/Input.hpp"
 #include "Common/Math.hpp"
-
 
 namespace LinaGX
 {

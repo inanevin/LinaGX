@@ -81,10 +81,10 @@ namespace LinaGX
         LINAGX_VEC<LGXVector4ui16> jointsui16; // either jointsui8 or jointsui16 will be filled.
         LINAGX_VEC<LGXVector4ui8>  jointsui8;  // either jointsui8 or jointsui16 will be filled.
         LINAGX_VEC<LGXVector4>     weights;
-        uint32                     vertexCount   = 0;
-        IndexType                  indexType     = IndexType::Uint16;
-        LGXVector3                 minPosition   = LGXVector3();
-        LGXVector3                 maxPosition   = LGXVector3();
+        uint32                     vertexCount = 0;
+        IndexType                  indexType   = IndexType::Uint16;
+        LGXVector3                 minPosition = LGXVector3();
+        LGXVector3                 maxPosition = LGXVector3();
 
         inline void Clear()
         {

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -64,4 +64,3 @@ namespace LinaGX
     }
 
 } // namespace LinaGX
-

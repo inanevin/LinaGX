@@ -496,11 +496,11 @@ namespace LinaGX
     /// </summary>
     struct TextureBarrier
     {
-        uint32              texture;
-        bool                isSwapchain;
+        uint32       texture;
+        bool         isSwapchain;
         TextureState toState;
-        uint32              srcAccessFlags;
-        uint32              dstAccessFlags;
+        uint32       srcAccessFlags;
+        uint32       dstAccessFlags;
     };
 
     /// <summary>
@@ -562,26 +562,26 @@ namespace LinaGX
 
     struct SwapchainDesc
     {
-        Format     format       = Format::B8G8R8A8_UNORM;
-        uint32     x            = 0;
-        uint32     y            = 0;
-        uint32     width        = 0;
-        uint32     height       = 0;
-        void*      window       = nullptr; // HWND handle on Windows, NSWindow handle on MacOS.
-        void*      osHandle     = nullptr; // HINSTANCE handle on Windows, NSVIEW handle on MacOS.
-        bool       isFullscreen = false;
-        VSyncStyle vsyncStyle   = {};
-        float scalingFactor = 1.0f;
+        Format     format        = Format::B8G8R8A8_UNORM;
+        uint32     x             = 0;
+        uint32     y             = 0;
+        uint32     width         = 0;
+        uint32     height        = 0;
+        void*      window        = nullptr; // HWND handle on Windows, NSWindow handle on MacOS.
+        void*      osHandle      = nullptr; // HINSTANCE handle on Windows, NSVIEW handle on MacOS.
+        bool       isFullscreen  = false;
+        VSyncStyle vsyncStyle    = {};
+        float      scalingFactor = 1.0f;
     };
 
     struct SwapchainRecreateDesc
     {
-        uint8      swapchain    = 0;
-        uint32     width        = 0;
-        uint32     height       = 0;
-        bool       isFullscreen = false;
-        VSyncStyle vsyncStyle   = {};
-        float scalingFactor = 1.0f;
+        uint8      swapchain     = 0;
+        uint32     width         = 0;
+        uint32     height        = 0;
+        bool       isFullscreen  = false;
+        VSyncStyle vsyncStyle    = {};
+        float      scalingFactor = 1.0f;
     };
 
     struct CommandStreamDesc

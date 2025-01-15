@@ -321,12 +321,12 @@ namespace LinaGX
         {
             return m_wrapMouse;
         }
-        
+
         inline void SetUserFlags(uint32 flags)
         {
             m_userFlags = flags;
         }
-        
+
         inline uint32 GetUserFlags() const
         {
             return m_userFlags;
@@ -384,7 +384,7 @@ namespace LinaGX
         LGXVector2                  m_lastMouseDelta         = {};
         LGXVector2                  m_lastMouseDeltaRelative = {};
         bool                        m_wrapMouse              = false;
-        uint32 m_userFlags = 0;
+        uint32                      m_userFlags              = 0;
     };
 
 } // namespace LinaGX

@@ -1,4 +1,4 @@
-/* 
+/*
 This file is a part of: LinaGX
 https://github.com/inanevin/LinaGX
 
@@ -106,4 +106,3 @@ namespace LinaGX
         uint32 m_currentDescriptorIndex = 0;
     };
 } // namespace LinaGX
-

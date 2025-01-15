@@ -127,7 +127,7 @@ namespace LinaGX
 
         inline void RemoveListener(InputListener* listener)
         {
-            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool {  return list == listener; });
+            auto it = LINAGX_FIND_IF(m_listeners.begin(), m_listeners.end(), [listener](InputListener* list) -> bool { return list == listener; });
             m_listeners.erase(it);
         }
 

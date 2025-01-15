@@ -76,7 +76,7 @@ namespace LinaGX
         /// </summary>
         inline Window* GetWindow(LINAGX_STRINGID sid)
         {
-            auto it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [sid](const auto& pair) -> bool {  return pair.first == sid; });
+            auto it = LINAGX_FIND_IF(m_windows.begin(), m_windows.end(), [sid](const auto& pair) -> bool { return pair.first == sid; });
             return it->second;
         }
 
@@ -121,7 +121,7 @@ namespace LinaGX
         LINAGX_VEC<LINAGX_STRINGID>                       m_windowList;
         LINAGX_VEC<LINAGX_PAIR<LINAGX_STRINGID, Window*>> m_windows = {};
         LINAGX_VEC<MonitorInfo>                           m_monitors;
-        Input*                                            m_input = nullptr;
-        Window* m_lastFocusedWindow = nullptr;
+        Input*                                            m_input             = nullptr;
+        Window*                                           m_lastFocusedWindow = nullptr;
     };
 } // namespace LinaGX
