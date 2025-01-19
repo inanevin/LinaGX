@@ -94,11 +94,28 @@ namespace LinaGX
                     m_lmDownForDrag = false;
             }
             
+            bool repeated = false;
+            if(action == LinaGX::InputAction::Released)
+            {
+                static std::chrono::steady_clock::time_point lastTime   = {};
+                static LGXVector2                            lastPos    = {};
+                const LGXVector2                             currentPos = m_mousePosition;
+                auto                                         current    = std::chrono::high_resolution_clock::now();
+                auto                                         elapsed    = std::chrono::duration_cast<std::chrono::nanoseconds>(current - lastTime);
+                lastTime                                                = current;
+                repeated                                           = elapsed.count() < 250000000;
+                if (repeated)
+                {
+                    if (std::abs(lastPos.x - currentPos.x) + std::abs(lastPos.y - currentPos.y) > 1.0f)
+                        repeated = false;
+                }
+                lastPos = currentPos;
+            }
             
-            m_input->WindowFeedMouseButton(keyCode, action, this);
+            m_input->WindowFeedMouseButton(keyCode, repeated ? LinaGX::InputAction::Repeated : action, this);
             
             for(auto* l : m_listeners)
-                l->OnWindowMouse(this, keyCode, action);
+                l->OnWindowMouse(this, keyCode,repeated ? LinaGX::InputAction::Repeated : action);
             
         };
         

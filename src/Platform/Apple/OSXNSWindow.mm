@@ -102,7 +102,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 
 - (void)mouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), theEvent.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Released);
+    mouseCallback(static_cast<int>(theEvent.buttonNumber),  LinaGX::InputAction::Released);
     [super mouseUp:theEvent];
 }
 
@@ -113,7 +113,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 
 - (void)rightMouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), theEvent.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Released);
+    mouseCallback(static_cast<int>(theEvent.buttonNumber),  LinaGX::InputAction::Released);
     [super rightMouseUp:theEvent];
 }
 
@@ -124,7 +124,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 
 - (void)otherMouseUp:(NSEvent *)theEvent {
-    mouseCallback(static_cast<int>(theEvent.buttonNumber), theEvent.clickCount > 1 ? LinaGX::InputAction::Repeated : LinaGX::InputAction::Released);
+    mouseCallback(static_cast<int>(theEvent.buttonNumber), LinaGX::InputAction::Released);
     [super otherMouseUp:theEvent];
 }
 
