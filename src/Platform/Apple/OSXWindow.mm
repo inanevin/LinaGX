@@ -37,6 +37,8 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LinaGX/Core/Input.hpp"
 #include "LinaGX/Core/WindowManager.hpp"
 #include "LinaGX/Platform/Apple/OSXNSWindow.hh"
+#include <algorithm>
+#include <chrono>
 
 namespace LinaGX
 {
