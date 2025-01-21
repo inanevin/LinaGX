@@ -34,6 +34,11 @@
 cmake_minimum_required (VERSION 3.10...3.31)
 project(LinaGX)
 
+set(TARGET_ARCHITECTURE "x64")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 #--------------------------------------------------------------------
 # Options & Definitions
 #--------------------------------------------------------------------
@@ -255,10 +260,12 @@ if(LINAGX_BUILD_EXAMPLES)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT 01-Triangle)
 endif()
 
+if(DEFINED ${LINAGX_RUNTIME_OUTPUT_DIRECTORY})
 add_custom_command(
 TARGET ${PROJECT_NAME}
 POST_BUILD
 COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/bin/" "${LINAGX_RUNTIME_OUTPUT_DIRECTORY}")
+endif()
 
 
 if(MSVC_IDE OR APPLE)
