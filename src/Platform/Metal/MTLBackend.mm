@@ -765,7 +765,7 @@ void MTLBackend::SetSwapchainActive(uint8 swp, bool isActive) {
 }
 
 bool MTLBackend::CompileShader(ShaderStage stage, const std::string &source, DataBlob &outBlob) {
-    outBlob.ptr = (uint8*)LINAGX_MALLOC(source.size());
+    outBlob.ptr = new uint8[source.size()];
     outBlob.size = source.size();
     LINAGX_MEMCPY(outBlob.ptr, source.data(), source.size());
     return true;
@@ -936,10 +936,10 @@ uint16 MTLBackend::CreateShader(const ShaderDesc &shaderDesc) {
     
     for(const ShaderCompileData& compData : shaderDesc.stages)
     {
-        void* data = LINAGX_MALLOC(compData.outBlob.size);
-        LINAGX_MEMCPY(data, compData.outBlob.ptr, compData.outBlob.size);
-        std::string readData ((char*)data, compData.outBlob.size);
-        LINAGX_FREE(data);
+        //void* data = LINAGX_MALLOC(compData.outBlob.size);
+        //LINAGX_MEMCPY(data, compData.outBlob.ptr, compData.outBlob.size);
+        std::string readData ((char*)compData.outBlob.ptr, compData.outBlob.size);
+        //LINAGX_FREE(data);
         
         NSString* src = [NSString stringWithUTF8String:readData.c_str()];
         NSError* error = nil;
