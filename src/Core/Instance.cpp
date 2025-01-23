@@ -213,6 +213,14 @@ namespace LinaGX
 
     bool Instance::CompileShader(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout)
     {
+        if (!CompileShaderToSPV(compileData, outLayout))
+            return false;
+
+        return CompileShaderFromSPV(compileData, outLayout);
+    }
+
+    bool Instance::CompileShaderToSPV(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout)
+    {
         outLayout.vertexInputs.clear();
 
         for (ShaderCompileData& data : compileData)
@@ -225,7 +233,11 @@ namespace LinaGX
         }
 
         SPIRVUtility::PostFillReflection(outLayout, Config.api);
+        return true;
+    }
 
+    bool Instance::CompileShaderFromSPV(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout)
+    {
         if (Config.api == BackendAPI::DX12)
         {
             LINAGX_VEC<LINAGX_STRING> outHLSLs;
@@ -305,8 +317,6 @@ namespace LinaGX
 #endif
             }
         }
-
-        return true;
     }
 
     uint16 Instance::CreateShader(const ShaderDesc& shaderDesc)

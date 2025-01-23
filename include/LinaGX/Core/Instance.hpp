@@ -48,7 +48,7 @@ namespace LinaGX
     {
     public:
         Instance()
-            : m_windowManager(&m_input){};
+            : m_windowManager(&m_input) {};
 
         /// <summary>
         /// Deleting LinaGX instance requires you to DestroyXXX all resources you have created.
@@ -147,6 +147,8 @@ namespace LinaGX
         /// <param name="outCompiledBlobs">Per-stage map giving compiled blobs. On Vulkan, blobs will be SPIR-V. On DX12 they will be DXIL, on Metal they will be binary representation of cross-compiled MSL. </param>
         /// <param name="outLayout">ShaderLayout describing the reflection information of the shader. You need to use this while calling CreateShader(). </param>
         static bool CompileShader(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout);
+        static bool CompileShaderToSPV(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout);
+        static bool CompileShaderFromSPV(LINAGX_VEC<ShaderCompileData>& compileData, ShaderLayout& outLayout);
 
         /// <summary>
         /// Creates a shader pipeline state object.
