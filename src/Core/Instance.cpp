@@ -317,6 +317,8 @@ namespace LinaGX
 #endif
             }
         }
+        
+        return true;
     }
 
     uint16 Instance::CreateShader(const ShaderDesc& shaderDesc)
