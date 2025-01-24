@@ -223,6 +223,8 @@ namespace
         
         for (int i = 0; i < NUM_MOUSE_STATES; i++)
             m_prevMouseStates[i] = m_currentMouseStates[i];
+        m_mouseScroll = 0.0f;
+
     }
 
 
