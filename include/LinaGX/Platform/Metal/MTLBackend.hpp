@@ -51,6 +51,7 @@ namespace LinaGX
         uint32            flags;
         uint32            bytesPerPixel;
         LGXVector2ui      size;
+        LINAGX_STRING debugName = "";
     };
 
     struct MTLBoundDescriptorSet

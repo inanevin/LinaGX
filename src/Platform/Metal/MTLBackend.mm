@@ -1063,6 +1063,7 @@ uint32 MTLBackend::CreateTexture(const TextureDesc &desc) {
     item.flags = desc.flags;
     item.size = {desc.width, desc.height};
     item.bytesPerPixel = GetBytesPerPixelFromMTLFormat(desc.format);
+    item.debugName = desc.debugName;
     
     auto device = AS_MTL(m_device, id<MTLDevice>);
     
