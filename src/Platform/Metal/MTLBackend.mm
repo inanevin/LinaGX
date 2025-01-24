@@ -1776,11 +1776,10 @@ void MTLBackend::SubmitCommandStreams(const SubmitDesc &desc) {
             if(queue.type == CommandType::Graphics && !desc.standaloneSubmission)
             {
                 [buffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
-                    
-                    while (m_submissionFlag.test_and_set(std::memory_order_acquire))
-                    {
-                    }
-                    pfd.reachedSubmits++;
+                     while (m_submissionFlag.test_and_set(std::memory_order_acquire))
+                     {
+                     }
+                    pfd.reachedSubmits.fetch_add(1);
                     m_submissionFlag.clear();
                 }];
                 
@@ -1936,8 +1935,7 @@ bool MTLBackend::Initialize() {
     {
         for (uint32 i = 0; i < Config.framesInFlight; i++)
         {
-            MTLPerFrameData pfd = {};
-            m_perFrameData.push_back(pfd);
+            m_perFrameData.push_back({});
         }
     }
     
@@ -2039,7 +2037,7 @@ void MTLBackend::Join() {
         const auto& pfd = m_perFrameData[i];
         
         // block.
-        while(pfd.reachedSubmits < pfd.submits)
+        while(pfd.reachedSubmits.load() < pfd.submits)
         {
         }
     }
@@ -2050,12 +2048,14 @@ void MTLBackend::StartFrame(uint32 frameIndex) {
     m_submissionPerFrame = 0;
     m_currentFrameIndex = frameIndex;
     auto& pfd = m_perFrameData[m_currentFrameIndex];
-    
+
     // Block.
-    while(pfd.reachedSubmits < pfd.submits)
+    while(pfd.reachedSubmits.load() < pfd.submits)
     {
+        
     }
     
+
     for(auto& swp : m_swapchains)
     {
         if(!swp.isValid || swp.width == 0 || swp.height == 0 || !swp.isActive)

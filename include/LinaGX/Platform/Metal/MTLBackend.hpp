@@ -206,7 +206,21 @@ namespace LinaGX
     struct MTLPerFrameData
     {
         uint64 submits        = 0;
-        uint64 reachedSubmits = 0;
+        std::atomic<uint64> reachedSubmits = 0;
+        
+        MTLPerFrameData() : reachedSubmits(0) {};
+        
+        MTLPerFrameData(MTLPerFrameData&& other) noexcept
+               : reachedSubmits(other.reachedSubmits.load()) {} // Transfers value
+
+           MTLPerFrameData& operator=(MTLPerFrameData&& other) noexcept {
+               reachedSubmits.store(other.reachedSubmits.load());
+               return *this;
+           }
+
+           // Delete copy constructor (already implicitly deleted)
+           MTLPerFrameData(const MTLPerFrameData&) = delete;
+           MTLPerFrameData& operator=(const MTLPerFrameData&) = delete;
     };
 
     struct MTLPipelineLayout
