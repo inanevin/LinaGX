@@ -776,7 +776,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
+            DX12_THROW(e, "Backend-> Exception when creating a fence! %s", e.what());
         }
 
         return m_userSemaphores.AddItem(item);
@@ -2016,12 +2016,13 @@ namespace LinaGX
         {
             allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
 
+            /*
             if (desc.typeHintFlags & TH_VertexBuffer || desc.typeHintFlags & TH_ConstantBuffer)
                 state = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
             else if (desc.typeHintFlags & TH_IndexBuffer)
                 state = D3D12_RESOURCE_STATE_INDEX_BUFFER;
             else
-                state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+                state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;*/
         }
         else
         {
@@ -2080,7 +2081,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "Backend -> Exception when creating a resource! {0}", e.what());
+            DX12_THROW(e, "Backend -> Exception when creating a resource! %s", e.what());
         }
 
         NAME_DX12_OBJECT_CSTR(GetGPUResource(item), desc.debugName);
@@ -2101,7 +2102,7 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                DX12_THROW(e, "Backend -> Failed mapping resource! {0}", e.what());
+                DX12_THROW(e, "Backend -> Failed mapping resource! %s", e.what());
             }
         }
         else if (item.heapType == ResourceHeap::GPUOnly)
@@ -2117,7 +2118,7 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                DX12_THROW(e, "Backend -> Failed mapping resource! {0}", e.what());
+                DX12_THROW(e, "Backend -> Failed mapping resource! %s", e.what());
             }
         }
 
@@ -2598,7 +2599,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
+            DX12_THROW(e, "Backend-> Exception when creating a fence! %s", e.what());
         }
 
         return handle;
@@ -2633,7 +2634,7 @@ namespace LinaGX
             }
             catch (HrException e)
             {
-                LOGE("Backend -> Exception when waiting for a fence! {0}", e.what());
+                LOGE("Backend -> Exception when waiting for a fence! %s", e.what());
             }
         }
     }
@@ -3136,7 +3137,7 @@ namespace LinaGX
         }
         catch (HrException e)
         {
-            DX12_THROW(e, "Backend-> Exception when creating a fence! {0}", e.what());
+            DX12_THROW(e, "Backend-> Exception when creating a fence! %s", e.what());
         }
 
         return m_queues.AddItem(item);
@@ -3219,7 +3220,7 @@ namespace LinaGX
             }
             catch (HrException& e)
             {
-                DX12_THROW(e, "Backend -> Present engine error! {0}", e.what());
+                DX12_THROW(e, "Backend -> Present engine error! %s", e.what());
             }
         }
     }
